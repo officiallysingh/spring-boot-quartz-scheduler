@@ -17,6 +17,9 @@ import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
 import org.junit.jupiter.api.AfterEach;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.testcontainers.containers.GenericContainer;
 
@@ -53,6 +56,23 @@ public abstract class AbstractRedisIT {
      */
     public static void flushDatabase() {
         redisConnection().sync().flushdb();
+    }
+
+    /** A Spring Data template on the shared container, shared by all tests in the JVM. */
+    public static StringRedisTemplate redisTemplate() {
+        return TemplateHolder.TEMPLATE;
+    }
+
+    private static final class TemplateHolder {
+        static final StringRedisTemplate TEMPLATE;
+
+        static {
+            LettuceConnectionFactory factory = new LettuceConnectionFactory(
+                    new RedisStandaloneConfiguration(REDIS.getHost(), REDIS.getMappedPort(SharedContainers.REDIS_PORT)));
+            factory.afterPropertiesSet();
+            factory.start();
+            TEMPLATE = new StringRedisTemplate(factory);
+        }
     }
 
     private static final class ConnectionHolder {
