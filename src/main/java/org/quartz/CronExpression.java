@@ -20,7 +20,10 @@ package org.quartz;
 
 import java.io.Serializable;
 import java.text.ParseException;
-import java.util.Calendar;
+import java.time.Instant;
+import java.time.Year;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -31,6 +34,8 @@ import java.util.SortedSet;
 import java.util.StringTokenizer;
 import java.util.TimeZone;
 import java.util.TreeSet;
+
+import org.quartz.utils.LenientDateTime;
 
 /**
  * Provides a parser and evaluator for unix-like cron expressions. Cron 
@@ -264,7 +269,7 @@ public final class CronExpression implements Serializable, Cloneable {
     protected transient int nthDayOfWeek = 0;
     protected transient boolean expressionParsed = false;
     
-    public static final int MAX_YEAR = Calendar.getInstance().get(Calendar.YEAR) + 100;
+    public static final int MAX_YEAR = Year.now().getValue() + 100;
 
     /**
      * Constructs a new <CODE>CronExpression</CODE> based on the specified 
@@ -320,14 +325,12 @@ public final class CronExpression implements Serializable, Cloneable {
      *         expression
      */
     public boolean isSatisfiedBy(Date date) {
-        Calendar testDateCal = Calendar.getInstance(getTimeZone());
-        testDateCal.setTime(date);
-        testDateCal.set(Calendar.MILLISECOND, 0);
-        Date originalDate = testDateCal.getTime();
-        
-        testDateCal.add(Calendar.SECOND, -1);
-        
-        Date timeAfter = getTimeAfter(testDateCal.getTime());
+        // dropping the milliseconds re-resolves the wall time, as the original calendar code did
+        LenientDateTime testDateCal = new LenientDateTime(date.toInstant(), getTimeZone().toZoneId());
+        testDateCal.set(LenientDateTime.MILLISECOND, 0);
+        Instant originalDate = testDateCal.toInstant();
+
+        Instant timeAfter = getTimeAfter(originalDate.minusSeconds(1));
 
         return ((timeAfter != null) && (timeAfter.equals(originalDate)));
     }
@@ -356,10 +359,9 @@ public final class CronExpression implements Serializable, Cloneable {
         long difference = 1000;
         
         //move back to the nearest second so differences will be accurate
-        Calendar adjustCal = Calendar.getInstance(getTimeZone());
-        adjustCal.setTime(date);
-        adjustCal.set(Calendar.MILLISECOND, 0);
-        Date lastDate = adjustCal.getTime();
+        LenientDateTime adjustCal = new LenientDateTime(date.toInstant(), getTimeZone().toZoneId());
+        adjustCal.set(LenientDateTime.MILLISECOND, 0);
+        Date lastDate = Date.from(adjustCal.toInstant());
         
         Date newDate;
         
@@ -1183,31 +1185,35 @@ public final class CronExpression implements Serializable, Cloneable {
     ////////////////////////////////////////////////////////////////////////////
 
     public Date getTimeAfter(Date afterTime) {
+        Instant next = getTimeAfter(afterTime.toInstant());
+        return next == null ? null : Date.from(next);
+    }
+
+    private Instant getTimeAfter(Instant afterTime) {
 
         // Computation is based on Gregorian year only.
-        Calendar cl = new java.util.GregorianCalendar(getTimeZone()); 
+        ZoneId zone = getTimeZone().toZoneId();
 
         // move ahead one second, since we're computing the time *after* the
         // given time
-        afterTime = new Date(afterTime.getTime() + 1000);
+        afterTime = afterTime.truncatedTo(ChronoUnit.MILLIS).plusSeconds(1);
         // CronTrigger does not deal with milliseconds
-        cl.setTime(afterTime);
-        cl.set(Calendar.MILLISECOND, 0);
+        LenientDateTime cl = new LenientDateTime(afterTime, zone);
+        cl.set(LenientDateTime.MILLISECOND, 0);
 
         boolean gotOne = false;
         // loop until we've computed the next time, or we've past the endTime
         while (!gotOne) {
 
-            //if (endTime != null && cl.getTime().after(endTime)) return null;
-            if(cl.get(Calendar.YEAR) > 2999) { // prevent endless loop...
+            if(cl.get(LenientDateTime.YEAR) > 2999) { // prevent endless loop...
                 return null;
             }
 
             SortedSet<Integer> st = null;
             int t = 0;
 
-            int sec = cl.get(Calendar.SECOND);
-            int min = cl.get(Calendar.MINUTE);
+            int sec = cl.get(LenientDateTime.SECOND);
+            int min = cl.get(LenientDateTime.MINUTE);
 
             // get second.................................................
             st = seconds.tailSet(sec);
@@ -1216,12 +1222,12 @@ public final class CronExpression implements Serializable, Cloneable {
             } else {
                 sec = seconds.first();
                 min++;
-                cl.set(Calendar.MINUTE, min);
+                cl.set(LenientDateTime.MINUTE, min);
             }
-            cl.set(Calendar.SECOND, sec);
+            cl.set(LenientDateTime.SECOND, sec);
 
-            min = cl.get(Calendar.MINUTE);
-            int hr = cl.get(Calendar.HOUR_OF_DAY);
+            min = cl.get(LenientDateTime.MINUTE);
+            int hr = cl.get(LenientDateTime.HOUR_OF_DAY);
             t = -1;
 
             // get minute.................................................
@@ -1234,21 +1240,26 @@ public final class CronExpression implements Serializable, Cloneable {
                 hr++;
             }
             if (min != t) {
-                cl.set(Calendar.SECOND, 0);
-                cl.set(Calendar.MINUTE, min);
-                if (cl.getTime().after(afterTime)) {
+                Instant beforeMinute = cl.toInstant();
+                cl.set(LenientDateTime.SECOND, 0);
+                cl.set(LenientDateTime.MINUTE, min);
+                Instant reached = cl.toInstant();
+                if (reached.isAfter(afterTime) && !reached.equals(beforeMinute)) {
                     // The calendar jumped ahead of afterTime (e.g. DST fall-back
                     // resolving to the later occurrence), so restart the search
-                    // from this occurrence instead of advancing the hour
+                    // from this occurrence instead of advancing the hour.
+                    // If the requested minute lies in a DST gap the calendar
+                    // stays where it was: advance the hour instead of looping
+                    // forever (D-010).
                     continue;
                 }
                 setCalendarHour(cl, hr);
                 continue;
             }
-            cl.set(Calendar.MINUTE, min);
+            cl.set(LenientDateTime.MINUTE, min);
 
-            hr = cl.get(Calendar.HOUR_OF_DAY);
-            int day = cl.get(Calendar.DAY_OF_MONTH);
+            hr = cl.get(LenientDateTime.HOUR_OF_DAY);
+            int day = cl.get(LenientDateTime.DAY_OF_MONTH);
             t = -1;
 
             // get hour...................................................
@@ -1261,16 +1272,16 @@ public final class CronExpression implements Serializable, Cloneable {
                 day++;
             }
             if (hr != t) {
-                cl.set(Calendar.SECOND, 0);
-                cl.set(Calendar.MINUTE, 0);
-                cl.set(Calendar.DAY_OF_MONTH, day);
+                cl.set(LenientDateTime.SECOND, 0);
+                cl.set(LenientDateTime.MINUTE, 0);
+                cl.set(LenientDateTime.DAY_OF_MONTH, day);
                 setCalendarHour(cl, hr);
                 continue;
             }
-            cl.set(Calendar.HOUR_OF_DAY, hr);
+            cl.set(LenientDateTime.HOUR_OF_DAY, hr);
 
-            day = cl.get(Calendar.DAY_OF_MONTH);
-            int mon = cl.get(Calendar.MONTH) + 1;
+            day = cl.get(LenientDateTime.DAY_OF_MONTH);
+            int mon = cl.get(LenientDateTime.MONTH) + 1;
             // '+ 1' because calendar is 0-based for this field, and we are
             // 1-based
             t = -1;
@@ -1280,42 +1291,45 @@ public final class CronExpression implements Serializable, Cloneable {
             boolean dayOfMSpec = !daysOfMonth.contains(NO_SPEC);
             boolean dayOfWSpec = !daysOfWeek.contains(NO_SPEC);
             if (dayOfMSpec && !dayOfWSpec) { // get day by day of month rule
-                Optional<Integer> smallestDay = findSmallestDay(day, mon, cl.get(Calendar.YEAR), daysOfMonth);
-                Optional<Integer> smallestDayForWeekday = findSmallestDay(day, mon, cl.get(Calendar.YEAR), nearestWeekdays);
+                Optional<Integer> smallestDay = findSmallestDay(day, mon, cl.get(LenientDateTime.YEAR), daysOfMonth);
+                Optional<Integer> smallestDayForWeekday = findSmallestDay(day, mon, cl.get(LenientDateTime.YEAR), nearestWeekdays);
                 t = day;
                 day = -1;
                 if (smallestDayForWeekday.isPresent()) {
                     day = smallestDayForWeekday.get();
 
-                    java.util.Calendar tcal = java.util.Calendar.getInstance(getTimeZone());
-                    tcal.set(Calendar.SECOND, 0);
-                    tcal.set(Calendar.MINUTE, 0);
-                    tcal.set(Calendar.HOUR_OF_DAY, 0);
-                    tcal.set(Calendar.DAY_OF_MONTH, day);
-                    tcal.set(Calendar.MONTH, mon - 1);
-                    tcal.set(Calendar.YEAR, cl.get(Calendar.YEAR));
+                    // the original code used an uncleared LenientDateTime.getInstance() here, so the
+                    // milliseconds of "now" leaked into the comparison below (D-010)
+                    LenientDateTime tcal = new LenientDateTime(cl.toInstant(), zone);
+                    tcal.set(LenientDateTime.MILLISECOND, 0);
+                    tcal.set(LenientDateTime.SECOND, 0);
+                    tcal.set(LenientDateTime.MINUTE, 0);
+                    tcal.set(LenientDateTime.HOUR_OF_DAY, 0);
+                    tcal.set(LenientDateTime.DAY_OF_MONTH, day);
+                    tcal.set(LenientDateTime.MONTH, mon - 1);
+                    tcal.set(LenientDateTime.YEAR, cl.get(LenientDateTime.YEAR));
                     
-                    int ldom = getLastDayOfMonth(mon, cl.get(Calendar.YEAR));
-                    int dow = tcal.get(Calendar.DAY_OF_WEEK);
+                    int ldom = getLastDayOfMonth(mon, cl.get(LenientDateTime.YEAR));
+                    int dow = tcal.get(LenientDateTime.DAY_OF_WEEK);
 
-                    if(dow == Calendar.SATURDAY && day == 1) {
+                    if(dow == LenientDateTime.SATURDAY && day == 1) {
                         day += 2;
-                    } else if(dow == Calendar.SATURDAY) {
+                    } else if(dow == LenientDateTime.SATURDAY) {
                         day -= 1;
-                    } else if(dow == Calendar.SUNDAY && day == ldom) { 
+                    } else if(dow == LenientDateTime.SUNDAY && day == ldom) { 
                         day -= 2;
-                    } else if(dow == Calendar.SUNDAY) { 
+                    } else if(dow == LenientDateTime.SUNDAY) { 
                         day += 1;
                     }
                         
                 
-                    tcal.set(Calendar.SECOND, sec);
-                    tcal.set(Calendar.MINUTE, min);
-                    tcal.set(Calendar.HOUR_OF_DAY, hr);
-                    tcal.set(Calendar.DAY_OF_MONTH, day);
-                    tcal.set(Calendar.MONTH, mon - 1);
-                    Date nTime = tcal.getTime();
-                    if(nTime.before(afterTime)) {
+                    tcal.set(LenientDateTime.SECOND, sec);
+                    tcal.set(LenientDateTime.MINUTE, min);
+                    tcal.set(LenientDateTime.HOUR_OF_DAY, hr);
+                    tcal.set(LenientDateTime.DAY_OF_MONTH, day);
+                    tcal.set(LenientDateTime.MONTH, mon - 1);
+                    // cron works at second precision: compare without afterTime's milliseconds
+                    if(tcal.isBefore(afterTime.truncatedTo(ChronoUnit.SECONDS))) {
                         day = -1;
                     }
                 }
@@ -1333,11 +1347,11 @@ public final class CronExpression implements Serializable, Cloneable {
                 }
 
                 if (needAdvance && (day != t || mon != tmon)) {
-                    cl.set(Calendar.SECOND, 0);
-                    cl.set(Calendar.MINUTE, 0);
-                    cl.set(Calendar.HOUR_OF_DAY, 0);
-                    cl.set(Calendar.DAY_OF_MONTH, day);
-                    cl.set(Calendar.MONTH, mon - 1);
+                    cl.set(LenientDateTime.SECOND, 0);
+                    cl.set(LenientDateTime.MINUTE, 0);
+                    cl.set(LenientDateTime.HOUR_OF_DAY, 0);
+                    cl.set(LenientDateTime.DAY_OF_MONTH, day);
+                    cl.set(LenientDateTime.MONTH, mon - 1);
                     // '- 1' because calendar is 0-based for this field, and we
                     // are 1-based
                     continue;
@@ -1348,7 +1362,7 @@ public final class CronExpression implements Serializable, Cloneable {
                     // the month?
                     int dow = daysOfWeek.first(); // desired
                     // d-o-w
-                    int cDow = cl.get(Calendar.DAY_OF_WEEK); // current d-o-w
+                    int cDow = cl.get(LenientDateTime.DAY_OF_WEEK); // current d-o-w
                     int daysToAdd = 0;
                     if (cDow < dow) {
                         daysToAdd = dow - cDow;
@@ -1357,15 +1371,15 @@ public final class CronExpression implements Serializable, Cloneable {
                         daysToAdd = dow + (7 - cDow);
                     }
 
-                    int lDay = getLastDayOfMonth(mon, cl.get(Calendar.YEAR));
+                    int lDay = getLastDayOfMonth(mon, cl.get(LenientDateTime.YEAR));
 
                     if (day + daysToAdd > lDay) { // did we already miss the
                         // last one?
-                        cl.set(Calendar.SECOND, 0);
-                        cl.set(Calendar.MINUTE, 0);
-                        cl.set(Calendar.HOUR_OF_DAY, 0);
-                        cl.set(Calendar.DAY_OF_MONTH, 1);
-                        cl.set(Calendar.MONTH, mon);
+                        cl.set(LenientDateTime.SECOND, 0);
+                        cl.set(LenientDateTime.MINUTE, 0);
+                        cl.set(LenientDateTime.HOUR_OF_DAY, 0);
+                        cl.set(LenientDateTime.DAY_OF_MONTH, 1);
+                        cl.set(LenientDateTime.MONTH, mon);
                         // no '- 1' here because we are promoting the month
                         continue;
                     }
@@ -1378,11 +1392,11 @@ public final class CronExpression implements Serializable, Cloneable {
                     day += daysToAdd;
 
                     if (daysToAdd > 0) {
-                        cl.set(Calendar.SECOND, 0);
-                        cl.set(Calendar.MINUTE, 0);
-                        cl.set(Calendar.HOUR_OF_DAY, 0);
-                        cl.set(Calendar.DAY_OF_MONTH, day);
-                        cl.set(Calendar.MONTH, mon - 1);
+                        cl.set(LenientDateTime.SECOND, 0);
+                        cl.set(LenientDateTime.MINUTE, 0);
+                        cl.set(LenientDateTime.HOUR_OF_DAY, 0);
+                        cl.set(LenientDateTime.DAY_OF_MONTH, day);
+                        cl.set(LenientDateTime.MONTH, mon - 1);
                         // '- 1' here because we are not promoting the month
                         continue;
                     }
@@ -1391,7 +1405,7 @@ public final class CronExpression implements Serializable, Cloneable {
                     // are we looking for the Nth XXX day in the month?
                     int dow = daysOfWeek.first(); // desired
                     // d-o-w
-                    int cDow = cl.get(Calendar.DAY_OF_WEEK); // current d-o-w
+                    int cDow = cl.get(LenientDateTime.DAY_OF_WEEK); // current d-o-w
                     int daysToAdd = 0;
                     if (cDow < dow) {
                         daysToAdd = dow - cDow;
@@ -1411,25 +1425,25 @@ public final class CronExpression implements Serializable, Cloneable {
                     day += daysToAdd;
                     if (daysToAdd < 0
                             || day > getLastDayOfMonth(mon, cl
-                                    .get(Calendar.YEAR))) {
-                        cl.set(Calendar.SECOND, 0);
-                        cl.set(Calendar.MINUTE, 0);
-                        cl.set(Calendar.HOUR_OF_DAY, 0);
-                        cl.set(Calendar.DAY_OF_MONTH, 1);
-                        cl.set(Calendar.MONTH, mon);
+                                    .get(LenientDateTime.YEAR))) {
+                        cl.set(LenientDateTime.SECOND, 0);
+                        cl.set(LenientDateTime.MINUTE, 0);
+                        cl.set(LenientDateTime.HOUR_OF_DAY, 0);
+                        cl.set(LenientDateTime.DAY_OF_MONTH, 1);
+                        cl.set(LenientDateTime.MONTH, mon);
                         // no '- 1' here because we are promoting the month
                         continue;
                     } else if (daysToAdd > 0 || dayShifted) {
-                        cl.set(Calendar.SECOND, 0);
-                        cl.set(Calendar.MINUTE, 0);
-                        cl.set(Calendar.HOUR_OF_DAY, 0);
-                        cl.set(Calendar.DAY_OF_MONTH, day);
-                        cl.set(Calendar.MONTH, mon - 1);
+                        cl.set(LenientDateTime.SECOND, 0);
+                        cl.set(LenientDateTime.MINUTE, 0);
+                        cl.set(LenientDateTime.HOUR_OF_DAY, 0);
+                        cl.set(LenientDateTime.DAY_OF_MONTH, day);
+                        cl.set(LenientDateTime.MONTH, mon - 1);
                         // '- 1' here because we are NOT promoting the month
                         continue;
                     }
                 } else {
-                    int cDow = cl.get(Calendar.DAY_OF_WEEK); // current d-o-w
+                    int cDow = cl.get(LenientDateTime.DAY_OF_WEEK); // current d-o-w
                     int dow = daysOfWeek.first(); // desired
                     // d-o-w
                     st = daysOfWeek.tailSet(cDow);
@@ -1445,23 +1459,23 @@ public final class CronExpression implements Serializable, Cloneable {
                         daysToAdd = dow + (7 - cDow);
                     }
 
-                    int lDay = getLastDayOfMonth(mon, cl.get(Calendar.YEAR));
+                    int lDay = getLastDayOfMonth(mon, cl.get(LenientDateTime.YEAR));
 
                     if (day + daysToAdd > lDay) { // will we pass the end of
                         // the month?
-                        cl.set(Calendar.SECOND, 0);
-                        cl.set(Calendar.MINUTE, 0);
-                        cl.set(Calendar.HOUR_OF_DAY, 0);
-                        cl.set(Calendar.DAY_OF_MONTH, 1);
-                        cl.set(Calendar.MONTH, mon);
+                        cl.set(LenientDateTime.SECOND, 0);
+                        cl.set(LenientDateTime.MINUTE, 0);
+                        cl.set(LenientDateTime.HOUR_OF_DAY, 0);
+                        cl.set(LenientDateTime.DAY_OF_MONTH, 1);
+                        cl.set(LenientDateTime.MONTH, mon);
                         // no '- 1' here because we are promoting the month
                         continue;
                     } else if (daysToAdd > 0) { // are we switching days?
-                        cl.set(Calendar.SECOND, 0);
-                        cl.set(Calendar.MINUTE, 0);
-                        cl.set(Calendar.HOUR_OF_DAY, 0);
-                        cl.set(Calendar.DAY_OF_MONTH, day + daysToAdd);
-                        cl.set(Calendar.MONTH, mon - 1);
+                        cl.set(LenientDateTime.SECOND, 0);
+                        cl.set(LenientDateTime.MINUTE, 0);
+                        cl.set(LenientDateTime.HOUR_OF_DAY, 0);
+                        cl.set(LenientDateTime.DAY_OF_MONTH, day + daysToAdd);
+                        cl.set(LenientDateTime.MONTH, mon - 1);
                         // '- 1' because calendar is 0-based for this field,
                         // and we are 1-based
                         continue;
@@ -1471,12 +1485,12 @@ public final class CronExpression implements Serializable, Cloneable {
                 throw new UnsupportedOperationException(
                         "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
             }
-            cl.set(Calendar.DAY_OF_MONTH, day);
+            cl.set(LenientDateTime.DAY_OF_MONTH, day);
 
-            mon = cl.get(Calendar.MONTH) + 1;
+            mon = cl.get(LenientDateTime.MONTH) + 1;
             // '+ 1' because calendar is 0-based for this field, and we are
             // 1-based
-            int year = cl.get(Calendar.YEAR);
+            int year = cl.get(LenientDateTime.YEAR);
             t = -1;
 
             // test for expressions that never generate a valid fire date,
@@ -1495,21 +1509,21 @@ public final class CronExpression implements Serializable, Cloneable {
                 year++;
             }
             if (mon != t) {
-                cl.set(Calendar.SECOND, 0);
-                cl.set(Calendar.MINUTE, 0);
-                cl.set(Calendar.HOUR_OF_DAY, 0);
-                cl.set(Calendar.DAY_OF_MONTH, 1);
-                cl.set(Calendar.MONTH, mon - 1);
+                cl.set(LenientDateTime.SECOND, 0);
+                cl.set(LenientDateTime.MINUTE, 0);
+                cl.set(LenientDateTime.HOUR_OF_DAY, 0);
+                cl.set(LenientDateTime.DAY_OF_MONTH, 1);
+                cl.set(LenientDateTime.MONTH, mon - 1);
                 // '- 1' because calendar is 0-based for this field, and we are
                 // 1-based
-                cl.set(Calendar.YEAR, year);
+                cl.set(LenientDateTime.YEAR, year);
                 continue;
             }
-            cl.set(Calendar.MONTH, mon - 1);
+            cl.set(LenientDateTime.MONTH, mon - 1);
             // '- 1' because calendar is 0-based for this field, and we are
             // 1-based
 
-            year = cl.get(Calendar.YEAR);
+            year = cl.get(LenientDateTime.YEAR);
             t = -1;
 
             // get year...................................................
@@ -1522,22 +1536,22 @@ public final class CronExpression implements Serializable, Cloneable {
             }
 
             if (year != t) {
-                cl.set(Calendar.SECOND, 0);
-                cl.set(Calendar.MINUTE, 0);
-                cl.set(Calendar.HOUR_OF_DAY, 0);
-                cl.set(Calendar.DAY_OF_MONTH, 1);
-                cl.set(Calendar.MONTH, 0);
+                cl.set(LenientDateTime.SECOND, 0);
+                cl.set(LenientDateTime.MINUTE, 0);
+                cl.set(LenientDateTime.HOUR_OF_DAY, 0);
+                cl.set(LenientDateTime.DAY_OF_MONTH, 1);
+                cl.set(LenientDateTime.MONTH, 0);
                 // '- 1' because calendar is 0-based for this field, and we are
                 // 1-based
-                cl.set(Calendar.YEAR, year);
+                cl.set(LenientDateTime.YEAR, year);
                 continue;
             }
-            cl.set(Calendar.YEAR, year);
+            cl.set(LenientDateTime.YEAR, year);
 
             gotOne = true;
         } // while( !done )
 
-        return cl.getTime();
+        return cl.toInstant();
     }
 
     /**
@@ -1547,13 +1561,13 @@ public final class CronExpression implements Serializable, Cloneable {
      * @param cal the calendar to operate on
      * @param hour the hour to set
      */
-    protected void setCalendarHour(Calendar cal, int hour) {
-        cal.set(java.util.Calendar.HOUR_OF_DAY, hour);
-        int hourOfDay = cal.get(java.util.Calendar.HOUR_OF_DAY);
+    protected void setCalendarHour(LenientDateTime cal, int hour) {
+        cal.set(LenientDateTime.HOUR_OF_DAY, hour);
+        int hourOfDay = cal.get(LenientDateTime.HOUR_OF_DAY);
         if (hourOfDay > hour && hour != 24) {
             // The requested wall clock hour does not exist because the clock
             // jumped forward (DST start): schedule at the next existing hour
-            cal.set(java.util.Calendar.HOUR_OF_DAY, hour + 1);
+            cal.set(LenientDateTime.HOUR_OF_DAY, hour + 1);
         }
         // When the clock fell back below the requested hour (DST end), the
         // calendar now points at the repeated hour, which is the next time

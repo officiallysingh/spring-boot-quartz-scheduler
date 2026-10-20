@@ -1011,6 +1011,41 @@ public class CronExpressionTest extends SerializationTestSupport {
         assertNull(gapOnly.getTimeAfter(afterTime));
     }
 
+    @Test
+    @org.junit.jupiter.api.Timeout(10)
+    public void testGetTimeAfterTerminatesInThirtyMinuteDstGap() throws Exception {
+        // Australia/Lord_Howe jumps from 02:00 to 02:30 on 2024-10-06; the original
+        // implementation looped forever looking for 02:00 on that day (D-010).
+        TimeZone lordHowe = TimeZone.getTimeZone("Australia/Lord_Howe");
+        Date afterTime = Date.from(Instant.parse("2024-10-05T13:30:00Z"));
+
+        CronExpression daily = new CronExpression("0 0 2 * * ?");
+        daily.setTimeZone(lordHowe);
+        // the non-existent 02:00 is skipped; the next fire is 02:00 on the following day (+11:00)
+        assertEquals(Instant.parse("2024-10-06T15:00:00Z"), daily.getTimeAfter(afterTime).toInstant());
+
+        CronExpression hourly = new CronExpression("0 0 * * * ?");
+        hourly.setTimeZone(lordHowe);
+        // 01:00 (+10:30), then 03:00 (+11:00): there is no 02:00 that day
+        assertEquals(Instant.parse("2024-10-05T14:30:00Z"), hourly.getTimeAfter(afterTime).toInstant());
+        assertEquals(Instant.parse("2024-10-05T16:00:00Z"),
+                hourly.getTimeAfter(Date.from(Instant.parse("2024-10-05T14:30:00Z"))).toInstant());
+    }
+
+    @Test
+    public void testNearestWeekdayGetTimeBeforeIsExact() throws Exception {
+        // the original W handling leaked the wall-clock milliseconds into its comparison,
+        // so getTimeBefore could be one second early depending on when it ran (D-010)
+        CronExpression lastWeekday = new CronExpression("0 0 0 LW * ?");
+        lastWeekday.setTimeZone(TimeZone.getTimeZone("UTC"));
+        Date start = Date.from(Instant.parse("2024-02-28T23:59:59Z"));
+        for (int i = 0; i < 20; i++) {
+            assertEquals(Instant.parse("2024-01-31T00:00:00Z"), lastWeekday.getTimeBefore(start).toInstant());
+        }
+        assertEquals(Instant.parse("2024-01-31T00:00:00Z"),
+                lastWeekday.getTimeAfter(Date.from(Instant.parse("2024-01-30T23:59:59.500Z"))).toInstant());
+    }
+
     // execute with version number to generate a new version's serialized form
     public static void main(String[] args) throws Exception {
         new CronExpressionTest().writeJobDataFile("1.5.2");

@@ -94,7 +94,15 @@ class GoldenBehaviourTest {
                 diffs.add(compare("next", r[3], join(out)));
             }
             if (!HANG.equals(r[4])) {
-                diffs.add(compare("before", r[4], ms(ce.getTimeBefore(start))));
+                String before = ms(ce.getTimeBefore(start));
+                // The original W handling compared against an uncleared Calendar.getInstance(), so
+                // the wall-clock milliseconds at recording time could land getTimeBefore one second
+                // early. The port compares at second precision and returns the exact fire time (D-010).
+                boolean nearestWeekday = r[0].contains("W") && !"null".equals(r[4])
+                        && before.equals(Long.toString(Long.parseLong(r[4]) + 1000));
+                if (!nearestWeekday) {
+                    diffs.add(compare("before", r[4], before));
+                }
             }
             return String.join("", diffs);
         });
