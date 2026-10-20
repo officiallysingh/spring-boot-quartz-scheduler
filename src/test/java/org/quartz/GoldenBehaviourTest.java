@@ -13,6 +13,8 @@
  */
 package org.quartz;
 
+import java.time.Duration;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.BufferedReader;
@@ -160,7 +162,7 @@ class GoldenBehaviourTest {
             if (!"null".equals(r[1])) {
                 t.setEndTime(Instant.ofEpochMilli(Long.parseLong(r[1])));
             }
-            t.setRepeatInterval(Long.parseLong(r[2]));
+            t.setRepeatInterval(Duration.ofMillis(Long.parseLong(r[2])));
             t.setRepeatCount(Integer.parseInt(r[3]));
             return compare("fire", r[4], join(TriggerUtils.computeFireTimes(t, null, 12)));
         });

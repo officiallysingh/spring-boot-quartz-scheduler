@@ -1,5 +1,7 @@
 package org.quartz.spi;
 
+import java.time.Duration;
+
 import java.time.Instant;
 
 
@@ -119,7 +121,7 @@ public interface OperableTrigger extends MutableTrigger {
      * 
      * @param cal
      */
-    void updateWithNewCalendar(Calendar cal, long misfireThreshold);
+    void updateWithNewCalendar(Calendar cal, Duration misfireThreshold);
 
     /**
      * Updates this trigger after its calendar changes, using the scheduler's
@@ -128,7 +130,7 @@ public interface OperableTrigger extends MutableTrigger {
      * <p>The default delegates to the original method for compatibility with
      * custom trigger implementations.</p>
      */
-    default void updateWithNewCalendar(Calendar cal, long misfireThreshold, Instant now) {
+    default void updateWithNewCalendar(Calendar cal, Duration misfireThreshold, Instant now) {
         updateWithNewCalendar(cal, misfireThreshold);
     }
 

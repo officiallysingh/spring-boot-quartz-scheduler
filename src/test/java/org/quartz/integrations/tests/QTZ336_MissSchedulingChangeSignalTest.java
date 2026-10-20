@@ -18,6 +18,8 @@
 
 package org.quartz.integrations.tests;
 
+import java.time.Duration;
+
 import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -151,7 +153,7 @@ class QTZ336_MissSchedulingChangeSignalTest {
      */
     public static class SlowRAMJobStore extends RAMJobStore {
         @Override
-        public List<OperableTrigger> acquireNextTriggers(long noLaterThan, int maxCount, long timeWindow) {
+        public List<OperableTrigger> acquireNextTriggers(Instant noLaterThan, int maxCount, Duration timeWindow) {
             List<OperableTrigger> nextTriggers = super.acquireNextTriggers(noLaterThan, maxCount, timeWindow);
             try {
                 // Wait just a bit for hopefully having a context switch leading to the race condition

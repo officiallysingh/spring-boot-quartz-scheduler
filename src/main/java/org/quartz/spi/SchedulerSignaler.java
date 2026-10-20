@@ -47,7 +47,13 @@ public interface SchedulerSignaler {
 
     void notifySchedulerListenersJobDeleted(JobKey jobKey);
 
-    void signalSchedulingChange(long candidateNewNextFireTime);
+    /**
+     * Signals that the schedule changed.
+     *
+     * @param candidateNewNextFireTime when the newly scheduled trigger will fire, or {@code null}
+     * if the change is not about a particular fire time
+     */
+    void signalSchedulingChange(Instant candidateNewNextFireTime);
 
     /**
      * Returns the current scheduling time.

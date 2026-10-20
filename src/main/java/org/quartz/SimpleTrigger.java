@@ -18,6 +18,8 @@
 
 package org.quartz;
 
+import java.time.Duration;
+
 /**
  * A <code>{@link Trigger}</code> that is used to fire a <code>Job</code>
  * at a given moment in time, and optionally repeated at a specified interval.
@@ -153,7 +155,7 @@ public interface SimpleTrigger extends Trigger {
      * Get the time interval (in milliseconds) at which the <code>SimpleTrigger</code> should repeat.
      * </p>
      */
-    long getRepeatInterval();
+    Duration getRepeatInterval();
     
     /**
      * <p>

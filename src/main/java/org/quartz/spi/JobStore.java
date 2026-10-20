@@ -18,6 +18,9 @@
 
 package org.quartz.spi;
 
+import java.time.Duration;
+import java.time.Instant;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -104,10 +107,10 @@ public interface JobStore {
     boolean supportsPersistence();
     
     /**
-     * How long (in milliseconds) the <code>JobStore</code> implementation 
+     * How long the <code>JobStore</code> implementation 
      * estimates that it will take to release a trigger and acquire a new one. 
      */
-    long getEstimatedTimeToReleaseAndAcquireTrigger();
+    Duration getEstimatedTimeToReleaseAndAcquireTrigger();
     
     /**
      * Whether or not the <code>JobStore</code> implementation is clustered.
@@ -653,12 +656,14 @@ public interface JobStore {
      * Get a handle to the next trigger to be fired, and mark it as 'reserved'
      * by the calling scheduler.
      *
-     * @param noLaterThan If &gt; 0, the JobStore should only return a Trigger
-     * that will fire no later than the time represented in this value as
-     * milliseconds.
+     * @param noLaterThan the JobStore should only return a Trigger
+     * that will fire no later than this time.
+     * @param maxCount the maximum number of triggers to return
+     * @param timeWindow triggers firing within this window after the first one may be
+     * acquired in the same batch
      * @see #releaseAcquiredTrigger(OperableTrigger)
      */
-    List<OperableTrigger> acquireNextTriggers(long noLaterThan, int maxCount, long timeWindow)
+    List<OperableTrigger> acquireNextTriggers(Instant noLaterThan, int maxCount, Duration timeWindow)
         throws JobPersistenceException;
 
     /**
@@ -723,12 +728,12 @@ public interface JobStore {
      * 100% CPU, write huge amounts of errors into logs, etc. in cases like
      * the DB being offline/restarting.
      *
-     * The delay returned by implementations should be between 20 and
-     * 600000 milliseconds.
+     * The delay returned by implementations should be between 20 milliseconds
+     * and 10 minutes.
      *
      * @param failureCount the number of successive failures seen so far
-     * @return the time (in milliseconds) to wait before trying again
+     * @return the time to wait before trying again
      */
-    long getAcquireRetryDelay(int failureCount);
+    Duration getAcquireRetryDelay(int failureCount);
 
 }

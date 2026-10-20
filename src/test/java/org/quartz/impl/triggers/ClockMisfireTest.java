@@ -17,6 +17,8 @@
 
 package org.quartz.impl.triggers;
 
+import java.time.Duration;
+
 import java.time.ZoneId;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -63,7 +65,7 @@ class ClockMisfireTest {
         SimpleTriggerImpl trigger = new SimpleTriggerImpl();
         trigger.setStartTime(midnight);
         trigger.setRepeatCount(SimpleTrigger.REPEAT_INDEFINITELY);
-        trigger.setRepeatInterval(3_600_000L);
+        trigger.setRepeatInterval(Duration.ofMillis(3_600_000L));
         trigger.setPreviousFireTime(midnight);
         trigger.setNextFireTime(oneAm);
 
@@ -76,7 +78,7 @@ class ClockMisfireTest {
             }
         };
         trigger.updateWithNewCalendar(
-                calendar, 0L, Instant.parse("2030-01-01T10:00:00Z"));
+                calendar, Duration.ofMillis(0L), Instant.parse("2030-01-01T10:00:00Z"));
 
         assertEquals(Instant.parse("2030-01-01T03:00:00Z"), trigger.getNextFireTime());
     }

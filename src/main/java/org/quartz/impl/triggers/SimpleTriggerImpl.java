@@ -19,6 +19,8 @@
 
 package org.quartz.impl.triggers;
 
+import java.time.Duration;
+
 import java.time.Instant;
 import java.time.Year;
 import java.time.ZoneId;
@@ -90,7 +92,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
 
     private int repeatCount = 0;
 
-    private long repeatInterval = 0;
+    private Duration repeatInterval = Duration.ZERO;
 
     private int timesTriggered = 0;
 
@@ -136,7 +138,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      */
     @Deprecated
     public SimpleTriggerImpl(String name, String group) {
-        this(name, group, Instants.now(), null, 0, 0);
+        this(name, group, Instants.now(), null, 0, Duration.ZERO);
     }
 
     /**
@@ -148,7 +150,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      * @deprecated use a TriggerBuilder instead
      */
     @Deprecated
-    public SimpleTriggerImpl(String name, int repeatCount, long repeatInterval) {
+    public SimpleTriggerImpl(String name, int repeatCount, Duration repeatInterval) {
         this(name, null, repeatCount, repeatInterval);
     }
 
@@ -162,7 +164,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      */
     @Deprecated
     public SimpleTriggerImpl(String name, String group, int repeatCount,
-            long repeatInterval) {
+            Duration repeatInterval) {
         this(name, group, Instants.now(), null, repeatCount, repeatInterval);
     }
 
@@ -189,7 +191,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      */
     @Deprecated
     public SimpleTriggerImpl(String name, String group, Instant startTime) {
-        this(name, group, startTime, null, 0, 0);
+        this(name, group, startTime, null, 0, Duration.ZERO);
     }
     
     /**
@@ -215,7 +217,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      */
     @Deprecated
     public SimpleTriggerImpl(String name, Instant startTime,
-            Instant endTime, int repeatCount, long repeatInterval) {
+            Instant endTime, int repeatCount, Duration repeatInterval) {
         this(name, null, startTime, endTime, repeatCount, repeatInterval);
     }
     
@@ -242,7 +244,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      */
     @Deprecated
     public SimpleTriggerImpl(String name, String group, Instant startTime,
-            Instant endTime, int repeatCount, long repeatInterval) {
+            Instant endTime, int repeatCount, Duration repeatInterval) {
         super(name, group);
 
         setStartTime(startTime);
@@ -275,7 +277,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
     @Deprecated
     public SimpleTriggerImpl(String name, String group, String jobName,
             String jobGroup, Instant startTime, Instant endTime, int repeatCount,
-            long repeatInterval) {
+            Duration repeatInterval) {
         super(name, group, jobName, jobGroup);
 
         setStartTime(startTime);
@@ -388,7 +390,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
     /* (non-Javadoc)
      * @see org.quartz.SimpleTriggerI#getRepeatInterval()
      */
-    public long getRepeatInterval() {
+    public Duration getRepeatInterval() {
         return repeatInterval;
     }
 
@@ -401,8 +403,8 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      * @exception IllegalArgumentException
      *              if repeatInterval is &lt; 0
      */
-    public void setRepeatInterval(long repeatInterval) {
-        if (repeatInterval < 0) {
+    public void setRepeatInterval(Duration repeatInterval) {
+        if (repeatInterval == null || repeatInterval.isNegative()) {
             throw new IllegalArgumentException(
                     "Repeat interval must be >= 0");
         }
@@ -600,13 +602,13 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      * @see org.quartz.impl.triggers.AbstractTrigger#updateWithNewCalendar(org.quartz.Calendar, long)
      */
     @Override
-    public void updateWithNewCalendar(Calendar calendar, long misfireThreshold)
+    public void updateWithNewCalendar(Calendar calendar, Duration misfireThreshold)
     {
         updateWithNewCalendar(calendar, misfireThreshold, Instants.now());
     }
 
     @Override
-    public void updateWithNewCalendar(Calendar calendar, long misfireThreshold, Instant now)
+    public void updateWithNewCalendar(Calendar calendar, Duration misfireThreshold, Instant now)
     {
         nextFireTime = getFireTimeAfter(previousFireTime);
 
@@ -628,7 +630,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
 
             if(nextFireTime != null && nextFireTime.isBefore(now)) {
                 long diff = now.toEpochMilli() - nextFireTime.toEpochMilli();
-                if(diff >= misfireThreshold) {
+                if(diff >= misfireThreshold.toMillis()) {
                     nextFireTime = getFireTimeAfter(nextFireTime);
                 }
             }
@@ -768,14 +770,14 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
             return Instant.ofEpochMilli(startMillis);
         }
 
-        long numberOfTimesExecuted = ((afterMillis - startMillis) / repeatInterval) + 1;
+        long numberOfTimesExecuted = ((afterMillis - startMillis) / repeatInterval.toMillis()) + 1;
 
         if ((numberOfTimesExecuted > repeatCount) && 
             (repeatCount != REPEAT_INDEFINITELY)) {
             return null;
         }
 
-        Instant time = Instant.ofEpochMilli(startMillis + (numberOfTimesExecuted * repeatInterval));
+        Instant time = Instant.ofEpochMilli(startMillis + (numberOfTimesExecuted * repeatInterval.toMillis()));
 
         if (endMillis <= time.toEpochMilli()) {
             return null;
@@ -798,18 +800,18 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
 
         int numFires = computeNumTimesFiredBetween(getStartTime(), end);
 
-        return Instant.ofEpochMilli(getStartTime().toEpochMilli() + (numFires * repeatInterval));
+        return Instant.ofEpochMilli(getStartTime().toEpochMilli() + (numFires * repeatInterval.toMillis()));
     }
 
     public int computeNumTimesFiredBetween(Instant start, Instant end) {
 
-        if(repeatInterval < 1) {
+        if(repeatInterval.toMillis() < 1) {
             return 0;
         }
         
         long time = end.toEpochMilli() - start.toEpochMilli();
 
-        return (int) (time / repeatInterval);
+        return (int) (time / repeatInterval.toMillis());
     }
 
     /**
@@ -832,7 +834,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
             return (getEndTime() == null) ? null : getFireTimeBefore(getEndTime()); 
         }
 
-        long lastTrigger = startTime.toEpochMilli() + (repeatCount * repeatInterval);
+        long lastTrigger = startTime.toEpochMilli() + (repeatCount * repeatInterval.toMillis());
 
         if ((getEndTime() == null) || (lastTrigger < getEndTime().toEpochMilli())) { 
             return Instant.ofEpochMilli(lastTrigger);
@@ -865,7 +867,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
     public void validate() throws SchedulerException {
         super.validate();
 
-        if (repeatCount != 0 && repeatInterval < 1) {
+        if (repeatCount != 0 && repeatInterval.toMillis() < 1) {
             throw new SchedulerException("Repeat Interval cannot be zero.");
         }
     }
@@ -889,7 +891,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
     public ScheduleBuilder<SimpleTrigger> getScheduleBuilder() {
         
         SimpleScheduleBuilder sb = SimpleScheduleBuilder.simpleSchedule()
-        .withIntervalInMilliseconds(getRepeatInterval())
+        .withInterval(getRepeatInterval())
         .withRepeatCount(getRepeatCount());
         
         switch(getMisfireInstruction()) {

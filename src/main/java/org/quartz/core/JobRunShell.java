@@ -19,6 +19,8 @@
 
 package org.quartz.core;
 
+import java.time.Duration;
+
 import org.quartz.Job;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
@@ -216,7 +218,7 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
                     jobExEx = new JobExecutionException(se, false);
                 }
 
-                jec.setJobRunTime(endTime - startTime);
+                jec.setJobRunTime(Duration.ofMillis(endTime - startTime));
 
                 // notify all job listeners
                 if (!notifyJobListenersComplete(jec, jobExEx)) {

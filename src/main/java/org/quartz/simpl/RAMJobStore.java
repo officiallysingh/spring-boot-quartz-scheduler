@@ -18,6 +18,8 @@
 
 package org.quartz.simpl;
 
+import java.time.Duration;
+
 import java.time.Instant;
 
 import java.util.ArrayList;
@@ -107,7 +109,7 @@ public class RAMJobStore implements JobStore {
 
     protected final HashSet<JobKey> blockedJobs = new HashSet<>();
     
-    protected long misfireThreshold = 5000L;
+    protected Duration misfireThreshold = Duration.ofSeconds(5);
 
     protected SchedulerSignaler signaler;
 
@@ -166,20 +168,20 @@ public class RAMJobStore implements JobStore {
         // nothing to do
     }
     
-    public long getMisfireThreshold() {
+    public Duration getMisfireThreshold() {
         return misfireThreshold;
     }
 
     /**
-     * The number of milliseconds by which a trigger must have missed its
+     * The amount of time by which a trigger must have missed its
      * next-fire-time, in order for it to be considered "misfired" and thus
-     * have its misfire instruction applied.
+     * have its misfire instruction applied. Used with millisecond precision.
      * 
      * @param misfireThreshold the new misfire threshold
      */
     @SuppressWarnings("UnusedDeclaration")
-    public void setMisfireThreshold(long misfireThreshold) {
-        if (misfireThreshold < 1) {
+    public void setMisfireThreshold(Duration misfireThreshold) {
+        if (misfireThreshold == null || misfireThreshold.toMillis() < 1) {
             throw new IllegalArgumentException("Misfire threshold must be larger than 0");
         }
         this.misfireThreshold = misfireThreshold;
@@ -1458,8 +1460,8 @@ public class RAMJobStore implements JobStore {
 
         Instant now = getSchedulingTime();
         long misfireTime = now.toEpochMilli();
-        if (getMisfireThreshold() > 0) {
-            misfireTime -= getMisfireThreshold();
+        if (getMisfireThreshold().toMillis() > 0) {
+            misfireTime -= getMisfireThreshold().toMillis();
         }
 
         Instant tnft = tw.trigger.getNextFireTime();
@@ -1502,7 +1504,9 @@ public class RAMJobStore implements JobStore {
      *
      * @see #releaseAcquiredTrigger(OperableTrigger)
      */
-    public List<OperableTrigger> acquireNextTriggers(long noLaterThan, int maxCount, long timeWindow) {
+    public List<OperableTrigger> acquireNextTriggers(Instant noLaterThanTime, int maxCount, Duration timeWindowDuration) {
+        long noLaterThan = noLaterThanTime.toEpochMilli();
+        long timeWindow = timeWindowDuration.toMillis();
         synchronized (lock) {
             List<OperableTrigger> result = new ArrayList<>();
             Set<JobKey> acquiredJobKeysForNoConcurrentExec = new HashSet<>();
@@ -1703,7 +1707,7 @@ public class RAMJobStore implements JobStore {
                             ttw.state = TriggerWrapper.STATE_PAUSED;
                         }
                     }
-                    signaler.signalSchedulingChange(0L);
+                    signaler.signalSchedulingChange(null);
                 }
             } else { // even if it was deleted, there may be cleanup to do
                 blockedJobs.remove(jobDetail.getKey());
@@ -1721,31 +1725,31 @@ public class RAMJobStore implements JobStore {
                         }
                     } else {
                         removeTrigger(trigger.getKey());
-                        signaler.signalSchedulingChange(0L);
+                        signaler.signalSchedulingChange(null);
                     }
                 } else if (triggerInstCode == CompletedExecutionInstruction.SET_TRIGGER_COMPLETE) {
                     tw.state = TriggerWrapper.STATE_COMPLETE;
                     timeTriggers.remove(tw);
-                    signaler.signalSchedulingChange(0L);
+                    signaler.signalSchedulingChange(null);
                 } else if(triggerInstCode == CompletedExecutionInstruction.SET_TRIGGER_ERROR) {
                     getLog().info("Trigger {} set to ERROR state.", trigger.getKey());
                     tw.state = TriggerWrapper.STATE_ERROR;
-                    signaler.signalSchedulingChange(0L);
+                    signaler.signalSchedulingChange(null);
                 } else if (triggerInstCode == CompletedExecutionInstruction.SET_ALL_JOB_TRIGGERS_ERROR) {
                     getLog().info("All triggers of Job {} set to ERROR state.", trigger.getJobKey());
                     setAllTriggersOfJobToState(trigger.getJobKey(), TriggerWrapper.STATE_ERROR);
-                    signaler.signalSchedulingChange(0L);
+                    signaler.signalSchedulingChange(null);
                 } else if (triggerInstCode == CompletedExecutionInstruction.SET_ALL_JOB_TRIGGERS_COMPLETE) {
                     setAllTriggersOfJobToState(trigger.getJobKey(), TriggerWrapper.STATE_COMPLETE);
-                    signaler.signalSchedulingChange(0L);
+                    signaler.signalSchedulingChange(null);
                 }
             }
         }
     }
 
     @Override
-    public long getAcquireRetryDelay(int failureCount) {
-        return 20;
+    public Duration getAcquireRetryDelay(int failureCount) {
+        return Duration.ofMillis(20);
     }
 
     protected void setAllTriggersOfJobToState(JobKey jobKey, int state) {
@@ -1800,8 +1804,8 @@ public class RAMJobStore implements JobStore {
         //
     }
 
-    public long getEstimatedTimeToReleaseAndAcquireTrigger() {
-        return 5;
+    public Duration getEstimatedTimeToReleaseAndAcquireTrigger() {
+        return Duration.ofMillis(5);
     }
 
     public boolean isClustered() {

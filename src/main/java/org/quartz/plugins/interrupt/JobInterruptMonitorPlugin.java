@@ -16,6 +16,8 @@
  */
 package org.quartz.plugins.interrupt;
 
+import java.time.Duration;
+
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -49,7 +51,7 @@ public class JobInterruptMonitorPlugin extends TriggerListenerSupport implements
 
     private static final String JOB_INTERRUPT_MONITOR_KEY = "JOB_INTERRUPT_MONITOR_KEY";
 
-    private long DEFAULT_MAX_RUNTIME = 300000;
+    private Duration defaultMaxRunTime = Duration.ofMinutes(5);
     
     private String name;
 
@@ -86,18 +88,18 @@ public class JobInterruptMonitorPlugin extends TriggerListenerSupport implements
     }
 
     @SuppressWarnings("rawtypes")
-    public ScheduledFuture scheduleJobInterruptMonitor(JobKey jobkey, long delay) {
-        return this.executor.schedule(new InterruptMonitor(jobkey, scheduler), delay, TimeUnit.MILLISECONDS);
+    public ScheduledFuture scheduleJobInterruptMonitor(JobKey jobkey, Duration delay) {
+        return this.executor.schedule(new InterruptMonitor(jobkey, scheduler), delay.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     // Bean Property Methods
 
-    public long getDefaultMaxRunTime() {
-        return this.DEFAULT_MAX_RUNTIME;
+    public Duration getDefaultMaxRunTime() {
+        return this.defaultMaxRunTime;
     }
 
-    public void setDefaultMaxRunTime(long defaultMaxRunTime) {
-        this.DEFAULT_MAX_RUNTIME = defaultMaxRunTime;
+    public void setDefaultMaxRunTime(Duration defaultMaxRunTime) {
+        this.defaultMaxRunTime = defaultMaxRunTime;
     }
 
     // Trigger Listener Methods
@@ -112,11 +114,11 @@ public class JobInterruptMonitorPlugin extends TriggerListenerSupport implements
             if (context.getMergedJobDataMap().getBoolean(AUTO_INTERRUPTIBLE)) {
                 JobInterruptMonitorPlugin monitorPlugin = (JobInterruptMonitorPlugin) context.getScheduler()
                         .getContext().get(JOB_INTERRUPT_MONITOR_KEY);
-                // Get the MaxRuntime from Job Data if NOT available use DEFAULT_MAX_RUNTIME from Plugin Configuration
-                long jobDataDelay  = DEFAULT_MAX_RUNTIME;
+                // Get the MaxRuntime (milliseconds) from Job Data if NOT available use defaultMaxRunTime from Plugin Configuration
+                Duration jobDataDelay = defaultMaxRunTime;
 
                 if (context.getMergedJobDataMap().get(MAX_RUN_TIME) != null){
-                     jobDataDelay = context.getMergedJobDataMap().getLong(MAX_RUN_TIME);
+                     jobDataDelay = Duration.ofMillis(context.getMergedJobDataMap().getLong(MAX_RUN_TIME));
                 }
                 ScheduledFuture<?> future = monitorPlugin.scheduleJobInterruptMonitor(context.getJobDetail().getKey(), jobDataDelay);
                 futures.put(context.getFireInstanceId(), future);

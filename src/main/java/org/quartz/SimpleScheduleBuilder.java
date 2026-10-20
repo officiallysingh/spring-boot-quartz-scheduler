@@ -18,6 +18,8 @@
 
 package org.quartz;
 
+import java.time.Duration;
+
 import org.quartz.impl.triggers.SimpleTriggerImpl;
 import org.quartz.spi.MutableTrigger;
 
@@ -58,7 +60,7 @@ import org.quartz.spi.MutableTrigger;
  */
 public class SimpleScheduleBuilder extends ScheduleBuilder<SimpleTrigger> {
 
-    private long interval = 0;
+    private Duration interval = Duration.ZERO;
     private int repeatCount = 0;
     private int misfireInstruction = SimpleTrigger.MISFIRE_INSTRUCTION_SMART_POLICY;
     
@@ -278,7 +280,21 @@ public class SimpleScheduleBuilder extends ScheduleBuilder<SimpleTrigger> {
      * @see #withRepeatCount(int)
      */
     public SimpleScheduleBuilder withIntervalInMilliseconds(long intervalInMillis) {
-        this.interval = intervalInMillis;
+        return withInterval(Duration.ofMillis(intervalInMillis));
+    }
+
+    /**
+     * Specify a repeat interval, which will then be multiplied by the configured
+     * repeat count to produce the total time the trigger will remain in the schedule.
+     * The interval is used with millisecond precision.
+     *
+     * @param interval the time span between fire times
+     * @return the updated SimpleScheduleBuilder
+     * @see SimpleTrigger#getRepeatInterval()
+     * @see #withRepeatCount(int)
+     */
+    public SimpleScheduleBuilder withInterval(Duration interval) {
+        this.interval = interval;
         return this;
     }
     
@@ -292,7 +308,7 @@ public class SimpleScheduleBuilder extends ScheduleBuilder<SimpleTrigger> {
      * @see #withRepeatCount(int)
      */
     public SimpleScheduleBuilder withIntervalInSeconds(int intervalInSeconds) {
-        this.interval = intervalInSeconds * 1000L;
+        this.interval = Duration.ofSeconds(intervalInSeconds);
         return this;
     }
     
@@ -306,7 +322,7 @@ public class SimpleScheduleBuilder extends ScheduleBuilder<SimpleTrigger> {
      * @see #withRepeatCount(int)
      */
     public SimpleScheduleBuilder withIntervalInMinutes(int intervalInMinutes) {
-        this.interval = intervalInMinutes * DateBuilder.MILLISECONDS_IN_MINUTE;
+        this.interval = Duration.ofMinutes(intervalInMinutes);
         return this;
     }
 
@@ -320,7 +336,7 @@ public class SimpleScheduleBuilder extends ScheduleBuilder<SimpleTrigger> {
      * @see #withRepeatCount(int)
      */
     public SimpleScheduleBuilder withIntervalInHours(int intervalInHours) {
-        this.interval = intervalInHours * DateBuilder.MILLISECONDS_IN_HOUR;
+        this.interval = Duration.ofHours(intervalInHours);
         return this;
     }
     

@@ -98,8 +98,8 @@ public class SchedulerSignalerImpl implements SchedulerSignaler {
         sched.notifySchedulerListenersFinalized(trigger);
     }
 
-    public void signalSchedulingChange(long candidateNewNextFireTime) {
-        schedThread.signalSchedulingChange(candidateNewNextFireTime);
+    public void signalSchedulingChange(Instant candidateNewNextFireTime) {
+        schedThread.signalSchedulingChange(candidateNewNextFireTime == null ? 0 : candidateNewNextFireTime.toEpochMilli());
     }
 
     @Override

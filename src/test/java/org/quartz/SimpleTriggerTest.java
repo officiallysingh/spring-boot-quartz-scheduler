@@ -16,6 +16,8 @@
  */
 package org.quartz;
 
+import java.time.Duration;
+
 import java.util.TimeZone;
 
 import java.time.Instant;
@@ -63,7 +65,7 @@ public class SimpleTriggerTest extends SerializationTestSupport {
         
         SimpleTriggerImpl t = new SimpleTriggerImpl("SimpleTrigger", "SimpleGroup",
                 "JobName", "JobGroup", START_TIME.toInstant(),
-                END_TIME.toInstant(), 5, 1000);
+                END_TIME.toInstant(), 5, Duration.ofMillis(1000));
         t.setCalendarName("MyCalendar");
         t.setDescription("SimpleTriggerDesc");
         t.setJobDataMap(jobDataMap);
@@ -129,7 +131,7 @@ public class SimpleTriggerTest extends SerializationTestSupport {
         SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl();
 
         simpleTrigger.setStartTime(Instant.ofEpochMilli(0));
-        simpleTrigger.setRepeatInterval(10);
+        simpleTrigger.setRepeatInterval(Duration.ofMillis(10));
         simpleTrigger.setRepeatCount(4);
         
         Instant fireTimeAfter = simpleTrigger.getFireTimeAfter(Instant.ofEpochMilli(34));

@@ -18,6 +18,8 @@
 
 package org.quartz.impl.triggers;
 
+import java.time.Duration;
+
 import java.time.Instant;
 import java.time.Year;
 import java.time.ZoneId;
@@ -515,13 +517,13 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
      * @see AbstractTrigger#updateWithNewCalendar(org.quartz.Calendar, long)
      */
     @Override
-    public void updateWithNewCalendar(org.quartz.Calendar calendar, long misfireThreshold)
+    public void updateWithNewCalendar(org.quartz.Calendar calendar, Duration misfireThreshold)
     {
         updateWithNewCalendar(calendar, misfireThreshold, Instants.now());
     }
 
     @Override
-    public void updateWithNewCalendar(org.quartz.Calendar calendar, long misfireThreshold, Instant now)
+    public void updateWithNewCalendar(org.quartz.Calendar calendar, Duration misfireThreshold, Instant now)
     {
         nextFireTime = getFireTimeAfter(previousFireTime);
         
@@ -544,7 +546,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
             
             if(nextFireTime != null && nextFireTime.isBefore(now)) {
                 long diff = now.toEpochMilli() - nextFireTime.toEpochMilli();
-                if(diff >= misfireThreshold) {
+                if(diff >= misfireThreshold.toMillis()) {
                     nextFireTime = getFireTimeAfter(nextFireTime);
                 }
             }

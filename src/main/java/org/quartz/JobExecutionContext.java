@@ -18,6 +18,8 @@
 
 package org.quartz;
 
+import java.time.Duration;
+
 import java.time.Instant;
 
 
@@ -224,14 +226,14 @@ public interface JobExecutionContext {
     void setResult(Object result);
 
     /**
-     * The amount of time the job ran for (in milliseconds).  The returned 
-     * value will be -1 until the job has actually completed (or thrown an 
+     * The amount of time the job ran for (millisecond precision).  The returned 
+     * value will be negative (-1 ms) until the job has actually completed (or thrown an 
      * exception), and is therefore generally only useful to 
      * <code>JobListener</code>s and <code>TriggerListener</code>s.
      * 
      * @return Returns the jobRunTime.
      */
-    long getJobRunTime();
+    Duration getJobRunTime();
 
     /**
      * Put the specified value into the context's data map with the given key.

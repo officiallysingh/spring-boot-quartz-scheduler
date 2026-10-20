@@ -42,6 +42,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
@@ -932,7 +933,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
             rsrcs.setJobRunShellFactory(jrsf);
             rsrcs.setMakeSchedulerThreadDaemon(makeSchedulerThreadDaemon);
             rsrcs.setThreadsInheritInitializersClassLoadContext(threadsInheritInitializersClassLoader);
-            rsrcs.setBatchTimeWindow(batchTimeWindow);
+            rsrcs.setBatchTimeWindow(Duration.ofMillis(batchTimeWindow));
             rsrcs.setMaxBatchSize(maxBatchSize);
             rsrcs.setInterruptJobsOnShutdown(interruptJobsOnShutdown);
             rsrcs.setInterruptJobsOnShutdownWithWait(interruptJobsOnShutdownWithWait);
@@ -958,7 +959,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
                 rsrcs.addSchedulerPlugin(plugin);
             }
     
-            qs = new QuartzScheduler(rsrcs, idleWaitTime, dbFailureRetry);
+            qs = new QuartzScheduler(rsrcs, idleWaitTime > -1 ? Duration.ofMillis(idleWaitTime) : null, Duration.ofMillis(dbFailureRetry));
             qsInited = true;
     
             // Create Scheduler ref...
@@ -1085,16 +1086,27 @@ public class StdSchedulerFactory implements SchedulerFactory {
                     setMeth.invoke(obj, new Object[]{refProps.getBooleanProperty(refName)});
                 } else if (params[0].equals(String.class)) {
                     setMeth.invoke(obj, new Object[]{refProps.getStringProperty(refName)});
+                } else if (params[0].equals(Duration.class)) {
+                    // plain numbers are milliseconds, as before; ISO-8601 ("PT5M") is accepted too (D-010)
+                    setMeth.invoke(obj, new Object[]{parseDuration(refProps.getStringProperty(refName))});
                 } else {
                     throw new NoSuchMethodException(
                             "No primitive-type setter for property '" + name
                                     + "'");
                 }
-            } catch (NumberFormatException nfe) {
+            } catch (NumberFormatException | java.time.format.DateTimeParseException nfe) {
                 throw new SchedulerConfigException("Could not parse property '"
                         + name + "' into correct data type: " + nfe);
             }
         }
+    }
+
+    private static Duration parseDuration(String value) {
+        String trimmed = value.trim();
+        if (!trimmed.isEmpty() && (Character.isDigit(trimmed.charAt(0)) || trimmed.charAt(0) == '-')) {
+            return Duration.ofMillis(Long.parseLong(trimmed));
+        }
+        return Duration.parse(trimmed);
     }
 
     private java.lang.reflect.Method getSetMethod(String name,

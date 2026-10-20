@@ -16,6 +16,8 @@
  */
 package org.quartz.impl;
 
+import java.time.Duration;
+
 import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
@@ -54,7 +56,7 @@ public class DirectSchedulerFactoryTest  {
         DirectSchedulerFactory.getInstance().createScheduler(
                 "MyScheduler", "Instance1", threadPool,
                 new RAMJobStore(), Collections.singletonMap("TestPlugin", testPlugin), 
-                0, 0);
+                Duration.ofMillis(0), Duration.ofMillis(0));
         
         Scheduler scheduler = DirectSchedulerFactory.getInstance().getScheduler("MyScheduler");
         scheduler.start();

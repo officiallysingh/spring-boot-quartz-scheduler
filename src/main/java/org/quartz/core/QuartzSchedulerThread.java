@@ -19,6 +19,9 @@
 
 package org.quartz.core;
 
+import java.time.Duration;
+import java.time.Instant;
+
 
 import java.util.ArrayList;
 import java.util.List;
@@ -134,9 +137,9 @@ public class QuartzSchedulerThread extends Thread {
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
 
-    void setIdleWaitTime(long waitTime) {
-        idleWaitTime = waitTime;
-        idleWaitVariableness = (int) (waitTime * 0.2);
+    void setIdleWaitTime(Duration waitTime) {
+        idleWaitTime = waitTime.toMillis();
+        idleWaitVariableness = (int) (idleWaitTime * 0.2);
     }
 
     private long getRandomizedIdleWaitTime() {
@@ -296,7 +299,7 @@ public class QuartzSchedulerThread extends Thread {
                     clearSignaledSchedulingChange();
                     try {
                         triggers = qsRsrcs.getJobStore().acquireNextTriggers(
-                                now + idleWaitTime, Math.min(availThreadCount, qsRsrcs.getMaxBatchSize()), qsRsrcs.getBatchTimeWindow());
+                                Instant.ofEpochMilli(now + idleWaitTime), Math.min(availThreadCount, qsRsrcs.getMaxBatchSize()), qsRsrcs.getBatchTimeWindow());
                         acquiresFailed = 0;
                         if (log.isDebugEnabled())
                             log.debug("batch acquisition of {} triggers", triggers == null ? 0 : triggers.size());
@@ -478,7 +481,7 @@ public class QuartzSchedulerThread extends Thread {
     private static long computeDelayForRepeatedErrors(JobStore jobStore, int acquiresFailed) {
         long delay;
         try {
-            delay = jobStore.getAcquireRetryDelay(acquiresFailed);
+            delay = jobStore.getAcquireRetryDelay(acquiresFailed).toMillis();
         } catch (Exception ignored) {
             // we're trying to be useful in case of error states, not cause
             // additional errors..

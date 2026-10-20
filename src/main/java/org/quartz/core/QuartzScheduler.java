@@ -19,6 +19,8 @@
 
 package org.quartz.core;
 
+import java.time.Duration;
+
 import java.time.Instant;
 
 import java.io.InputStream;
@@ -186,7 +188,7 @@ public class QuartzScheduler {
      * 
      * @see QuartzSchedulerResources
      */
-    public QuartzScheduler(QuartzSchedulerResources resources, long idleWaitTime, @Deprecated long dbRetryInterval)
+    public QuartzScheduler(QuartzSchedulerResources resources, Duration idleWaitTime, @Deprecated Duration dbRetryInterval)
         throws SchedulerException {
         this.resources = resources;
         if (resources.getJobStore() instanceof JobListener) {
@@ -196,7 +198,7 @@ public class QuartzScheduler {
         this.schedThread = new QuartzSchedulerThread(this, resources);
         ThreadExecutor schedThreadExecutor = resources.getThreadExecutor();
         schedThreadExecutor.execute(this.schedThread);
-        if (idleWaitTime > 0) {
+        if (idleWaitTime != null && idleWaitTime.toMillis() > 0) {
             this.schedThread.setIdleWaitTime(idleWaitTime);
         }
 
@@ -616,7 +618,7 @@ public class QuartzScheduler {
 
         resources.getJobStore().storeJobAndTrigger(jobDetail, trig);
         notifySchedulerListenersJobAdded(jobDetail);
-        notifySchedulerThread(trigger.getNextFireTime().toEpochMilli());
+        notifySchedulerThread(trigger.getNextFireTime());
         notifySchedulerListenersScheduled(trigger);
 
         return ft;
@@ -661,7 +663,7 @@ public class QuartzScheduler {
         }
 
         resources.getJobStore().storeTrigger(trig, false);
-        notifySchedulerThread(trigger.getNextFireTime().toEpochMilli());
+        notifySchedulerThread(trigger.getNextFireTime());
         notifySchedulerListenersScheduled(trigger);
 
         return ft;
@@ -698,7 +700,7 @@ public class QuartzScheduler {
         }
 
         resources.getJobStore().storeJob(jobDetail, replace);
-        notifySchedulerThread(0L);
+        notifySchedulerThread(null);
         notifySchedulerListenersJobAdded(jobDetail);
     }
 
@@ -732,7 +734,7 @@ public class QuartzScheduler {
 
         result = resources.getJobStore().removeJob(jobKey) || result;
         if (result) {
-            notifySchedulerThread(0L);
+            notifySchedulerThread(null);
             notifySchedulerListenersJobDeleted(jobKey);
         }
         return result;
@@ -744,7 +746,7 @@ public class QuartzScheduler {
         boolean result;
         
         result = resources.getJobStore().removeJobs(jobKeys);
-        notifySchedulerThread(0L);
+        notifySchedulerThread(null);
         for(JobKey key: jobKeys)
             notifySchedulerListenersJobDeleted(key);
         return result;
@@ -785,7 +787,7 @@ public class QuartzScheduler {
         }
 
         resources.getJobStore().storeJobsAndTriggers(triggersAndJobs, replace);
-        notifySchedulerThread(0L);
+        notifySchedulerThread(null);
         for (JobDetail job : triggersAndJobs.keySet()) {
           notifySchedulerListenersJobAdded(job);
 
@@ -809,7 +811,7 @@ public class QuartzScheduler {
         boolean result;
         
         result = resources.getJobStore().removeTriggers(triggerKeys);
-        notifySchedulerThread(0L);
+        notifySchedulerThread(null);
         for(TriggerKey key: triggerKeys)
             notifySchedulerListenersUnscheduled(key);
         return result;
@@ -825,7 +827,7 @@ public class QuartzScheduler {
         validateState();
 
         if (resources.getJobStore().removeTrigger(triggerKey)) {
-            notifySchedulerThread(0L);
+            notifySchedulerThread(null);
             notifySchedulerListenersUnscheduled(triggerKey);
         } else {
             return false;
@@ -881,7 +883,7 @@ public class QuartzScheduler {
         }
         
         if (resources.getJobStore().replaceTrigger(triggerKey, trig)) {
-            notifySchedulerThread(newTrigger.getNextFireTime().toEpochMilli());
+            notifySchedulerThread(newTrigger.getNextFireTime());
             notifySchedulerListenersUnscheduled(triggerKey);
             notifySchedulerListenersScheduled(newTrigger);
         } else {
@@ -928,7 +930,7 @@ public class QuartzScheduler {
             }
         }
 
-        notifySchedulerThread(trig.getNextFireTime().toEpochMilli());
+        notifySchedulerThread(trig.getNextFireTime());
         notifySchedulerListenersScheduled(trig);
     }
 
@@ -952,7 +954,7 @@ public class QuartzScheduler {
             }
         }
 
-        notifySchedulerThread(trig.getNextFireTime().toEpochMilli());
+        notifySchedulerThread(trig.getNextFireTime());
         notifySchedulerListenersScheduled(trig);
     }
     
@@ -966,7 +968,7 @@ public class QuartzScheduler {
         validateState();
 
         resources.getJobStore().pauseTrigger(triggerKey);
-        notifySchedulerThread(0L);
+        notifySchedulerThread(null);
         notifySchedulerListenersPausedTrigger(triggerKey);
     }
 
@@ -985,7 +987,7 @@ public class QuartzScheduler {
         }
 
         Collection<String> pausedGroups = resources.getJobStore().pauseTriggers(matcher);
-        notifySchedulerThread(0L);
+        notifySchedulerThread(null);
         for (String pausedGroup : pausedGroups) {
             notifySchedulerListenersPausedTriggers(pausedGroup);
         }
@@ -1002,7 +1004,7 @@ public class QuartzScheduler {
         validateState();
 
         resources.getJobStore().pauseJob(jobKey);
-        notifySchedulerThread(0L);
+        notifySchedulerThread(null);
         notifySchedulerListenersPausedJob(jobKey);
     }
 
@@ -1022,7 +1024,7 @@ public class QuartzScheduler {
         }
         
         Collection<String> pausedGroups = resources.getJobStore().pauseJobs(groupMatcher);
-        notifySchedulerThread(0L);
+        notifySchedulerThread(null);
         for (String pausedGroup : pausedGroups) {
             notifySchedulerListenersPausedJobs(pausedGroup);
         }
@@ -1044,7 +1046,7 @@ public class QuartzScheduler {
         validateState();
 
         resources.getJobStore().resumeTrigger(triggerKey);
-        notifySchedulerThread(0L);
+        notifySchedulerThread(null);
         notifySchedulerListenersResumedTrigger(triggerKey);
     }
 
@@ -1069,7 +1071,7 @@ public class QuartzScheduler {
         }
 
         Collection<String> pausedGroups = resources.getJobStore().resumeTriggers(matcher);
-        notifySchedulerThread(0L);
+        notifySchedulerThread(null);
         for (String pausedGroup : pausedGroups) {
             notifySchedulerListenersResumedTriggers(pausedGroup);
         }
@@ -1096,7 +1098,7 @@ public class QuartzScheduler {
         validateState();
 
         resources.getJobStore().resumeJob(jobKey);
-        notifySchedulerThread(0L);
+        notifySchedulerThread(null);
         notifySchedulerListenersResumedJob(jobKey);
     }
 
@@ -1122,7 +1124,7 @@ public class QuartzScheduler {
         }
         
         Collection<String> resumedGroups = resources.getJobStore().resumeJobs(matcher);
-        notifySchedulerThread(0L);
+        notifySchedulerThread(null);
         for (String pausedGroup : resumedGroups) {
             notifySchedulerListenersResumedJobs(pausedGroup);
         }
@@ -1147,7 +1149,7 @@ public class QuartzScheduler {
         validateState();
 
         resources.getJobStore().pauseAll();
-        notifySchedulerThread(0L);
+        notifySchedulerThread(null);
         notifySchedulerListenersPausedTriggers(null);
     }
 
@@ -1168,7 +1170,7 @@ public class QuartzScheduler {
         validateState();
 
         resources.getJobStore().resumeAll();
-        notifySchedulerThread(0L);
+        notifySchedulerThread(null);
         notifySchedulerListenersResumedTrigger(null);
     }
 
@@ -1562,7 +1564,7 @@ J     *
         resources.getJobStore().triggeredJobComplete(trigger, detail, instCode);
     }
 
-    protected void notifySchedulerThread(long candidateNewNextFireTime) {
+    protected void notifySchedulerThread(Instant candidateNewNextFireTime) {
         if (isSignalOnSchedulingChange()) {
             signaler.signalSchedulingChange(candidateNewNextFireTime);
         }

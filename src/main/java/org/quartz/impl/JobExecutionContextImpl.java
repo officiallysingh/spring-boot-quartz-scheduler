@@ -19,6 +19,8 @@
 
 package org.quartz.impl;
 
+import java.time.Duration;
+
 import java.time.Instant;
 
 import java.util.HashMap;
@@ -71,7 +73,7 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
 
     private final Instant nextFireTime;
     
-    private long jobRunTime = -1;
+    private Duration jobRunTime = Duration.ofMillis(-1);
     
     private Object result;
     
@@ -241,14 +243,14 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
     /**
      * {@inheritDoc}
      */
-    public long getJobRunTime() {
+    public Duration getJobRunTime() {
         return jobRunTime;
     }
     
     /**
      * @param jobRunTime The jobRunTime to set.
      */
-    public void setJobRunTime(long jobRunTime) {
+    public void setJobRunTime(Duration jobRunTime) {
         this.jobRunTime = jobRunTime;
     }
 

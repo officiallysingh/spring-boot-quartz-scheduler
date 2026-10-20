@@ -18,6 +18,8 @@
 
 package org.quartz.impl;
 
+import java.time.Duration;
+
 import java.util.Collection;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -98,7 +100,7 @@ public class DirectSchedulerFactory implements SchedulerFactory {
 
     private static final int DEFAULT_BATCH_MAX_SIZE = 1;
 
-    private static final long DEFAULT_BATCH_TIME_WINDOW = 0L;
+    private static final Duration DEFAULT_BATCH_TIME_WINDOW = Duration.ZERO;
 
     /*
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -202,7 +204,7 @@ public class DirectSchedulerFactory implements SchedulerFactory {
             String schedulerInstanceId, ThreadPool threadPool, JobStore jobStore)
         throws SchedulerException {
         createScheduler(schedulerName, schedulerInstanceId, threadPool,
-                jobStore, -1, -1);
+                jobStore, null, null);
     }
 
     /**
@@ -225,7 +227,7 @@ public class DirectSchedulerFactory implements SchedulerFactory {
     public void createScheduler(String schedulerName,
             String schedulerInstanceId, ThreadPool threadPool,
             JobStore jobStore,
-            long idleWaitTime, long dbFailureRetryInterval)
+            Duration idleWaitTime, Duration dbFailureRetryInterval)
         throws SchedulerException {
         createScheduler(schedulerName,
                 schedulerInstanceId, threadPool,
@@ -258,7 +260,7 @@ public class DirectSchedulerFactory implements SchedulerFactory {
     public void createScheduler(String schedulerName,
             String schedulerInstanceId, ThreadPool threadPool,
             JobStore jobStore, Map<String, SchedulerPlugin> schedulerPluginMap,
-            long idleWaitTime, long dbFailureRetryInterval)
+            Duration idleWaitTime, Duration dbFailureRetryInterval)
         throws SchedulerException {
         createScheduler(schedulerName, schedulerInstanceId, threadPool,
                 DEFAULT_THREAD_EXECUTOR, jobStore, schedulerPluginMap,
@@ -294,7 +296,7 @@ public class DirectSchedulerFactory implements SchedulerFactory {
             String schedulerInstanceId, ThreadPool threadPool,
             ThreadExecutor threadExecutor,
             JobStore jobStore, Map<String, SchedulerPlugin> schedulerPluginMap,
-            long idleWaitTime, long dbFailureRetryInterval)
+            Duration idleWaitTime, Duration dbFailureRetryInterval)
         throws SchedulerException {
         createScheduler(schedulerName, schedulerInstanceId, threadPool,
                 DEFAULT_THREAD_EXECUTOR, jobStore, schedulerPluginMap,
@@ -334,8 +336,8 @@ public class DirectSchedulerFactory implements SchedulerFactory {
             String schedulerInstanceId, ThreadPool threadPool,
             ThreadExecutor threadExecutor,
             JobStore jobStore, Map<String, SchedulerPlugin> schedulerPluginMap,
-            long idleWaitTime, long dbFailureRetryInterval,
-            int maxBatchSize, long batchTimeWindow)
+            Duration idleWaitTime, Duration dbFailureRetryInterval,
+            int maxBatchSize, Duration batchTimeWindow)
         throws SchedulerException {
 
         createScheduler(schedulerName, schedulerInstanceId,
@@ -380,8 +382,8 @@ public class DirectSchedulerFactory implements SchedulerFactory {
                                 String schedulerInstanceId, ThreadPool threadPool,
                                 ThreadExecutor threadExecutor,
                                 JobStore jobStore, Map<String, SchedulerPlugin> schedulerPluginMap,
-                                long idleWaitTime, long dbFailureRetryInterval,
-                                int maxBatchSize, long batchTimeWindow,
+                                Duration idleWaitTime, Duration dbFailureRetryInterval,
+                                int maxBatchSize, Duration batchTimeWindow,
                                 boolean makeSchedThreadDaemon)
             throws SchedulerException {
 
