@@ -60,3 +60,26 @@ JDK-only code (the rest of JDBC, RMI, JMX) still compiles and is removed in Phas
 - `Job` javadoc `@see ExecuteInJTATransaction` removed.
 
 **Build details:** `quartz-build.properties` now uses Maven filtering (`${project.version}` etc.; only that file is filtered). Surefire runs one JVM per test class (`reuseForks=false`), matching Gradle's `forkEvery 1`: tests share static scheduler state (`SchedulerRepository`).
+
+## D-007 — Tests and test resources deleted in Phase 2
+
+**Context:** REFACTOR_PLAN Phase 2 says to delete tests that need an embedded RDBMS (they go with JDBC). The Maven build has no Derby, JDBC drivers, RDBMS Testcontainers modules, c3p0, HikariCP, or log4j binding.
+
+**Deleted** (INVENTORY §5a):
+- `org.quartz`: `JdbcSchedulerTest`, `FlakyJdbcSchedulerTest` (Derby)
+- `org.quartz.core`: `QTZ385Test`, `RecoverJobsTest` (Derby; recovery behaviour becomes a contract-kit case in Phase 7)
+- `org.quartz.impl`: `MockConnectionProvider`, `StdSchedulerFactoryCustomConnectionProviderTest` (JDBC connection-provider wiring)
+- `org.quartz.impl.jdbcjobstore` (all 11): Derby, MSSQL/MariaDB/Postgres Testcontainers, Liquibase, Mockito-based JDBC delegate tests
+- `org.quartz.integrations.tests`: `JdbcQuartzDerbyUtilities`, `JobClassNotFoundExceptionErrorsTriggersTest`, `JobDataMapStorageTest`, `QTZ179_TriggerLostAfterDbRestart_Test`, `QTZ283_IgnoreMisfirePolicyJdbcStore_Test`, `QuartzDatabasePauseAndResumeTest`, `QuartzDatabaseSimplePropertiesTest`, `QuartzDerbyCronTriggerTest`, `QuartzDerbyTestSupport`, `QuartzMSSQLDatabaseCronTriggerTest`, `QuartzMSSQLTestSupport`, `StdRowLockSemaphoreTest` (Derby/MSSQL). Their in-memory twins (`QuartzMemory*`) are kept.
+- `org.quartz.simpl.SystemPropertyInstanceIdGeneratorTest`: uses Derby only to build a scheduler. The generator logic must be re-tested store-agnostically when instance-id config moves to `@ConfigurationProperties` (Phase 5).
+- `org.quartz.utils`: `C3p0PoolingConnectionProviderTest`, `HikariCpPoolingConnectionProviderTest`
+- Resources: `tables_derby_drop.sql`, `container-license-acceptance.txt` (MSSQL image licence), `org/quartz/properties/quartzCustomConnectionProvider.properties`, `log4j.properties` (the slf4j-log4j12 binding is dropped; tests run without an slf4j binding for now).
+
+## D-008 — Phase 2 test-support choices
+
+- **Hamcrest → AssertJ** in the 7 kept tests that used it (`CalendarIntervalTriggerTest`, `CronTriggerTest`, `DefaultSchedulerTest`, `DisallowConcurrentExecutionJobTest`, `impl.JobDetailImplTest`, `QuartzMemoryCronTriggerTest`, `QuartzMemoryPauseAndResumeTest`). Same assertions, AssertJ syntax; Hamcrest is not added.
+- **ASM:** `SchedulerDetailsSetterTest` generated a class with `asm:asm:3.3.1`. It now imports `org.springframework.asm` (the copy repackaged in `spring-core`, already on the test classpath through `spring-boot-test`), so no ASM dependency is added and the test still runs.
+- **`ContainersSmokeIT` pings without client libraries:** no MongoDB driver or Redis client is in the Phase 2 dependency list. MongoDB is pinged with `mongosh` inside the container (`ping` and `rs.status()` both `ok: 1`) plus a host TCP connect to the mapped port. Redis is pinged from the host over a raw socket (`PING` → `+PONG`). The client libraries come with the stores in Phase 7.
+- **Redis container:** `GenericContainer("redis:7.4")` on port 6379. `com.redis:testcontainers-redis` is not in the dependency list.
+- **MongoDB replica set:** Testcontainers 2's `org.testcontainers.mongodb.MongoDBContainer` no longer starts a replica set by default (the smoke IT caught `not running with --replSet`), so `SharedContainers` calls `.withReplicaSet()` explicitly.
+- **Shared containers:** `org.quartz.support.SharedContainers` starts each container once per JVM (lazy holder). `AbstractMongoIT` / `AbstractRedisIT` will be built on it when the first store ITs arrive.

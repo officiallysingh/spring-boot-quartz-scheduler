@@ -304,6 +304,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
+                    <!-- classpath mode, like the compiler: there is no module-info, only Automatic-Module-Name -->
+                    <legacyMode>true</legacyMode>
                     <!-- same Phase 2 excludes as the compiler (D-006) -->
                     <sourceFileExcludes>
                         <sourceFileExclude>org/quartz/ExecuteInJTATransaction.java</sourceFileExclude>
