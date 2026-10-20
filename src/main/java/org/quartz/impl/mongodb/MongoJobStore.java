@@ -28,6 +28,7 @@ import com.mongodb.MongoException;
 import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.IndexModel;
 import com.mongodb.client.model.IndexOptions;
@@ -35,6 +36,8 @@ import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.Updates;
 import org.bson.Document;
+import org.quartz.JobDataMap;
+import org.quartz.JobDetail;
 import org.quartz.JobPersistenceException;
 import org.quartz.impl.config.JobStoreSettings;
 import org.quartz.impl.mongodb.MongoStoreDelegate.MongoCollections;
@@ -42,6 +45,7 @@ import org.quartz.impl.store.LeaseStoreLock;
 import org.quartz.impl.store.PersistentJobStore;
 import org.quartz.impl.store.StoreDelegate;
 import org.quartz.impl.store.StoreLock;
+import org.quartz.impl.store.codec.JobDataCodec;
 import org.quartz.impl.store.codec.JobDetailCodec;
 import org.quartz.impl.store.codec.TriggerCodec;
 import org.quartz.spi.ClassLoadHelper;
@@ -90,6 +94,30 @@ public class MongoJobStore extends PersistentJobStore {
     /** Whether store operations run in MongoDB transactions (known after initialization). */
     public boolean isTransactional() {
         return transactional;
+    }
+
+    /** Whether this store talks to MongoDB through the given client instance. */
+    public boolean usesClient(Object mongoClient) {
+        return client == mongoClient;
+    }
+
+    /** The database holding this store's collections. */
+    public String getDatabaseName() {
+        return databaseName;
+    }
+
+    /**
+     * Writes the {@link JobDataMap} of a job through {@code database}, a handle on this
+     * store's database (same client) that is bound to a caller's session, so the write takes
+     * part in the caller's transaction. Used to persist the data of a
+     * {@link org.quartz.PersistJobDataAfterExecution} job in the transaction the job ran in.
+     */
+    public void updateJobData(MongoDatabase database, JobDetail jobDetail) throws JobPersistenceException {
+        Objects.requireNonNull(database, "database");
+        JobDataCodec.checkUseProperties(jobDetail.getJobDataMap(), getSettings().useProperties());
+        // updateJobData needs no class loading; the session is carried by the database handle
+        new MongoStoreDelegate(getInstanceName(), MongoCollections.of(database, mongoSettings.collectionPrefix()),
+                null, () -> null).updateJobData(jobDetail);
     }
 
     @Override
