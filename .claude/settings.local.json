@@ -1,0 +1,11 @@
+{
+  "enabledPlugins": {
+    "java-backend-skills@anthropic-plugin-directory": true
+  },
+  "permissions": {
+    "deny": [
+      "mcp__idea__get_run_configurations",
+      "Read(.idea/workspace.xml)"
+    ]
+  }
+}
