@@ -19,8 +19,8 @@
 
 package org.quartz.core;
 
+
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -321,7 +321,7 @@ public class QuartzSchedulerThread extends Thread {
                     if (triggers != null && !triggers.isEmpty()) {
 
                         now = currentTimeMillis();
-                        long triggerTime = triggers.get(0).getNextFireTime().getTime();
+                        long triggerTime = triggers.get(0).getNextFireTime().toEpochMilli();
                         long timeUntilTrigger = triggerTime - now;
                         while(timeUntilTrigger > 2) {
                             synchronized (sigLock) {

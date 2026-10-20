@@ -18,11 +18,12 @@
 
 package org.quartz.simpl;
 
+import java.time.Instant;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -1455,14 +1456,14 @@ public class RAMJobStore implements JobStore {
 
     protected boolean applyMisfire(TriggerWrapper tw) {
 
-        Date now = getSchedulingTime();
-        long misfireTime = now.getTime();
+        Instant now = getSchedulingTime();
+        long misfireTime = now.toEpochMilli();
         if (getMisfireThreshold() > 0) {
             misfireTime -= getMisfireThreshold();
         }
 
-        Date tnft = tw.trigger.getNextFireTime();
-        if (tnft == null || tnft.getTime() > misfireTime 
+        Instant tnft = tw.trigger.getNextFireTime();
+        if (tnft == null || tnft.toEpochMilli() > misfireTime 
                 || tw.trigger.getMisfireInstruction() == Trigger.MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY) { 
             return false; 
         }
@@ -1535,7 +1536,7 @@ public class RAMJobStore implements JobStore {
                     continue;
                 }
 
-                if (tw.getTrigger().getNextFireTime().getTime() > batchEnd) {
+                if (tw.getTrigger().getNextFireTime().toEpochMilli() > batchEnd) {
                     timeTriggers.add(tw);
                     break;
                 }
@@ -1557,7 +1558,7 @@ public class RAMJobStore implements JobStore {
                 tw.trigger.setFireInstanceId(getFiredTriggerRecordId());
                 OperableTrigger trig = (OperableTrigger) tw.trigger.clone();
                 if (result.isEmpty()) {
-                    batchEnd = Math.max(tw.trigger.getNextFireTime().getTime(), getSchedulingTime().getTime()) + timeWindow;
+                    batchEnd = Math.max(tw.trigger.getNextFireTime().toEpochMilli(), getSchedulingTime().toEpochMilli()) + timeWindow;
                 }
                 result.add(trig);
                 if (result.size() == maxCount)
@@ -1617,7 +1618,7 @@ public class RAMJobStore implements JobStore {
                     if(cal == null)
                         continue;
                 }
-                Date prevFireTime = trigger.getPreviousFireTime();
+                Instant prevFireTime = trigger.getPreviousFireTime();
                 // in case trigger was replaced between acquiring and firing
                 timeTriggers.remove(tw);
                 // call triggered on our copy, and the scheduler's copy
@@ -1807,13 +1808,13 @@ public class RAMJobStore implements JobStore {
         return false;
     }
 
-    private Date getSchedulingTime() {
+    private Instant getSchedulingTime() {
         try {
-            Date currentTime = signaler.getCurrentTime();
+            Instant currentTime = signaler.getCurrentTime();
             if (currentTime == null) {
                 throw new SchedulerException("SchedulerSignaler returned null scheduling time");
             }
-            return new Date(currentTime.getTime());
+            return Instant.ofEpochMilli(currentTime.toEpochMilli());
         } catch (SchedulerException e) {
             throw new IllegalStateException("Unable to obtain the current scheduling time", e);
         }

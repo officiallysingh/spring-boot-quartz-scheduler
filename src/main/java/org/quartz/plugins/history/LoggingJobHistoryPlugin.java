@@ -30,8 +30,9 @@ import org.quartz.JobListener;
 import org.quartz.impl.matchers.EverythingMatcher;
 import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.SchedulerPlugin;
+import org.quartz.utils.InstantMessageFormat;
 
-import java.text.MessageFormat;
+import java.time.Instant;
 
 /**
  * Logs a history of all job executions (and execution vetoes) via the slf4j.
@@ -440,7 +441,7 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
      * Object[] arguments = { new Integer(7), new
      * Date(System.currentTimeMillis()), "a disturbance in the Force" };
      * 
-     * String result = MessageFormat.format( "At {1,time} on {1,date}, there
+     * String result = InstantMessageFormat.format( "At {1,time} on {1,date}, there
      * was {2} on planet {0,number,integer}.", arguments);
      */
 
@@ -460,13 +461,13 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
 
         Object[] args = {
             context.getJobDetail().getKey().getName(),
-            context.getJobDetail().getKey().getGroup(), new java.util.Date(),
+            context.getJobDetail().getKey().getGroup(), Instant.now(),
             trigger.getKey().getName(), trigger.getKey().getGroup(),
             trigger.getPreviousFireTime(), trigger.getNextFireTime(),
                 context.getRefireCount()
         };
 
-        getLog().info(MessageFormat.format(getJobToBeFiredMessage(), args));
+        getLog().info(InstantMessageFormat.format(getJobToBeFiredMessage(), args));
     }
     
     /** 
@@ -488,13 +489,13 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
             args = 
                 new Object[] {
                     context.getJobDetail().getKey().getName(),
-                    context.getJobDetail().getKey().getGroup(), new java.util.Date(),
+                    context.getJobDetail().getKey().getGroup(), Instant.now(),
                     trigger.getKey().getName(), trigger.getKey().getGroup(),
                     trigger.getPreviousFireTime(), trigger.getNextFireTime(),
                         context.getRefireCount(), errMsg
                 };
             
-            getLog().warn(MessageFormat.format(getJobFailedMessage(), args), jobException); 
+            getLog().warn(InstantMessageFormat.format(getJobFailedMessage(), args), jobException); 
         } else {
             if (!getLog().isInfoEnabled()) {
                 return;
@@ -504,13 +505,13 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
             args =
                 new Object[] {
                     context.getJobDetail().getKey().getName(),
-                    context.getJobDetail().getKey().getGroup(), new java.util.Date(),
+                    context.getJobDetail().getKey().getGroup(), Instant.now(),
                     trigger.getKey().getName(), trigger.getKey().getGroup(),
                     trigger.getPreviousFireTime(), trigger.getNextFireTime(),
                         context.getRefireCount(), result
                 };
             
-            getLog().info(MessageFormat.format(getJobSuccessMessage(), args));
+            getLog().info(InstantMessageFormat.format(getJobSuccessMessage(), args));
         }
     }
 
@@ -527,13 +528,13 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
 
         Object[] args = {
             context.getJobDetail().getKey().getName(),
-            context.getJobDetail().getKey().getGroup(), new java.util.Date(),
+            context.getJobDetail().getKey().getGroup(), Instant.now(),
             trigger.getKey().getName(), trigger.getKey().getGroup(),
             trigger.getPreviousFireTime(), trigger.getNextFireTime(),
                 context.getRefireCount()
         };
 
-        getLog().info(MessageFormat.format(getJobWasVetoedMessage(), args));
+        getLog().info(InstantMessageFormat.format(getJobWasVetoedMessage(), args));
     }
 
 }

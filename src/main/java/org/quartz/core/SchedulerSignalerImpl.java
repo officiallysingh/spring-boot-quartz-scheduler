@@ -19,8 +19,9 @@
 
 package org.quartz.core;
 
+import java.time.Instant;
+
 import java.time.Clock;
-import java.util.Date;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,9 +103,9 @@ public class SchedulerSignalerImpl implements SchedulerSignaler {
     }
 
     @Override
-    public Date getCurrentTime() throws SchedulerException {
+    public Instant getCurrentTime() throws SchedulerException {
         try {
-            return new Date(clock.millis());
+            return Instant.ofEpochMilli(clock.millis());
         } catch (RuntimeException e) {
             throw new SchedulerException("Clock failed to supply the scheduling time", e);
         }

@@ -18,7 +18,8 @@
 
 package org.quartz.spi;
 
-import java.util.Date;
+import java.time.Instant;
+
 
 import org.quartz.Calendar;
 import org.quartz.CronTrigger;
@@ -89,7 +90,7 @@ public interface MutableTrigger extends Trigger {
      * of the trigger.
      * </p>
      */
-    void setStartTime(Date startTime);
+    void setStartTime(Instant startTime);
 
     /**
      * <p>
@@ -100,7 +101,7 @@ public interface MutableTrigger extends Trigger {
      * 
      * @see org.quartz.TriggerUtils#computeEndTimeToAllowParticularNumberOfFirings(org.quartz.spi.OperableTrigger, org.quartz.Calendar, int) 
      */
-    void setEndTime(Date endTime);
+    void setEndTime(Instant endTime);
 
     /**
      * <p>

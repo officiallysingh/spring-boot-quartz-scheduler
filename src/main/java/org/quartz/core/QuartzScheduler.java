@@ -19,10 +19,11 @@
 
 package org.quartz.core;
 
+import java.time.Instant;
+
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -66,6 +67,7 @@ import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spi.SchedulerSignaler;
 import org.quartz.spi.ThreadExecutor;
+import org.quartz.utils.Instants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -164,7 +166,7 @@ public class QuartzScheduler {
     private volatile boolean closed = false;
     private volatile boolean shuttingDown = false;
 
-    private Date initialStart = null;
+    private Instant initialStart = null;
 
     private final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -339,7 +341,7 @@ public class QuartzScheduler {
         notifySchedulerListenersStarting();
 
         if (initialStart == null) {
-            initialStart = new Date();
+            initialStart = Instants.now();
             this.resources.getJobStore().schedulerStarted();            
             startPlugins();
         } else {
@@ -396,10 +398,10 @@ public class QuartzScheduler {
         return schedThread.isPaused();
     }
 
-    public Date runningSince() {
+    public Instant runningSince() {
         if(initialStart == null)
             return null;
-        return new Date(initialStart.getTime());
+        return Instant.ofEpochMilli(initialStart.toEpochMilli());
     }
 
     public int numJobsExecuted() {
@@ -570,7 +572,7 @@ public class QuartzScheduler {
      *           if the Job or Trigger cannot be added to the Scheduler, or
      *           there is an internal Scheduler error.
      */
-    public Date scheduleJob(JobDetail jobDetail,
+    public Instant scheduleJob(JobDetail jobDetail,
             Trigger trigger) throws SchedulerException {
         validateState();
 
@@ -605,7 +607,7 @@ public class QuartzScheduler {
         if (trigger.getCalendarName() != null) {
             cal = resources.getJobStore().retrieveCalendar(trigger.getCalendarName());
         }
-        Date ft = trig.computeFirstFireTime(cal);
+        Instant ft = trig.computeFirstFireTime(cal);
 
         if (ft == null) {
             throw new SchedulerException(
@@ -614,7 +616,7 @@ public class QuartzScheduler {
 
         resources.getJobStore().storeJobAndTrigger(jobDetail, trig);
         notifySchedulerListenersJobAdded(jobDetail);
-        notifySchedulerThread(trigger.getNextFireTime().getTime());
+        notifySchedulerThread(trigger.getNextFireTime().toEpochMilli());
         notifySchedulerListenersScheduled(trigger);
 
         return ft;
@@ -631,7 +633,7 @@ public class QuartzScheduler {
      *           added to the Scheduler, or there is an internal Scheduler
      *           error.
      */
-    public Date scheduleJob(Trigger trigger)
+    public Instant scheduleJob(Trigger trigger)
         throws SchedulerException {
         validateState();
 
@@ -651,7 +653,7 @@ public class QuartzScheduler {
                     "Calendar not found: " + trigger.getCalendarName());
             }
         }
-        Date ft = trig.computeFirstFireTime(cal);
+        Instant ft = trig.computeFirstFireTime(cal);
 
         if (ft == null) {
             throw new SchedulerException(
@@ -659,7 +661,7 @@ public class QuartzScheduler {
         }
 
         resources.getJobStore().storeTrigger(trig, false);
-        notifySchedulerThread(trigger.getNextFireTime().getTime());
+        notifySchedulerThread(trigger.getNextFireTime().toEpochMilli());
         notifySchedulerListenersScheduled(trigger);
 
         return ft;
@@ -773,7 +775,7 @@ public class QuartzScheduler {
                             "Calendar '" + trigger.getCalendarName() + "' not found for trigger: " + trigger.getKey());
                     }
                 }
-                Date ft = opt.computeFirstFireTime(cal);
+                Instant ft = opt.computeFirstFireTime(cal);
 
                 if (ft == null) {
                     throw new SchedulerException(
@@ -846,7 +848,7 @@ public class QuartzScheduler {
      *         name and group was not found and removed from the store, otherwise
      *         the first fire time of the newly scheduled trigger.
      */
-    public Date rescheduleJob(TriggerKey triggerKey,
+    public Instant rescheduleJob(TriggerKey triggerKey,
             Trigger newTrigger) throws SchedulerException {
         validateState();
 
@@ -871,7 +873,7 @@ public class QuartzScheduler {
             cal = resources.getJobStore().retrieveCalendar(
                     newTrigger.getCalendarName());
         }
-        Date ft = trig.computeFirstFireTime(cal);
+        Instant ft = trig.computeFirstFireTime(cal);
 
         if (ft == null) {
             throw new SchedulerException(
@@ -879,7 +881,7 @@ public class QuartzScheduler {
         }
         
         if (resources.getJobStore().replaceTrigger(triggerKey, trig)) {
-            notifySchedulerThread(newTrigger.getNextFireTime().getTime());
+            notifySchedulerThread(newTrigger.getNextFireTime().toEpochMilli());
             notifySchedulerListenersUnscheduled(triggerKey);
             notifySchedulerListenersScheduled(newTrigger);
         } else {
@@ -926,7 +928,7 @@ public class QuartzScheduler {
             }
         }
 
-        notifySchedulerThread(trig.getNextFireTime().getTime());
+        notifySchedulerThread(trig.getNextFireTime().toEpochMilli());
         notifySchedulerListenersScheduled(trig);
     }
 
@@ -950,7 +952,7 @@ public class QuartzScheduler {
             }
         }
 
-        notifySchedulerThread(trig.getNextFireTime().getTime());
+        notifySchedulerThread(trig.getNextFireTime().toEpochMilli());
         notifySchedulerListenersScheduled(trig);
     }
     

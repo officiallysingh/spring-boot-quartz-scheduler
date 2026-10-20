@@ -27,7 +27,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.util.Date;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -175,7 +174,7 @@ public class QuartzSchedulerClockTest {
             // Fire 2 seconds after "clock start"
             Trigger trigger = newTrigger()
                     .withIdentity("trigger1", "group1")
-                    .startAt(Date.from(start.plusSeconds(2)))
+                    .startAt(Instant.from(start.plusSeconds(2)))
                     .build();
 
             scheduler.scheduleJob(job, trigger);
@@ -212,7 +211,7 @@ public class QuartzSchedulerClockTest {
             // Fire 2 seconds after "clock start"
             Trigger trigger = newTrigger()
                     .withIdentity("trigger2", "group1")
-                    .startAt(Date.from(start.plusSeconds(2)))
+                    .startAt(Instant.from(start.plusSeconds(2)))
                     .build();
 
             scheduler.scheduleJob(job, trigger);

@@ -19,6 +19,7 @@
 package org.quartz;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Year;
@@ -26,14 +27,11 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.Locale;
-import java.util.TimeZone;
 
 /**
  * <code>DateBuilder</code> is used to conveniently create
- * <code>java.util.Date</code> instances that meet particular criteria.
+ * <code>java.time.Instant</code> values that meet particular criteria.
  *
  * <p>Quartz provides a builder-style API for constructing scheduling-related
  * entities via a Domain-Specific Language (DSL).  The DSL can best be
@@ -126,31 +124,29 @@ public class DateBuilder {
      * Create a DateBuilder, with initial settings for the current date and time in the system default timezone.
      */
     private DateBuilder() {
-        this(TimeZone.getDefault());
+        this(ZoneId.systemDefault());
     }
 
     /**
      * Create a DateBuilder, with initial settings for the current date and time in the given timezone.
      */
-    private DateBuilder(TimeZone tz) {
-        this.zoneId = tz.toZoneId();
+    private DateBuilder(ZoneId tz) {
+        this.zoneId = tz;
     }
 
     /**
      * Create a DateBuilder, with initial settings for the current date and time in the given locale.
      */
     private DateBuilder(Locale lc) {
-        this(Calendar.getInstance(lc).getTimeZone());
+        this(ZoneId.systemDefault());
         this.lc = lc;
     }
 
     /**
      * Create a DateBuilder, with initial settings for the current date and time in the given timezone and locale.
      */
-    private DateBuilder(TimeZone tz, Locale lc) {
-        this(Calendar.getInstance(tz, lc).getTimeZone());
-
-        this.zoneId = tz.toZoneId();
+    private DateBuilder(ZoneId tz, Locale lc) {
+        this(tz);
         this.lc = lc;
     }
 
@@ -168,7 +164,7 @@ public class DateBuilder {
     /**
      * Create a DateBuilder, with initial settings for the current date and time in the given timezone.
      */
-    public static DateBuilder newDateInTimezone(TimeZone tz) {
+    public static DateBuilder newDateInTimezone(ZoneId tz) {
         return new DateBuilder(tz);
     }
 
@@ -182,18 +178,15 @@ public class DateBuilder {
     /**
      * Create a DateBuilder, with initial settings for the current date and time in the given timezone and locale.
      */
-    public static DateBuilder newDateInTimeZoneAndLocale(TimeZone tz, Locale lc) {
+    public static DateBuilder newDateInTimeZoneAndLocale(ZoneId tz, Locale lc) {
         return new DateBuilder(tz, lc);
     }
 
     /**
      * Build the Date defined by this builder instance.
      */
-    public Date build() {
+    public Instant build() {
         var useZoneId = (zoneId != null) ? zoneId : ZoneId.systemDefault();
-        if (lc != null && useZoneId == null) {
-            useZoneId = Calendar.getInstance(lc).getTimeZone().toZoneId();
-        }
 
         if (year == -1 || month == -1 || day == -1 || hour == -1 || minute == -1 || second == -1) {
             var zdt = ZonedDateTime.now(clock).withZoneSameInstant(useZoneId);
@@ -207,7 +200,7 @@ public class DateBuilder {
         }
         var zdt = ZonedDateTime.of(year, month, day, hour, minute, second, 0, useZoneId);
 
-        return Date.from(zdt.toInstant());
+        return zdt.toInstant();
     }
 
     /**
@@ -293,8 +286,8 @@ public class DateBuilder {
     /**
      * Set the TimeZone for the Date that will be built by this builder (if "null", system default will be used)
      */
-    public DateBuilder inTimeZone(TimeZone timezone) {
-        this.zoneId = timezone.toZoneId();
+    public DateBuilder inTimeZone(ZoneId timezone) {
+        this.zoneId = timezone;
         return this;
     }
 
@@ -306,12 +299,12 @@ public class DateBuilder {
         return this;
     }
 
-    public static Date futureDate(int interval, IntervalUnit unit) {
+    public static Instant futureDate(int interval, IntervalUnit unit) {
         return futureDate(interval, unit, Clock.systemDefaultZone());
     }
 
-    static Date futureDate(int interval, IntervalUnit unit, Clock clock) {
-        return Date.from(ZonedDateTime.now(clock).plus(interval, translate(unit)).toInstant());
+    static Instant futureDate(int interval, IntervalUnit unit, Clock clock) {
+        return ZonedDateTime.now(clock).plus(interval, translate(unit)).toInstant();
     }
 
     private static ChronoUnit translate(IntervalUnit unit) {
@@ -342,17 +335,16 @@ public class DateBuilder {
      *          The value (0-59) to give the seconds field of the date
      * @return the new date
      */
-    public static Date tomorrowAt(int hour, int minute, int second) {
+    public static Instant tomorrowAt(int hour, int minute, int second) {
         return tomorrowAt(hour, minute, second, Clock.systemDefaultZone());
     }
 
-    static Date tomorrowAt(int hour, int minute, int second, Clock clock) {
-        return Date.from(
-                ZonedDateTime.now(clock)
+    static Instant tomorrowAt(int hour, int minute, int second, Clock clock) {
+        return ZonedDateTime.now(clock)
                         .truncatedTo(ChronoUnit.DAYS)
                         .plusHours(24)
                         .with(LocalTime.of(hour, minute, second, 0))
-                        .toInstant());
+                        .toInstant();
     }
 
     /**
@@ -369,11 +361,11 @@ public class DateBuilder {
      *          The value (0-59) to give the seconds field of the date
      * @return the new date
      */
-    public static Date todayAt(int hour, int minute, int second) {
+    public static Instant todayAt(int hour, int minute, int second) {
         return todayAt(hour, minute, second, Clock.systemDefaultZone());
     }
 
-    static Date todayAt(int hour, int minute, int second, Clock clock) {
+    static Instant todayAt(int hour, int minute, int second, Clock clock) {
         return dateOf(hour, minute, second, clock);
     }
 
@@ -391,15 +383,14 @@ public class DateBuilder {
      *          The value (0-59) to give the seconds field of the date
      * @return the new date
      */
-    public static Date dateOf(int hour, int minute, int second) {
+    public static Instant dateOf(int hour, int minute, int second) {
         return dateOf(hour, minute, second, Clock.systemDefaultZone());
     }
 
-    static Date dateOf(int hour, int minute, int second, Clock clock) {
-        return Date.from(
-                ZonedDateTime.now(clock)
+    static Instant dateOf(int hour, int minute, int second, Clock clock) {
+        return ZonedDateTime.now(clock)
                         .with(LocalTime.of(hour, minute, second, 0))
-                        .toInstant());
+                        .toInstant();
     }
 
     /**
@@ -420,17 +411,16 @@ public class DateBuilder {
      *          The value (1-12) to give the month field of the date
      * @return the new date
      */
-    public static Date dateOf(int hour, int minute, int second,
+    public static Instant dateOf(int hour, int minute, int second,
             int dayOfMonth, int month) {
         return dateOf(hour, minute, second, dayOfMonth, month, Clock.systemDefaultZone());
     }
 
-    static Date dateOf(int hour, int minute, int second,
+    static Instant dateOf(int hour, int minute, int second,
             int dayOfMonth, int month, Clock clock) {
         var zdt = ZonedDateTime.now(clock);
-        return Date.from(
-                zdt.with(LocalDateTime.of(zdt.getYear(), month, dayOfMonth, hour, minute, second, 0))
-                        .toInstant());
+        return zdt.with(LocalDateTime.of(zdt.getYear(), month, dayOfMonth, hour, minute, second, 0))
+                        .toInstant();
     }
 
     /**
@@ -453,17 +443,16 @@ public class DateBuilder {
      *          The value (1970-999999999) to give the year field of the date
      * @return the new date
      */
-    public static Date dateOf(int hour, int minute, int second,
+    public static Instant dateOf(int hour, int minute, int second,
             int dayOfMonth, int month, int year) {
         return dateOf(hour, minute, second, dayOfMonth, month, year, Clock.systemDefaultZone());
     }
 
-    static Date dateOf(int hour, int minute, int second,
+    static Instant dateOf(int hour, int minute, int second,
             int dayOfMonth, int month, int year, Clock clock) {
-        return Date.from(
-                LocalDateTime.of(year, month, dayOfMonth, hour, minute, second, 0)
+        return LocalDateTime.of(year, month, dayOfMonth, hour, minute, second, 0)
                         .atZone(clock.getZone())
-                        .toInstant());
+                        .toInstant();
     }
 
     /**
@@ -479,11 +468,11 @@ public class DateBuilder {
      *
      * @return the new rounded date
      */
-    public static Date evenHourDateAfterNow() {
+    public static Instant evenHourDateAfterNow() {
         return evenHourDateAfterNow(Clock.systemDefaultZone());
     }
 
-    static Date evenHourDateAfterNow(Clock clock) {
+    static Instant evenHourDateAfterNow(Clock clock) {
         return evenHourDate(null, clock);
     }
 
@@ -504,17 +493,16 @@ public class DateBuilder {
      *          be used
      * @return the new rounded date
      */
-    public static Date evenHourDate(Date date) {
+    public static Instant evenHourDate(Instant date) {
         return evenHourDate(date, Clock.systemDefaultZone());
     }
 
-    static Date evenHourDate(Date date, Clock clock) {
-        var zdt = (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date.toInstant(), ZoneOffset.UTC);
+    static Instant evenHourDate(Instant date, Clock clock) {
+        var zdt = (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
 
         zdt = zdt.plusHours(1);
-        return Date.from(
-                zdt.truncatedTo(ChronoUnit.HOURS)
-                        .toInstant());
+        return zdt.truncatedTo(ChronoUnit.HOURS)
+                        .toInstant();
     }
 
     /**
@@ -533,16 +521,15 @@ public class DateBuilder {
      *          be used
      * @return the new rounded date
      */
-    public static Date evenHourDateBefore(Date date) {
+    public static Instant evenHourDateBefore(Instant date) {
         return evenHourDateBefore(date, Clock.systemDefaultZone());
     }
 
-    static Date evenHourDateBefore(Date date, Clock clock) {
-        var zdt = (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date.toInstant(), ZoneOffset.UTC);
+    static Instant evenHourDateBefore(Instant date, Clock clock) {
+        var zdt = (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
 
-        return Date.from(
-                zdt.truncatedTo(ChronoUnit.HOURS)
-                        .toInstant());
+        return zdt.truncatedTo(ChronoUnit.HOURS)
+                        .toInstant();
     }
 
     /**
@@ -558,11 +545,11 @@ public class DateBuilder {
      *
      * @return the new rounded date
      */
-    public static Date evenMinuteDateAfterNow() {
+    public static Instant evenMinuteDateAfterNow() {
         return evenMinuteDateAfterNow(Clock.systemDefaultZone());
     }
 
-    static Date evenMinuteDateAfterNow(Clock clock) {
+    static Instant evenMinuteDateAfterNow(Clock clock) {
         return evenMinuteDate(null, clock);
     }
 
@@ -583,15 +570,15 @@ public class DateBuilder {
      *          be used
      * @return the new rounded date
      */
-    public static Date evenMinuteDate(Date date) {
+    public static Instant evenMinuteDate(Instant date) {
         return evenMinuteDate(date, Clock.systemDefaultZone());
     }
 
-    public static Date evenMinuteDate(Date date, Clock clock) {
-        var zdt = (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date.toInstant(), ZoneOffset.UTC);
+    public static Instant evenMinuteDate(Instant date, Clock clock) {
+        var zdt = (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
 
         zdt = zdt.plusMinutes(1);
-        return Date.from(zdt.truncatedTo(ChronoUnit.MINUTES).toInstant());
+        return zdt.truncatedTo(ChronoUnit.MINUTES).toInstant();
     }
 
     /**
@@ -610,14 +597,14 @@ public class DateBuilder {
      *          be used
      * @return the new rounded date
      */
-    public static Date evenMinuteDateBefore(Date date) {
+    public static Instant evenMinuteDateBefore(Instant date) {
         return evenMinuteDateBefore(date, Clock.systemDefaultZone());
     }
 
-    static Date evenMinuteDateBefore(Date date, Clock clock) {
-        var zdt = (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date.toInstant(), ZoneOffset.UTC);
+    static Instant evenMinuteDateBefore(Instant date, Clock clock) {
+        var zdt = (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
 
-        return Date.from(zdt.truncatedTo(ChronoUnit.MINUTES).toInstant());
+        return zdt.truncatedTo(ChronoUnit.MINUTES).toInstant();
     }
 
     /**
@@ -627,11 +614,11 @@ public class DateBuilder {
      *
      * @return the new rounded date
      */
-    public static Date evenSecondDateAfterNow() {
+    public static Instant evenSecondDateAfterNow() {
         return evenSecondDateAfterNow(Clock.systemDefaultZone());
     }
 
-    static Date evenSecondDateAfterNow(Clock clock) {
+    static Instant evenSecondDateAfterNow(Clock clock) {
         return evenSecondDate(null, clock);
     }
 
@@ -646,15 +633,15 @@ public class DateBuilder {
      *          be used
      * @return the new rounded date
      */
-    public static Date evenSecondDate(Date date) {
+    public static Instant evenSecondDate(Instant date) {
         return evenSecondDate(date, Clock.systemDefaultZone());
     }
 
-    static Date evenSecondDate(Date date, Clock clock) {
-        var zdt = (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date.toInstant(), ZoneOffset.UTC);
+    static Instant evenSecondDate(Instant date, Clock clock) {
+        var zdt = (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
 
         zdt = zdt.plusSeconds(1);
-        return Date.from(zdt.truncatedTo(ChronoUnit.SECONDS).toInstant());
+        return zdt.truncatedTo(ChronoUnit.SECONDS).toInstant();
     }
 
     /**
@@ -673,14 +660,14 @@ public class DateBuilder {
      *          be used
      * @return the new rounded date
      */
-    public static Date evenSecondDateBefore(Date date) {
+    public static Instant evenSecondDateBefore(Instant date) {
         return evenSecondDateBefore(date, Clock.systemDefaultZone());
     }
 
-    static Date evenSecondDateBefore(Date date, Clock clock) {
-        var zdt = (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date.toInstant(), ZoneOffset.UTC);
+    static Instant evenSecondDateBefore(Instant date, Clock clock) {
+        var zdt = (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
 
-        return Date.from(zdt.truncatedTo(ChronoUnit.SECONDS).toInstant());
+        return zdt.truncatedTo(ChronoUnit.SECONDS).toInstant();
     }
 
     /**
@@ -777,22 +764,22 @@ public class DateBuilder {
      *          the base-minute to set the time on
      * @return the new rounded date
      *
-     * @see #nextGivenSecondDate(Date, int)
+     * @see #nextGivenSecondDate(Instant, int)
      */
-    public static Date nextGivenMinuteDate(Date date, int minuteBase) {
+    public static Instant nextGivenMinuteDate(Instant date, int minuteBase) {
         return nextGivenMinuteDate(date, minuteBase, Clock.systemDefaultZone());
     }
 
-    static Date nextGivenMinuteDate(Date date, int minuteBase, Clock clock) {
+    static Instant nextGivenMinuteDate(Instant date, int minuteBase, Clock clock) {
         if (minuteBase < 0 || minuteBase > 59) {
             throw new IllegalArgumentException(
                     "minuteBase must be >=0 and <= 59");
         }
 
-        var zdt = (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date.toInstant(), ZoneOffset.UTC);
+        var zdt = (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
         if (minuteBase == 0) {
             zdt = zdt.truncatedTo(ChronoUnit.HOURS).plusHours(1);
-            return Date.from(zdt.toInstant());
+            return zdt.toInstant();
         }
 
         zdt = zdt.truncatedTo(ChronoUnit.MINUTES);
@@ -805,7 +792,7 @@ public class DateBuilder {
             zdt = zdt.withMinute(nextminute);
         }
 
-        return Date.from(zdt.toInstant());
+        return zdt.toInstant();
     }
 
     /**
@@ -825,22 +812,22 @@ public class DateBuilder {
      * @param secondBase the base-second to set the time on
      * @return the new rounded date
      *
-     * @see #nextGivenMinuteDate(Date, int)
+     * @see #nextGivenMinuteDate(Instant, int)
      */
-    public static Date nextGivenSecondDate(Date date, int secondBase) {
+    public static Instant nextGivenSecondDate(Instant date, int secondBase) {
         return nextGivenSecondDate(date, secondBase, Clock.systemDefaultZone());
     }
 
-    static Date nextGivenSecondDate(Date date, int secondBase, Clock clock) {
+    static Instant nextGivenSecondDate(Instant date, int secondBase, Clock clock) {
         if (secondBase < 0 || secondBase > 59) {
             throw new IllegalArgumentException(
                     "secondBase must be >=0 and <= 59");
         }
 
-        var zdt = (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date.toInstant(), ZoneOffset.UTC);
+        var zdt = (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
         if (secondBase == 0) {
             zdt = zdt.truncatedTo(ChronoUnit.MINUTES).plusMinutes(1);
-            return Date.from(zdt.toInstant());
+            return zdt.toInstant();
         }
 
         zdt = zdt.truncatedTo(ChronoUnit.SECONDS);
@@ -853,7 +840,7 @@ public class DateBuilder {
             zdt = zdt.withSecond(nextSecond);
         }
 
-        return Date.from(zdt.toInstant());
+        return zdt.toInstant();
     }
 
     /**
@@ -866,12 +853,12 @@ public class DateBuilder {
      * @param dest the destination time-zone
      * @return the translated date
      */
-    public static Date translateTime(Date date, TimeZone src, TimeZone dest) {
-        Date newDate = new Date();
-        int offset = (dest.getOffset(date.getTime()) - src.getOffset(date.getTime()));
-        newDate.setTime(date.getTime() - offset);
+    public static Instant translateTime(Instant date, ZoneId src, ZoneId dest) {
 
-        return newDate;
+        long offset = (dest.getRules().getOffset(date).getTotalSeconds()
+                - src.getRules().getOffset(date).getTotalSeconds()) * 1000L;
+
+        return date.minusMillis(offset);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -19,11 +19,11 @@
 package org.quartz.impl.calendar;
 
 import java.io.Serializable;
-import java.util.Date;
-import java.util.TimeZone;
+import java.time.Instant;
+import java.time.ZoneId;
 
 import org.quartz.Calendar;
-
+import org.quartz.utils.LenientDateTime;
 /**
  * <p>
  * This implementation of the Calendar may be used (you don't have to) as a
@@ -53,7 +53,7 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
 
     private String description;
 
-    private TimeZone timeZone;
+    private ZoneId timeZone;
 
     public BaseCalendar() {
     }
@@ -64,17 +64,17 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
 
     /**
      * @param timeZone The time zone to use for this Calendar, <code>null</code>
-     * if <code>{@link TimeZone#getDefault()}</code> should be used
+     * if <code>{@link ZoneId#systemDefault()}</code> should be used
      */
-    public BaseCalendar(TimeZone timeZone) {
+    public BaseCalendar(ZoneId timeZone) {
         setTimeZone(timeZone);
     }
 
     /**
      * @param timeZone The time zone to use for this Calendar, <code>null</code>
-     * if <code>{@link TimeZone#getDefault()}</code> should be used
+     * if <code>{@link ZoneId#systemDefault()}</code> should be used
      */
-    public BaseCalendar(Calendar baseCalendar, TimeZone timeZone) {
+    public BaseCalendar(Calendar baseCalendar, ZoneId timeZone) {
         setBaseCalendar(baseCalendar);
         setTimeZone(timeZone);
     }
@@ -86,8 +86,6 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
             if (getBaseCalendar() != null) {
                 clone.baseCalendar = (Calendar) getBaseCalendar().clone();
             }
-            if(getTimeZone() != null)
-                clone.timeZone = (TimeZone) getTimeZone().clone();
             return clone;
         } catch (CloneNotSupportedException ex) {
             throw new IncompatibleClassChangeError("Not Cloneable.");
@@ -140,9 +138,9 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
      * resolved.
      *
      * @return This Calendar's timezone, <code>null</code> if Calendar should
-     * use the <code>{@link TimeZone#getDefault()}</code>
+     * use the <code>{@link ZoneId#systemDefault()}</code>
      */
-    public TimeZone getTimeZone() {
+    public ZoneId getTimeZone() {
         return timeZone;
     }
 
@@ -150,9 +148,9 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
      * Sets the time zone for which this <code>Calendar</code> will be resolved.
      *
      * @param timeZone The time zone to use for this Calendar, <code>null</code>
-     * if <code>{@link TimeZone#getDefault()}</code> should be used
+     * if <code>{@link ZoneId#systemDefault()}</code> should be used
      */
-    public void setTimeZone(TimeZone timeZone) {
+    public void setTimeZone(ZoneId timeZone) {
         this.timeZone = timeZone;
     }
 
@@ -165,9 +163,9 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
      *
      * @see org.quartz.Calendar#isTimeIncluded(long)
      */
-    public boolean isTimeIncluded(long timeStamp) {
+    public boolean isTimeIncluded(Instant timeStamp) {
 
-        if (timeStamp <= 0) {
+        if (!timeStamp.isAfter(Instant.EPOCH)) {
             throw new IllegalArgumentException(
                     "timeStamp must be greater 0");
         }
@@ -188,9 +186,9 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
      *
      * @see org.quartz.Calendar#getNextIncludedTime(long)
      */
-    public long getNextIncludedTime(long timeStamp) {
+    public Instant getNextIncludedTime(Instant timeStamp) {
 
-        if (timeStamp <= 0) {
+        if (!timeStamp.isAfter(Instant.EPOCH)) {
             throw new IllegalArgumentException(
                     "timeStamp must be greater 0");
         }
@@ -203,63 +201,41 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
     }
 
     /**
-     * Build a <code>{@link java.util.Calendar}</code> for the given timeStamp.
-     * The new Calendar will use the <code>BaseCalendar</code> time zone if it
-     * is not <code>null</code>.
+     * The calendar's time zone, or the system default zone if none was set.
      */
-    protected java.util.Calendar createJavaCalendar(long timeStamp) {
-        java.util.Calendar calendar = createJavaCalendar();
-        calendar.setTime(new Date(timeStamp));
-        return calendar;
+    protected ZoneId getTimeZoneOrDefault() {
+        return (getTimeZone() == null) ? ZoneId.systemDefault() : getTimeZone();
     }
 
     /**
-     * Build a <code>{@link java.util.Calendar}</code> with the current time.
-     * The new Calendar will use the <code>BaseCalendar</code> time zone if
-     * it is not <code>null</code>.
+     * Build a <code>{@link LenientDateTime}</code> for the given time in this calendar's
+     * time zone (or the default time zone if none was set).
      */
-    protected java.util.Calendar createJavaCalendar() {
-        return
-            (getTimeZone() == null) ?
-                java.util.Calendar.getInstance() :
-                java.util.Calendar.getInstance(getTimeZone());
+    protected LenientDateTime createDateTime(Instant timeStamp) {
+        return new LenientDateTime(timeStamp, getTimeZoneOrDefault());
     }
 
     /**
-     * Returns the start of the given day as a <code>{@link java.util.Calendar}</code>.
-     * This calculation will take the <code>BaseCalendar</code>
-     * time zone into account if it is not <code>null</code>.
-     *
-     * @param timeInMillis A time containing the desired date for the
-     *                     start-of-day time
-     * @return A <code>{@link java.util.Calendar}</code> set to the start of
-     *         the given day.
+     * Returns the start of the given day (00:00:00.000) in this calendar's time zone.
      */
-    protected java.util.Calendar getStartOfDayJavaCalendar(long timeInMillis) {
-        java.util.Calendar startOfDay = createJavaCalendar(timeInMillis);
-        startOfDay.set(java.util.Calendar.HOUR_OF_DAY, 0);
-        startOfDay.set(java.util.Calendar.MINUTE, 0);
-        startOfDay.set(java.util.Calendar.SECOND, 0);
-        startOfDay.set(java.util.Calendar.MILLISECOND, 0);
+    protected LenientDateTime getStartOfDay(Instant timeStamp) {
+        LenientDateTime startOfDay = createDateTime(timeStamp);
+        startOfDay.set(LenientDateTime.HOUR_OF_DAY, 0);
+        startOfDay.set(LenientDateTime.MINUTE, 0);
+        startOfDay.set(LenientDateTime.SECOND, 0);
+        startOfDay.set(LenientDateTime.MILLISECOND, 0);
         return startOfDay;
     }
 
     /**
-     * Returns the end of the given day <code>{@link java.util.Calendar}</code>.
-     * This calculation will take the <code>BaseCalendar</code>
-     * time zone into account if it is not <code>null</code>.
-     *
-     * @param timeInMillis a time containing the desired date for the
-     *                     end-of-day time.
-     * @return A <code>{@link java.util.Calendar}</code> set to the end of
-     *         the given day.
+     * Returns the end of the given day (23:59:59.999) in this calendar's time zone.
      */
-    protected java.util.Calendar getEndOfDayJavaCalendar(long timeInMillis) {
-        java.util.Calendar endOfDay = createJavaCalendar(timeInMillis);
-        endOfDay.set(java.util.Calendar.HOUR_OF_DAY, 23);
-        endOfDay.set(java.util.Calendar.MINUTE, 59);
-        endOfDay.set(java.util.Calendar.SECOND, 59);
-        endOfDay.set(java.util.Calendar.MILLISECOND, 999);
+    protected LenientDateTime getEndOfDay(Instant timeStamp) {
+        LenientDateTime endOfDay = createDateTime(timeStamp);
+        endOfDay.set(LenientDateTime.HOUR_OF_DAY, 23);
+        endOfDay.set(LenientDateTime.MINUTE, 59);
+        endOfDay.set(LenientDateTime.SECOND, 59);
+        endOfDay.set(LenientDateTime.MILLISECOND, 999);
         return endOfDay;
     }
 }

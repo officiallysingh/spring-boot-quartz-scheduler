@@ -18,8 +18,9 @@
 
 package org.quartz;
 
+import java.time.ZoneId;
+
 import java.text.ParseException;
-import java.util.TimeZone;
 
 import org.quartz.impl.triggers.CronTriggerImpl;
 import org.quartz.spi.MutableTrigger;
@@ -286,7 +287,7 @@ public class CronScheduleBuilder extends ScheduleBuilder<CronTrigger> {
      * @return the updated CronScheduleBuilder
      * @see CronExpression#getTimeZone()
      */
-    public CronScheduleBuilder inTimeZone(TimeZone timezone) {
+    public CronScheduleBuilder inTimeZone(ZoneId timezone) {
         cronExpression.setTimeZone(timezone);
         return this;
     }

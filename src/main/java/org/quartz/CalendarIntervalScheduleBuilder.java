@@ -18,7 +18,8 @@
 
 package org.quartz;
 
-import java.util.TimeZone;
+import java.time.ZoneId;
+
 
 import org.quartz.DateBuilder.IntervalUnit;
 import org.quartz.impl.triggers.CalendarIntervalTriggerImpl;
@@ -63,7 +64,7 @@ public class CalendarIntervalScheduleBuilder extends ScheduleBuilder<CalendarInt
     private IntervalUnit intervalUnit = IntervalUnit.DAY;
 
     private int misfireInstruction = CalendarIntervalTrigger.MISFIRE_INSTRUCTION_SMART_POLICY;
-    private TimeZone timeZone;
+    private ZoneId timeZone;
     private boolean preserveHourOfDayAcrossDaylightSavings;
     private boolean skipDayIfHourDoesNotExist;
     
@@ -276,7 +277,7 @@ public class CalendarIntervalScheduleBuilder extends ScheduleBuilder<CalendarInt
      * @return the updated CalendarIntervalScheduleBuilder
      * @see CalendarIntervalTrigger#getTimeZone()
      */
-    public CalendarIntervalScheduleBuilder inTimeZone(TimeZone timezone) {
+    public CalendarIntervalScheduleBuilder inTimeZone(ZoneId timezone) {
         this.timeZone = timezone;
         return this;
     }
@@ -305,7 +306,7 @@ public class CalendarIntervalScheduleBuilder extends ScheduleBuilder<CalendarInt
      * 
      * @see #skipDayIfHourDoesNotExist(boolean)
      * @see #inTimeZone(TimeZone)
-     * @see TriggerBuilder#startAt(java.util.Date)
+     * @see TriggerBuilder#startAt(java.time.Instant)
      */
     public CalendarIntervalScheduleBuilder preserveHourOfDayAcrossDaylightSavings(boolean preserveHourOfDay) {
         this.preserveHourOfDayAcrossDaylightSavings = preserveHourOfDay;

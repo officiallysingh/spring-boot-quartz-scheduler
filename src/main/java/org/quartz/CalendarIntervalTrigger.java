@@ -18,8 +18,8 @@
 
 package org.quartz;
 
-import java.util.Calendar;
-import java.util.TimeZone;
+import java.time.ZoneId;
+
 
 import org.quartz.DateBuilder.IntervalUnit;
 
@@ -102,7 +102,7 @@ public interface CalendarIntervalTrigger extends Trigger {
      * If null, the system default TimeZone will be used.
      * </p>
      */
-    TimeZone getTimeZone();
+    ZoneId getTimeZone();
     
     
     /**

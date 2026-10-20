@@ -19,7 +19,9 @@
 
 package org.quartz;
 
-import java.util.Date;
+
+import java.time.Instant;
+
 import java.util.LinkedList;
 import java.util.List;
 
@@ -71,11 +73,11 @@ public class TriggerUtils {
      *          The calendar to apply to the trigger's schedule
      * @param numTimes
      *          The number of next fire times to produce
-     * @return List of java.util.Date objects
+     * @return List of java.time.Instant objects
      */
-    public static List<Date> computeFireTimes(OperableTrigger trigger, org.quartz.Calendar cal,
+    public static List<Instant> computeFireTimes(OperableTrigger trigger, org.quartz.Calendar cal,
             int numTimes) {
-        LinkedList<Date> lst = new LinkedList<>();
+        LinkedList<Instant> lst = new LinkedList<>();
 
         OperableTrigger t = (OperableTrigger) trigger.clone();
 
@@ -84,7 +86,7 @@ public class TriggerUtils {
         }
 
         for (int i = 0; i < numTimes; i++) {
-            Date d = t.getNextFireTime();
+            Instant d = t.getNextFireTime();
             if (d != null) {
                 lst.add(d);
                 t.triggered(cal);
@@ -112,7 +114,7 @@ public class TriggerUtils {
      *          The number of next fire times to produce
      * @return the computed Date, or null if the trigger (as configured) will not fire that many times.
      */
-    public static Date computeEndTimeToAllowParticularNumberOfFirings(OperableTrigger trigger, org.quartz.Calendar cal, 
+    public static Instant computeEndTimeToAllowParticularNumberOfFirings(OperableTrigger trigger, org.quartz.Calendar cal, 
             int numTimes) {
 
         OperableTrigger t = (OperableTrigger) trigger.clone();
@@ -122,10 +124,10 @@ public class TriggerUtils {
         }
         
         int c = 0;
-        Date endTime = null;
+        Instant endTime = null;
         
         for (int i = 0; i < numTimes; i++) {
-            Date d = t.getNextFireTime();
+            Instant d = t.getNextFireTime();
             if (d != null) {
                 c++;
                 t.triggered(cal);
@@ -139,7 +141,7 @@ public class TriggerUtils {
         if(endTime == null)
             return null;
         
-        endTime = new Date(endTime.getTime() + 1000L);
+        endTime = Instant.ofEpochMilli(endTime.toEpochMilli() + 1000L);
         
         return endTime;
     }
@@ -165,11 +167,11 @@ public class TriggerUtils {
      *          The starting date at which to find fire times
      * @param to
      *          The ending date at which to stop finding fire times
-     * @return List of java.util.Date objects
+     * @return List of java.time.Instant objects
      */
-    public static List<Date> computeFireTimesBetween(OperableTrigger trigger,
-            org.quartz.Calendar cal, Date from, Date to) {
-        LinkedList<Date> lst = new LinkedList<>();
+    public static List<Instant> computeFireTimesBetween(OperableTrigger trigger,
+            org.quartz.Calendar cal, Instant from, Instant to) {
+        LinkedList<Instant> lst = new LinkedList<>();
 
         OperableTrigger t = (OperableTrigger) trigger.clone();
 
@@ -180,13 +182,13 @@ public class TriggerUtils {
         }
 
         while (true) {
-            Date d = t.getNextFireTime();
+            Instant d = t.getNextFireTime();
             if (d != null) {
-                if (d.before(from)) {
+                if (d.isBefore(from)) {
                     t.triggered(cal);
                     continue;
                 }
-                if (d.after(to)) {
+                if (d.isAfter(to)) {
                     break;
                 }
                 lst.add(d);

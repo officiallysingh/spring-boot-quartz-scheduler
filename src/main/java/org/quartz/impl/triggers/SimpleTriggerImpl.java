@@ -19,7 +19,10 @@
 
 package org.quartz.impl.triggers;
 
-import java.util.Date;
+import java.time.Instant;
+import java.time.Year;
+import java.time.ZoneId;
+
 
 import org.quartz.Calendar;
 import org.quartz.CronTrigger;
@@ -32,6 +35,7 @@ import org.quartz.SimpleScheduleBuilder;
 import org.quartz.SimpleTrigger;
 import org.quartz.Trigger;
 import org.quartz.TriggerUtils;
+import org.quartz.utils.Instants;
 
 
 /**
@@ -66,7 +70,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      */
     private static final long serialVersionUID = -3735980074222850397L;
 
-    private static final int YEAR_TO_GIVEUP_SCHEDULING_AT = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) + 100;
+    private static final int YEAR_TO_GIVEUP_SCHEDULING_AT = Year.now().getValue() + 100;
     
     /*
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -76,13 +80,13 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
     
-    private Date startTime = null;
+    private Instant startTime = null;
 
-    private Date endTime = null;
+    private Instant endTime = null;
 
-    private Date nextFireTime = null;
+    private Instant nextFireTime = null;
 
-    private Date previousFireTime = null;
+    private Instant previousFireTime = null;
 
     private int repeatCount = 0;
 
@@ -132,7 +136,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      */
     @Deprecated
     public SimpleTriggerImpl(String name, String group) {
-        this(name, group, new Date(), null, 0, 0);
+        this(name, group, Instants.now(), null, 0, 0);
     }
 
     /**
@@ -159,7 +163,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
     @Deprecated
     public SimpleTriggerImpl(String name, String group, int repeatCount,
             long repeatInterval) {
-        this(name, group, new Date(), null, repeatCount, repeatInterval);
+        this(name, group, Instants.now(), null, repeatCount, repeatInterval);
     }
 
     /**
@@ -171,7 +175,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      * @deprecated use a TriggerBuilder instead
      */
     @Deprecated
-    public SimpleTriggerImpl(String name, Date startTime) {
+    public SimpleTriggerImpl(String name, Instant startTime) {
         this(name, null, startTime);
     }
 
@@ -184,7 +188,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      * @deprecated use a TriggerBuilder instead
      */
     @Deprecated
-    public SimpleTriggerImpl(String name, String group, Date startTime) {
+    public SimpleTriggerImpl(String name, String group, Instant startTime) {
         this(name, group, startTime, null, 0, 0);
     }
     
@@ -210,8 +214,8 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      * @deprecated use a TriggerBuilder instead
      */
     @Deprecated
-    public SimpleTriggerImpl(String name, Date startTime,
-            Date endTime, int repeatCount, long repeatInterval) {
+    public SimpleTriggerImpl(String name, Instant startTime,
+            Instant endTime, int repeatCount, long repeatInterval) {
         this(name, null, startTime, endTime, repeatCount, repeatInterval);
     }
     
@@ -237,8 +241,8 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      * @deprecated use a TriggerBuilder instead
      */
     @Deprecated
-    public SimpleTriggerImpl(String name, String group, Date startTime,
-            Date endTime, int repeatCount, long repeatInterval) {
+    public SimpleTriggerImpl(String name, String group, Instant startTime,
+            Instant endTime, int repeatCount, long repeatInterval) {
         super(name, group);
 
         setStartTime(startTime);
@@ -270,7 +274,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      */
     @Deprecated
     public SimpleTriggerImpl(String name, String group, String jobName,
-            String jobGroup, Date startTime, Date endTime, int repeatCount,
+            String jobGroup, Instant startTime, Instant endTime, int repeatCount,
             long repeatInterval) {
         super(name, group, jobName, jobGroup);
 
@@ -294,7 +298,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      * </p>
      */
     @Override
-    public Date getStartTime() {
+    public Instant getStartTime() {
         return startTime;
     }
 
@@ -307,18 +311,18 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      *              if startTime is <code>null</code>.
      */
     @Override
-    public void setStartTime(Date startTime) {
+    public void setStartTime(Instant startTime) {
         if (startTime == null) {
             throw new IllegalArgumentException("Start time cannot be null");
         }
 
-        Date eTime = getEndTime();
-        if (eTime != null && eTime.before(startTime)) {
+        Instant eTime = getEndTime();
+        if (eTime != null && eTime.isBefore(startTime)) {
             throw new IllegalArgumentException(
                 "End time cannot be before start time");    
         }
 
-        this.startTime = startTime;
+        this.startTime = Instants.toMillis(startTime);
     }
 
     /**
@@ -330,7 +334,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      * @see #getFinalFireTime()
      */
     @Override
-    public Date getEndTime() {
+    public Instant getEndTime() {
         return endTime;
     }
 
@@ -344,14 +348,14 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      *              if endTime is before start time.
      */
     @Override
-    public void setEndTime(Date endTime) {
-        Date sTime = getStartTime();
-        if (sTime != null && endTime != null && sTime.after(endTime)) {
+    public void setEndTime(Instant endTime) {
+        Instant sTime = getStartTime();
+        if (sTime != null && endTime != null && sTime.isAfter(endTime)) {
             throw new IllegalArgumentException(
                     "End time cannot be before start time");
         }
 
-        this.endTime = endTime;
+        this.endTime = Instants.toMillis(endTime);
     }
 
     /* (non-Javadoc)
@@ -461,11 +465,11 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      */
     @Override
     public void updateAfterMisfire(Calendar cal) {
-        updateAfterMisfire(cal, new Date());
+        updateAfterMisfire(cal, Instants.now());
     }
 
     @Override
-    public void updateAfterMisfire(Calendar cal, Date now) {
+    public void updateAfterMisfire(Calendar cal, Instant now) {
         int instr = getMisfireInstruction();
         
         if(instr == Trigger.MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY)
@@ -487,35 +491,31 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
         if (instr == MISFIRE_INSTRUCTION_FIRE_NOW) {
             setNextFireTime(now);
         } else if (instr == MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_EXISTING_COUNT) {
-            Date newFireTime = getFireTimeAfter(now);
+            Instant newFireTime = getFireTimeAfter(now);
             while (newFireTime != null && cal != null
-                    && !cal.isTimeIncluded(newFireTime.getTime())) {
+                    && !cal.isTimeIncluded(newFireTime)) {
                 newFireTime = getFireTimeAfter(newFireTime);
 
                 if(newFireTime == null)
                     break;
                 
                 //avoid infinite loop
-                java.util.Calendar c = java.util.Calendar.getInstance();
-                c.setTime(newFireTime);
-                if (c.get(java.util.Calendar.YEAR) > YEAR_TO_GIVEUP_SCHEDULING_AT) {
+                if (newFireTime.atZone(ZoneId.systemDefault()).getYear() > YEAR_TO_GIVEUP_SCHEDULING_AT) {
                     newFireTime = null;
                 }
             }
             setNextFireTime(newFireTime);
         } else if (instr == MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT) {
-            Date newFireTime = getFireTimeAfter(now);
+            Instant newFireTime = getFireTimeAfter(now);
             while (newFireTime != null && cal != null
-                    && !cal.isTimeIncluded(newFireTime.getTime())) {
+                    && !cal.isTimeIncluded(newFireTime)) {
                 newFireTime = getFireTimeAfter(newFireTime);
 
                 if(newFireTime == null)
                     break;
                 
                 //avoid infinite loop
-                java.util.Calendar c = java.util.Calendar.getInstance();
-                c.setTime(newFireTime);
-                if (c.get(java.util.Calendar.YEAR) > YEAR_TO_GIVEUP_SCHEDULING_AT) {
+                if (newFireTime.atZone(ZoneId.systemDefault()).getYear() > YEAR_TO_GIVEUP_SCHEDULING_AT) {
                     newFireTime = null;
                 }
             }
@@ -527,20 +527,20 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
 
             setNextFireTime(newFireTime);
         } else if (instr == MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT) {
-            Date newFireTime = now;
+            Instant newFireTime = now;
             if (repeatCount != 0 && repeatCount != REPEAT_INDEFINITELY) {
                 setRepeatCount(getRepeatCount() - getTimesTriggered());
                 setTimesTriggered(0);
             }
             
-            if (getEndTime() != null && getEndTime().before(newFireTime)) {
+            if (getEndTime() != null && getEndTime().isBefore(newFireTime)) {
                 setNextFireTime(null); // We are past the end time
             } else {
                 setStartTime(newFireTime);
                 setNextFireTime(newFireTime);
             } 
         } else if (instr == MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_REMAINING_REPEAT_COUNT) {
-            Date newFireTime = now;
+            Instant newFireTime = now;
 
             int timesMissed = computeNumTimesFiredBetween(nextFireTime,
                     newFireTime);
@@ -555,7 +555,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
                 setTimesTriggered(0);
             }
 
-            if (getEndTime() != null && getEndTime().before(newFireTime)) {
+            if (getEndTime() != null && getEndTime().isBefore(newFireTime)) {
                 setNextFireTime(null); // We are past the end time
             } else {
                 setStartTime(newFireTime);
@@ -582,7 +582,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
         nextFireTime = getFireTimeAfter(nextFireTime);
 
         while (nextFireTime != null && calendar != null
-                && !calendar.isTimeIncluded(nextFireTime.getTime())) {
+                && !calendar.isTimeIncluded(nextFireTime)) {
             
             nextFireTime = getFireTimeAfter(nextFireTime);
 
@@ -590,9 +590,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
                 break;
             
             //avoid infinite loop
-            java.util.Calendar c = java.util.Calendar.getInstance();
-            c.setTime(nextFireTime);
-            if (c.get(java.util.Calendar.YEAR) > YEAR_TO_GIVEUP_SCHEDULING_AT) {
+            if (nextFireTime.atZone(ZoneId.systemDefault()).getYear() > YEAR_TO_GIVEUP_SCHEDULING_AT) {
                 nextFireTime = null;
             }
         }
@@ -604,11 +602,11 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
     @Override
     public void updateWithNewCalendar(Calendar calendar, long misfireThreshold)
     {
-        updateWithNewCalendar(calendar, misfireThreshold, new Date());
+        updateWithNewCalendar(calendar, misfireThreshold, Instants.now());
     }
 
     @Override
-    public void updateWithNewCalendar(Calendar calendar, long misfireThreshold, Date now)
+    public void updateWithNewCalendar(Calendar calendar, long misfireThreshold, Instant now)
     {
         nextFireTime = getFireTimeAfter(previousFireTime);
 
@@ -616,7 +614,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
             return;
         }
         
-        while (nextFireTime != null && !calendar.isTimeIncluded(nextFireTime.getTime())) {
+        while (nextFireTime != null && !calendar.isTimeIncluded(nextFireTime)) {
 
             nextFireTime = getFireTimeAfter(nextFireTime);
 
@@ -624,14 +622,12 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
                 break;
             
             //avoid infinite loop
-            java.util.Calendar c = java.util.Calendar.getInstance();
-            c.setTime(nextFireTime);
-            if (c.get(java.util.Calendar.YEAR) > YEAR_TO_GIVEUP_SCHEDULING_AT) {
+            if (nextFireTime.atZone(ZoneId.systemDefault()).getYear() > YEAR_TO_GIVEUP_SCHEDULING_AT) {
                 nextFireTime = null;
             }
 
-            if(nextFireTime != null && nextFireTime.before(now)) {
-                long diff = now.getTime() - nextFireTime.getTime();
+            if(nextFireTime != null && nextFireTime.isBefore(now)) {
+                long diff = now.toEpochMilli() - nextFireTime.toEpochMilli();
                 if(diff >= misfireThreshold) {
                     nextFireTime = getFireTimeAfter(nextFireTime);
                 }
@@ -656,20 +652,18 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      *         will return (until after the first firing of the <code>Trigger</code>).
      */
     @Override
-    public Date computeFirstFireTime(Calendar calendar) {
+    public Instant computeFirstFireTime(Calendar calendar) {
         nextFireTime = getStartTime();
 
         while (nextFireTime != null && calendar != null
-                && !calendar.isTimeIncluded(nextFireTime.getTime())) {
+                && !calendar.isTimeIncluded(nextFireTime)) {
             nextFireTime = getFireTimeAfter(nextFireTime);
             
             if(nextFireTime == null)
                 break;
             
             //avoid infinite loop
-            java.util.Calendar c = java.util.Calendar.getInstance();
-            c.setTime(nextFireTime);
-            if (c.get(java.util.Calendar.YEAR) > YEAR_TO_GIVEUP_SCHEDULING_AT) {
+            if (nextFireTime.atZone(ZoneId.systemDefault()).getYear() > YEAR_TO_GIVEUP_SCHEDULING_AT) {
                 return null;
             }
         }
@@ -691,10 +685,10 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      * has been added to the scheduler.
      * </p>
      *
-     * @see TriggerUtils#computeFireTimesBetween(org.quartz.spi.OperableTrigger, org.quartz.Calendar, java.util.Date, java.util.Date)
+     * @see TriggerUtils#computeFireTimesBetween(org.quartz.spi.OperableTrigger, org.quartz.Calendar, java.time.Instant, java.time.Instant)
      */
     @Override
-    public Date getNextFireTime() {
+    public Instant getNextFireTime() {
         return nextFireTime;
     }
 
@@ -705,7 +699,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      * returned.
      */
     @Override
-    public Date getPreviousFireTime() {
+    public Instant getPreviousFireTime() {
         return previousFireTime;
     }
 
@@ -718,8 +712,8 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      * <b>This method should not be invoked by client code.</b>
      * </p>
      */
-    public void setNextFireTime(Date nextFireTime) {
-        this.nextFireTime = nextFireTime;
+    public void setNextFireTime(Instant nextFireTime) {
+        this.nextFireTime = Instants.toMillis(nextFireTime);
     }
 
     /**
@@ -731,8 +725,8 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      * <b>This method should not be invoked by client code.</b>
      * </p>
      */
-    public void setPreviousFireTime(Date previousFireTime) {
-        this.previousFireTime = previousFireTime;
+    public void setPreviousFireTime(Instant previousFireTime) {
+        this.previousFireTime = Instants.toMillis(previousFireTime);
     }
 
     /**
@@ -743,7 +737,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      * </p>
      */
     @Override
-    public Date getFireTimeAfter(Date afterTime) {
+    public Instant getFireTimeAfter(Instant afterTime) {
         if (complete) {
             return null;
         }
@@ -754,24 +748,24 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
         }
 
         if (afterTime == null) {
-            afterTime = new Date();
+            afterTime = Instants.now();
         }
 
         if (repeatCount == 0 && afterTime.compareTo(getStartTime()) >= 0) {
             return null;
         }
 
-        long startMillis = getStartTime().getTime();
-        long afterMillis = afterTime.getTime();
+        long startMillis = getStartTime().toEpochMilli();
+        long afterMillis = afterTime.toEpochMilli();
         long endMillis = (getEndTime() == null) ? Long.MAX_VALUE : getEndTime()
-                .getTime();
+                .toEpochMilli();
 
         if (endMillis <= afterMillis) {
             return null;
         }
 
         if (afterMillis < startMillis) {
-            return new Date(startMillis);
+            return Instant.ofEpochMilli(startMillis);
         }
 
         long numberOfTimesExecuted = ((afterMillis - startMillis) / repeatInterval) + 1;
@@ -781,9 +775,9 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
             return null;
         }
 
-        Date time = new Date(startMillis + (numberOfTimesExecuted * repeatInterval));
+        Instant time = Instant.ofEpochMilli(startMillis + (numberOfTimesExecuted * repeatInterval));
 
-        if (endMillis <= time.getTime()) {
+        if (endMillis <= time.toEpochMilli()) {
             return null;
         }
 
@@ -797,23 +791,23 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      * given time, <code>null</code> will be returned.
      * </p>
      */
-    public Date getFireTimeBefore(Date end) {
-        if (end.getTime() < getStartTime().getTime()) {
+    public Instant getFireTimeBefore(Instant end) {
+        if (end.toEpochMilli() < getStartTime().toEpochMilli()) {
             return null;
         }
 
         int numFires = computeNumTimesFiredBetween(getStartTime(), end);
 
-        return new Date(getStartTime().getTime() + (numFires * repeatInterval));
+        return Instant.ofEpochMilli(getStartTime().toEpochMilli() + (numFires * repeatInterval));
     }
 
-    public int computeNumTimesFiredBetween(Date start, Date end) {
+    public int computeNumTimesFiredBetween(Instant start, Instant end) {
 
         if(repeatInterval < 1) {
             return 0;
         }
         
-        long time = end.getTime() - start.getTime();
+        long time = end.toEpochMilli() - start.toEpochMilli();
 
         return (int) (time / repeatInterval);
     }
@@ -829,7 +823,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
      * </p>
      */
     @Override
-    public Date getFinalFireTime() {
+    public Instant getFinalFireTime() {
         if (repeatCount == 0) {
             return startTime;
         }
@@ -838,10 +832,10 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
             return (getEndTime() == null) ? null : getFireTimeBefore(getEndTime()); 
         }
 
-        long lastTrigger = startTime.getTime() + (repeatCount * repeatInterval);
+        long lastTrigger = startTime.toEpochMilli() + (repeatCount * repeatInterval);
 
-        if ((getEndTime() == null) || (lastTrigger < getEndTime().getTime())) { 
-            return new Date(lastTrigger);
+        if ((getEndTime() == null) || (lastTrigger < getEndTime().toEpochMilli())) { 
+            return Instant.ofEpochMilli(lastTrigger);
         } else {
             return getFireTimeBefore(getEndTime());
         }

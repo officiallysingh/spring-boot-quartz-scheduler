@@ -25,7 +25,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * Unit test for DailyCalendar.
  */
 public class DailyCalendarTest extends SerializationTestSupport {
-    private static final String[] VERSIONS = new String[] {"1.5.2"};
+    // the 1.5.2 fixture predates the java.time migration and can no longer be read (D-010)
+    private static final String[] VERSIONS = new String[0];
 
     @Test
     void testStringStartEndTimes() {

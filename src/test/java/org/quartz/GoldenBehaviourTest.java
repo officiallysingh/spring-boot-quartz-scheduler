@@ -20,9 +20,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -78,12 +79,12 @@ class GoldenBehaviourTest {
     void cronExpressionFireTimes() throws Exception {
         assertNoMismatches("cron.tsv.gz", r -> {
             CronExpression ce = new CronExpression(r[0]);
-            ce.setTimeZone(TimeZone.getTimeZone(r[1]));
-            Date start = new Date(Long.parseLong(r[2]));
+            ce.setTimeZone(ZoneId.of(r[1]));
+            Instant start = Instant.ofEpochMilli(Long.parseLong(r[2]));
             List<String> diffs = new ArrayList<>();
             if (!HANG.equals(r[3])) {
-                List<Date> out = new ArrayList<>();
-                Date t = start;
+                List<Instant> out = new ArrayList<>();
+                Instant t = start;
                 for (int i = 0; i < 8; i++) {
                     t = ce.getTimeAfter(t);
                     if (t == null) {
@@ -113,10 +114,10 @@ class GoldenBehaviourTest {
         assertNoMismatches("calendar-interval.tsv.gz", r -> {
             CalendarIntervalTriggerImpl t = new CalendarIntervalTriggerImpl();
             t.setName("g");
-            t.setStartTime(new Date(Long.parseLong(r[3])));
+            t.setStartTime(Instant.ofEpochMilli(Long.parseLong(r[3])));
             t.setRepeatIntervalUnit(IntervalUnit.valueOf(r[0]));
             t.setRepeatInterval(Integer.parseInt(r[1]));
-            t.setTimeZone(TimeZone.getTimeZone(r[2]));
+            t.setTimeZone(ZoneId.of(r[2]));
             t.setPreserveHourOfDayAcrossDaylightSavings(Boolean.parseBoolean(r[4]));
             t.setSkipDayIfHourDoesNotExist(Boolean.parseBoolean(r[5]));
             return compare("fire", r[6], join(TriggerUtils.computeFireTimes(t, null, 10)));
@@ -130,7 +131,7 @@ class GoldenBehaviourTest {
                 TimeZone.setDefault(TimeZone.getTimeZone(r[0]));
                 DailyTimeIntervalTriggerImpl t = new DailyTimeIntervalTriggerImpl();
                 t.setName("g");
-                t.setStartTime(new Date(Long.parseLong(r[1])));
+                t.setStartTime(Instant.ofEpochMilli(Long.parseLong(r[1])));
                 t.setStartTimeOfDay(timeOfDay(r[2]));
                 t.setEndTimeOfDay(timeOfDay(r[3]));
                 t.setRepeatIntervalUnit(IntervalUnit.valueOf(r[4]));
@@ -155,9 +156,9 @@ class GoldenBehaviourTest {
         assertNoMismatches("simple.tsv.gz", r -> {
             SimpleTriggerImpl t = new SimpleTriggerImpl();
             t.setName("g");
-            t.setStartTime(new Date(Long.parseLong(r[0])));
+            t.setStartTime(Instant.ofEpochMilli(Long.parseLong(r[0])));
             if (!"null".equals(r[1])) {
-                t.setEndTime(new Date(Long.parseLong(r[1])));
+                t.setEndTime(Instant.ofEpochMilli(Long.parseLong(r[1])));
             }
             t.setRepeatInterval(Long.parseLong(r[2]));
             t.setRepeatCount(Integer.parseInt(r[3]));
@@ -169,24 +170,24 @@ class GoldenBehaviourTest {
     void calendarInclusion() throws Exception {
         assertNoMismatches("calendars.tsv.gz", r -> {
             Calendar cal = calendar(r[0], r[1]);
-            long t = Long.parseLong(r[2]);
+            Instant t = Instant.ofEpochMilli(Long.parseLong(r[2]));
             return compare("included", r[3], Boolean.toString(cal.isTimeIncluded(t)))
-                    + compare("next", r[4], Long.toString(cal.getNextIncludedTime(t)));
+                    + compare("next", r[4], Long.toString(cal.getNextIncludedTime(t).toEpochMilli()));
         });
     }
 
     // the calendar configurations the fixtures were recorded with
     private static Calendar calendar(String name, String zone) {
-        TimeZone tz = TimeZone.getTimeZone(zone);
+        ZoneId tz = ZoneId.of(zone);
         try {
             switch (name) {
                 case "weekly":
                     return new WeeklyCalendar(tz);
                 case "weekly-mon": {
                     WeeklyCalendar c = new WeeklyCalendar(tz);
-                    c.setDayExcluded(java.util.Calendar.SATURDAY, false);
-                    c.setDayExcluded(java.util.Calendar.SUNDAY, false);
-                    c.setDayExcluded(java.util.Calendar.MONDAY, true);
+                    c.setDayExcluded(DateBuilder.SATURDAY, false);
+                    c.setDayExcluded(DateBuilder.SUNDAY, false);
+                    c.setDayExcluded(DateBuilder.MONDAY, true);
                     return c;
                 }
                 case "monthly": {
@@ -200,10 +201,7 @@ class GoldenBehaviourTest {
                     AnnualCalendar c = new AnnualCalendar(tz);
                     int[][] days = {{1, 1}, {7, 4}, {12, 25}, {2, 29}, {3, 10}, {11, 3}};
                     for (int[] d : days) {
-                        java.util.Calendar day = new GregorianCalendar(tz);
-                        day.clear();
-                        day.set(2000, d[0] - 1, d[1]);
-                        c.setDayExcluded(day, true);
+                        c.setDayExcluded(ZonedDateTime.of(2000, d[0], d[1], 0, 0, 0, 0, tz), true);
                     }
                     return c;
                 }
@@ -246,11 +244,8 @@ class GoldenBehaviourTest {
         }
     }
 
-    private static Date localNoon(TimeZone tz, int year, int month, int day) {
-        java.util.Calendar c = new GregorianCalendar(tz);
-        c.clear();
-        c.set(year, month - 1, day, 12, 0, 0);
-        return c.getTime();
+    private static Instant localNoon(ZoneId tz, int year, int month, int day) {
+        return ZonedDateTime.of(year, month, day, 12, 0, 0, 0, tz).toInstant();
     }
 
     private static TimeOfDay timeOfDay(String hms) {
@@ -258,13 +253,13 @@ class GoldenBehaviourTest {
         return new TimeOfDay(Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2]));
     }
 
-    private static String ms(Date d) {
-        return d == null ? "null" : Long.toString(d.getTime());
+    private static String ms(Instant d) {
+        return d == null ? "null" : Long.toString(d.toEpochMilli());
     }
 
-    private static String join(List<Date> dates) {
+    private static String join(List<Instant> dates) {
         List<String> parts = new ArrayList<>();
-        for (Date d : dates) {
+        for (Instant d : dates) {
             parts.add(ms(d));
         }
         return String.join(",", parts);

@@ -19,13 +19,14 @@
 package org.quartz.impl.calendar;
 
 import java.io.Serializable;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.Collections;
-import java.util.Date;
 import java.util.SortedSet;
-import java.util.TimeZone;
 import java.util.TreeSet;
 
 import org.quartz.Calendar;
+import org.quartz.utils.LenientDateTime;
 
 /**
  * <p>
@@ -47,7 +48,7 @@ public class HolidayCalendar extends BaseCalendar implements Calendar,
     private static final long serialVersionUID = -7590908752291814693L;
     
     // A sorted set to store the holidays
-    private TreeSet<Date> dates = new TreeSet<>();
+    private TreeSet<Instant> dates = new TreeSet<>();
 
     public HolidayCalendar() {
     }
@@ -56,11 +57,11 @@ public class HolidayCalendar extends BaseCalendar implements Calendar,
         super(baseCalendar);
     }
 
-    public HolidayCalendar(TimeZone timeZone) {
+    public HolidayCalendar(ZoneId timeZone) {
         super(timeZone);
     }
 
-    public HolidayCalendar(Calendar baseCalendar, TimeZone timeZone) {
+    public HolidayCalendar(Calendar baseCalendar, ZoneId timeZone) {
         super(baseCalendar, timeZone);
     }
 
@@ -82,12 +83,12 @@ public class HolidayCalendar extends BaseCalendar implements Calendar,
      * </p>
      */
     @Override
-    public boolean isTimeIncluded(long timeStamp) {
+    public boolean isTimeIncluded(Instant timeStamp) {
         if (!super.isTimeIncluded(timeStamp)) {
             return false;
         }
 
-        Date lookFor = getStartOfDayJavaCalendar(timeStamp).getTime();
+        Instant lookFor = getStartOfDay(timeStamp).toInstant();
 
         return !(dates.contains(lookFor));
     }
@@ -103,21 +104,21 @@ public class HolidayCalendar extends BaseCalendar implements Calendar,
      * </p>
      */
     @Override
-    public long getNextIncludedTime(long timeStamp) {
+    public Instant getNextIncludedTime(Instant timeStamp) {
 
         // Call base calendar implementation first
-        long baseTime = super.getNextIncludedTime(timeStamp);
-        if ((baseTime > 0) && (baseTime > timeStamp)) {
+        Instant baseTime = super.getNextIncludedTime(timeStamp);
+        if (baseTime.isAfter(Instant.EPOCH) && baseTime.isAfter(timeStamp)) {
             timeStamp = baseTime;
         }
 
         // Get timestamp for 00:00:00
-        java.util.Calendar day = getStartOfDayJavaCalendar(timeStamp);
-        while (!isTimeIncluded(day.getTime().getTime())) {
-            day.add(java.util.Calendar.DATE, 1);
+        LenientDateTime day = getStartOfDay(timeStamp);
+        while (!isTimeIncluded(day.toInstant())) {
+            day.add(LenientDateTime.DAY_OF_MONTH, 1);
         }
 
-        return day.getTime().getTime();
+        return day.toInstant();
     }
 
     /**
@@ -126,8 +127,8 @@ public class HolidayCalendar extends BaseCalendar implements Calendar,
      * year of the returned dates are significant.
      * </p>
      */
-    public void addExcludedDate(Date excludedDate) {
-        Date date = getStartOfDayJavaCalendar(excludedDate.getTime()).getTime();
+    public void addExcludedDate(Instant excludedDate) {
+        Instant date = getStartOfDay(excludedDate).toInstant();
         /*
          * System.err.println( "HolidayCalendar.add(): date=" +
          * excludedDate.toLocaleString());
@@ -135,8 +136,8 @@ public class HolidayCalendar extends BaseCalendar implements Calendar,
         this.dates.add(date);
     }
 
-    public void removeExcludedDate(Date dateToRemove) {
-        Date date = getStartOfDayJavaCalendar(dateToRemove.getTime()).getTime();
+    public void removeExcludedDate(Instant dateToRemove) {
+        Instant date = getStartOfDay(dateToRemove).toInstant();
         dates.remove(date);
     }
 
@@ -147,7 +148,7 @@ public class HolidayCalendar extends BaseCalendar implements Calendar,
      * significant.
      * </p>
      */
-    public SortedSet<Date> getExcludedDates() {
+    public SortedSet<Instant> getExcludedDates() {
         return Collections.unmodifiableSortedSet(dates);
     }
 }

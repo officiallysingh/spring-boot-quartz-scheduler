@@ -19,6 +19,8 @@
 
 package org.quartz;
 
+import java.time.Instant;
+
 /**
  * An interface to be implemented by objects that define spaces of time during 
  * which an associated <code>{@link Trigger}</code> may (not) fire. Calendars 
@@ -75,19 +77,19 @@ public interface Calendar extends java.io.Serializable, java.lang.Cloneable {
 
     /**
      * <p>
-     * Determine whether the given time (in milliseconds) is 'included' by the
+     * Determine whether the given time is 'included' by the
      * Calendar.
      * </p>
      */
-    boolean isTimeIncluded(long timeStamp);
+    boolean isTimeIncluded(Instant timeStamp);
 
     /**
      * <p>
-     * Determine the next time (in milliseconds) that is 'included' by the
+     * Determine the next time that is 'included' by the
      * Calendar after the given time.
      * </p>
      */
-    long getNextIncludedTime(long timeStamp);
+    Instant getNextIncludedTime(Instant timeStamp);
 
     /**
      * <p>

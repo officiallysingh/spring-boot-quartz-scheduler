@@ -19,9 +19,11 @@
 package org.quartz.impl.calendar;
 
 import java.io.Serializable;
-import java.util.TimeZone;
+import java.time.Instant;
+import java.time.ZoneId;
 
 import org.quartz.Calendar;
+import org.quartz.utils.LenientDateTime;
 
 /**
  * <p>
@@ -43,7 +45,7 @@ public class MonthlyCalendar extends BaseCalendar implements Calendar,
     private static final int MAX_DAYS_IN_MONTH = 31;
 
     // An array to store a months days which are to be excluded.
-    // java.util.Calendar.get( ) as index.
+    // day of month - 1 as index.
     private boolean[] excludeDays = new boolean[MAX_DAYS_IN_MONTH];
 
     // Will be set to true, if all week days are excluded
@@ -57,11 +59,11 @@ public class MonthlyCalendar extends BaseCalendar implements Calendar,
         this(baseCalendar, null);
     }
 
-    public MonthlyCalendar(TimeZone timeZone) {
+    public MonthlyCalendar(ZoneId timeZone) {
         this(null, timeZone);
     }
 
-    public MonthlyCalendar(Calendar baseCalendar, TimeZone timeZone) {
+    public MonthlyCalendar(Calendar baseCalendar, ZoneId timeZone) {
         super(baseCalendar, timeZone);
 
         // all days are included by default
@@ -167,7 +169,7 @@ public class MonthlyCalendar extends BaseCalendar implements Calendar,
      * </p>
      */
     @Override
-    public boolean isTimeIncluded(long timeStamp) {
+    public boolean isTimeIncluded(Instant timeStamp) {
         if (excludeAll) {
             return false;
         }
@@ -176,8 +178,8 @@ public class MonthlyCalendar extends BaseCalendar implements Calendar,
         // excludes the time/date, continue evaluating this calendar instance.
         if (!super.isTimeIncluded(timeStamp)) { return false; }
 
-        java.util.Calendar cl = createJavaCalendar(timeStamp);
-        int day = cl.get(java.util.Calendar.DAY_OF_MONTH);
+        LenientDateTime cl = createDateTime(timeStamp);
+        int day = cl.get(LenientDateTime.DAY_OF_MONTH);
 
         return !(isDayExcluded(day));
     }
@@ -194,30 +196,30 @@ public class MonthlyCalendar extends BaseCalendar implements Calendar,
      * </p>
      */
     @Override
-    public long getNextIncludedTime(long timeStamp) {
+    public Instant getNextIncludedTime(Instant timeStamp) {
         if (excludeAll) {
-            return 0;
+            return Instant.EPOCH;
         }
 
         // Call base calendar implementation first
-        long baseTime = super.getNextIncludedTime(timeStamp);
-        if ((baseTime > 0) && (baseTime > timeStamp)) {
+        Instant baseTime = super.getNextIncludedTime(timeStamp);
+        if (baseTime.isAfter(Instant.EPOCH) && baseTime.isAfter(timeStamp)) {
             timeStamp = baseTime;
         }
 
         // Get timestamp for 00:00:00
-        java.util.Calendar cl = getStartOfDayJavaCalendar(timeStamp);
-        int day = cl.get(java.util.Calendar.DAY_OF_MONTH);
+        LenientDateTime cl = getStartOfDay(timeStamp);
+        int day = cl.get(LenientDateTime.DAY_OF_MONTH);
 
         if (!isDayExcluded(day)) {
             return timeStamp; // return the original value
         }
 
         while (isDayExcluded(day)) {
-            cl.add(java.util.Calendar.DATE, 1);
-            day = cl.get(java.util.Calendar.DAY_OF_MONTH);
+            cl.add(LenientDateTime.DAY_OF_MONTH, 1);
+            day = cl.get(LenientDateTime.DAY_OF_MONTH);
         }
 
-        return cl.getTime().getTime();
+        return cl.toInstant();
     }
 }

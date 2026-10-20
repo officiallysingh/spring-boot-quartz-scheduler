@@ -18,11 +18,12 @@
 
 package org.quartz;
 
+
 import java.time.Instant;
-import java.util.Date;
 
 import org.quartz.spi.MutableTrigger;
 import org.quartz.utils.Key;
+import org.quartz.utils.Instants;
 
 /**
  * <code>TriggerBuilder</code> is used to instantiate {@link Trigger}s.
@@ -67,8 +68,8 @@ public class TriggerBuilder<T extends Trigger> {
 
     private TriggerKey key;
     private String description;
-    private Date startTime = new Date();
-    private Date endTime;
+    private Instant startTime = Instants.now();
+    private Instant endTime;
     private int priority = Trigger.DEFAULT_PRIORITY;
     private String calendarName;
     private JobKey jobKey;
@@ -222,24 +223,12 @@ public class TriggerBuilder<T extends Trigger> {
      * @see Trigger#getStartTime()
      * @see DateBuilder
      */
-    public TriggerBuilder<T> startAt(Date triggerStartTime) {
+    public TriggerBuilder<T> startAt(Instant triggerStartTime) {
         this.startTime = triggerStartTime;
         return this;
     }
 
 
-    /**
-     * Change the Instant type to Date type to set the trigger start at.
-     *
-     * @param triggerStartTime the start time for the Trigger but type is Instant
-     * @return the updated TriggerBuilder
-     * @see Trigger#getStartTime()
-     * @see DateBuilder
-     */
-    public TriggerBuilder<T> startAt(Instant triggerStartTime){
-        this.startTime = Date.from(triggerStartTime);
-        return this;
-    }
     
     /**
      * Set the time the Trigger should start at to the current moment - 
@@ -250,7 +239,7 @@ public class TriggerBuilder<T extends Trigger> {
      * @see Trigger#getStartTime()
      */
     public TriggerBuilder<T> startNow() {
-        this.startTime = new Date();
+        this.startTime = Instants.now();
         return this;
     }
 
@@ -263,7 +252,7 @@ public class TriggerBuilder<T extends Trigger> {
      * @see Trigger#getEndTime()
      * @see DateBuilder
      */
-    public TriggerBuilder<T> endAt(Date triggerEndTime) {
+    public TriggerBuilder<T> endAt(Instant triggerEndTime) {
         this.endTime = triggerEndTime;
         return this;
     }

@@ -16,9 +16,10 @@
  */
 package org.quartz;
 
+import java.time.Instant;
+
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CyclicBarrier;
@@ -49,9 +50,9 @@ class DisallowConcurrentExecutionJobTest {
 		public void execute(JobExecutionContext context) throws JobExecutionException {
 			try {
 				@SuppressWarnings("unchecked")
-				List<Date> jobExecDates = (List<Date>)context.getScheduler().getContext().get(DATE_STAMPS);
+				List<Instant> jobExecDates = (List<Instant>)context.getScheduler().getContext().get(DATE_STAMPS);
                                 long firedAt = System.currentTimeMillis();
-				jobExecDates.add(new Date(firedAt));
+				jobExecDates.add(Instant.ofEpochMilli(firedAt));
                                 long sleepTill = firedAt + JOB_BLOCK_TIME;
                                 for (long sleepFor = sleepTill - System.currentTimeMillis(); sleepFor > 0; sleepFor = sleepTill - System.currentTimeMillis()) {
                                   Thread.sleep(sleepFor);
@@ -95,10 +96,10 @@ class DisallowConcurrentExecutionJobTest {
         @Test
 		void testNoConcurrentExecOnSameJob() throws Exception {
 
-		List<Date> jobExecDates = Collections.synchronizedList(new ArrayList<Date>());
+		List<Instant> jobExecDates = Collections.synchronizedList(new ArrayList<Instant>());
 		CyclicBarrier barrier = new CyclicBarrier(2);
 		
-		Date startTime = new Date(System.currentTimeMillis() + 100); // make the triggers fire at the same time.
+		Instant startTime = Instant.ofEpochMilli(System.currentTimeMillis() + 100); // make the triggers fire at the same time.
 		
 		JobDetail job1 = JobBuilder.newJob(TestJob.class).withIdentity("job1").build();
 		Trigger trigger1 = TriggerBuilder.newTrigger().withSchedule(SimpleScheduleBuilder.simpleSchedule())
@@ -123,8 +124,8 @@ class DisallowConcurrentExecutionJobTest {
 		scheduler.shutdown(true);
 		
                 assertThat(jobExecDates).hasSize(2);
-                long fireTimeTrigger1 = jobExecDates.get(0).getTime();
-                long fireTimeTrigger2 = jobExecDates.get(1).getTime();
+                long fireTimeTrigger1 = jobExecDates.get(0).toEpochMilli();
+                long fireTimeTrigger2 = jobExecDates.get(1).toEpochMilli();
                 assertThat(fireTimeTrigger2 - fireTimeTrigger1).isGreaterThanOrEqualTo(JOB_BLOCK_TIME);
 	}
 	
@@ -132,10 +133,10 @@ class DisallowConcurrentExecutionJobTest {
         @Test
 		void testNoConcurrentExecOnSameJobWithBatching() throws Exception {
 
-		List<Date> jobExecDates = Collections.synchronizedList(new ArrayList<Date>());
+		List<Instant> jobExecDates = Collections.synchronizedList(new ArrayList<Instant>());
 		CyclicBarrier barrier = new CyclicBarrier(2);
 		
-		Date startTime = new Date(System.currentTimeMillis() + 100); // make the triggers fire at the same time.
+		Instant startTime = Instant.ofEpochMilli(System.currentTimeMillis() + 100); // make the triggers fire at the same time.
 		
 		JobDetail job1 = JobBuilder.newJob(TestJob.class).withIdentity("job1").build();
 		Trigger trigger1 = TriggerBuilder.newTrigger().withSchedule(SimpleScheduleBuilder.simpleSchedule())
@@ -161,8 +162,8 @@ class DisallowConcurrentExecutionJobTest {
 		scheduler.shutdown(true);
 		
                 assertThat(jobExecDates).hasSize(2);
-                long fireTimeTrigger1 = jobExecDates.get(0).getTime();
-                long fireTimeTrigger2 = jobExecDates.get(1).getTime();
+                long fireTimeTrigger1 = jobExecDates.get(0).toEpochMilli();
+                long fireTimeTrigger2 = jobExecDates.get(1).toEpochMilli();
                 assertThat(fireTimeTrigger2 - fireTimeTrigger1).isGreaterThanOrEqualTo(JOB_BLOCK_TIME);
 	}
 }

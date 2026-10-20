@@ -19,12 +19,15 @@
 package org.quartz.impl.calendar;
 
 import java.io.Serializable;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.TimeZone;
 
 import org.quartz.Calendar;
+import org.quartz.utils.LenientDateTime;
 
 /**
  * <p>
@@ -42,7 +45,7 @@ public class AnnualCalendar extends BaseCalendar implements Calendar,
 
     private static final long serialVersionUID = 7346867105876610961L;
 
-    private ArrayList<java.util.Calendar> excludeDays = new ArrayList<>();
+    private ArrayList<ZonedDateTime> excludeDays = new ArrayList<>();
 
     // true, if excludeDays is sorted
     private boolean dataSorted = false;
@@ -54,11 +57,11 @@ public class AnnualCalendar extends BaseCalendar implements Calendar,
         super(baseCalendar);
     }
 
-    public AnnualCalendar(TimeZone timeZone) {
+    public AnnualCalendar(ZoneId timeZone) {
         super(timeZone);
     }
 
-    public AnnualCalendar(Calendar baseCalendar, TimeZone timeZone) {
+    public AnnualCalendar(Calendar baseCalendar, ZoneId timeZone) {
         super(baseCalendar, timeZone);
     }
 
@@ -74,7 +77,7 @@ public class AnnualCalendar extends BaseCalendar implements Calendar,
      * Get the array which defines the exclude-value of each day of month
      * </p>
      */
-    public ArrayList<java.util.Calendar> getDaysExcluded() {
+    public ArrayList<ZonedDateTime> getDaysExcluded() {
         return excludeDays;
     }
 
@@ -83,7 +86,7 @@ public class AnnualCalendar extends BaseCalendar implements Calendar,
      * Return true, if day is defined to be excluded.
      * </p>
      */
-    public boolean isDayExcluded(java.util.Calendar day) {
+    public boolean isDayExcluded(ZonedDateTime day) {
 
         if (day == null) {
             throw new IllegalArgumentException(
@@ -91,29 +94,29 @@ public class AnnualCalendar extends BaseCalendar implements Calendar,
         }
 
          // Check baseCalendar first
-        if (! super.isTimeIncluded(day.getTime().getTime())) {
+        if (! super.isTimeIncluded(day.toInstant())) {
          return true;
         } 
         
-        int dmonth = day.get(java.util.Calendar.MONTH);
-        int dday = day.get(java.util.Calendar.DAY_OF_MONTH);
+        int dmonth = day.getMonthValue();
+        int dday = day.getDayOfMonth();
 
         if (!dataSorted) {
             Collections.sort(excludeDays, new CalendarComparator());
             dataSorted = true;
         }
 
-        for (java.util.Calendar cl : excludeDays) {
+        for (ZonedDateTime cl : excludeDays) {
             // remember, the list is sorted
-            if (dmonth < cl.get(java.util.Calendar.MONTH)) {
+            if (dmonth < cl.getMonthValue()) {
                 return false;
             }
 
-            if (dday != cl.get(java.util.Calendar.DAY_OF_MONTH)) {
+            if (dday != cl.getDayOfMonth()) {
                 continue;
             }
 
-            if (dmonth != cl.get(java.util.Calendar.MONTH)) {
+            if (dmonth != cl.getMonthValue()) {
                 continue;
             }
 
@@ -126,10 +129,10 @@ public class AnnualCalendar extends BaseCalendar implements Calendar,
     /**
      * <p>
      * Redefine the list of days excluded. The ArrayList 
-     * should contain <code>java.util.Calendar</code> objects. 
+     * should contain <code>java.time.ZonedDateTime</code> objects. 
      * </p>
      */
-    public void setDaysExcluded(ArrayList<java.util.Calendar> days) {
+    public void setDaysExcluded(ArrayList<ZonedDateTime> days) {
         if (days == null) {
             excludeDays = new ArrayList<>();
         } else {
@@ -144,7 +147,7 @@ public class AnnualCalendar extends BaseCalendar implements Calendar,
      * Redefine a certain day to be excluded (true) or included (false).
      * </p>
      */
-    public void setDayExcluded(java.util.Calendar day, boolean exclude) {
+    public void setDayExcluded(ZonedDateTime day, boolean exclude) {
         if (exclude) {
             if (isDayExcluded(day)) {
                 return;
@@ -166,11 +169,11 @@ public class AnnualCalendar extends BaseCalendar implements Calendar,
      *  
      * @param day the day to exclude
      */
-    public void removeExcludedDay(java.util.Calendar day) {
+    public void removeExcludedDay(ZonedDateTime day) {
         removeExcludedDay(day, false);
     }
     
-    private void removeExcludedDay(java.util.Calendar day, boolean isChecked) {
+    private void removeExcludedDay(ZonedDateTime day, boolean isChecked) {
         if (! isChecked &&
             ! isDayExcluded(day)) {
             return;
@@ -181,17 +184,17 @@ public class AnnualCalendar extends BaseCalendar implements Calendar,
             return;
         }
         
-        int dmonth = day.get(java.util.Calendar.MONTH);
-        int dday = day.get(java.util.Calendar.DAY_OF_MONTH);
+        int dmonth = day.getMonthValue();
+        int dday = day.getDayOfMonth();
         
         // Since there is no guarantee that the given day is in the arraylist with the exact same year
         // search for the object based on month and day of month in the list and remove it
-        for (java.util.Calendar cl : excludeDays) {
-            if (dmonth != cl.get(java.util.Calendar.MONTH)) {
+        for (ZonedDateTime cl : excludeDays) {
+            if (dmonth != cl.getMonthValue()) {
                 continue;
             }
 
-            if (dday != cl.get(java.util.Calendar.DAY_OF_MONTH)) {
+            if (dday != cl.getDayOfMonth()) {
                 continue;
             }
 
@@ -214,12 +217,12 @@ public class AnnualCalendar extends BaseCalendar implements Calendar,
      * </p>
      */
     @Override
-    public boolean isTimeIncluded(long timeStamp) {
+    public boolean isTimeIncluded(Instant timeStamp) {
         // Test the base calendar first. Only if the base calendar not already
         // excludes the time/date, continue evaluating this calendar instance.
         if (!super.isTimeIncluded(timeStamp)) { return false; }
 
-        java.util.Calendar day = createJavaCalendar(timeStamp);
+        ZonedDateTime day = timeStamp.atZone(getTimeZoneOrDefault());
 
         return !(isDayExcluded(day));
     }
@@ -236,28 +239,28 @@ public class AnnualCalendar extends BaseCalendar implements Calendar,
      * </p>
      */
     @Override
-    public long getNextIncludedTime(long timeStamp) {
+    public Instant getNextIncludedTime(Instant timeStamp) {
         // Call base calendar implementation first
-        long baseTime = super.getNextIncludedTime(timeStamp);
-        if ((baseTime > 0) && (baseTime > timeStamp)) {
+        Instant baseTime = super.getNextIncludedTime(timeStamp);
+        if (baseTime.isAfter(Instant.EPOCH) && baseTime.isAfter(timeStamp)) {
             timeStamp = baseTime;
         }
 
         // Get timestamp for 00:00:00
-        java.util.Calendar day = getStartOfDayJavaCalendar(timeStamp);
-        if (!isDayExcluded(day)) {
+        LenientDateTime day = getStartOfDay(timeStamp);
+        if (!isDayExcluded(day.toZonedDateTime())) {
             return timeStamp; // return the original value
         }
 
-        while (isDayExcluded(day)) {
-            day.add(java.util.Calendar.DATE, 1);
+        while (isDayExcluded(day.toZonedDateTime())) {
+            day.add(LenientDateTime.DAY_OF_MONTH, 1);
         }
 
-        return day.getTime().getTime();
+        return day.toInstant();
     }
 }
 
-class CalendarComparator implements Comparator<java.util.Calendar>, Serializable {
+class CalendarComparator implements Comparator<ZonedDateTime>, Serializable {
   
     private static final long serialVersionUID = 7346867105876610961L;
     
@@ -265,13 +268,13 @@ class CalendarComparator implements Comparator<java.util.Calendar>, Serializable
     }
 
 
-    public int compare(java.util.Calendar c1, java.util.Calendar c2) {
+    public int compare(ZonedDateTime c1, ZonedDateTime c2) {
         
-        int month1 = c1.get(java.util.Calendar.MONTH);
-        int month2 = c2.get(java.util.Calendar.MONTH);
+        int month1 = c1.getMonthValue();
+        int month2 = c2.getMonthValue();
         
-        int day1 = c1.get(java.util.Calendar.DAY_OF_MONTH);
-        int day2 = c2.get(java.util.Calendar.DAY_OF_MONTH);
+        int day1 = c1.getDayOfMonth();
+        int day2 = c2.getDayOfMonth();
         
         if (month1 < month2) {
             return -1;

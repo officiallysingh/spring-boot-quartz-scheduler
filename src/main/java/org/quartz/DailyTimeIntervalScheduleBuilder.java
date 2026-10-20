@@ -17,15 +17,18 @@
  */
 package org.quartz;
 
-import java.util.Calendar;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
 import org.quartz.DateBuilder.IntervalUnit;
 import org.quartz.impl.triggers.DailyTimeIntervalTriggerImpl;
 import org.quartz.spi.MutableTrigger;
+import org.quartz.utils.Instants;
 
 /**
  * A {@link ScheduleBuilder} implementation that build schedule for DailyTimeIntervalTrigger.
@@ -80,7 +83,7 @@ public class DailyTimeIntervalScheduleBuilder extends ScheduleBuilder<DailyTimeI
     /**
      * A set of all days of the week.
      * 
-     * The set contains all values between {@link java.util.Calendar#SUNDAY} and {@link java.util.Calendar#SATURDAY} 
+     * The set contains all values between {@link DateBuilder#SUNDAY} and {@link DateBuilder#SATURDAY} 
      * (the integers from 1 through 7). 
      */
     public static final Set<Integer> ALL_DAYS_OF_THE_WEEK;
@@ -88,7 +91,7 @@ public class DailyTimeIntervalScheduleBuilder extends ScheduleBuilder<DailyTimeI
     /** 
      * A set of the business days of the week (for locales similar to the USA).
      * 
-     * The set contains all values between {@link java.util.Calendar#MONDAY} and {@link java.util.Calendar#FRIDAY} 
+     * The set contains all values between {@link DateBuilder#MONDAY} and {@link DateBuilder#FRIDAY} 
      * (the integers from 2 through 6). 
      */
     public static final Set<Integer> MONDAY_THROUGH_FRIDAY;
@@ -96,24 +99,24 @@ public class DailyTimeIntervalScheduleBuilder extends ScheduleBuilder<DailyTimeI
     /**
      * A set of the weekend days of the week (for locales similar to the USA).
      * 
-     * The set contains {@link java.util.Calendar#SATURDAY} and {@link java.util.Calendar#SUNDAY} 
+     * The set contains {@link DateBuilder#SATURDAY} and {@link DateBuilder#SUNDAY} 
      */
     public static final Set<Integer> SATURDAY_AND_SUNDAY;
     
     static {
         Set<Integer> t = new HashSet<>(7);
-        for(int i=Calendar.SUNDAY; i <= Calendar.SATURDAY; i++)
+        for(int i=DateBuilder.SUNDAY; i <= DateBuilder.SATURDAY; i++)
             t.add(i);
         ALL_DAYS_OF_THE_WEEK = Collections.unmodifiableSet(t);
         
         t = new HashSet<>(5);
-        for(int i=Calendar.MONDAY; i <= Calendar.FRIDAY; i++)
+        for(int i=DateBuilder.MONDAY; i <= DateBuilder.FRIDAY; i++)
             t.add(i);
         MONDAY_THROUGH_FRIDAY = Collections.unmodifiableSet(t);
         
         t = new HashSet<>(2);
-        t.add(Calendar.SUNDAY);
-        t.add(Calendar.SATURDAY);
+        t.add(DateBuilder.SUNDAY);
+        t.add(DateBuilder.SATURDAY);
         SATURDAY_AND_SUNDAY = Collections.unmodifiableSet(t);
     }
     
@@ -229,7 +232,7 @@ public class DailyTimeIntervalScheduleBuilder extends ScheduleBuilder<DailyTimeI
      * Set the trigger to fire on the given days of the week.
      * 
      * @param onDaysOfWeek a Set containing the integers representing the days of the week, per the values 1-7 as defined by 
-     * {@link java.util.Calendar#SUNDAY} - {@link java.util.Calendar#SATURDAY}. 
+     * {@link DateBuilder#SUNDAY} - {@link DateBuilder#SATURDAY}. 
      * @return the updated DailyTimeIntervalScheduleBuilder
      */
     public DailyTimeIntervalScheduleBuilder onDaysOfTheWeek(Set<Integer> onDaysOfWeek) {
@@ -247,7 +250,7 @@ public class DailyTimeIntervalScheduleBuilder extends ScheduleBuilder<DailyTimeI
      * Set the trigger to fire on the given days of the week.
      * 
      * @param onDaysOfWeek a variable length list of Integers representing the days of the week, per the values 1-7 as 
-     * defined by {@link java.util.Calendar#SUNDAY} - {@link java.util.Calendar#SATURDAY}. 
+     * defined by {@link DateBuilder#SUNDAY} - {@link DateBuilder#SATURDAY}. 
      * @return the updated DailyTimeIntervalScheduleBuilder
      */
     public DailyTimeIntervalScheduleBuilder onDaysOfTheWeek(Integer ... onDaysOfWeek) {
@@ -322,10 +325,10 @@ public class DailyTimeIntervalScheduleBuilder extends ScheduleBuilder<DailyTimeI
         if(startTimeOfDay == null)
             throw new IllegalArgumentException("You must set the startDailyAt() before calling this endingDailyAfterCount()!");
         
-        Date today = new Date();
-        Date startTimeOfDayDate = startTimeOfDay.getTimeOfDayForDate(today);
-        Date maxEndTimeOfDayDate = TimeOfDay.hourMinuteAndSecondOfDay(23, 59, 59).getTimeOfDayForDate(today);
-        long remainingMillisInDay = maxEndTimeOfDayDate.getTime() - startTimeOfDayDate.getTime();
+        Instant today = Instants.now();
+        Instant startTimeOfDayDate = startTimeOfDay.getTimeOfDayForDate(today);
+        Instant maxEndTimeOfDayDate = TimeOfDay.hourMinuteAndSecondOfDay(23, 59, 59).getTimeOfDayForDate(today);
+        long remainingMillisInDay = maxEndTimeOfDayDate.toEpochMilli() - startTimeOfDayDate.toEpochMilli();
         long intervalInMillis;
         if (intervalUnit == IntervalUnit.SECOND)
             intervalInMillis = interval * 1000L;
@@ -344,16 +347,15 @@ public class DailyTimeIntervalScheduleBuilder extends ScheduleBuilder<DailyTimeI
             throw new IllegalArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
         
         long incrementInMillis = (count - 1) * intervalInMillis;
-        Date endTimeOfDayDate = new Date(startTimeOfDayDate.getTime() + incrementInMillis);
+        Instant endTimeOfDayDate = Instant.ofEpochMilli(startTimeOfDayDate.toEpochMilli() + incrementInMillis);
         
-        if (endTimeOfDayDate.getTime() > maxEndTimeOfDayDate.getTime())
+        if (endTimeOfDayDate.toEpochMilli() > maxEndTimeOfDayDate.toEpochMilli())
             throw new IllegalArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
         
-        Calendar cal = Calendar.getInstance();
-        cal.setTime(endTimeOfDayDate);
-        int hour = cal.get(Calendar.HOUR_OF_DAY);
-        int minute = cal.get(Calendar.MINUTE);
-        int second = cal.get(Calendar.SECOND);
+        ZonedDateTime cal = endTimeOfDayDate.atZone(ZoneId.systemDefault());
+        int hour = cal.getHour();
+        int minute = cal.getMinute();
+        int second = cal.getSecond();
         
         endTimeOfDay = TimeOfDay.hourMinuteAndSecondOfDay(hour, minute, second);
         return this;

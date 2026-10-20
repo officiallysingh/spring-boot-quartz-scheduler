@@ -17,11 +17,11 @@
 
 package org.quartz.impl.triggers;
 
+import java.time.ZoneId;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.time.Instant;
-import java.util.Date;
-import java.util.TimeZone;
 
 import org.junit.jupiter.api.Test;
 import org.quartz.Calendar;
@@ -33,7 +33,7 @@ class ClockMisfireTest {
 
     @Test
     void simpleTriggerFireNowUsesSuppliedSchedulingTime() {
-        Date schedulingTime = Date.from(Instant.parse("2030-01-01T10:30:15Z"));
+        Instant schedulingTime = Instant.parse("2030-01-01T10:30:15Z");
         SimpleTriggerImpl trigger = new SimpleTriggerImpl();
         trigger.setMisfireInstruction(SimpleTrigger.MISFIRE_INSTRUCTION_FIRE_NOW);
 
@@ -46,20 +46,20 @@ class ClockMisfireTest {
     void cronTriggerCalculatesNextFireTimeFromSuppliedSchedulingTime() throws Exception {
         CronTriggerImpl trigger = new CronTriggerImpl();
         trigger.setCronExpression("0 0 * * * ?");
-        trigger.setTimeZone(TimeZone.getTimeZone("UTC"));
-        trigger.setStartTime(Date.from(Instant.parse("2029-01-01T00:00:00Z")));
+        trigger.setTimeZone(ZoneId.of("UTC"));
+        trigger.setStartTime(Instant.parse("2029-01-01T00:00:00Z"));
         trigger.setMisfireInstruction(CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING);
         trigger.computeFirstFireTime(null);
 
-        trigger.updateAfterMisfire(null, Date.from(Instant.parse("2030-01-01T10:30:15Z")));
+        trigger.updateAfterMisfire(null, Instant.parse("2030-01-01T10:30:15Z"));
 
-        assertEquals(Date.from(Instant.parse("2030-01-01T11:00:00Z")), trigger.getNextFireTime());
+        assertEquals(Instant.parse("2030-01-01T11:00:00Z"), trigger.getNextFireTime());
     }
 
     @Test
     void calendarUpdateUsesSuppliedSchedulingTime() {
-        Date midnight = Date.from(Instant.parse("2030-01-01T00:00:00Z"));
-        Date oneAm = Date.from(Instant.parse("2030-01-01T01:00:00Z"));
+        Instant midnight = Instant.parse("2030-01-01T00:00:00Z");
+        Instant oneAm = Instant.parse("2030-01-01T01:00:00Z");
         SimpleTriggerImpl trigger = new SimpleTriggerImpl();
         trigger.setStartTime(midnight);
         trigger.setRepeatCount(SimpleTrigger.REPEAT_INDEFINITELY);
@@ -71,13 +71,13 @@ class ClockMisfireTest {
             private static final long serialVersionUID = 1L;
 
             @Override
-            public boolean isTimeIncluded(long timeStamp) {
-                return timeStamp != oneAm.getTime();
+            public boolean isTimeIncluded(Instant timeStamp) {
+                return !timeStamp.equals(oneAm);
             }
         };
         trigger.updateWithNewCalendar(
-                calendar, 0L, Date.from(Instant.parse("2030-01-01T10:00:00Z")));
+                calendar, 0L, Instant.parse("2030-01-01T10:00:00Z"));
 
-        assertEquals(Date.from(Instant.parse("2030-01-01T03:00:00Z")), trigger.getNextFireTime());
+        assertEquals(Instant.parse("2030-01-01T03:00:00Z"), trigger.getNextFireTime());
     }
 }

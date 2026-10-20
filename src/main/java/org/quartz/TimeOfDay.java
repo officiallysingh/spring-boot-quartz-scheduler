@@ -18,9 +18,12 @@
 package org.quartz;
 
 import java.io.Serializable;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.TimeZone;
+import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+
+import org.quartz.utils.LenientDateTime;
 
 /**
  * Represents a time in hour, minute and second of any given day.
@@ -170,71 +173,86 @@ public class TimeOfDay implements Serializable {
         return (hour + 1) ^ (minute + 1) ^ (second + 1);
     }
     
-    /** Return a date with time of day reset to this object values. The millisecond value will be zero. */
-    public Date getTimeOfDayForDate(Date dateTime) {
+    /**
+     * Return a time with time of day reset to this object values, in the system default time zone.
+     * The millisecond value will be zero.
+     */
+    public Instant getTimeOfDayForDate(Instant dateTime) {
+        return getTimeOfDayForDate(dateTime, ZoneId.systemDefault());
+    }
+
+    /**
+     * Return a time with time of day reset to this object values, in the given time zone.
+     * The millisecond value will be zero. A time of day that does not exist on that day
+     * (DST gap) moves forward by the length of the gap.
+     */
+    public Instant getTimeOfDayForDate(Instant dateTime, ZoneId zone) {
         if (dateTime == null)
             return null;
-        Calendar cal = Calendar.getInstance();
-        cal.setTime(dateTime);
-        cal.set(Calendar.HOUR_OF_DAY, hour);
-        cal.set(Calendar.MINUTE, minute);
-        cal.set(Calendar.SECOND, second);
-        cal.clear(Calendar.MILLISECOND);
-        return cal.getTime();
+        LenientDateTime cal = new LenientDateTime(dateTime, zone);
+        cal.set(LenientDateTime.HOUR_OF_DAY, hour);
+        cal.set(LenientDateTime.MINUTE, minute);
+        cal.set(LenientDateTime.SECOND, second);
+        cal.set(LenientDateTime.MILLISECOND, 0);
+        return cal.toInstant();
+    }
+
+    /** This time of day as a {@link LocalTime}. */
+    public LocalTime toLocalTime() {
+        return LocalTime.of(hour, minute, second);
+    }
+
+    /** Create a TimeOfDay from the hour, minute and second of the given {@link LocalTime}. */
+    public static TimeOfDay from(LocalTime localTime) {
+        return new TimeOfDay(localTime.getHour(), localTime.getMinute(), localTime.getSecond());
     }
     
     /**
      * Create a TimeOfDay from the given date, in the system default TimeZone.
      * 
-     * @param dateTime The java.util.Date from which to extract Hour, Minute and Second.
+     * @param dateTime The instant from which to extract Hour, Minute and Second.
      */
-    public static TimeOfDay hourAndMinuteAndSecondFromDate(Date dateTime) {
+    public static TimeOfDay hourAndMinuteAndSecondFromDate(Instant dateTime) {
         return hourAndMinuteAndSecondFromDate(dateTime, null);
     }
     
     /**
      * Create a TimeOfDay from the given date, in the given TimeZone.
      * 
-     * @param dateTime The java.util.Date from which to extract Hour, Minute and Second.
-     * @param tz The TimeZone from which relate Hour, Minute and Second for the given date.  If null, system default
+     * @param dateTime The instant from which to extract Hour, Minute and Second.
+     * @param tz The time zone from which relate Hour, Minute and Second for the given date.  If null, system default
      * TimeZone will be used.
      */
-    public static TimeOfDay hourAndMinuteAndSecondFromDate(Date dateTime, TimeZone tz) {
+    public static TimeOfDay hourAndMinuteAndSecondFromDate(Instant dateTime, ZoneId tz) {
         if (dateTime == null)
             return null;
-        Calendar cal = Calendar.getInstance();
-        cal.setTime(dateTime);
-        if(tz != null)
-            cal.setTimeZone(tz);
+        ZonedDateTime cal = dateTime.atZone(tz != null ? tz : ZoneId.systemDefault());
         
-        return new TimeOfDay(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), cal.get(Calendar.SECOND));
+        return new TimeOfDay(cal.getHour(), cal.getMinute(), cal.getSecond());
     }
     
     /**
      * Create a TimeOfDay from the given date (at the zero-second), in the system default TimeZone.
      * 
-     * @param dateTime The java.util.Date from which to extract Hour and Minute.
+     * @param dateTime The instant from which to extract Hour and Minute.
      */
-    public static TimeOfDay hourAndMinuteFromDate(Date dateTime) {
+    public static TimeOfDay hourAndMinuteFromDate(Instant dateTime) {
         return hourAndMinuteFromDate(dateTime, null);
     }
     
     /**
      * Create a TimeOfDay from the given date (at the zero-second), in the system default TimeZone.
      * 
-     * @param dateTime The java.util.Date from which to extract Hour and Minute.
-     * @param tz The TimeZone from which relate Hour and Minute for the given date.  If null, system default
+     * @param dateTime The instant from which to extract Hour and Minute.
+     * @param tz The time zone from which relate Hour and Minute for the given date.  If null, system default
      * TimeZone will be used.
      */
-    public static TimeOfDay hourAndMinuteFromDate(Date dateTime, TimeZone tz) {
+    public static TimeOfDay hourAndMinuteFromDate(Instant dateTime, ZoneId tz) {
         if (dateTime == null)
             return null;
-        Calendar cal = Calendar.getInstance();
-        cal.setTime(dateTime);
-        if(tz != null)
-            cal.setTimeZone(tz);
+        ZonedDateTime cal = dateTime.atZone(tz != null ? tz : ZoneId.systemDefault());
         
-        return new TimeOfDay(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE));
+        return new TimeOfDay(cal.getHour(), cal.getMinute());
     }
     
     @Override

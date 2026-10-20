@@ -16,10 +16,14 @@
  */
 package org.quartz;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+
+import org.junit.jupiter.api.Test;
 
 
 
@@ -53,11 +57,19 @@ public abstract class SerializationTestSupport  {
     protected abstract void verifyMatch(Object target, Object deserialized);
     
     /**
-     * Test that we can successfully deserialize our target
-     * class for all of the given Quartz versions. 
+     * Test that the target survives a serialization round trip, and that we can successfully
+     * deserialize our target class for all of the given Quartz versions.
+     *
+     * <p>This method was not annotated with {@code @Test} after the JUnit 5 migration, so the
+     * fixtures were never checked. Fixtures of the {@code java.util.Date} based classes can no
+     * longer be read after the java.time migration; those tests list no versions and rely on
+     * the round trip (DECISIONS.md D-010).</p>
      */
+    @Test
     void testSerialization() throws Exception {
         Object targetObject = getTargetObject();
+
+        verifyMatch(targetObject, roundTrip(targetObject));
         
         for (int i = 0; i < getVersions().length; i++) {
             String version = getVersions()[i];
@@ -68,6 +80,16 @@ public abstract class SerializationTestSupport  {
         }
     }
     
+    private static Object roundTrip(Object target) throws Exception {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream oos = new ObjectOutputStream(bytes)) {
+            oos.writeObject(target);
+        }
+        try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
+            return ois.readObject();
+        }
+    }
+
     /**
      * Deserialize the target object from disk.
      */

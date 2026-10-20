@@ -1,6 +1,7 @@
 package org.quartz.spi;
 
-import java.util.Date;
+import java.time.Instant;
+
 
 import org.quartz.Calendar;
 import org.quartz.JobExecutionContext;
@@ -46,7 +47,7 @@ public interface OperableTrigger extends MutableTrigger {
      *         by the scheduler, which is also the same value <code>getNextFireTime()</code>
      *         will return (until after the first firing of the <code>Trigger</code>).
      */
-    Date computeFirstFireTime(Calendar calendar);
+    Instant computeFirstFireTime(Calendar calendar);
 
     /**
      * <p>
@@ -96,7 +97,7 @@ public interface OperableTrigger extends MutableTrigger {
      * custom trigger implementations. Implementations that calculate from
      * "now" should override this method.</p>
      */
-    default void updateAfterMisfire(Calendar cal, Date now) {
+    default void updateAfterMisfire(Calendar cal, Instant now) {
         updateAfterMisfire(cal);
     }
 
@@ -127,7 +128,7 @@ public interface OperableTrigger extends MutableTrigger {
      * <p>The default delegates to the original method for compatibility with
      * custom trigger implementations.</p>
      */
-    default void updateWithNewCalendar(Calendar cal, long misfireThreshold, Date now) {
+    default void updateWithNewCalendar(Calendar cal, long misfireThreshold, Instant now) {
         updateWithNewCalendar(cal, misfireThreshold);
     }
 
@@ -167,7 +168,7 @@ public interface OperableTrigger extends MutableTrigger {
     String getFireInstanceId();
 
     
-    void setNextFireTime(Date nextFireTime);
+    void setNextFireTime(Instant nextFireTime);
     
-    void setPreviousFireTime(Date previousFireTime);
+    void setPreviousFireTime(Instant previousFireTime);
 }

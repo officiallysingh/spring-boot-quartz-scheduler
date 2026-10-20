@@ -29,7 +29,8 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class CronTriggerTest extends SerializationTestSupport {
 
-    private static final String[] VERSIONS = new String[] {"2.0"};
+    // the 2.0 fixture predates the java.time migration and can no longer be read (D-010)
+    private static final String[] VERSIONS = new String[0];
 
     /**
      * Get the Quartz versions for which we should verify

@@ -16,6 +16,10 @@
  */
 package org.quartz;
 
+import java.time.ZonedDateTime;
+
+import java.time.ZoneId;
+
 import org.junit.jupiter.api.Test;
 
 import java.io.*;
@@ -27,9 +31,10 @@ import java.util.Calendar;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class CronExpressionTest extends SerializationTestSupport {
-    private static final String[] VERSIONS = new String[] {"1.5.2"};
+    // the 1.5.2 fixture predates the java.time migration and can no longer be read (D-010)
+    private static final String[] VERSIONS = new String[0];
 
-    private static final TimeZone EST_TIME_ZONE = TimeZone.getTimeZone("US/Eastern"); 
+    private static final ZoneId EST_TIME_ZONE = ZoneId.of("US/Eastern"); 
 
     /**
      * Get the object to serialize when generating serialized file for future
@@ -87,64 +92,64 @@ public class CronExpressionTest extends SerializationTestSupport {
         Calendar cal = Calendar.getInstance();
         
         cal.set(2005, Calendar.JUNE, 1, 10, 15, 0);
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
         
         cal.set(Calendar.DAY_OF_MONTH, 30);
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(Calendar.YEAR, 2006);
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal = Calendar.getInstance();
         cal.set(2005, Calendar.JUNE, 1, 10, 16, 0);
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal = Calendar.getInstance();
         cal.set(2005, Calendar.JUNE, 1, 10, 14, 0);
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         // Test for March
         cal = Calendar.getInstance();
         cal.set(2005, Calendar.MARCH, 1, 10, 15, 0);
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(Calendar.DAY_OF_MONTH, 31);
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal = Calendar.getInstance();
         cal.set(2005, Calendar.MARCH, 1, 10, 16, 0);
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal = Calendar.getInstance();
         cal.set(2005, Calendar.MARCH, 1, 10, 14, 0);
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         // Test for February
         cal = Calendar.getInstance();
         cal.set(2005, Calendar.FEBRUARY, 1, 10, 15, 0);
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(Calendar.DAY_OF_MONTH, 28);
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal = Calendar.getInstance();
         cal.set(2005, Calendar.FEBRUARY, 1, 10, 16, 0);
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal = Calendar.getInstance();
         cal.set(2005, Calendar.FEBRUARY, 1, 10, 14, 0);
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         // Test specific day of month
         cronExpression = new CronExpression("0 15 10 12 * ? 2005");
         cal.set(2005, Calendar.DECEMBER, 12, 10, 15, 0);
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2005, Calendar.DECEMBER, 11, 10, 15, 0);
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2005, Calendar.DECEMBER, 13, 10, 15, 0);
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
     }
 
     @Test
@@ -154,34 +159,34 @@ public class CronExpressionTest extends SerializationTestSupport {
         // Test months with 31 days
         CronExpression cronExpression = new CronExpression("0 15 10 L * ? 2005");
         cal.set(2005, Calendar.DECEMBER, 31, 10, 15, 0); // December has 31 days
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2005, Calendar.DECEMBER, 30, 10, 15, 0); // Not the last day
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         // Test months with 30 days
         cronExpression = new CronExpression("0 15 10 L * ? 2005");
         cal.set(2005, Calendar.SEPTEMBER, 30, 10, 15, 0); // September has 30 days
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2005, Calendar.SEPTEMBER, 29, 10, 15, 0); // Not the last day
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         // Test February (non-leap year)
         cronExpression = new CronExpression("0 15 10 L 2 ? 2005");
         cal.set(2005, Calendar.FEBRUARY, 28, 10, 15, 0);
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2005, Calendar.FEBRUARY, 27, 10, 15, 0); // Not the last day
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         // Test February (leap year)
         cronExpression = new CronExpression("0 15 10 L 2 ? 2004");
         cal.set(2004, Calendar.FEBRUARY, 29, 10, 15, 0);
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2004, Calendar.FEBRUARY, 28, 10, 15, 0); // Not the last day
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
     }
 
     @Test
@@ -191,58 +196,58 @@ public class CronExpressionTest extends SerializationTestSupport {
         // Test months with 31 days
         CronExpression cronExpression = new CronExpression("0 15 10 L-2 * ? 2005");
         cal.set(2005, Calendar.DECEMBER, 29, 10, 15, 0); // December has 31 days, L-2 = 29th
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2005, Calendar.DECEMBER, 28, 10, 15, 0); // Not L-2
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2005, Calendar.DECEMBER, 30, 10, 15, 0); // Not L-2
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2005, Calendar.DECEMBER, 31, 10, 15, 0); // Not L-2
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         // Test months with 30 days
         cronExpression = new CronExpression("0 15 10 L-1 * ? 2005");
         cal.set(2005, Calendar.SEPTEMBER, 29, 10, 15, 0); // September has 30 days, L-1 = 29th
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2005, Calendar.SEPTEMBER, 27, 10, 15, 0); // Not L-1
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2005, Calendar.SEPTEMBER, 28, 10, 15, 0); // Not L-1
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2005, Calendar.SEPTEMBER, 30, 10, 15, 0); // Not L-1
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         // Test February (non-leap year)
         cronExpression = new CronExpression("0 15 10 L-3 2 ? 2005");
         cal.set(2005, Calendar.FEBRUARY, 25, 10, 15, 0); // February has 28 days in 2005, L-3 = 25th
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2005, Calendar.FEBRUARY, 24, 10, 15, 0); // Not L-3
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2005, Calendar.FEBRUARY, 26, 10, 15, 0); // Not L-3
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2005, Calendar.FEBRUARY, 28, 10, 15, 0); // Not L-3
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         // Test February (leap year)
         cronExpression = new CronExpression("0 15 10 L-3 2 ? 2000");
         cal.set(2000, Calendar.FEBRUARY, 26, 10, 15, 0); // February has 29 days in 2000, L-3 = 26th
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2000, Calendar.FEBRUARY, 25, 10, 15, 0); // Not L-3
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2000, Calendar.FEBRUARY, 27, 10, 15, 0); // Not L-3
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2000, Calendar.FEBRUARY, 29, 10, 15, 0); // Not L-3
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
     }
 
     @Test
@@ -252,103 +257,103 @@ public class CronExpressionTest extends SerializationTestSupport {
         Calendar cal = Calendar.getInstance();
         
         cal.set(2010, Calendar.OCTOBER, 29, 10, 15, 0); // last day - 2
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
         
         cal.set(2010, Calendar.OCTOBER, 28, 10, 15, 0);
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
         
         cal.set(2010, Calendar.FEBRUARY, 26, 10, 15, 0); // last day - 2 for February
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2010, Calendar.FEBRUARY, 25, 10, 15, 0);
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2010, Calendar.JUNE, 28, 10, 15, 0); // last day - 2 for June
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2010, Calendar.JUNE, 27, 10, 15, 0);
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cronExpression = new CronExpression("0 15 10 L-5W * ? 2010");
         
         cal.set(2010, Calendar.OCTOBER, 26, 10, 15, 0); // last day - 5
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
         
         cal.set(2010, Calendar.OCTOBER, 25, 10, 15, 0); // not last day - 5
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2010, Calendar.OCTOBER, 27, 10, 15, 0); // not last day - 5
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2010, Calendar.SEPTEMBER, 24, 10, 15, 0); // last day - 5 (September has 30 days)
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2010, Calendar.SEPTEMBER, 23, 10, 15, 0); // not last day - 5
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2010, Calendar.SEPTEMBER, 25, 10, 15, 0); // not last day - 5
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cronExpression = new CronExpression("0 15 10 L-1 * ? 2010");
         
         cal.set(2010, Calendar.OCTOBER, 30, 10, 15, 0); // last day - 1
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
         
         cronExpression = new CronExpression("0 15 10 L-1W * ? 2010");
         
         cal.set(2010, Calendar.OCTOBER, 29, 10, 15, 0); // nearest weekday to last day - 1 (29th is a friday in 2010)
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
         
         cronExpression = new CronExpression("0 15 10 1,L * ? 2010");
         
         cal.set(2010, Calendar.OCTOBER, 1, 10, 15, 0);
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
         
         cal.set(2010, Calendar.OCTOBER, 31, 10, 15, 0);
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
         
         cal.set(2010, Calendar.OCTOBER, 30, 10, 15, 0);
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
         
         cal.set(2010, Calendar.FEBRUARY, 1, 10, 15, 0);
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2010, Calendar.FEBRUARY, 28, 10, 15, 0);
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2010, Calendar.FEBRUARY, 27, 10, 15, 0);
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cronExpression = new CronExpression("0 15 10 L-1W,L-1 * ? 2010");
         
         cal.set(2010, Calendar.OCTOBER, 29, 10, 15, 0); // nearest weekday to last day - 1 (29th is a friday in 2010)
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
         
         cal.set(2010, Calendar.OCTOBER, 30, 10, 15, 0); // last day - 1
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2010, Calendar.FEBRUARY, 26, 10, 15, 0); // nearest weekday to last day - 1 (26th is a friday in 2010)
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2010, Calendar.FEBRUARY, 27, 10, 15, 0); // last day - 1
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
         
         cronExpression = new CronExpression("0 15 10 2W,16 * ? 2010");
         
         cal.set(2010, Calendar.OCTOBER, 1, 10, 15, 0); // nearest weekday to the 2nd of the month (1st is a friday in 2010)
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
         
         cal.set(2010, Calendar.OCTOBER, 2, 10, 15, 0);
-        assertFalse(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
         
         cal.set(2010, Calendar.OCTOBER, 16, 10, 15, 0);
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
         
         cal.set(2010, Calendar.NOVEMBER, 2, 10, 15, 0); // 2nd is a Tuesday in November 2010
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
         cal.set(2010, Calendar.NOVEMBER, 16, 10, 15, 0);
-        assertTrue(cronExpression.isSatisfiedBy(cal.getTime()));
+        assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
     }
 
     /*
@@ -368,7 +373,7 @@ public class CronExpressionTest extends SerializationTestSupport {
         assertEquals(newExpression.getCronExpression(), cronExpression.getCronExpression());
 
         // if broken, this will throw an exception
-        newExpression.getNextValidTimeAfter(new Date());
+        newExpression.getNextValidTimeAfter(Instant.now());
     }
 
     /**
@@ -381,9 +386,9 @@ public class CronExpressionTest extends SerializationTestSupport {
  		Trigger trigger = TriggerBuilder.newTrigger().withIdentity("test").withSchedule(schedBuilder).build();
  				
  		int i = 0;
- 		Date previousDate = trigger.getFireTimeAfter(new Date());
+ 		Instant previousDate = trigger.getFireTimeAfter(Instant.now());
  		while (++i < 26) {
- 			Date date = trigger.getFireTimeAfter(previousDate);
+ 			Instant date = trigger.getFireTimeAfter(previousDate);
  			System.out.println("fireTime: " + date + ", previousFireTime: " + previousDate);
             assertNotEquals(previousDate, date, "Next fire time is the same as previous fire time!");
  			previousDate = date;
@@ -400,9 +405,9 @@ public class CronExpressionTest extends SerializationTestSupport {
  		Trigger trigger = TriggerBuilder.newTrigger().withIdentity("test").withSchedule(schedBuilder).build();
  				
  		int i = 0;
- 		Date pdate = trigger.getFireTimeAfter(new Date());
+ 		Instant pdate = trigger.getFireTimeAfter(Instant.now());
  		while (++i < 26) {
- 			Date date = trigger.getFireTimeAfter(pdate);
+ 			Instant date = trigger.getFireTimeAfter(pdate);
  			System.out.println("fireTime: " + date + ", previousFireTime: " + pdate);
             assertNotEquals(pdate, date, "Next fire time is the same as previous fire time!");
  			pdate = date;
@@ -502,8 +507,8 @@ public class CronExpressionTest extends SerializationTestSupport {
 
     @Test
     void testQtz395_CopyConstructorMustPreserveTimeZone () throws ParseException {
-        TimeZone nonDefault = TimeZone.getTimeZone("Europe/Brussels");
-        if (nonDefault.equals(TimeZone.getDefault())) {
+        ZoneId nonDefault = ZoneId.of("Europe/Brussels");
+        if (nonDefault.equals(ZoneId.systemDefault())) {
             nonDefault = EST_TIME_ZONE;
         }
         CronExpression cronExpression = new CronExpression("0 15 10 * * ? 2005");
@@ -786,18 +791,18 @@ public class CronExpressionTest extends SerializationTestSupport {
             long interval1 = test.length > 1 ? (long)test[1] : -1;
             long interval2 = test.length > 2 ? (long)test[2] : interval1;
             CronExpression exp = new CronExpression(expression);
-            Date after = exp.getTimeAfter(new Date(now));
+            Instant after = exp.getTimeAfter(Instant.ofEpochMilli(now));
             if (after == null) { // matches only in the past
-                Date before = exp.getTimeBefore(new Date(now));
+                Instant before = exp.getTimeBefore(Instant.ofEpochMilli(now));
                 assertNotNull(before, "expression " + expression);
             } else if (interval1 < 0) { // matches only in the future
-                Date before = exp.getTimeBefore(after);
+                Instant before = exp.getTimeBefore(after);
                 assertNull(before, "expression " + expression);
             } else { // matches at fixed intervals
-                Date before = exp.getTimeBefore(after);
-                Date after2 = exp.getTimeAfter(after);
-                assertEquals(interval1, after.getTime() - before.getTime(), "expression " + expression);
-                assertEquals(interval2, after2.getTime() - after.getTime(), "expression " + expression);
+                Instant before = exp.getTimeBefore(after);
+                Instant after2 = exp.getTimeAfter(after);
+                assertEquals(interval1, after.toEpochMilli() - before.toEpochMilli(), "expression " + expression);
+                assertEquals(interval2, after2.toEpochMilli() - after.toEpochMilli(), "expression " + expression);
             }
         }
     }
@@ -825,43 +830,43 @@ public class CronExpressionTest extends SerializationTestSupport {
         assertTrue(CronExpression.isValidExpression(expFirstWeekdayOfTheMonth.getCronExpression()));
         assertTrue(CronExpression.isValidExpression(expLastDayOfMonth.getCronExpression()));
 
-        List<Date> correctFireTimes = new ArrayList<>();
+        List<Instant> correctFireTimes = new ArrayList<>();
 
         Calendar cal = Calendar.getInstance();
         cal.set(Calendar.MILLISECOND, 0);
         cal.set(2025, Calendar.DECEMBER, 1, 0, 0, 0);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.JANUARY, 1, 0, 0, 0);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.FEBRUARY, 2, 0, 0, 0);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.MARCH, 2, 0, 0, 0);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.APRIL, 1, 0, 0, 0);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.MAY, 1, 0, 0, 0);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.JUNE, 1, 0, 0, 0);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.JULY, 1, 0, 0, 0);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.AUGUST, 3, 0, 0, 0);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.SEPTEMBER, 1, 0, 0, 0);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.OCTOBER, 1, 0, 0, 0);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.NOVEMBER, 2, 0, 0, 0);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.DECEMBER, 1, 0, 0, 0);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
 
         cal.set(2025, Calendar.NOVEMBER, 18, 10, 15, 0);
-        Date lTime = cal.getTime();
+        Instant lTime = cal.toInstant();
 
         // test correct computed dates for first weekdays days of month
         for(int i=0; i < 13; i++) {
-            Date nTime = expFirstWeekdayOfTheMonth.getTimeAfter(lTime);
+            Instant nTime = expFirstWeekdayOfTheMonth.getTimeAfter(lTime);
             assertEquals(correctFireTimes.get(i), nTime);
             lTime = nTime;
         }
@@ -869,40 +874,40 @@ public class CronExpressionTest extends SerializationTestSupport {
         correctFireTimes.clear();
 
         cal.set(2025, Calendar.NOVEMBER, 30, 23, 59, 59);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2025, Calendar.DECEMBER, 31, 23, 59, 59);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.JANUARY, 31, 23, 59, 59);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.FEBRUARY, 28, 23, 59, 59);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.MARCH, 31, 23, 59, 59);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.APRIL, 30, 23, 59, 59);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.MAY, 31, 23, 59, 59);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.JUNE, 30, 23, 59, 59);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.JULY, 31, 23, 59, 59);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.AUGUST, 31, 23, 59, 59);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.SEPTEMBER, 30, 23, 59, 59);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.OCTOBER, 31, 23, 59, 59);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.NOVEMBER, 30, 23, 59, 59);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
         cal.set(2026, Calendar.DECEMBER, 31, 23, 59, 59);
-        correctFireTimes.add(cal.getTime());
+        correctFireTimes.add(cal.toInstant());
 
         cal.set(2025, Calendar.NOVEMBER, 18, 10, 15, 0);
-        lTime = cal.getTime();
+        lTime = cal.toInstant();
 
         // test correct computed dates for last days of month
         for(int i=0; i < 14; i++) {
-            Date nTime = expLastDayOfMonth.getTimeAfter(lTime);
+            Instant nTime = expLastDayOfMonth.getTimeAfter(lTime);
             assertEquals(correctFireTimes.get(i), nTime);
             lTime = nTime;
         }
@@ -913,40 +918,39 @@ public class CronExpressionTest extends SerializationTestSupport {
         // https://github.com/quartz-scheduler/quartz/issues/1138
         // Africa/Casablanca ended DST on 2025-02-23 at 03:00+01:00 and fell back
         // to 02:00+00:00, so local wall times in [02:00, 03:00) occurred twice that day.
-        TimeZone timeZone = TimeZone.getTimeZone("Africa/Casablanca");
+        ZoneId timeZone = ZoneId.of("Africa/Casablanca");
         CronExpression cronExpression = new CronExpression("29 5 2 23 2 ? 2025");
         cronExpression.setTimeZone(timeZone);
 
         // 02:45:10 at the first (+01:00) occurrence of the overlapping wall time
-        Date afterTime = Date.from(Instant.parse("2025-02-23T01:45:10Z"));
-        Calendar afterTimeCalendar = Calendar.getInstance(timeZone);
-        afterTimeCalendar.setTime(afterTime);
-        assertEquals(2, afterTimeCalendar.get(Calendar.HOUR_OF_DAY));
-        assertEquals(45, afterTimeCalendar.get(Calendar.MINUTE));
+        Instant afterTime = Instant.parse("2025-02-23T01:45:10Z");
+        ZonedDateTime afterTimeCalendar = afterTime.atZone(timeZone);
+        assertEquals(2, afterTimeCalendar.getHour());
+        assertEquals(45, afterTimeCalendar.getMinute());
 
-        Date nextFireTime = cronExpression.getTimeAfter(afterTime);
+        Instant nextFireTime = cronExpression.getTimeAfter(afterTime);
 
         // the fire time is the second (+00:00) occurrence of 02:05:29 local time
         assertNotNull(nextFireTime);
-        assertEquals(Instant.parse("2025-02-23T02:05:29Z"), nextFireTime.toInstant());
+        assertEquals(Instant.parse("2025-02-23T02:05:29Z"), nextFireTime);
     }
 
     @Test
     public void testGetTimeAfterDuringDstFallBackOverlapUsEastern() throws Exception {
         // US/Eastern ended DST on 2025-11-02 at 02:00-04:00 and fell back to
         // 01:00-05:00, so local wall times in [01:00, 02:00) occurred twice that day.
-        TimeZone timeZone = TimeZone.getTimeZone("US/Eastern");
+        ZoneId timeZone = ZoneId.of("US/Eastern");
         CronExpression cronExpression = new CronExpression("0 30 1 2 11 ? 2025");
         cronExpression.setTimeZone(timeZone);
 
         // 01:45 at the first (-04:00) occurrence of the overlapping wall time
-        Date afterTime = Date.from(Instant.parse("2025-11-02T05:45:00Z"));
+        Instant afterTime = Instant.parse("2025-11-02T05:45:00Z");
 
-        Date nextFireTime = cronExpression.getTimeAfter(afterTime);
+        Instant nextFireTime = cronExpression.getTimeAfter(afterTime);
 
         // the fire time is the second (-05:00) occurrence of 01:30 local time
         assertNotNull(nextFireTime);
-        assertEquals(Instant.parse("2025-11-02T06:30:00Z"), nextFireTime.toInstant());
+        assertEquals(Instant.parse("2025-11-02T06:30:00Z"), nextFireTime);
     }
 
     @Test
@@ -954,24 +958,24 @@ public class CronExpressionTest extends SerializationTestSupport {
         // A 30 minute fall-back shift (Australia/Lord_Howe +11:00 -> +10:30 on
         // 2025-04-06) and a two hour shift (Antarctica/Troll +02:00 -> +00:00 on
         // 2025-10-26) must both return the second occurrence of the fire time.
-        TimeZone lordHowe = TimeZone.getTimeZone("Australia/Lord_Howe");
+        ZoneId lordHowe = ZoneId.of("Australia/Lord_Howe");
         CronExpression halfHourShift = new CronExpression("0 45 1 6 4 ? 2025");
         halfHourShift.setTimeZone(lordHowe);
-        Date afterHalfHour = Date.from(Instant.parse("2025-04-05T14:50:00Z"));
-        Date nextHalfHour = halfHourShift.getTimeAfter(afterHalfHour);
+        Instant afterHalfHour = Instant.parse("2025-04-05T14:50:00Z");
+        Instant nextHalfHour = halfHourShift.getTimeAfter(afterHalfHour);
         assertNotNull(nextHalfHour);
-        assertEquals(Instant.parse("2025-04-05T15:15:00Z"), nextHalfHour.toInstant());
+        assertEquals(Instant.parse("2025-04-05T15:15:00Z"), nextHalfHour);
 
-        TimeZone troll = TimeZone.getTimeZone("Antarctica/Troll");
+        ZoneId troll = ZoneId.of("Antarctica/Troll");
         CronExpression twoHourShift = new CronExpression("0 15 2 26 10 ? 2025");
         twoHourShift.setTimeZone(troll);
-        Date afterTwoHour = Date.from(Instant.parse("2025-10-26T01:45:00Z"));
-        Date nextTwoHour = twoHourShift.getTimeAfter(afterTwoHour);
+        Instant afterTwoHour = Instant.parse("2025-10-26T01:45:00Z");
+        Instant nextTwoHour = twoHourShift.getTimeAfter(afterTwoHour);
         // afterTime already skips the first occurrence of the repeated 02:15
         // local time (+02:00 = 00:15Z), so the expected fire time is the
         // intentionally selected later occurrence (+00:00 = 02:15Z)
         assertNotNull(nextTwoHour);
-        assertEquals(Instant.parse("2025-10-26T02:15:00Z"), nextTwoHour.toInstant());
+        assertEquals(Instant.parse("2025-10-26T02:15:00Z"), nextTwoHour);
     }
 
     @Test
@@ -979,31 +983,31 @@ public class CronExpressionTest extends SerializationTestSupport {
         // America/Santiago falls back at midnight (2025-04-05 24:00 -03:00 ->
         // 23:00 -04:00), so the wall time 23:45 occurs twice across the day
         // boundary and the second occurrence lands on the next UTC date.
-        TimeZone timeZone = TimeZone.getTimeZone("America/Santiago");
+        ZoneId timeZone = ZoneId.of("America/Santiago");
         CronExpression cronExpression = new CronExpression("0 45 23 5 4 ? 2025");
         cronExpression.setTimeZone(timeZone);
 
-        Date afterTime = Date.from(Instant.parse("2025-04-05T02:50:00Z"));
+        Instant afterTime = Instant.parse("2025-04-05T02:50:00Z");
 
-        Date nextFireTime = cronExpression.getTimeAfter(afterTime);
+        Instant nextFireTime = cronExpression.getTimeAfter(afterTime);
 
         assertNotNull(nextFireTime);
-        assertEquals(Instant.parse("2025-04-06T03:45:00Z"), nextFireTime.toInstant());
+        assertEquals(Instant.parse("2025-04-06T03:45:00Z"), nextFireTime);
     }
 
     @Test
     public void testGetTimeAfterDuringDstSpringForwardGap() throws Exception {
         // US/Eastern started DST on 2025-03-09 at 02:00-05:00, jumping forward
         // to 03:00-04:00, so local wall times in [02:00, 03:00) never occurred.
-        TimeZone timeZone = TimeZone.getTimeZone("US/Eastern");
-        Date afterTime = Date.from(Instant.parse("2025-03-09T06:00:00Z"));
+        ZoneId timeZone = ZoneId.of("US/Eastern");
+        Instant afterTime = Instant.parse("2025-03-09T06:00:00Z");
 
         // a fire time inside the gap is skipped and the next hour still fires
         CronExpression spanningHours = new CronExpression("0 30 2-3 9 3 ? 2025");
         spanningHours.setTimeZone(timeZone);
-        Date nextFireTime = spanningHours.getTimeAfter(afterTime);
+        Instant nextFireTime = spanningHours.getTimeAfter(afterTime);
         assertNotNull(nextFireTime);
-        assertEquals(Instant.parse("2025-03-09T07:30:00Z"), nextFireTime.toInstant());
+        assertEquals(Instant.parse("2025-03-09T07:30:00Z"), nextFireTime);
 
         // a fire time only inside the gap does not fire at all
         CronExpression gapOnly = new CronExpression("0 30 2 9 3 ? 2025");
@@ -1016,20 +1020,20 @@ public class CronExpressionTest extends SerializationTestSupport {
     public void testGetTimeAfterTerminatesInThirtyMinuteDstGap() throws Exception {
         // Australia/Lord_Howe jumps from 02:00 to 02:30 on 2024-10-06; the original
         // implementation looped forever looking for 02:00 on that day (D-010).
-        TimeZone lordHowe = TimeZone.getTimeZone("Australia/Lord_Howe");
-        Date afterTime = Date.from(Instant.parse("2024-10-05T13:30:00Z"));
+        ZoneId lordHowe = ZoneId.of("Australia/Lord_Howe");
+        Instant afterTime = Instant.parse("2024-10-05T13:30:00Z");
 
         CronExpression daily = new CronExpression("0 0 2 * * ?");
         daily.setTimeZone(lordHowe);
         // the non-existent 02:00 is skipped; the next fire is 02:00 on the following day (+11:00)
-        assertEquals(Instant.parse("2024-10-06T15:00:00Z"), daily.getTimeAfter(afterTime).toInstant());
+        assertEquals(Instant.parse("2024-10-06T15:00:00Z"), daily.getTimeAfter(afterTime));
 
         CronExpression hourly = new CronExpression("0 0 * * * ?");
         hourly.setTimeZone(lordHowe);
         // 01:00 (+10:30), then 03:00 (+11:00): there is no 02:00 that day
-        assertEquals(Instant.parse("2024-10-05T14:30:00Z"), hourly.getTimeAfter(afterTime).toInstant());
+        assertEquals(Instant.parse("2024-10-05T14:30:00Z"), hourly.getTimeAfter(afterTime));
         assertEquals(Instant.parse("2024-10-05T16:00:00Z"),
-                hourly.getTimeAfter(Date.from(Instant.parse("2024-10-05T14:30:00Z"))).toInstant());
+                hourly.getTimeAfter(Instant.parse("2024-10-05T14:30:00Z")));
     }
 
     @Test
@@ -1037,13 +1041,13 @@ public class CronExpressionTest extends SerializationTestSupport {
         // the original W handling leaked the wall-clock milliseconds into its comparison,
         // so getTimeBefore could be one second early depending on when it ran (D-010)
         CronExpression lastWeekday = new CronExpression("0 0 0 LW * ?");
-        lastWeekday.setTimeZone(TimeZone.getTimeZone("UTC"));
-        Date start = Date.from(Instant.parse("2024-02-28T23:59:59Z"));
+        lastWeekday.setTimeZone(ZoneId.of("UTC"));
+        Instant start = Instant.parse("2024-02-28T23:59:59Z");
         for (int i = 0; i < 20; i++) {
-            assertEquals(Instant.parse("2024-01-31T00:00:00Z"), lastWeekday.getTimeBefore(start).toInstant());
+            assertEquals(Instant.parse("2024-01-31T00:00:00Z"), lastWeekday.getTimeBefore(start));
         }
         assertEquals(Instant.parse("2024-01-31T00:00:00Z"),
-                lastWeekday.getTimeAfter(Date.from(Instant.parse("2024-01-30T23:59:59.500Z"))).toInstant());
+                lastWeekday.getTimeAfter(Instant.parse("2024-01-30T23:59:59.500Z")));
     }
 
     // execute with version number to generate a new version's serialized form

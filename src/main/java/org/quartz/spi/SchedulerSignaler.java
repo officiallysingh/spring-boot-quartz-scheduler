@@ -18,7 +18,8 @@
 
 package org.quartz.spi;
 
-import java.util.Date;
+import java.time.Instant;
+
 
 import org.quartz.JobKey;
 import org.quartz.SchedulerException;
@@ -55,8 +56,8 @@ public interface SchedulerSignaler {
      * implementations. Quartz's own implementation delegates to the configured
      * {@link java.time.Clock}.</p>
      */
-    default Date getCurrentTime() throws SchedulerException {
-        return new Date();
+    default Instant getCurrentTime() throws SchedulerException {
+        return Instant.now();
     }
 
     void notifySchedulerListenersError(String string, SchedulerException jpe);

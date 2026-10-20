@@ -18,7 +18,7 @@
 
 package org.quartz.plugins.history;
 
-import java.text.MessageFormat;
+import java.time.Instant;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +32,7 @@ import org.quartz.Trigger.CompletedExecutionInstruction;
 import org.quartz.impl.matchers.EverythingMatcher;
 import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.SchedulerPlugin;
+import org.quartz.utils.InstantMessageFormat;
 
 /**
  * Logs a history of all trigger firings via slf4j.
@@ -363,7 +364,7 @@ public class LoggingTriggerHistoryPlugin implements SchedulerPlugin,
      * Object[] arguments = { new Integer(7), new
      * Date(System.currentTimeMillis()), "a disturbance in the Force" };
      * 
-     * String result = MessageFormat.format( "At {1,time} on {1,date}, there
+     * String result = InstantMessageFormat.format( "At {1,time} on {1,date}, there
      * was {2} on planet {0,number,integer}.", arguments);
      */
 
@@ -379,12 +380,12 @@ public class LoggingTriggerHistoryPlugin implements SchedulerPlugin,
         Object[] args = {
             trigger.getKey().getName(), trigger.getKey().getGroup(),
             trigger.getPreviousFireTime(), trigger.getNextFireTime(),
-            new java.util.Date(), context.getJobDetail().getKey().getName(),
+            Instant.now(), context.getJobDetail().getKey().getName(),
             context.getJobDetail().getKey().getGroup(),
                 context.getRefireCount()
         };
 
-        getLog().info(MessageFormat.format(getTriggerFiredMessage(), args));
+        getLog().info(InstantMessageFormat.format(getTriggerFiredMessage(), args));
     }
 
     public void triggerMisfired(Trigger trigger) {
@@ -395,11 +396,11 @@ public class LoggingTriggerHistoryPlugin implements SchedulerPlugin,
         Object[] args = {
             trigger.getKey().getName(), trigger.getKey().getGroup(),
             trigger.getPreviousFireTime(), trigger.getNextFireTime(),
-            new java.util.Date(), trigger.getJobKey().getName(),
+            Instant.now(), trigger.getJobKey().getName(),
             trigger.getJobKey().getGroup()
         };
 
-        getLog().info(MessageFormat.format(getTriggerMisfiredMessage(), args));
+        getLog().info(InstantMessageFormat.format(getTriggerMisfiredMessage(), args));
     }
 
     public void triggerComplete(Trigger trigger, JobExecutionContext context,
@@ -424,13 +425,13 @@ public class LoggingTriggerHistoryPlugin implements SchedulerPlugin,
         Object[] args = {
             trigger.getKey().getName(), trigger.getKey().getGroup(),
             trigger.getPreviousFireTime(), trigger.getNextFireTime(),
-            new java.util.Date(), context.getJobDetail().getKey().getName(),
+            Instant.now(), context.getJobDetail().getKey().getName(),
             context.getJobDetail().getKey().getGroup(),
                 context.getRefireCount(),
             triggerInstructionCode.toString(), instrCode
         };
 
-        getLog().info(MessageFormat.format(getTriggerCompleteMessage(), args));
+        getLog().info(InstantMessageFormat.format(getTriggerCompleteMessage(), args));
     }
 
     public boolean vetoJobExecution(Trigger trigger, JobExecutionContext context) {

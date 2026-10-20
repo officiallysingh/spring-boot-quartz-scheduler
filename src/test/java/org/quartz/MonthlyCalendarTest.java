@@ -41,7 +41,7 @@ public class MonthlyCalendarTest  {
         Calendar c = Calendar.getInstance();
         c.set(2007, 11, 8, 12, 0, 0);
 
-        monthlyCalendar.getNextIncludedTime(c.getTime().getTime());
+        monthlyCalendar.getNextIncludedTime(c.toInstant());
     }
 
 }

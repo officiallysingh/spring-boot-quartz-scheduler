@@ -26,7 +26,7 @@ import java.time.temporal.ChronoUnit;
  * A mutable, lenient, field-based date-time in a {@link ZoneId}, built on {@code java.time}.
  *
  * <p>Quartz's scheduling algorithms (cron, calendar-interval, daily-time-interval triggers, calendars)
- * were written against the lenient {@code GregorianCalendar}: fields are set one at a time, may overflow
+ * were written against the lenient legacy Gregorian calendar of the JDK: fields are set one at a time, may overflow
  * (minute 60, day 32, month 12) and are normalized on the next read. This class reproduces exactly those
  * semantics so the algorithms keep their fire times (DECISIONS.md D-010):</p>
  * <ul>
@@ -47,6 +47,7 @@ public final class LenientDateTime {
     public static final int YEAR = 1;
     public static final int MONTH = 2;
     public static final int WEEK_OF_YEAR = 3;
+    public static final int DATE = 5;
     public static final int DAY_OF_MONTH = 5;
     public static final int DAY_OF_YEAR = 6;
     public static final int DAY_OF_WEEK = 7;

@@ -16,10 +16,13 @@
  */
 package org.quartz;
 
+import java.util.TimeZone;
+
+import java.time.Instant;
+import java.time.ZoneId;
+
 import java.text.ParseException;
 import java.util.Calendar;
-import java.util.Date;
-import java.util.TimeZone;
 
 import org.junit.jupiter.api.Test;
 import org.quartz.impl.triggers.SimpleTriggerImpl;
@@ -31,9 +34,10 @@ import static org.junit.jupiter.api.Assertions.*;
  * Unit test for SimpleTrigger serialization backwards compatibility.
  */
 public class SimpleTriggerTest extends SerializationTestSupport {
-    private static final String[] VERSIONS = new String[] {"2.0"};
+    // the 2.0 fixture predates the java.time migration and can no longer be read (D-010)
+    private static final String[] VERSIONS = new String[0];
 
-    private static final TimeZone EST_TIME_ZONE = TimeZone.getTimeZone("US/Eastern"); 
+    private static final ZoneId EST_TIME_ZONE = ZoneId.of("US/Eastern"); 
     private static final Calendar START_TIME = Calendar.getInstance();
     private static final Calendar END_TIME = Calendar.getInstance();
     
@@ -41,10 +45,10 @@ public class SimpleTriggerTest extends SerializationTestSupport {
     {
         START_TIME.clear();
         START_TIME.set(2006, Calendar.JUNE, 1, 10, 5, 15);
-        START_TIME.setTimeZone(EST_TIME_ZONE);
+        START_TIME.setTimeZone(TimeZone.getTimeZone(EST_TIME_ZONE));
         END_TIME.clear();
         END_TIME.set(2008, Calendar.MAY, 2, 20, 15, 30);
-        END_TIME.setTimeZone(EST_TIME_ZONE);
+        END_TIME.setTimeZone(TimeZone.getTimeZone(EST_TIME_ZONE));
     }
     
     /**
@@ -58,8 +62,8 @@ public class SimpleTriggerTest extends SerializationTestSupport {
         jobDataMap.put("A", "B");
         
         SimpleTriggerImpl t = new SimpleTriggerImpl("SimpleTrigger", "SimpleGroup",
-                "JobName", "JobGroup", START_TIME.getTime(),
-                END_TIME.getTime(), 5, 1000);
+                "JobName", "JobGroup", START_TIME.toInstant(),
+                END_TIME.toInstant(), 5, 1000);
         t.setCalendarName("MyCalendar");
         t.setDescription("SimpleTriggerDesc");
         t.setJobDataMap(jobDataMap);
@@ -112,24 +116,24 @@ public class SimpleTriggerTest extends SerializationTestSupport {
         SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl();
         simpleTrigger.setMisfireInstruction(SimpleTrigger.MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT);
         simpleTrigger.setRepeatCount(5);
-        simpleTrigger.setStartTime(startTime.getTime());
-        simpleTrigger.setEndTime(endTime.getTime());
+        simpleTrigger.setStartTime(startTime.toInstant());
+        simpleTrigger.setEndTime(endTime.toInstant());
         
         simpleTrigger.updateAfterMisfire(null);
-        assertEquals(startTime.getTime(), simpleTrigger.getStartTime());
-        assertEquals(endTime.getTime(), simpleTrigger.getEndTime());
+        assertEquals(startTime.toInstant(), simpleTrigger.getStartTime());
+        assertEquals(endTime.toInstant(), simpleTrigger.getEndTime());
         assertNull(simpleTrigger.getNextFireTime());
     }
     @Test
     void testGetFireTimeAfter() {
         SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl();
 
-        simpleTrigger.setStartTime(new Date(0));
+        simpleTrigger.setStartTime(Instant.ofEpochMilli(0));
         simpleTrigger.setRepeatInterval(10);
         simpleTrigger.setRepeatCount(4);
         
-        Date fireTimeAfter = simpleTrigger.getFireTimeAfter(new Date(34));
-        assertEquals(40, fireTimeAfter.getTime());
+        Instant fireTimeAfter = simpleTrigger.getFireTimeAfter(Instant.ofEpochMilli(34));
+        assertEquals(40, fireTimeAfter.toEpochMilli());
     }
     @Test
     void testClone() {

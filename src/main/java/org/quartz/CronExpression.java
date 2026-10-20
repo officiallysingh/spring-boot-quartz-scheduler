@@ -24,7 +24,6 @@ import java.time.Instant;
 import java.time.Year;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Locale;
@@ -32,7 +31,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.SortedSet;
 import java.util.StringTokenizer;
-import java.util.TimeZone;
 import java.util.TreeSet;
 
 import org.quartz.utils.LenientDateTime;
@@ -255,7 +253,7 @@ public final class CronExpression implements Serializable, Cloneable {
     }
 
     private final String cronExpression;
-    private TimeZone timeZone = null;
+    private ZoneId timeZone = null;
     protected transient TreeSet<Integer> seconds;
     protected transient TreeSet<Integer> minutes;
     protected transient TreeSet<Integer> hours;
@@ -311,7 +309,7 @@ public final class CronExpression implements Serializable, Cloneable {
             throw new AssertionError("Could not parse expression!", ex);
         }
         if (expression.getTimeZone() != null) {
-            setTimeZone((TimeZone) expression.getTimeZone().clone());
+            setTimeZone(expression.getTimeZone());
         }
     }
 
@@ -324,9 +322,9 @@ public final class CronExpression implements Serializable, Cloneable {
      * @return a boolean indicating whether the given date satisfies the cron
      *         expression
      */
-    public boolean isSatisfiedBy(Date date) {
+    public boolean isSatisfiedBy(Instant date) {
         // dropping the milliseconds re-resolves the wall time, as the original calendar code did
-        LenientDateTime testDateCal = new LenientDateTime(date.toInstant(), getTimeZone().toZoneId());
+        LenientDateTime testDateCal = new LenientDateTime(date, getTimeZone());
         testDateCal.set(LenientDateTime.MILLISECOND, 0);
         Instant originalDate = testDateCal.toInstant();
 
@@ -343,7 +341,7 @@ public final class CronExpression implements Serializable, Cloneable {
      *             date/time
      * @return the next valid date/time
      */
-    public Date getNextValidTimeAfter(Date date) {
+    public Instant getNextValidTimeAfter(Instant date) {
         return getTimeAfter(date);
     }
     
@@ -355,15 +353,15 @@ public final class CronExpression implements Serializable, Cloneable {
      *             invalid date/time
      * @return the next valid date/time
      */
-    public Date getNextInvalidTimeAfter(Date date) {
+    public Instant getNextInvalidTimeAfter(Instant date) {
         long difference = 1000;
         
         //move back to the nearest second so differences will be accurate
-        LenientDateTime adjustCal = new LenientDateTime(date.toInstant(), getTimeZone().toZoneId());
+        LenientDateTime adjustCal = new LenientDateTime(date, getTimeZone());
         adjustCal.set(LenientDateTime.MILLISECOND, 0);
-        Date lastDate = Date.from(adjustCal.toInstant());
+        Instant lastDate = adjustCal.toInstant();
         
-        Date newDate;
+        Instant newDate;
         
         //FUTURE_TODO: (QUARTZ-481) IMPROVE THIS! The following is a BAD solution to this problem. Performance will be very bad here, depending on the cron expression. It is, however A solution.
         
@@ -375,23 +373,23 @@ public final class CronExpression implements Serializable, Cloneable {
             if(newDate == null)
                 break;
             
-            difference = newDate.getTime() - lastDate.getTime();
+            difference = newDate.toEpochMilli() - lastDate.toEpochMilli();
             
             if (difference == 1000) {
                 lastDate = newDate;
             }
         }
         
-        return new Date(lastDate.getTime() + 1000);
+        return lastDate.plusSeconds(1);
     }
     
     /**
      * Returns the time zone for which this <code>CronExpression</code> 
      * will be resolved.
      */
-    public TimeZone getTimeZone() {
+    public ZoneId getTimeZone() {
         if (timeZone == null) {
-            timeZone = TimeZone.getDefault();
+            timeZone = ZoneId.systemDefault();
         }
 
         return timeZone;
@@ -401,7 +399,7 @@ public final class CronExpression implements Serializable, Cloneable {
      * Sets the time zone for which  this <code>CronExpression</code> 
      * will be resolved.
      */
-    public void setTimeZone(TimeZone timeZone) {
+    public void setTimeZone(ZoneId timeZone) {
         this.timeZone = timeZone;
     }
     
@@ -1184,15 +1182,10 @@ public final class CronExpression implements Serializable, Cloneable {
     //
     ////////////////////////////////////////////////////////////////////////////
 
-    public Date getTimeAfter(Date afterTime) {
-        Instant next = getTimeAfter(afterTime.toInstant());
-        return next == null ? null : Date.from(next);
-    }
-
-    private Instant getTimeAfter(Instant afterTime) {
+    public Instant getTimeAfter(Instant afterTime) {
 
         // Computation is based on Gregorian year only.
-        ZoneId zone = getTimeZone().toZoneId();
+        ZoneId zone = getTimeZone();
 
         // move ahead one second, since we're computing the time *after* the
         // given time
@@ -1583,16 +1576,15 @@ public final class CronExpression implements Serializable, Cloneable {
      * @return the previous matching time before the given end time,
      *         or null if there are no previous matching times
      */ 
-    public Date getTimeBefore(Date endTime) {
+    public Instant getTimeBefore(Instant endTime) {
         // the current implementation is not a direct calculation, but rather
         // uses getTimeAfter with a binary search to find the previous match time
-        long end = endTime.getTime();
+        long end = endTime.toEpochMilli();
         long min = 0; // the epoch date is the minimum supported by this class
         long max = end;
         // check if it's satisfiable at all
-        Date date = new Date(min);
-        Date after = getTimeAfter(date);
-        if (after == null || after.getTime() >= end)
+        Instant after = getTimeAfter(Instant.ofEpochMilli(min));
+        if (after == null || after.toEpochMilli() >= end)
             return null; // there are no after-times before end
         // from this point forward min's time-after is always less than end,
         // and max's time-after is always equal to or greater than end
@@ -1600,10 +1592,10 @@ public final class CronExpression implements Serializable, Cloneable {
         // optimization - perform inverse binary search to find a tighter lower bound
         long interval = 60 * 60 * 1000; // start with a reasonable interval
         while (interval < max) {
-            date.setTime(max - interval);
-            after = getTimeAfter(date);
-            if (after != null && after.getTime() < max) {
-                min = date.getTime(); // found a closer min
+            long candidate = max - interval;
+            after = getTimeAfter(Instant.ofEpochMilli(candidate));
+            if (after != null && after.toEpochMilli() < max) {
+                min = candidate; // found a closer min
                 break;
             }
             interval *= 2;
@@ -1613,22 +1605,20 @@ public final class CronExpression implements Serializable, Cloneable {
         // this moment is the previous match time itself
         while (max - min > 1000) { // we can stop at 1 second resolution
             long mid = (min + max) >>> 1;
-            date.setTime(mid);
-            after = getTimeAfter(date);
-            if (after != null && after.getTime() < end)
+            after = getTimeAfter(Instant.ofEpochMilli(mid));
+            if (after != null && after.toEpochMilli() < end)
                 min = mid;
             else
                 max = mid;
         }
-        date.setTime(max - max % 1000); // round to second
-        return date;
+        return Instant.ofEpochMilli(max - max % 1000); // round to second
     }
 
     /**
      * NOT YET IMPLEMENTED: Returns the final time that the 
      * <code>CronExpression</code> will match.
      */
-    public Date getFinalFireTime() {
+    public Instant getFinalFireTime() {
         // FUTURE_TODO: implement QUARTZ-423
         return null;
     }

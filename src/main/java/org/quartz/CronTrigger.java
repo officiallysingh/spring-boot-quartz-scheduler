@@ -18,8 +18,8 @@
 
 package org.quartz;
 
-import java.util.Calendar;
-import java.util.TimeZone;
+import java.time.ZoneId;
+
 
 /**
  * The public interface for inspecting settings specific to a CronTrigger, .
@@ -201,7 +201,7 @@ public interface CronTrigger extends Trigger {
      * this <code>CronTrigger</code> will be resolved.
      * </p>
      */
-    TimeZone getTimeZone();
+    ZoneId getTimeZone();
 
     String getExpressionSummary();
 

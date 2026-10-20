@@ -22,7 +22,7 @@ import static org.quartz.DateBuilder.futureDate;
 import static org.quartz.TriggerBuilder.newTrigger;
 
 import java.time.Instant;
-import java.util.Date;
+import java.time.temporal.ChronoUnit;
 
 
 import org.junit.jupiter.api.Test;
@@ -72,7 +72,7 @@ public class TriggerBuilderTest  {
         assertNotNull(trigger.getStartTime(), "Unexpected start-time: " + trigger.getStartTime());
         assertNull(trigger.getEndTime(), "Unexpected end-time: " + trigger.getEndTime());
         
-        Date stime = evenSecondDateAfterNow();
+        Instant stime = evenSecondDateAfterNow();
         
         trigger = newTrigger()
             .withIdentity("t1")
@@ -98,23 +98,23 @@ public class TriggerBuilderTest  {
     	TriggerBuilder.newTrigger()
                 .withIdentity("some trigger name", "some trigger group")
                 .forJob("some job name", "some job group")
-                .startAt(new Date(System.currentTimeMillis() - 200000000))
-                .endAt(new Date(System.currentTimeMillis() - 100000000))
+                .startAt(Instant.ofEpochMilli(System.currentTimeMillis() - 200000000))
+                .endAt(Instant.ofEpochMilli(System.currentTimeMillis() - 100000000))
                 .withSchedule(CronScheduleBuilder.cronSchedule("0 0 0 * * ?"))
                 .build();
     }
 
     @Test
-    void testTriggerBuilderWithInstant() throws InterruptedException {
+    void testTriggerBuilderWithInstant() {
         Instant instantTime = Instant.now().plusSeconds(3L);
         Trigger trigger = TriggerBuilder.newTrigger()
                 .withIdentity("triggerTest Instant", "triggerTest Instant group")
                 .forJob("test job Instant", "test job Instant group")
                 .startAt(instantTime)
                 .build();
-        assertEquals(Date.from(instantTime), trigger.getStartTime());
-        Thread.sleep(5000);
-        assertEquals(Date.from(instantTime), trigger.getFinalFireTime());
+        // trigger times keep millisecond precision, as Date.from(instant) did (D-010)
+        assertEquals(instantTime.truncatedTo(ChronoUnit.MILLIS), trigger.getStartTime());
+        assertEquals(instantTime.truncatedTo(ChronoUnit.MILLIS), trigger.getFinalFireTime());
     }
 
 }

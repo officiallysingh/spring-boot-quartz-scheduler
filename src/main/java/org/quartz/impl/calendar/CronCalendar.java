@@ -1,8 +1,8 @@
 package org.quartz.impl.calendar;
 
 import java.text.ParseException;
-import java.util.Date;
-import java.util.TimeZone;
+import java.time.Instant;
+import java.time.ZoneId;
 
 import org.quartz.Calendar;
 import org.quartz.CronExpression;
@@ -69,7 +69,7 @@ public class CronCalendar extends BaseCalendar {
      *          <code>TimeZone.getDefault()</code> will be used.
      */
     public CronCalendar(Calendar baseCalendar,
-            String expression, TimeZone timeZone) throws ParseException {
+            String expression, ZoneId timeZone) throws ParseException {
         super(baseCalendar);
         this.cronExpression = new CronExpression(expression);
         this.cronExpression.setTimeZone(timeZone);
@@ -91,7 +91,7 @@ public class CronCalendar extends BaseCalendar {
      * </p>
      */
     @Override
-    public TimeZone getTimeZone() {
+    public ZoneId getTimeZone() {
         return cronExpression.getTimeZone();
     }
 
@@ -101,12 +101,12 @@ public class CronCalendar extends BaseCalendar {
      * is <code>null</code> then <code>TimeZone.getDefault()</code> will be 
      * used.
      * <p>
-     * Overrides <code>{@link BaseCalendar#setTimeZone(TimeZone)}</code> to
+     * Overrides <code>{@link BaseCalendar#setTimeZone(ZoneId)}</code> to
      * defer to its <code>CronExpression</code>.
      * </p>
      */
     @Override
-    public void setTimeZone(TimeZone timeZone) {
+    public void setTimeZone(ZoneId timeZone) {
         cronExpression.setTimeZone(timeZone);
     }
     
@@ -119,13 +119,13 @@ public class CronCalendar extends BaseCalendar {
      *         the <CODE>CronCalendar</CODE>
      */
     @Override
-    public boolean isTimeIncluded(long timeInMillis) {        
+    public boolean isTimeIncluded(Instant timeStamp) {
         if ((getBaseCalendar() != null) && 
-                (!getBaseCalendar().isTimeIncluded(timeInMillis))) {
+                (!getBaseCalendar().isTimeIncluded(timeStamp))) {
             return false;
         }
         
-        return (!(cronExpression.isSatisfiedBy(new Date(timeInMillis))));
+        return (!(cronExpression.isSatisfiedBy(timeStamp)));
     }
 
     /**
@@ -138,8 +138,8 @@ public class CronCalendar extends BaseCalendar {
      *         after the specified time.
      */
     @Override
-    public long getNextIncludedTime(long timeInMillis) {
-        long nextIncludedTime = timeInMillis + 1; //plus on millisecond
+    public Instant getNextIncludedTime(Instant timeStamp) {
+        Instant nextIncludedTime = timeStamp.plusMillis(1); //plus on millisecond
         
         while (!isTimeIncluded(nextIncludedTime)) {
 
@@ -149,15 +149,14 @@ public class CronCalendar extends BaseCalendar {
             // baseCalendar, ask it the next time it includes and begin testing
             // from there. Failing this, add one millisecond and continue
             // testing.
-            if (cronExpression.isSatisfiedBy(new Date(nextIncludedTime))) {
-                nextIncludedTime = cronExpression.getNextInvalidTimeAfter(
-                        new Date(nextIncludedTime)).getTime();
+            if (cronExpression.isSatisfiedBy(nextIncludedTime)) {
+                nextIncludedTime = cronExpression.getNextInvalidTimeAfter(nextIncludedTime);
             } else if ((getBaseCalendar() != null) && 
                     (!getBaseCalendar().isTimeIncluded(nextIncludedTime))){
                 nextIncludedTime = 
                     getBaseCalendar().getNextIncludedTime(nextIncludedTime);
             } else {
-                nextIncludedTime++;
+                nextIncludedTime = nextIncludedTime.plusMillis(1);
             }
         }
         

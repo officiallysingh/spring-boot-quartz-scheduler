@@ -17,7 +17,6 @@
  */
 package org.quartz;
 
-import java.util.Calendar;
 import java.util.Set;
 
 import org.quartz.DateBuilder.IntervalUnit;
@@ -123,7 +122,7 @@ public interface DailyTimeIntervalTrigger extends Trigger {
      * The days of the week upon which to fire.
      * 
      * @return a Set containing the integers representing the days of the week, per the values 1-7 as defined by 
-     * {@link java.util.Calendar#SUNDAY} - {@link java.util.Calendar#SATURDAY}. 
+     * {@link DateBuilder#SUNDAY} - {@link DateBuilder#SATURDAY}. 
      */
     Set<Integer> getDaysOfWeek();
     
