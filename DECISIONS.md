@@ -112,7 +112,7 @@ JDK-only code (the rest of JDBC, RMI, JMX) still compiles and is removed in Phas
 1. `CronExpression.getTimeAfter` looped forever when the requested minute fell in a DST gap that does not start on the hour, e.g. `0 0 2 * * ?` or `0 0 * * * ?` in Australia/Lord_Howe on 2024-10-06. It now advances the hour when setting the minute makes no progress. The 3 golden rows that hung are recorded as `HANG`; `CronExpressionTest#testGetTimeAfterTerminatesInThirtyMinuteDstGap` pins the new result (the missing 02:00 is skipped).
 2. The `W`/`LW` handling compared against an uncleared `Calendar.getInstance()`, so the wall-clock milliseconds (and the default locale) at call time leaked into the result. `getTimeBefore` could come out one second early depending on when it ran. The comparison is now deterministic and at second precision. The golden replay accepts recorded or recorded + 1 s for that column only; `testNearestWeekdayGetTimeBeforeIsExact` pins the exact value.
 
-**Known limitation kept:** in a zone whose DST gap is not a whole hour (Australia/Lord_Howe, 30 minutes), a cron schedule that fires on the half hour skips the first full hour after the gap (`0 */30 * * * ?` fires 01:30, 02:30, 03:30 on 2024-10-06, with no 03:00). The original algorithm does exactly the same (golden fixtures). Fixing it changes fire times, so it is left for a deliberate follow-up; `CronDstTest` documents it.
+**Known limitation kept:** in a zone whose DST gap is not a whole hour (Australia/Lord_Howe, 30 minutes), a cron schedule that fires on the half hour skips the first full hour after the gap (`0 */30 * * * ?` fires 01:30, 02:30, 03:30 on 2024-10-06, with no 03:00). The original algorithm does exactly the same (golden fixtures). Fixing it changes fire times, so it is left for a deliberate follow-up. *Fixed in D-011.*
 
 **API mapping** (CLAUDE.md rule applied literally): `Date` → `Instant`, `TimeZone` → `ZoneId`, `java.util.Calendar` parameters/returns → `ZonedDateTime`. Examples: `AnnualCalendar#setDayExcluded(ZonedDateTime, boolean)` and `getDaysExcluded()` → `ArrayList<ZonedDateTime>`, `DailyCalendar(ZonedDateTime, ZonedDateTime)`, `CronTriggerImpl#willFireOn(ZonedDateTime)`, `HolidayCalendar` excluded dates → `SortedSet<Instant>` (start-of-day instants). `org.quartz.Calendar#isTimeIncluded/getNextIncludedTime` take and return `Instant`; "no next time" is `Instant.EPOCH` where it was `0`. Exceptions:
 - `DailyCalendar#getTimeRangeStartingTimeInMillis(long)` / `getTimeRangeEndingTimeInMillis(long)` became `getTimeRangeStartingTime(Instant)` / `getTimeRangeEndingTime(Instant)`, because a method named `…InMillis` returning an `Instant` would mislead. The `(long, long)` epoch-millis constructors and `setTimeRange(long, long)` take `Instant`s.
@@ -140,3 +140,16 @@ JDK-only code (the rest of JDBC, RMI, JMX) still compiles and is removed in Phas
 - `JobInterruptMonitorPlugin#defaultMaxRunTime` is a `Duration` (default 5 min), as D-001 planned; the per-job `MaxRunTime` job-data value stays a millisecond `long`.
 - `SchedulerSignaler#signalSchedulingChange(Instant)`: `null` replaces the old `0` "no particular fire time". The scheduler thread keeps its internal millisecond bookkeeping.
 - Until Phase 5 removes properties wiring, `StdSchedulerFactory#setBeanProps` accepts `Duration` setters: a plain number is read as milliseconds (existing `quartz.properties` values keep working) and an ISO-8601 value (`PT5M`) is also accepted.
+
+## D-011 — Cron no longer skips the first full hour after a DST gap that is not a whole hour
+
+**Change.** Fixes the known limitation listed in D-010. In `CronExpression.getTimeAfter`, when the minute wraps into the next hour, the minute is set first and the hour second. In a zone whose gap is not a whole hour (Australia/Lord_Howe, 2024-10-06 02:00 → 02:30), setting `MINUTE=0` at 02:3x lands in the gap and normalizes forward to 02:30; `setCalendarHour(cl, 3)` then kept minute 30, so `0 */30 * * * ?` fired 01:30, 02:30, 03:30 with no 03:00. The minute branch now re-applies the requested minute (and second 0) after setting the hour when gap normalization changed it. Schedules now fire 02:30, 03:00, 03:30. Whole-hour gaps never move the minute, so they are unaffected.
+
+**Golden fixtures not regenerated.** They stay the record of the original behaviour. `GoldenBehaviourTest.CORRECTED_NEXT` replaces the recorded `next` column for exactly these rows of `cron.tsv.gz` with the exact corrected values (every other row, including all other Lord Howe rows, still has to match the recording):
+
+| expression | zone | startMillis | change |
+|---|---|---|---|
+| `0 0/30 * * * ?` | Australia/Lord_Howe | 1728135000000 | gains 1728144000000 (03:00 +11:00) |
+| `0 */15 1-3 * * ?` | Australia/Lord_Howe | 1728135000000 | gains 1728144000000, 1728144900000 (03:00, 03:15 +11:00) |
+
+No calendar-interval, daily-time-interval, simple-trigger or calendar fixture changed. `CronDstTest#halfHourlyScheduleAcrossTheThirtyMinuteGapTerminatesAndSkipsTheMissingTimes` now expects 03:00.
