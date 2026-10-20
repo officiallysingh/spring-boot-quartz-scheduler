@@ -24,6 +24,7 @@ import org.quartz.impl.config.SchedulerSettings;
 import org.quartz.impl.config.ThreadPoolSettings;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
+import org.springframework.transaction.annotation.Propagation;
 
 class QuartzPropertiesTest {
 
@@ -54,6 +55,8 @@ class QuartzPropertiesTest {
         assertThat(properties.plugins().triggerHistory().enabled()).isFalse();
         assertThat(properties.plugins().jobInterruptMonitor().enabled()).isFalse();
         assertThat(properties.plugins().jobInterruptMonitor().defaultMaxRunTime()).isEqualTo(Duration.ofMinutes(5));
+        assertThat(properties.transaction().enabled()).isFalse();
+        assertThat(properties.transaction().defaultPropagation()).isEqualTo(Propagation.REQUIRED);
     }
 
     @Test
@@ -79,7 +82,9 @@ class QuartzPropertiesTest {
                 Map.entry("spring.quartz.job-store.mongodb.collection-prefix", "jobs_"),
                 Map.entry("spring.quartz.job-store.redis.lock-timeout", "1m"),
                 Map.entry("spring.quartz.plugins.job-history.enabled", "true"),
-                Map.entry("spring.quartz.plugins.job-interrupt-monitor.default-max-run-time", "2h")));
+                Map.entry("spring.quartz.plugins.job-interrupt-monitor.default-max-run-time", "2h"),
+                Map.entry("spring.quartz.transaction.enabled", "true"),
+                Map.entry("spring.quartz.transaction.default-propagation", "requires-new")));
 
         assertThat(properties.autoStartup()).isFalse();
         assertThat(properties.startupDelay()).isEqualTo(Duration.ofSeconds(5));
@@ -109,6 +114,8 @@ class QuartzPropertiesTest {
 
         assertThat(properties.plugins().jobHistory().enabled()).isTrue();
         assertThat(properties.plugins().jobInterruptMonitor().defaultMaxRunTime()).isEqualTo(Duration.ofHours(2));
+        assertThat(properties.transaction().enabled()).isTrue();
+        assertThat(properties.transaction().defaultPropagation()).isEqualTo(Propagation.REQUIRES_NEW);
     }
 
     @Test

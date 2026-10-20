@@ -43,12 +43,15 @@ import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.InstanceIdGenerator;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spring.SchedulerFactoryBean;
+import org.quartz.support.RecordingTransactionManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 class QuartzAutoConfigurationTest {
 
@@ -120,6 +123,37 @@ class QuartzAutoConfigurationTest {
         contextRunner.withPropertyValues("spring.quartz.job-store.type=mongodb")
             .run(context -> assertThat(context).hasFailed()
                 .getFailure().rootCause().hasMessageContaining("no MongoClient bean"));
+    }
+
+    @Test
+    void transactionSwitchWithoutTransactionManagerFailsFast() {
+        contextRunner.withPropertyValues("spring.quartz.transaction.enabled=true")
+            .run(context -> assertThat(context).hasFailed()
+                .getFailure().rootCause().hasMessageContaining("PlatformTransactionManager"));
+    }
+
+    @Test
+    void transactionSwitchRunsEveryJobInATransaction() {
+        contextRunner.withUserConfiguration(TransactionalJobConfiguration.class)
+            .withPropertyValues("spring.quartz.transaction.enabled=true",
+                    "spring.quartz.transaction.default-propagation=requires-new")
+            .run(context -> {
+                RecordingTransactionManager transactionManager = context.getBean(RecordingTransactionManager.class);
+                await().atMost(Duration.ofSeconds(10))
+                    .until(() -> transactionManager.events().contains("commit DEFAULT.plainJob"));
+                assertThat(RESULTS).containsExactly("in transaction: true");
+                assertThat(transactionManager.definitions().get(0).getPropagationBehavior())
+                    .isEqualTo(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+            });
+    }
+
+    @Test
+    void withoutTheSwitchPlainJobsRunWithoutATransaction() {
+        contextRunner.withUserConfiguration(TransactionalJobConfiguration.class).run(context -> {
+            await().atMost(Duration.ofSeconds(10)).until(() -> !RESULTS.isEmpty());
+            assertThat(RESULTS).containsExactly("in transaction: false");
+            assertThat(context.getBean(RecordingTransactionManager.class).events()).isEmpty();
+        });
     }
 
     @Test
@@ -286,6 +320,32 @@ class QuartzAutoConfigurationTest {
         @Override
         public boolean isClustered() {
             return true;
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    static class TransactionalJobConfiguration {
+
+        @Bean
+        RecordingTransactionManager transactionManager() {
+            return new RecordingTransactionManager();
+        }
+
+        @Bean
+        JobDetail plainJob() {
+            return JobBuilder.newJob(TransactionProbeJob.class).withIdentity("plainJob").storeDurably().build();
+        }
+
+        @Bean
+        Trigger plainTrigger(JobDetail plainJob) {
+            return TriggerBuilder.newTrigger().withIdentity("plainTrigger").forJob(plainJob).startNow().build();
+        }
+    }
+
+    public static class TransactionProbeJob implements Job {
+        @Override
+        public void execute(JobExecutionContext context) {
+            RESULTS.add("in transaction: " + TransactionSynchronizationManager.isActualTransactionActive());
         }
     }
 
