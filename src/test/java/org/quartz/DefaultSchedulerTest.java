@@ -17,8 +17,7 @@
 package org.quartz;
 
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
+import static org.assertj.core.api.Assertions.assertThat;
 
 
 import org.junit.jupiter.api.Test;
@@ -41,7 +40,7 @@ class DefaultSchedulerTest  {
         try {
             scheduler.addJob(jobDetail, false);
         } catch (SchedulerException e) {
-            assertThat(e.getMessage(), containsString("durable"));
+            assertThat(e.getMessage()).contains("durable");
         }
 
         jobDetail.setDurability(true);

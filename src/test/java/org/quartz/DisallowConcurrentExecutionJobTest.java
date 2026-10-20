@@ -30,9 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.listeners.JobListenerSupport;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.number.OrderingComparison.greaterThanOrEqualTo;
-import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration test for using DisallowConcurrentExecution annot.
@@ -124,10 +122,10 @@ class DisallowConcurrentExecutionJobTest {
 		
 		scheduler.shutdown(true);
 		
-                assertThat(jobExecDates, hasSize(2));
+                assertThat(jobExecDates).hasSize(2);
                 long fireTimeTrigger1 = jobExecDates.get(0).getTime();
                 long fireTimeTrigger2 = jobExecDates.get(1).getTime();
-                assertThat(fireTimeTrigger2 - fireTimeTrigger1, greaterThanOrEqualTo(JOB_BLOCK_TIME));
+                assertThat(fireTimeTrigger2 - fireTimeTrigger1).isGreaterThanOrEqualTo(JOB_BLOCK_TIME);
 	}
 	
 	/** QTZ-202 */
@@ -162,9 +160,9 @@ class DisallowConcurrentExecutionJobTest {
 		
 		scheduler.shutdown(true);
 		
-                assertThat(jobExecDates, hasSize(2));
+                assertThat(jobExecDates).hasSize(2);
                 long fireTimeTrigger1 = jobExecDates.get(0).getTime();
                 long fireTimeTrigger2 = jobExecDates.get(1).getTime();
-                assertThat(fireTimeTrigger2 - fireTimeTrigger1, greaterThanOrEqualTo(JOB_BLOCK_TIME));
+                assertThat(fireTimeTrigger2 - fireTimeTrigger1).isGreaterThanOrEqualTo(JOB_BLOCK_TIME);
 	}
 }

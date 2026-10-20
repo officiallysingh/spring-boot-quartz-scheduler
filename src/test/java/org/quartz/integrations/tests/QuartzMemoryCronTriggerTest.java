@@ -24,10 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
-import static org.hamcrest.core.Is.is;
-import static org.hamcrest.number.OrderingComparison.greaterThanOrEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
 
 
 import org.quartz.*;
@@ -52,14 +49,14 @@ public class QuartzMemoryCronTriggerTest extends QuartzMemoryTestSupport {
         for (int i = 0; i < 20 && scheduledTimes.size() < 3; i++) {
           Thread.sleep(500);
         }
-        assertThat(scheduledTimes, hasSize(greaterThanOrEqualTo(3)));
+        assertThat(scheduledTimes).hasSizeGreaterThanOrEqualTo(3);
 
         Long[] times = scheduledTimes.toArray(new Long[scheduledTimes.size()]);
         
         long baseline = times[0];
-        assertThat(baseline % 1000, is(0L));
+        assertThat(baseline % 1000).isEqualTo(0L);
         for (int i = 1; i < times.length; i++) {
-          assertThat(times[i], is(baseline + TimeUnit.SECONDS.toMillis(i)));
+          assertThat(times[i]).isEqualTo(baseline + TimeUnit.SECONDS.toMillis(i));
         }
     }
 }

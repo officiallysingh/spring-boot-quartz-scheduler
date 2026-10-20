@@ -20,9 +20,7 @@ package org.quartz.integrations.tests;
 import org.junit.jupiter.api.Test;
 import org.quartz.impl.matchers.GroupMatcher;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.not;
+import static org.assertj.core.api.Assertions.assertThat;
 
 
 import org.quartz.*;
@@ -50,18 +48,18 @@ public class QuartzMemoryPauseAndResumeTest extends QuartzMemoryTestSupport {
         scheduler.scheduleJob(jobDetail, trigger);
 
         Trigger.TriggerState state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.NORMAL));
-        assertThat(state, not(Trigger.TriggerState.PAUSED));
+        assertThat(state).isEqualTo(Trigger.TriggerState.NORMAL);
+        assertThat(state).isNotEqualTo(Trigger.TriggerState.PAUSED);
 
         scheduler.pauseTriggers(GroupMatcher.triggerGroupEquals("abc"));
         state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.PAUSED));
-        assertThat(state, not(Trigger.TriggerState.NORMAL));
+        assertThat(state).isEqualTo(Trigger.TriggerState.PAUSED);
+        assertThat(state).isNotEqualTo(Trigger.TriggerState.NORMAL);
 
         scheduler.resumeTriggers(GroupMatcher.triggerGroupEquals("abc"));
         state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.NORMAL));
-        assertThat(state, not(Trigger.TriggerState.PAUSED));
+        assertThat(state).isEqualTo(Trigger.TriggerState.NORMAL);
+        assertThat(state).isNotEqualTo(Trigger.TriggerState.PAUSED);
     }
 
     @Test
@@ -81,18 +79,18 @@ public class QuartzMemoryPauseAndResumeTest extends QuartzMemoryTestSupport {
         scheduler.scheduleJob(jobDetail, trigger);
 
         Trigger.TriggerState state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.NORMAL));
-        assertThat(state, not(Trigger.TriggerState.PAUSED));
+        assertThat(state).isEqualTo(Trigger.TriggerState.NORMAL);
+        assertThat(state).isNotEqualTo(Trigger.TriggerState.PAUSED);
 
         scheduler.pauseTriggers(GroupMatcher.triggerGroupEquals("abc"));
         state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.PAUSED));
-        assertThat(state, not(Trigger.TriggerState.NORMAL));
+        assertThat(state).isEqualTo(Trigger.TriggerState.PAUSED);
+        assertThat(state).isNotEqualTo(Trigger.TriggerState.NORMAL);
 
         scheduler.resumeTriggers(GroupMatcher.triggerGroupEquals("abc"));
         state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.NORMAL));
-        assertThat(state, not(Trigger.TriggerState.PAUSED));
+        assertThat(state).isEqualTo(Trigger.TriggerState.NORMAL);
+        assertThat(state).isNotEqualTo(Trigger.TriggerState.PAUSED);
     }
 
     @Test
@@ -109,18 +107,18 @@ public class QuartzMemoryPauseAndResumeTest extends QuartzMemoryTestSupport {
         scheduler.scheduleJob(jobDetail, trigger);
 
         Trigger.TriggerState state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.NORMAL));
-        assertThat(state, not(Trigger.TriggerState.PAUSED));
+        assertThat(state).isEqualTo(Trigger.TriggerState.NORMAL);
+        assertThat(state).isNotEqualTo(Trigger.TriggerState.PAUSED);
 
         scheduler.pauseJobs(GroupMatcher.jobGroupEquals("abc"));
         state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.PAUSED));
-        assertThat(state, not(Trigger.TriggerState.NORMAL));
+        assertThat(state).isEqualTo(Trigger.TriggerState.PAUSED);
+        assertThat(state).isNotEqualTo(Trigger.TriggerState.NORMAL);
 
         scheduler.resumeJobs(GroupMatcher.jobGroupEquals("abc"));
         state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.NORMAL));
-        assertThat(state, not(Trigger.TriggerState.PAUSED));
+        assertThat(state).isEqualTo(Trigger.TriggerState.NORMAL);
+        assertThat(state).isNotEqualTo(Trigger.TriggerState.PAUSED);
     }
 
 
@@ -141,17 +139,17 @@ public class QuartzMemoryPauseAndResumeTest extends QuartzMemoryTestSupport {
         scheduler.scheduleJob(jobDetail, trigger);
 
         Trigger.TriggerState state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.NORMAL));
-        assertThat(state, not(Trigger.TriggerState.PAUSED));
+        assertThat(state).isEqualTo(Trigger.TriggerState.NORMAL);
+        assertThat(state).isNotEqualTo(Trigger.TriggerState.PAUSED);
 
         scheduler.pauseJobs(GroupMatcher.jobGroupEquals("abc"));
         state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.PAUSED));
-        assertThat(state, not(Trigger.TriggerState.NORMAL));
+        assertThat(state).isEqualTo(Trigger.TriggerState.PAUSED);
+        assertThat(state).isNotEqualTo(Trigger.TriggerState.NORMAL);
 
         scheduler.resumeJobs(GroupMatcher.jobGroupEquals("abc"));
         state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.NORMAL));
-        assertThat(state, not(Trigger.TriggerState.PAUSED));
+        assertThat(state).isEqualTo(Trigger.TriggerState.NORMAL);
+        assertThat(state).isNotEqualTo(Trigger.TriggerState.PAUSED);
     }
 }

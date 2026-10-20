@@ -21,8 +21,7 @@ import java.text.ParseException;
 import org.quartz.impl.triggers.CronTriggerImpl;
 
 import static java.util.Arrays.asList;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -141,10 +140,10 @@ public class CronTriggerTest extends SerializationTestSupport {
             CronTriggerImpl trigger = new CronTriggerImpl();
             trigger.setCronExpression("0 0 12 * * ?");
             trigger.setMisfireInstruction(policy);
-            assertThat(trigger.getMisfireInstruction(), is(policy));
+            assertThat(trigger.getMisfireInstruction()).isEqualTo(policy);
 
             CronTrigger copy = trigger.getTriggerBuilder().build();
-            assertThat(copy.getMisfireInstruction(), is(policy));
+            assertThat(copy.getMisfireInstruction()).isEqualTo(policy);
         }
     }
 
@@ -160,11 +159,11 @@ public class CronTriggerTest extends SerializationTestSupport {
             trigger.setMisfireInstruction(12345);
             fail("Expected IllegalArgumentException");
         } catch (IllegalArgumentException e) {
-            assertThat(e.getMessage(), is("The misfire instruction code is invalid for this type of trigger."));
+            assertThat(e.getMessage()).isEqualTo("The misfire instruction code is invalid for this type of trigger.");
         }
 
         CronTrigger copy = trigger.getTriggerBuilder().build();
-        assertThat(copy.getMisfireInstruction(), is(Trigger.MISFIRE_INSTRUCTION_SMART_POLICY));
+        assertThat(copy.getMisfireInstruction()).isEqualTo(Trigger.MISFIRE_INSTRUCTION_SMART_POLICY);
     }
 
     // execute with version number to generate a new version's serialized form
