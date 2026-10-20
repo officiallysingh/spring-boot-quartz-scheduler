@@ -7,7 +7,7 @@ All paths are relative to the repo root. Verdicts: **delete**, **keep**, **evalu
 
 | Item | Value |
 |---|---|
-| `java -version` | OpenJDK 26.0.2 (Temurin-26.0.2+10) — satisfies "21+" (compile target will be `release 21`) |
+| `java -version` | OpenJDK 21.0.12.1 LTS (Temurin-21.0.12.1+1), pinned via `.sdkmanrc` (`java=21.0.12+1.1-tem`). The shell default is Temurin 26.0.2; builds must use JDK 21 (`sdk env` or `JAVA_HOME=~/.sdkman/candidates/java/21.0.12+1.1-tem`) |
 | `docker info` | Docker Desktop, server 29.8.2 — reachable ✔ |
 | Git branch | `refactor/spring-boot` |
 | HEAD | `741ccc3c` (upstream `main` merge of PR 1470) |
