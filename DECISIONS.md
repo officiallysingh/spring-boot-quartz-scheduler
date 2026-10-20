@@ -29,3 +29,9 @@ Ambiguous choices made during the refactor, with the conservative option taken. 
 **Context:** the plan says to delete "`.github/` workflows that build with Gradle". There are no workflows; the folder holds `dependabot.yml` (Gradle ecosystem), `pull_request_template.md` and `stale.yml`. INVENTORY §2 suggested keeping the last two, but the Phase 1 exit criterion allows only `src/`, license/readme/git files, `CLAUDE.md` and plan files.
 
 **Decision:** delete all three. They are upstream-project configuration (Terracotta PR template, stale-bot rules) with no use for this library. A Maven CI workflow / Dependabot config can be added later if wanted.
+
+## D-005 — Project name `spring-boot-quartz-scheduler` (Phase 1)
+
+**Context:** the plan says to rename the root project from `quartz` to `spring-boot-quartz-scheduler`. The only place the root project name was declared was `settings.gradle` (`rootProject.name = 'quartz-scheduler'`), which Phase 1 deletes.
+
+**Decision:** the name now lives in `README.md` and becomes the Maven `artifactId` in Phase 2. The local checkout folder (`…/spring-boot-quartz-refactor/quartz`) is outside the repository and is not renamed by this refactor; rename it yourself if wanted.
