@@ -32,12 +32,6 @@ public enum JobStoreType {
 	/**
 	 * Store jobs in Redis (requires a {@code RedisConnectionFactory} bean).
 	 */
-	REDIS,
-
-	/**
-	 * Store jobs in memory. Temporary, for tests only; removed once the
-	 * persistent stores are in place.
-	 */
-	MEMORY
+	REDIS
 
 }

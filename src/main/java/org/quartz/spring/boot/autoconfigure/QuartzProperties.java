@@ -177,7 +177,7 @@ public record QuartzProperties(
 	/**
 	 * Job store settings.
 	 *
-	 * @param type job store type; required
+	 * @param type job store type; when unset, the store whose connection bean is present
 	 * @param misfireThreshold how late a trigger may fire before it counts as misfired
 	 * @param clustered whether several scheduler instances share the store
 	 * @param clusterCheckinInterval how often a clustered instance checks in with the

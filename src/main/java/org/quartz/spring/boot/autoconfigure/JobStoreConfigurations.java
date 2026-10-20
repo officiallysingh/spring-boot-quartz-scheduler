@@ -46,7 +46,6 @@ final class JobStoreConfigurations {
 		return switch (type) {
 			case MONGODB -> "MongoClient bean (add spring-boot-starter-data-mongodb and configure spring.mongodb.*)";
 			case REDIS -> "RedisConnectionFactory bean (add spring-boot-starter-data-redis and configure spring.data.redis.*)";
-			case MEMORY -> "in-memory store";
 		};
 	}
 

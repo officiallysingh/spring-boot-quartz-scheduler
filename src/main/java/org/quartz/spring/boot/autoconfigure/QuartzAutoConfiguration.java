@@ -18,6 +18,7 @@ package org.quartz.spring.boot.autoconfigure;
 
 import java.time.Clock;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.quartz.Calendar;
@@ -58,6 +59,8 @@ import org.springframework.core.task.SimpleAsyncTaskExecutor;
  * name) bean with it. A unique {@link InstanceIdGenerator} or {@link Clock} bean is used if
  * present. The job store follows {@code spring.quartz.job-store.type}: {@code mongodb} uses
  * the application's {@code MongoClient}, {@code redis} its {@code RedisConnectionFactory}.
+ * When the type is unset, the store whose connection bean is present is used; startup fails
+ * with a {@link JobStoreUnavailableException} when there is none or both are.
  * Jobs annotated with {@link org.quartz.ExecuteInTransaction} run in Spring-managed
  * transactions; {@code spring.quartz.transaction.enabled} makes every job do so. Backs off
  * when the application defines its own {@link Scheduler} or {@link SchedulerFactoryBean}.
@@ -90,11 +93,8 @@ public final class QuartzAutoConfiguration {
 			ObjectProvider<SchedulerListener> schedulerListeners, Map<String, SchedulerPlugin> plugins,
 			ObjectProvider<InstanceIdGenerator> instanceIdGenerator, ObjectProvider<Clock> clock,
 			ObjectProvider<JobStoreFactory> jobStoreFactories, ApplicationContext applicationContext) {
-		JobStore jobStore = createJobStore(properties, jobStoreFactories);
 		SchedulerFactoryBean schedulerFactoryBean = new SchedulerFactoryBean();
-		if (jobStore != null) {
-			schedulerFactoryBean.setJobStore(jobStore);
-		}
+		schedulerFactoryBean.setJobStore(createJobStore(properties, jobStoreFactories));
 		SpringBeanJobFactory jobFactory = new SpringBeanJobFactory();
 		jobFactory.setApplicationContext(applicationContext);
 		schedulerFactoryBean.setJobFactory(jobFactory);
@@ -131,25 +131,20 @@ public final class QuartzAutoConfiguration {
 	}
 
 	/**
-	 * The configured store: {@code null} for {@code memory} (the factory's in-memory store),
-	 * else one built by the {@link JobStoreFactory} for the type.
+	 * The store for {@code spring.quartz.job-store.type}, or, when it is unset, the only store
+	 * whose connection bean is present.
+	 * @throws JobStoreUnavailableException if there is no such store
 	 */
 	private static JobStore createJobStore(QuartzProperties properties, ObjectProvider<JobStoreFactory> factories) {
 		JobStoreType type = properties.jobStore().type();
-		if (type == null) {
-			throw new IllegalStateException(
-					"No Quartz job store configured: set 'spring.quartz.job-store.type' (mongodb or redis)");
+		List<JobStoreFactory> available = factories.orderedStream().toList();
+		List<JobStoreFactory> candidates = (type != null)
+				? available.stream().filter((candidate) -> candidate.type() == type).toList() : available;
+		if (candidates.size() != 1) {
+			throw new JobStoreUnavailableException(type,
+					available.stream().map(JobStoreFactory::type).sorted().toList());
 		}
-		if (type == JobStoreType.MEMORY) {
-			return null;
-		}
-		JobStoreFactory factory = factories.orderedStream()
-			.filter((candidate) -> candidate.type() == type)
-			.findFirst()
-			.orElseThrow(() -> new IllegalStateException("'spring.quartz.job-store.type' is "
-					+ type.name().toLowerCase() + " but no " + JobStoreConfigurations.requirement(type)
-					+ " is available"));
-		return factory.create(properties);
+		return candidates.get(0).create(properties);
 	}
 
 	/**
