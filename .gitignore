@@ -35,3 +35,6 @@ nbproject/
 
 # Ignore Gradle build output directory
 build
+
+# maven
+target/

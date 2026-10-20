@@ -27,9 +27,6 @@ import org.quartz.TriggerListener;
 import org.quartz.core.JobRunShellFactory;
 import org.quartz.core.QuartzScheduler;
 import org.quartz.core.QuartzSchedulerResources;
-import org.quartz.ee.jta.JTAAnnotationAwareJobRunShellFactory;
-import org.quartz.ee.jta.JTAJobRunShellFactory;
-import org.quartz.ee.jta.UserTransactionHelper;
 import org.quartz.impl.jdbcjobstore.JobStoreSupport;
 import org.quartz.impl.jdbcjobstore.Semaphore;
 import org.quartz.impl.jdbcjobstore.TablePrefixAware;
@@ -48,7 +45,6 @@ import org.quartz.spi.TimeBroker;
 import org.quartz.utils.ConnectionProvider;
 import org.quartz.utils.DBConnectionManager;
 import org.quartz.utils.JNDIConnectionProvider;
-import org.quartz.utils.C3p0PoolingConnectionProvider;
 import org.quartz.utils.PoolingConnectionProvider;
 import org.quartz.utils.PropertiesParser;
 import org.slf4j.Logger;
@@ -1237,15 +1233,12 @@ public class StdSchedulerFactory implements SchedulerFactory {
     
             JobRunShellFactory jrsf; // Create correct run-shell factory...
     
-            if (userTXLocation != null) {
-                UserTransactionHelper.setUserTxLocation(userTXLocation);
+            // JTA support is not compiled since the Maven conversion (DECISIONS.md D-006)
+            if (wrapJobInTx || userTXLocation != null) {
+                throw new SchedulerConfigException("JTA is not supported: remove "
+                        + PROP_SCHED_WRAP_JOB_IN_USER_TX + " and " + PROP_SCHED_USER_TX_URL);
             }
-    
-            if (wrapJobInTx) {
-                jrsf = new JTAJobRunShellFactory();
-            } else {
-                jrsf = new JTAAnnotationAwareJobRunShellFactory();
-            }
+            jrsf = new StdJobRunShellFactory();
     
             if (autoId) {
                 try {
@@ -1433,13 +1426,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
         copyProps.remove(PoolingConnectionProvider.DB_MAX_CONNECTIONS);
         copyProps.remove(PoolingConnectionProvider.DB_VALIDATION_QUERY);
         copyProps.remove(PoolingConnectionProvider.POOLING_PROVIDER);
-
-        if (cp instanceof C3p0PoolingConnectionProvider) {
-            copyProps.remove(C3p0PoolingConnectionProvider.DB_MAX_CACHED_STATEMENTS_PER_CONNECTION);
-            copyProps.remove(C3p0PoolingConnectionProvider.DB_VALIDATE_ON_CHECKOUT);
-            copyProps.remove(C3p0PoolingConnectionProvider.DB_IDLE_VALIDATION_SECONDS);
-            copyProps.remove(C3p0PoolingConnectionProvider.DB_DISCARD_IDLE_CONNECTIONS_SECONDS);
-        }
 
         setBeanProps(cp.getDataSource(), copyProps);
     }
