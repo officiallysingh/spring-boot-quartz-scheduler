@@ -192,14 +192,35 @@ public class MongoJobStore extends PersistentJobStore {
                 commit(clientSession);
                 return result;
             }
-            catch (JobPersistenceException | RuntimeException ex) {
-                if (clientSession.hasActiveTransaction()) {
-                    clientSession.abortTransaction();
-                }
+            catch (JobPersistenceException | RuntimeException | Error ex) {
+                abort(clientSession, ex);
                 throw ex;
             }
             finally {
                 session.remove();
+            }
+        }
+    }
+
+    /**
+     * Aborts with the thread's interrupt flag cleared (and restored afterwards): an interrupted
+     * thread (e.g. a store thread stopped at shutdown) cannot talk to the server, and an
+     * unaborted transaction keeps its locks on the server until its lifetime expires.
+     */
+    private static void abort(ClientSession clientSession, Throwable failure) {
+        if (!clientSession.hasActiveTransaction()) {
+            return;
+        }
+        boolean interrupted = Thread.interrupted();
+        try {
+            clientSession.abortTransaction();
+        }
+        catch (RuntimeException ex) {
+            failure.addSuppressed(ex);
+        }
+        finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
             }
         }
     }
