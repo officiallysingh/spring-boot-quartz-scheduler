@@ -26,6 +26,36 @@ Set `spring.quartz.job-store.type` to `mongodb` or `redis`; both support cluster
   last snapshot (new jobs, fired one-shot triggers, paused groups) is lost when Redis restarts, and with
   `appendfsync everysec` up to one second of changes can be lost on a crash.
 
+## Transactions
+
+A job class annotated with `@org.quartz.ExecuteInTransaction` runs its `execute` method in a Spring-managed
+transaction (the replacement for Quartz's `@ExecuteInJTATransaction`):
+
+```java
+@ExecuteInTransaction(transactionManager = "ordersTransactionManager", timeout = 30)
+public class SettleOrdersJob implements Job { ... }
+```
+
+Attributes: `transactionManager` (bean name; empty = the unique or `@Primary` `PlatformTransactionManager`),
+`propagation`, `isolation`, `timeout` (seconds), `readOnly`, `rollbackFor`, as on `@Transactional`.
+`JobExecutionException`, runtime exceptions and errors roll back. Vetoed executions open no transaction,
+and the transaction is completed before the job store is told that the job finished. To run every job in a
+transaction:
+
+```yaml
+spring:
+  quartz:
+    transaction:
+      enabled: true              # default false: only annotated jobs
+      default-propagation: REQUIRED
+```
+
+The business transaction and the job store are independent. One exception: when the store is MongoDB and
+the job's transaction manager is a `MongoTransactionManager` on the same `MongoClient`, the job data of a
+`@PersistJobDataAfterExecution` job is written in the job's transaction (it is discarded if the job rolls back).
+MongoDB transactions need a replica set or sharded cluster. The annotation applies when the scheduler is
+created by `SchedulerFactoryBean` in an application context (as the auto-configuration does).
+
 ## License
 
 Apache License 2.0, see [`LICENSE.txt`](LICENSE.txt). Based on Quartz Scheduler (Apache 2.0).
