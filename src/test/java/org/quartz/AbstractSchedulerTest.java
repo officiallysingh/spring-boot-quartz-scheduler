@@ -325,9 +325,6 @@ public abstract class AbstractSchedulerTest {
       }
       // remove threads that are known artifacts of the test
       for(Thread t: endingThreads) {
-        if(t.getName().contains("derby") && t.getThreadGroup().getName().contains("derby")) {
-          allThreadsEnd.remove(t);
-        }
         if(t.getThreadGroup() != null && t.getThreadGroup().getName().equals("system")) {
           allThreadsEnd.remove(t);
           

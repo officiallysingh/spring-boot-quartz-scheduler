@@ -37,7 +37,6 @@ import java.util.stream.Stream;
 
 import org.quartz.Trigger.TriggerState;
 import org.quartz.impl.JobDetailImpl;
-import org.quartz.impl.jdbcjobstore.JobStoreSupport;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.impl.triggers.SimpleTriggerImpl;
 import org.quartz.simpl.CascadingClassLoadHelper;
@@ -83,10 +82,6 @@ public abstract class AbstractJobStoreTest  {
 
     @AfterEach
     protected void tearDown() {
-        if (fJobStore instanceof JobStoreSupport) {
-            //default to false
-            ((JobStoreSupport) fJobStore).setUseEnhancedStatements(false);
-        }
         destroyJobStore("AbstractJobStoreTest");
     }
 
@@ -345,10 +340,6 @@ public abstract class AbstractJobStoreTest  {
     @SuppressWarnings("deprecation")
     @Test
     void testPauseJobGroupPausesNewJob() throws Exception {
-    	// Pausing job groups in JDBCJobStore is broken, see QTZ-208
-    	if (fJobStore instanceof JobStoreSupport)
-    		return;
-    	
     	final String jobName1 = "PauseJobGroupPausesNewJob";
     	final String jobName2 = "PauseJobGroupPausesNewJob2";
     	final String jobGroup = "PauseJobGroupPausesNewJobGroup";

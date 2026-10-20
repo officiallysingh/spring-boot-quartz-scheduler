@@ -75,17 +75,6 @@ import org.slf4j.LoggerFactory;
  *  DirectSchedulerFactory.getInstance().createScheduler("My Quartz Scheduler", "My Instance", threadPool, jobStore); * // don't forget to start the scheduler: DirectSchedulerFactory.getInstance().getScheduler("My Quartz Scheduler", "My Instance").start();
  * </pre>
  *
- *
- * <p>
- * You can also use a JDBCJobStore instead of the RAMJobStore:
- * </p>
- *
- * <pre>
- *  DBConnectionManager.getInstance().addConnectionProvider("someDatasource", new JNDIConnectionProvider("someDatasourceJNDIName"));
- *
- *  JobStoreTX jdbcJobStore = new JobStoreTX(); jdbcJobStore.setDataSource("someDatasource"); jdbcJobStore.setPostgresStyleBlobs(true); jdbcJobStore.setTablePrefix("QRTZ_"); jdbcJobStore.setInstanceId("My Instance");
- * </pre>
- *
  * @author Mohammad Rezaei
  * @author James House
  *
