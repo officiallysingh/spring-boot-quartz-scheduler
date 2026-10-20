@@ -57,8 +57,10 @@ import org.springframework.core.task.SimpleAsyncTaskExecutor;
  * {@link TriggerListener}, {@link SchedulerListener} and {@link SchedulerPlugin} (by bean
  * name) bean with it. A unique {@link InstanceIdGenerator} or {@link Clock} bean is used if
  * present. The job store follows {@code spring.quartz.job-store.type}: {@code mongodb} uses
- * the application's {@code MongoClient}, {@code redis} its {@code RedisConnectionFactory}. Backs off when the application defines its own {@link Scheduler} or
- * {@link SchedulerFactoryBean}.
+ * the application's {@code MongoClient}, {@code redis} its {@code RedisConnectionFactory}.
+ * Jobs annotated with {@link org.quartz.ExecuteInTransaction} run in Spring-managed
+ * transactions; {@code spring.quartz.transaction.enabled} makes every job do so. Backs off
+ * when the application defines its own {@link Scheduler} or {@link SchedulerFactoryBean}.
  *
  * @author Vedran Pavic
  * @author Stephane Nicoll
@@ -103,6 +105,8 @@ public final class QuartzAutoConfiguration {
 		schedulerFactoryBean.setStartupDelay(properties.startupDelay());
 		schedulerFactoryBean.setWaitForJobsToCompleteOnShutdown(properties.waitForJobsToCompleteOnShutdown());
 		schedulerFactoryBean.setOverwriteExistingJobs(properties.overwriteExistingJobs());
+		schedulerFactoryBean.setTransactionalJobs(properties.transaction().enabled());
+		schedulerFactoryBean.setDefaultJobTransactionPropagation(properties.transaction().defaultPropagation());
 		if (properties.threadPool().virtualThreads()) {
 			schedulerFactoryBean.setTaskExecutor(virtualThreadExecutor(properties, settings));
 		}

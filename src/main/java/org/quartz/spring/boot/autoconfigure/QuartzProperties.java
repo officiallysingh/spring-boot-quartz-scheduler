@@ -25,6 +25,7 @@ import org.quartz.impl.config.ThreadPoolSettings;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
+import org.springframework.transaction.annotation.Propagation;
 
 /**
  * Configuration properties for the Quartz Scheduler integration. Every duration is a
@@ -43,6 +44,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param threadPool worker thread pool settings
  * @param jobStore job store settings
  * @param plugins built-in scheduler plugins
+ * @param transaction transactions around job executions
  * @author Vedran Pavic
  * @author Stephane Nicoll
  * @since 4.0.0
@@ -56,7 +58,8 @@ public record QuartzProperties(
 		@DefaultValue Scheduler scheduler,
 		@DefaultValue ThreadPool threadPool,
 		@DefaultValue JobStore jobStore,
-		@DefaultValue Plugins plugins) {
+		@DefaultValue Plugins plugins,
+		@DefaultValue Transaction transaction) {
 
 	/**
 	 * Value of {@code instance-id} that generates the id when the store is clustered.
@@ -300,6 +303,18 @@ public record QuartzProperties(
 		public record JobInterruptMonitor(boolean enabled, @DefaultValue("5m") Duration defaultMaxRunTime) {
 		}
 
+	}
+
+	/**
+	 * Transactions around job executions. Jobs annotated with
+	 * {@code @ExecuteInTransaction} always run in a transaction.
+	 *
+	 * @param enabled whether every job runs in a transaction of the unique or primary
+	 * transaction manager, not only annotated jobs
+	 * @param defaultPropagation propagation of the transactions of jobs that are not
+	 * annotated, when enabled
+	 */
+	public record Transaction(boolean enabled, @DefaultValue("REQUIRED") Propagation defaultPropagation) {
 	}
 
 }

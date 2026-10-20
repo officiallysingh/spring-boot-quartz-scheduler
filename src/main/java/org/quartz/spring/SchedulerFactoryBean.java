@@ -25,6 +25,7 @@ import java.util.concurrent.Executor;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.SchedulerFactory;
+import org.quartz.core.JobRunShellFactory;
 import org.quartz.impl.SchedulerRepository;
 import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.impl.config.QuartzSettings;
@@ -43,6 +44,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.scheduling.SchedulingException;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.util.Assert;
 
 /**
@@ -68,6 +70,11 @@ import org.springframework.util.Assert;
  * {@link QuartzSettings} plus collaborator instances (job store, thread pool or
  * Spring {@link Executor}, plugins, instance-id generator, clock); there is no
  * {@code quartz.properties} or {@code DataSource} support.
+ *
+ * <p>Inside an application context, jobs annotated with
+ * {@link org.quartz.ExecuteInTransaction @ExecuteInTransaction} run in Spring-managed
+ * transactions (see {@link SpringTransactionJobRunShellFactory}); with
+ * {@link #setTransactionalJobs(boolean) transactionalJobs} every job does.
  *
  * @author Juergen Hoeller
  * @since 18.02.2004
@@ -101,6 +108,12 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 	private String applicationContextSchedulerContextKey;
 
 	private JobFactory jobFactory;
+
+	private JobRunShellFactory jobRunShellFactory;
+
+	private boolean transactionalJobs = false;
+
+	private Propagation defaultJobTransactionPropagation = Propagation.REQUIRED;
 
 	private boolean jobFactorySet = false;
 
@@ -262,6 +275,38 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 	}
 
 	/**
+	 * Set the factory of the shells that run each job. Default: inside an application
+	 * context a {@link SpringTransactionJobRunShellFactory} (configured from
+	 * {@link #setTransactionalJobs(boolean) transactionalJobs},
+	 * {@link #setDefaultJobTransactionPropagation(Propagation) defaultJobTransactionPropagation},
+	 * the job store and the clock of this bean), else Quartz's standard factory, which
+	 * ignores {@link org.quartz.ExecuteInTransaction}.
+	 */
+	public void setJobRunShellFactory(JobRunShellFactory jobRunShellFactory) {
+		this.jobRunShellFactory = jobRunShellFactory;
+	}
+
+	/**
+	 * Set whether every job runs in a transaction of the default transaction manager, not
+	 * only jobs annotated with {@link org.quartz.ExecuteInTransaction}. Requires an
+	 * application context with a unique or primary {@code PlatformTransactionManager}.
+	 * <p>Default is "false".
+	 */
+	public void setTransactionalJobs(boolean transactionalJobs) {
+		this.transactionalJobs = transactionalJobs;
+	}
+
+	/**
+	 * Set the propagation of the transactions of jobs without
+	 * {@link org.quartz.ExecuteInTransaction} when
+	 * {@link #setTransactionalJobs(boolean) transactionalJobs} is set.
+	 * <p>Default is {@link Propagation#REQUIRED}.
+	 */
+	public void setDefaultJobTransactionPropagation(Propagation defaultJobTransactionPropagation) {
+		this.defaultJobTransactionPropagation = defaultJobTransactionPropagation;
+	}
+
+	/**
 	 * Set whether to automatically start the scheduler after initialization.
 	 * <p>Default is "true"; set this to "false" to allow for manual startup.
 	 */
@@ -410,8 +455,30 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 		if (this.clock != null) {
 			builder.clock(this.clock);
 		}
+		JobRunShellFactory shellFactory = determineJobRunShellFactory();
+		if (shellFactory != null) {
+			builder.jobRunShellFactory(shellFactory);
+		}
 		this.plugins.forEach(builder::plugin);
 		return builder.build();
+	}
+
+	private JobRunShellFactory determineJobRunShellFactory() {
+		if (this.jobRunShellFactory != null) {
+			return this.jobRunShellFactory;
+		}
+		if (this.applicationContext == null) {
+			Assert.state(!this.transactionalJobs, "'transactionalJobs' requires an application context");
+			return null;
+		}
+		SpringTransactionJobRunShellFactory factory = new SpringTransactionJobRunShellFactory(this.applicationContext);
+		factory.setTransactionalByDefault(this.transactionalJobs);
+		factory.setDefaultPropagation(this.defaultJobTransactionPropagation);
+		factory.setJobStore(this.jobStore);
+		if (this.clock != null) {
+			factory.setClock(this.clock);
+		}
+		return factory;
 	}
 
 	/**
