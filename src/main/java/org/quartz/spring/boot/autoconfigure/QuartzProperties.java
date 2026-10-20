@@ -233,10 +233,12 @@ public record QuartzProperties(
 		/**
 		 * MongoDB job store settings.
 		 *
+		 * @param database database the store uses; defaults to the application's MongoDB
+		 * database
 		 * @param collectionPrefix prefix of the collections the store uses
 		 * @param lockTimeout how long a lock is held before it is considered abandoned
 		 */
-		public record Mongodb(@DefaultValue("qrtz_") String collectionPrefix,
+		public record Mongodb(String database, @DefaultValue("qrtz_") String collectionPrefix,
 				@DefaultValue("10m") Duration lockTimeout) {
 		}
 

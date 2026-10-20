@@ -113,10 +113,13 @@ class QuartzAutoConfigurationTest {
     }
 
     @Test
-    void persistentStoreTypesAreNotAvailableYet() {
+    void persistentStoreTypesRequireTheirConnectionBean() {
         contextRunner.withPropertyValues("spring.quartz.job-store.type=redis")
             .run(context -> assertThat(context).hasFailed()
-                .getFailure().rootCause().hasMessageContaining("'redis' is not available yet"));
+                .getFailure().rootCause().hasMessageContaining("no RedisConnectionFactory bean"));
+        contextRunner.withPropertyValues("spring.quartz.job-store.type=mongodb")
+            .run(context -> assertThat(context).hasFailed()
+                .getFailure().rootCause().hasMessageContaining("no MongoClient bean"));
     }
 
     @Test

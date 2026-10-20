@@ -33,6 +33,7 @@ import org.quartz.plugins.history.LoggingTriggerHistoryPlugin;
 import org.quartz.plugins.interrupt.JobInterruptMonitorPlugin;
 import org.quartz.simpl.SystemPropertyInstanceIdGenerator;
 import org.quartz.spi.InstanceIdGenerator;
+import org.quartz.spi.JobStore;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spring.SchedulerFactoryBean;
 import org.quartz.spring.SpringBeanJobFactory;
@@ -45,6 +46,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 
 /**
@@ -54,16 +56,21 @@ import org.springframework.core.task.SimpleAsyncTaskExecutor;
  * {@link JobDetail}, {@link Trigger}, {@link Calendar} (by bean name), {@link JobListener},
  * {@link TriggerListener}, {@link SchedulerListener} and {@link SchedulerPlugin} (by bean
  * name) bean with it. A unique {@link InstanceIdGenerator} or {@link Clock} bean is used if
- * present. Backs off when the application defines its own {@link Scheduler} or
+ * present. The job store follows {@code spring.quartz.job-store.type}: {@code mongodb} uses
+ * the application's {@code MongoClient}, {@code redis} its {@code RedisConnectionFactory}. Backs off when the application defines its own {@link Scheduler} or
  * {@link SchedulerFactoryBean}.
  *
  * @author Vedran Pavic
  * @author Stephane Nicoll
  * @since 4.0.0
  */
-@AutoConfiguration
+@AutoConfiguration(afterName = { "org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration",
+		"org.springframework.boot.data.mongodb.autoconfigure.DataMongoAutoConfiguration",
+		"org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration" })
 @ConditionalOnClass({ Scheduler.class, SchedulerFactoryBean.class })
 @EnableConfigurationProperties(QuartzProperties.class)
+@Import({ JobStoreConfigurations.MongoJobStoreConfiguration.class,
+		JobStoreConfigurations.RedisJobStoreConfiguration.class })
 public final class QuartzAutoConfiguration {
 
 	static final String JOB_HISTORY_PLUGIN = "jobHistory";
@@ -80,9 +87,12 @@ public final class QuartzAutoConfiguration {
 			ObjectProvider<JobListener> jobListeners, ObjectProvider<TriggerListener> triggerListeners,
 			ObjectProvider<SchedulerListener> schedulerListeners, Map<String, SchedulerPlugin> plugins,
 			ObjectProvider<InstanceIdGenerator> instanceIdGenerator, ObjectProvider<Clock> clock,
-			ApplicationContext applicationContext) {
-		checkJobStoreType(properties.jobStore().type());
+			ObjectProvider<JobStoreFactory> jobStoreFactories, ApplicationContext applicationContext) {
+		JobStore jobStore = createJobStore(properties, jobStoreFactories);
 		SchedulerFactoryBean schedulerFactoryBean = new SchedulerFactoryBean();
+		if (jobStore != null) {
+			schedulerFactoryBean.setJobStore(jobStore);
+		}
 		SpringBeanJobFactory jobFactory = new SpringBeanJobFactory();
 		jobFactory.setApplicationContext(applicationContext);
 		schedulerFactoryBean.setJobFactory(jobFactory);
@@ -116,15 +126,26 @@ public final class QuartzAutoConfiguration {
 		return schedulerFactoryBean;
 	}
 
-	private static void checkJobStoreType(JobStoreType type) {
+	/**
+	 * The configured store: {@code null} for {@code memory} (the factory's in-memory store),
+	 * else one built by the {@link JobStoreFactory} for the type.
+	 */
+	private static JobStore createJobStore(QuartzProperties properties, ObjectProvider<JobStoreFactory> factories) {
+		JobStoreType type = properties.jobStore().type();
 		if (type == null) {
 			throw new IllegalStateException(
 					"No Quartz job store configured: set 'spring.quartz.job-store.type' (mongodb or redis)");
 		}
-		if (type != JobStoreType.MEMORY) {
-			throw new IllegalStateException("Quartz job store type '" + type.name().toLowerCase()
-					+ "' is not available yet; only 'memory' (tests only) is supported");
+		if (type == JobStoreType.MEMORY) {
+			return null;
 		}
+		JobStoreFactory factory = factories.orderedStream()
+			.filter((candidate) -> candidate.type() == type)
+			.findFirst()
+			.orElseThrow(() -> new IllegalStateException("'spring.quartz.job-store.type' is "
+					+ type.name().toLowerCase() + " but no " + JobStoreConfigurations.requirement(type)
+					+ " is available"));
+		return factory.create(properties);
 	}
 
 	/**
