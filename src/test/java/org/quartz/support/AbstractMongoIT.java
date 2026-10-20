@@ -39,17 +39,25 @@ public abstract class AbstractMongoIT {
     protected static final MongoDBContainer MONGO = SharedContainers.mongo();
 
     /** Connection string for the replica set, database {@code test}. */
-    protected static String connectionString() {
+    public static String connectionString() {
         return MONGO.getReplicaSetUrl();
     }
 
     /** A client shared by all tests in the JVM; do not close it. */
-    protected static MongoClient mongoClient() {
+    public static MongoClient mongoClient() {
         return ClientHolder.CLIENT;
     }
 
     @AfterEach
     void dropCollections() {
+        dropAllCollections();
+    }
+
+    /**
+     * Drops every collection outside the system databases. Also usable by tests that cannot
+     * extend this class (for example store tests extending a contract kit).
+     */
+    public static void dropAllCollections() {
         for (String databaseName : mongoClient().listDatabaseNames()) {
             if (!SYSTEM_DATABASES.contains(databaseName)) {
                 MongoDatabase database = mongoClient().getDatabase(databaseName);

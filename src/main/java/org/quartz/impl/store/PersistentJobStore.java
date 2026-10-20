@@ -170,6 +170,15 @@ public abstract class PersistentJobStore implements JobStore {
         return callback.execute();
     }
 
+    /**
+     * Whether single-trigger acquisition also takes the trigger lock (batches always do).
+     * Without it, acquisition relies on the delegate's conditional {@code WAITING -> ACQUIRED}
+     * update. Defaults to {@link JobStoreSettings#acquireTriggersWithinLock()}.
+     */
+    protected boolean acquireTriggersWithinLock() {
+        return settings.acquireTriggersWithinLock();
+    }
+
     /** A store operation. */
     @FunctionalInterface
     protected interface StoreCallback<T> {
@@ -1050,7 +1059,7 @@ public abstract class PersistentJobStore implements JobStore {
         if (timeWindow.isNegative()) {
             throw new IllegalArgumentException("timeWindow must not be negative");
         }
-        String lockName = (settings.acquireTriggersWithinLock() || maxCount > 1) ? LOCK_TRIGGER_ACCESS : null;
+        String lockName = (acquireTriggersWithinLock() || maxCount > 1) ? LOCK_TRIGGER_ACCESS : null;
         return executeInLock(lockName, () -> acquireNextTriggersInternal(noLaterThan, maxCount, timeWindow));
     }
 

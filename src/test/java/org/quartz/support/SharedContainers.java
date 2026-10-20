@@ -52,7 +52,9 @@ public final class SharedContainers {
     }
 
     private static final class RedisHolder {
+        // AOF persistence, as recommended for the Redis job store
         static final GenericContainer<?> CONTAINER = new GenericContainer<>(REDIS_IMAGE)
+                .withCommand("redis-server", "--appendonly", "yes")
                 .withExposedPorts(REDIS_PORT);
 
         static {

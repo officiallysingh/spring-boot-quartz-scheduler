@@ -33,17 +33,25 @@ public abstract class AbstractRedisIT {
     @ServiceConnection(name = "redis")
     protected static final GenericContainer<?> REDIS = SharedContainers.redis();
 
-    protected static RedisURI redisUri() {
+    public static RedisURI redisUri() {
         return RedisURI.create(REDIS.getHost(), REDIS.getMappedPort(SharedContainers.REDIS_PORT));
     }
 
     /** A connection shared by all tests in the JVM; do not close it. */
-    protected static StatefulRedisConnection<String, String> redisConnection() {
+    public static StatefulRedisConnection<String, String> redisConnection() {
         return ConnectionHolder.CONNECTION;
     }
 
     @AfterEach
     void flushDb() {
+        flushDatabase();
+    }
+
+    /**
+     * Clears the default database. Also usable by tests that cannot extend this class (for
+     * example store tests extending a contract kit).
+     */
+    public static void flushDatabase() {
         redisConnection().sync().flushdb();
     }
 
