@@ -184,8 +184,8 @@ public record QuartzProperties(
 	 * @param maxMisfiresToHandleAtATime maximum number of misfired triggers handled per pass
 	 * @param acquireTriggersWithinLock whether to acquire triggers while holding the store's
 	 * trigger lock
-	 * @param acquireTriggersWithinLockRetry delay before retrying when the trigger lock is
-	 * not available
+	 * @param acquireTriggersWithinLockRetry pause between attempts to take a store lock held
+	 * by another instance
 	 * @param retryInterval delay before retrying after the store could not be reached
 	 * @param useProperties whether job data map values are restricted to strings
 	 * @param doubleCheckLockMisfireHandler whether to check for misfires before taking the
@@ -204,7 +204,7 @@ public record QuartzProperties(
 			@DefaultValue("7500ms") Duration clusterCheckinMisfireThreshold,
 			@DefaultValue("20") int maxMisfiresToHandleAtATime,
 			boolean acquireTriggersWithinLock,
-			@DefaultValue("1s") Duration acquireTriggersWithinLockRetry,
+			@DefaultValue("50ms") Duration acquireTriggersWithinLockRetry,
 			@DefaultValue("15s") Duration retryInterval,
 			boolean useProperties,
 			@DefaultValue("true") boolean doubleCheckLockMisfireHandler,

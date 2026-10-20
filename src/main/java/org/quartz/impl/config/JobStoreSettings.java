@@ -29,7 +29,7 @@ import java.util.Objects;
  *        is considered failed and its work is recovered
  * @param maxMisfiresToHandleAtATime the maximum number of misfired triggers handled per pass
  * @param acquireTriggersWithinLock acquire triggers while holding the store's trigger lock
- * @param acquireTriggersWithinLockRetry delay before retrying when that lock is not available
+ * @param acquireTriggersWithinLockRetry pause between attempts to take a store lock held by another instance
  * @param retryInterval delay before retrying after the store could not be reached
  * @param useProperties restrict {@link org.quartz.JobDataMap} values to strings
  * @param doubleCheckLockMisfireHandler check for misfires before taking the lock to handle them
@@ -110,7 +110,7 @@ public record JobStoreSettings(
         private Duration clusterCheckinMisfireThreshold = Duration.ofMillis(7500);
         private int maxMisfiresToHandleAtATime = 20;
         private boolean acquireTriggersWithinLock;
-        private Duration acquireTriggersWithinLockRetry = Duration.ofSeconds(1);
+        private Duration acquireTriggersWithinLockRetry = Duration.ofMillis(50);
         private Duration retryInterval = Duration.ofSeconds(15);
         private boolean useProperties;
         private boolean doubleCheckLockMisfireHandler = true;

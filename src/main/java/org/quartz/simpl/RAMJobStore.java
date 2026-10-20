@@ -231,6 +231,8 @@ public class RAMJobStore implements JobStore {
             for(String name: lst) {
                 removeCalendar(name);
             }
+            pausedTriggerGroups.clear();
+            pausedJobGroups.clear();
         }
     }
     
@@ -1168,7 +1170,7 @@ public class RAMJobStore implements JobStore {
                 default :
                     for (String group : triggersByGroup.keySet()) {
                         if(operator.evaluate(group, matcher.getCompareToValue())) {
-                            if(pausedTriggerGroups.add(matcher.getCompareToValue())) {
+                            if(pausedTriggerGroups.add(group)) {
                                 pausedGroups.add(group);
                             }
                         }
