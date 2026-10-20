@@ -62,7 +62,7 @@ import org.slf4j.LoggerFactory;
  * </p>
  *
  * <pre>
- *  public void createScheduler(String schedulerName, String schedulerInstanceId, ThreadPool threadPool, JobStore jobStore, String rmiRegistryHost, int rmiRegistryPort)
+ *  public void createScheduler(String schedulerName, String schedulerInstanceId, ThreadPool threadPool, JobStore jobStore)
  * </pre>
  *
  *
@@ -72,7 +72,7 @@ import org.slf4j.LoggerFactory;
  *  *
  *  * <pre>// create the thread pool SimpleThreadPool threadPool = new SimpleThreadPool(maxThreads, Thread.NORM_PRIORITY); threadPool.initialize(); * // create the job store JobStore jobStore = new RAMJobStore();
  *
- *  DirectSchedulerFactory.getInstance().createScheduler("My Quartz Scheduler", "My Instance", threadPool, jobStore, "localhost", 1099); * // don't forget to start the scheduler: DirectSchedulerFactory.getInstance().getScheduler("My Quartz Scheduler", "My Instance").start();
+ *  DirectSchedulerFactory.getInstance().createScheduler("My Quartz Scheduler", "My Instance", threadPool, jobStore); * // don't forget to start the scheduler: DirectSchedulerFactory.getInstance().getScheduler("My Quartz Scheduler", "My Instance").start();
  * </pre>
  *
  *
@@ -178,84 +178,6 @@ public class DirectSchedulerFactory implements SchedulerFactory {
 
 
     /**
-     * Creates a proxy to a remote scheduler. This scheduler can be retrieved
-     * via {@link DirectSchedulerFactory#getScheduler()}
-     *
-     * @param rmiHost
-     *          The hostname for remote scheduler
-     * @param rmiPort
-     *          Port for the remote scheduler. The default RMI port is 1099.
-     * @throws SchedulerException
-     *           if the remote scheduler could not be reached.
-     */
-    public void createRemoteScheduler(String rmiHost, int rmiPort)
-        throws SchedulerException {
-        createRemoteScheduler(DEFAULT_SCHEDULER_NAME, DEFAULT_INSTANCE_ID,
-                rmiHost, rmiPort);
-    }
-
-    /**
-     * Same as
-     * {@link DirectSchedulerFactory#createRemoteScheduler(String rmiHost, int rmiPort)},
-     * with the addition of specifying the scheduler name and instance ID. This
-     * scheduler can only be retrieved via
-     * {@link DirectSchedulerFactory#getScheduler(String)}
-     *
-     * @param schedulerName
-     *          The name for the scheduler.
-     * @param schedulerInstanceId
-     *          The instance ID for the scheduler.
-     * @param rmiHost
-     *          The hostname for remote scheduler
-     * @param rmiPort
-     *          Port for the remote scheduler. The default RMI port is 1099.
-     * @throws SchedulerException
-     *           if the remote scheduler could not be reached.
-     */
-    public void createRemoteScheduler(String schedulerName,
-            String schedulerInstanceId, String rmiHost, int rmiPort)
-        throws SchedulerException {
-        createRemoteScheduler(schedulerName,
-                schedulerInstanceId, null, rmiHost, rmiPort);
-    }
-
-    /**
-     * Same as
-     * {@link DirectSchedulerFactory#createRemoteScheduler(String rmiHost, int rmiPort)},
-     * with the addition of specifying the scheduler name, instance ID, and rmi
-     * bind name. This scheduler can only be retrieved via
-     * {@link DirectSchedulerFactory#getScheduler(String)}
-     *
-     * @param schedulerName
-     *          The name for the scheduler.
-     * @param schedulerInstanceId
-     *          The instance ID for the scheduler.
-     * @param rmiBindName
-     *          The name of the remote scheduler in the RMI repository.  If null
-     *          defaults to the generated unique identifier.
-     * @param rmiHost
-     *          The hostname for remote scheduler
-     * @param rmiPort
-     *          Port for the remote scheduler. The default RMI port is 1099.
-     * @throws SchedulerException
-     *           if the remote scheduler could not be reached.
-     */
-    public void createRemoteScheduler(String schedulerName,
-            String schedulerInstanceId, String rmiBindName, String rmiHost, int rmiPort)
-        throws SchedulerException {
-
-        String uid = (rmiBindName != null) ? rmiBindName :
-            QuartzSchedulerResources.getUniqueIdentifier(
-                schedulerName, schedulerInstanceId);
-
-        RemoteScheduler remoteScheduler = new RemoteScheduler(uid, rmiHost, rmiPort);
-
-        SchedulerRepository schedRep = SchedulerRepository.getInstance();
-        schedRep.bind(remoteScheduler);
-        initialized = true;
-    }
-
-    /**
      * Creates a scheduler using the specified thread pool and job store. This
      * scheduler can be retrieved via
      * {@link DirectSchedulerFactory#getScheduler()}
@@ -295,12 +217,11 @@ public class DirectSchedulerFactory implements SchedulerFactory {
             String schedulerInstanceId, ThreadPool threadPool, JobStore jobStore)
         throws SchedulerException {
         createScheduler(schedulerName, schedulerInstanceId, threadPool,
-                jobStore, null, 0, -1, -1);
+                jobStore, -1, -1);
     }
 
     /**
-     * Creates a scheduler using the specified thread pool and job store and
-     * binds it to RMI.
+     * Creates a scheduler using the specified thread pool and job store.
      *
      * @param schedulerName
      *          The name for the scheduler.
@@ -310,11 +231,6 @@ public class DirectSchedulerFactory implements SchedulerFactory {
      *          The thread pool for executing jobs
      * @param jobStore
      *          The type of job store
-     * @param rmiRegistryHost
-     *          The hostname to register this scheduler with for RMI. Can use
-     *          "null" if no RMI is required.
-     * @param rmiRegistryPort
-     *          The port for RMI. Typically 1099.
      * @param idleWaitTime
      *          The idle wait time in milliseconds. You can specify "-1" for
      *          the default value, which is currently 30000 ms.
@@ -323,20 +239,19 @@ public class DirectSchedulerFactory implements SchedulerFactory {
      */
     public void createScheduler(String schedulerName,
             String schedulerInstanceId, ThreadPool threadPool,
-            JobStore jobStore, String rmiRegistryHost, int rmiRegistryPort,
+            JobStore jobStore,
             long idleWaitTime, long dbFailureRetryInterval)
         throws SchedulerException {
         createScheduler(schedulerName,
                 schedulerInstanceId, threadPool,
                 jobStore, null, // plugins
-                rmiRegistryHost, rmiRegistryPort,
                 idleWaitTime, dbFailureRetryInterval,
                 DEFAULT_JMX_EXPORT, DEFAULT_JMX_OBJECTNAME);
     }
 
     /**
      * Creates a scheduler using the specified thread pool, job store, and
-     * plugins, and binds it to RMI.
+     * plugins.
      *
      * @param schedulerName
      *          The name for the scheduler.
@@ -350,11 +265,6 @@ public class DirectSchedulerFactory implements SchedulerFactory {
      *          Map from a <code>String</code> plugin names to
      *          <code>{@link org.quartz.spi.SchedulerPlugin}</code>s.  Can use
      *          "null" if no plugins are required.
-     * @param rmiRegistryHost
-     *          The hostname to register this scheduler with for RMI. Can use
-     *          "null" if no RMI is required.
-     * @param rmiRegistryPort
-     *          The port for RMI. Typically 1099.
      * @param idleWaitTime
      *          The idle wait time in milliseconds. You can specify "-1" for
      *          the default value, which is currently 30000 ms.
@@ -364,19 +274,18 @@ public class DirectSchedulerFactory implements SchedulerFactory {
     public void createScheduler(String schedulerName,
             String schedulerInstanceId, ThreadPool threadPool,
             JobStore jobStore, Map<String, SchedulerPlugin> schedulerPluginMap,
-            String rmiRegistryHost, int rmiRegistryPort,
             long idleWaitTime, long dbFailureRetryInterval,
             boolean jmxExport, String jmxObjectName)
         throws SchedulerException {
         createScheduler(schedulerName, schedulerInstanceId, threadPool,
                 DEFAULT_THREAD_EXECUTOR, jobStore, schedulerPluginMap,
-                rmiRegistryHost, rmiRegistryPort, idleWaitTime,
+                idleWaitTime,
                 dbFailureRetryInterval, jmxExport, jmxObjectName);
     }
 
     /**
      * Creates a scheduler using the specified thread pool, job store, and
-     * plugins, and binds it to RMI.
+     * plugins.
      *
      * @param schedulerName
      *          The name for the scheduler.
@@ -392,11 +301,6 @@ public class DirectSchedulerFactory implements SchedulerFactory {
      *          Map from a <code>String</code> plugin names to
      *          <code>{@link org.quartz.spi.SchedulerPlugin}</code>s.  Can use
      *          "null" if no plugins are required.
-     * @param rmiRegistryHost
-     *          The hostname to register this scheduler with for RMI. Can use
-     *          "null" if no RMI is required.
-     * @param rmiRegistryPort
-     *          The port for RMI. Typically 1099.
      * @param idleWaitTime
      *          The idle wait time in milliseconds. You can specify "-1" for
      *          the default value, which is currently 30000 ms.
@@ -407,19 +311,18 @@ public class DirectSchedulerFactory implements SchedulerFactory {
             String schedulerInstanceId, ThreadPool threadPool,
             ThreadExecutor threadExecutor,
             JobStore jobStore, Map<String, SchedulerPlugin> schedulerPluginMap,
-            String rmiRegistryHost, int rmiRegistryPort,
             long idleWaitTime, long dbFailureRetryInterval,
             boolean jmxExport, String jmxObjectName)
         throws SchedulerException {
         createScheduler(schedulerName, schedulerInstanceId, threadPool,
                 DEFAULT_THREAD_EXECUTOR, jobStore, schedulerPluginMap,
-                rmiRegistryHost, rmiRegistryPort, idleWaitTime,
+                idleWaitTime,
                 dbFailureRetryInterval, jmxExport, jmxObjectName, DEFAULT_BATCH_MAX_SIZE, DEFAULT_BATCH_TIME_WINDOW);
     }
 
     /**
      * Creates a scheduler using the specified thread pool, job store, and
-     * plugins, and binds it to RMI.
+     * plugins.
      *
      * @param schedulerName
      *          The name for the scheduler.
@@ -435,11 +338,6 @@ public class DirectSchedulerFactory implements SchedulerFactory {
      *          Map from a <code>String</code> plugin names to
      *          <code>{@link org.quartz.spi.SchedulerPlugin}</code>s.  Can use
      *          "null" if no plugins are required.
-     * @param rmiRegistryHost
-     *          The hostname to register this scheduler with for RMI. Can use
-     *          "null" if no RMI is required.
-     * @param rmiRegistryPort
-     *          The port for RMI. Typically 1099.
      * @param idleWaitTime
      *          The idle wait time in milliseconds. You can specify "-1" for
      *          the default value, which is currently 30000 ms.
@@ -454,7 +352,6 @@ public class DirectSchedulerFactory implements SchedulerFactory {
             String schedulerInstanceId, ThreadPool threadPool,
             ThreadExecutor threadExecutor,
             JobStore jobStore, Map<String, SchedulerPlugin> schedulerPluginMap,
-            String rmiRegistryHost, int rmiRegistryPort,
             long idleWaitTime, long dbFailureRetryInterval,
             boolean jmxExport, String jmxObjectName, int maxBatchSize, long batchTimeWindow)
         throws SchedulerException {
@@ -462,7 +359,6 @@ public class DirectSchedulerFactory implements SchedulerFactory {
         createScheduler(schedulerName, schedulerInstanceId,
                 threadPool, threadExecutor,
                 jobStore, schedulerPluginMap,
-                rmiRegistryHost, rmiRegistryPort,
                 idleWaitTime, dbFailureRetryInterval,
                 jmxExport, jmxObjectName,
                 maxBatchSize, batchTimeWindow,
@@ -471,7 +367,7 @@ public class DirectSchedulerFactory implements SchedulerFactory {
 
     /**
      * Creates a scheduler using the specified thread pool, job store, and
-     * plugins, and binds it to RMI.
+     * plugins.
      *
      * @param schedulerName
      *          The name for the scheduler.
@@ -487,11 +383,6 @@ public class DirectSchedulerFactory implements SchedulerFactory {
      *          Map from a <code>String</code> plugin names to
      *          <code>{@link org.quartz.spi.SchedulerPlugin}</code>s.  Can use
      *          "null" if no plugins are required.
-     * @param rmiRegistryHost
-     *          The hostname to register this scheduler with for RMI. Can use
-     *          "null" if no RMI is required.
-     * @param rmiRegistryPort
-     *          The port for RMI. Typically 1099.
      * @param idleWaitTime
      *          The idle wait time in milliseconds. You can specify "-1" for
      *          the default value, which is currently 30000 ms.
@@ -508,7 +399,6 @@ public class DirectSchedulerFactory implements SchedulerFactory {
                                 String schedulerInstanceId, ThreadPool threadPool,
                                 ThreadExecutor threadExecutor,
                                 JobStore jobStore, Map<String, SchedulerPlugin> schedulerPluginMap,
-                                String rmiRegistryHost, int rmiRegistryPort,
                                 long idleWaitTime, long dbFailureRetryInterval,
                                 boolean jmxExport, String jmxObjectName,
                                 int maxBatchSize, long batchTimeWindow,
@@ -535,8 +425,6 @@ public class DirectSchedulerFactory implements SchedulerFactory {
         qrs.setJobStore(jobStore);
         qrs.setMaxBatchSize(maxBatchSize);
         qrs.setBatchTimeWindow(batchTimeWindow);
-        qrs.setRMIRegistryHost(rmiRegistryHost);
-        qrs.setRMIRegistryPort(rmiRegistryPort);
         qrs.setJMXExport(jmxExport);
         if (jmxObjectName != null) {
            qrs.setJMXObjectName(jmxObjectName);
@@ -589,7 +477,7 @@ public class DirectSchedulerFactory implements SchedulerFactory {
     /*
      * public void registerSchedulerForRmi(String schedulerName, String
      * schedulerId, String registryHost, int registryPort) throws
-     * SchedulerException, RemoteException { QuartzScheduler scheduler =
+     * SchedulerException { QuartzScheduler scheduler =
      * (QuartzScheduler) this.getScheduler(); scheduler.bind(registryHost,
      * registryPort); }
      */
@@ -600,14 +488,14 @@ public class DirectSchedulerFactory implements SchedulerFactory {
      * </p>
      *
      * <p>
-     * you must call createRemoteScheduler or createScheduler methods before
+     * you must call createScheduler methods before
      * calling getScheduler()
      * </p>
      */
     public Scheduler getScheduler() throws SchedulerException {
         if (!initialized) {
             throw new SchedulerException(
-                "you must call createRemoteScheduler or createScheduler methods before calling getScheduler()");
+                "you must call createScheduler methods before calling getScheduler()");
         }
 
         return getScheduler(DEFAULT_SCHEDULER_NAME);
