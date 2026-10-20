@@ -10,8 +10,13 @@ types, is configured entirely through `application.yml`, and persists jobs in Mo
 
 ## Job stores
 
-Set `spring.quartz.job-store.type` to `mongodb` or `redis`; both support clustering
-(`spring.quartz.job-store.clustered: true`, unique instance ids, e.g. `spring.quartz.scheduler.instance-id: AUTO`).
+Jobs are always persisted: there is no in-memory store. Set `spring.quartz.job-store.type` to `mongodb` or
+`redis`, or leave it unset when the application has only one of a `MongoClient` / `RedisConnectionFactory` bean
+and that store is used. Startup fails with an explanation (Spring Boot's failure analysis) when there is
+neither, when there are both and no type is set, or when the configured type's connection bean is missing.
+Both stores support clustering (`spring.quartz.job-store.clustered: true`, unique instance ids, e.g.
+`spring.quartz.scheduler.instance-id: AUTO`). Outside the auto-configuration, `StdSchedulerFactory` and
+`SchedulerFactoryBean` need a `JobStore` instance (`MongoJobStore` / `RedisJobStore`).
 
 - **MongoDB** (`spring-boot-starter-data-mongodb`) uses the application's `MongoClient`. Collections are
   `{collection-prefix}jobs`, `triggers`, `calendars`, `paused_groups`, `fired_triggers`, `schedulers`, `locks`
