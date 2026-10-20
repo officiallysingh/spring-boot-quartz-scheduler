@@ -76,8 +76,8 @@ public record QuartzProperties(
 	 * @param instanceId instance id of this node; "AUTO" generates one and "SYS_PROP" reads
 	 * the "org.quartz.scheduler.instanceId" system property (both only when the job store
 	 * is clustered)
-	 * @param threadName name of the scheduler thread; defaults to
-	 * "<name>_QuartzSchedulerThread"
+	 * @param threadName name of the scheduler thread; defaults to the scheduler name
+	 * followed by "_QuartzSchedulerThread"
 	 * @param makeSchedulerThreadDaemon whether the scheduler thread is a daemon thread
 	 * @param threadsInheritContextClassLoaderOfInitializer whether the scheduler thread uses
 	 * the context class loader of the thread that creates the scheduler
@@ -138,8 +138,8 @@ public record QuartzProperties(
 	 * @param threadCount number of worker threads, or the maximum number of concurrently
 	 * running jobs with virtual threads
 	 * @param threadPriority priority of the worker threads (1 to 9)
-	 * @param threadNamePrefix prefix of the worker thread names; defaults to
-	 * "<scheduler name>_Worker"
+	 * @param threadNamePrefix prefix of the worker thread names; defaults to the
+	 * scheduler name followed by "_Worker"
 	 * @param daemon whether the worker threads are daemon threads
 	 * @param threadsInheritContextClassLoaderOfInitializingThread whether the worker threads
 	 * use the context class loader of the thread that initializes the pool

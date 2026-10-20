@@ -45,8 +45,7 @@ import org.springframework.transaction.TransactionStatus;
  * Common base class for accessing a Quartz Scheduler, i.e. for registering jobs,
  * triggers and listeners on a {@link org.quartz.Scheduler} instance.
  *
- * <p>For concrete usage, check out the {@link SchedulerFactoryBean} and
- * {@link SchedulerAccessorBean} classes.
+ * <p>For concrete usage, check out the {@link SchedulerFactoryBean} class.
  *
  * <p>Compatible with Quartz 2.1.4 and higher.
  *
