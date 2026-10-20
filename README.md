@@ -5,7 +5,26 @@ It keeps the familiar `org.quartz` API (`JobBuilder`, `TriggerBuilder`, `Schedul
 types, is configured entirely through `application.yml`, and persists jobs in MongoDB or Redis.
 
 > **Work in progress.** The refactor is happening in phases; see [`REFACTOR_PLAN.md`](REFACTOR_PLAN.md)
-> and [`DECISIONS.md`](DECISIONS.md). There is no build yet: the Maven build arrives in Phase 2.
+> and [`DECISIONS.md`](DECISIONS.md). Build and test with `./mvnw verify` (Docker must be running:
+> the integration tests use MongoDB and Redis containers).
+
+## Job stores
+
+Set `spring.quartz.job-store.type` to `mongodb` or `redis`; both support clustering
+(`spring.quartz.job-store.clustered: true`, unique instance ids, e.g. `spring.quartz.scheduler.instance-id: AUTO`).
+
+- **MongoDB** (`spring-boot-starter-data-mongodb`) uses the application's `MongoClient`. Collections are
+  `{collection-prefix}jobs`, `triggers`, `calendars`, `paused_groups`, `fired_triggers`, `schedulers`, `locks`
+  (default prefix `qrtz_`) in the application's database or `spring.quartz.job-store.mongodb.database`;
+  indexes are created on startup. On a replica set every store operation also runs in a transaction.
+- **Redis** (`spring-boot-starter-data-redis`) uses the application's `RedisConnectionFactory`. All keys of a
+  scheduler are `{key-prefix}{schedulerName}:...` (default prefix `quartz:`), one hash slot, so Redis Cluster
+  works; multi-key changes are Lua scripts.
+
+  **Durability:** the store is only as durable as Redis. Run Redis with AOF persistence
+  (`appendonly yes`, `appendfsync everysec`): with RDB snapshots only, every schedule change made since the
+  last snapshot (new jobs, fired one-shot triggers, paused groups) is lost when Redis restarts, and with
+  `appendfsync everysec` up to one second of changes can be lost on a crash.
 
 ## License
 
