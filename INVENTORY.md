@@ -11,6 +11,7 @@ All paths are relative to the repo root. Verdicts: **delete**, **keep**, **evalu
 | `docker info` | Docker Desktop, server 29.8.2 — reachable ✔ |
 | Git branch | `refactor/spring-boot` |
 | HEAD | `741ccc3c` (upstream `main` merge of PR 1470) |
+| Target Spring Boot | 4.1.1 (latest GA; 4.4.4 is not published, see `DECISIONS.md` D-003) |
 | Original build | Gradle multi-project, toolchain Java 11, version `2.5.1-SNAPSHOT` |
 
 ## 2. Root tree
