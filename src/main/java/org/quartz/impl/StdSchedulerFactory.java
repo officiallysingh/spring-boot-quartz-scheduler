@@ -1186,7 +1186,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
     
             JobRunShellFactory jrsf; // Create correct run-shell factory...
     
-            // JTA support is not compiled since the Maven conversion (DECISIONS.md D-006)
+            // JTA support was removed (DECISIONS.md D-006, D-009); Spring transactions come in Phase 8
             if (wrapJobInTx || userTXLocation != null) {
                 throw new SchedulerConfigException("JTA is not supported: remove "
                         + PROP_SCHED_WRAP_JOB_IN_USER_TX + " and " + PROP_SCHED_USER_TX_URL);
