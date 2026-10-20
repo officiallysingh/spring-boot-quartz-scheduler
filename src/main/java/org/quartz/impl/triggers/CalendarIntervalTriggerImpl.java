@@ -541,7 +541,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
 
     /**
      *  
-     * @see org.quartz.spi.OperableTrigger#updateWithNewCalendar(org.quartz.Calendar, long)
+     * @see org.quartz.spi.OperableTrigger#updateWithNewCalendar(org.quartz.Calendar, java.time.Duration)
      */
     @Override
     public void updateWithNewCalendar(org.quartz.Calendar calendar, Duration misfireThreshold)

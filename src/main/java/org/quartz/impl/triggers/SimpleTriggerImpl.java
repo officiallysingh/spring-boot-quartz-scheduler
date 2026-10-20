@@ -599,7 +599,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements
     }
 
     /**
-     * @see org.quartz.impl.triggers.AbstractTrigger#updateWithNewCalendar(org.quartz.Calendar, long)
+     * @see org.quartz.impl.triggers.AbstractTrigger#updateWithNewCalendar(org.quartz.Calendar, java.time.Duration)
      */
     @Override
     public void updateWithNewCalendar(Calendar calendar, Duration misfireThreshold)

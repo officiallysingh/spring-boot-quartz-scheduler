@@ -447,7 +447,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
      * org.quartz.Calendar (if any)
      * </p>
      * 
-     * @param test the date to compare
+     * @param testDateTime the date to compare
      * @param dayOnly if set to true, the method will only determine if the
      * trigger will fire during the day represented by the given Calendar
      * (hours, minutes and seconds will be ignored).
@@ -514,7 +514,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
 
     /**
      *  
-     * @see AbstractTrigger#updateWithNewCalendar(org.quartz.Calendar, long)
+     * @see AbstractTrigger#updateWithNewCalendar(org.quartz.Calendar, java.time.Duration)
      */
     @Override
     public void updateWithNewCalendar(org.quartz.Calendar calendar, Duration misfireThreshold)

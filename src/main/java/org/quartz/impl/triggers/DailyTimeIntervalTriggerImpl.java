@@ -511,7 +511,7 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
 
 
     /**
-     * @see org.quartz.impl.triggers.AbstractTrigger#updateWithNewCalendar(org.quartz.Calendar, long)
+     * @see org.quartz.impl.triggers.AbstractTrigger#updateWithNewCalendar(org.quartz.Calendar, java.time.Duration)
      */
     @Override
     public void updateWithNewCalendar(org.quartz.Calendar calendar, Duration misfireThreshold)

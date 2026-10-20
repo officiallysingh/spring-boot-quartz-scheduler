@@ -161,7 +161,7 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
      * calendars isTimeIncluded() method if base calendar is set.
      * </p>
      *
-     * @see org.quartz.Calendar#isTimeIncluded(long)
+     * @see org.quartz.Calendar#isTimeIncluded(java.time.Instant)
      */
     public boolean isTimeIncluded(Instant timeStamp) {
 
@@ -184,7 +184,7 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
      * included. Return 0 if all days are excluded.
      * </p>
      *
-     * @see org.quartz.Calendar#getNextIncludedTime(long)
+     * @see org.quartz.Calendar#getNextIncludedTime(java.time.Instant)
      */
     public Instant getNextIncludedTime(Instant timeStamp) {
 

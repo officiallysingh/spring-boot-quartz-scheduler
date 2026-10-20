@@ -114,7 +114,7 @@ public class CronCalendar extends BaseCalendar {
      * Determines whether the given time (in milliseconds) is 'included' by the
      * <CODE>BaseCalendar</CODE>
      * 
-     * @param timeInMillis the date/time to test
+     * @param timeStamp the date/time to test
      * @return a boolean indicating whether the specified time is 'included' by
      *         the <CODE>CronCalendar</CODE>
      */
@@ -132,7 +132,7 @@ public class CronCalendar extends BaseCalendar {
      * Determines the next time included by the <CODE>CronCalendar</CODE>
      * after the specified time.
      * 
-     * @param timeInMillis the initial date/time after which to find an 
+     * @param timeStamp the initial date/time after which to find an 
      *                     included time
      * @return the time in milliseconds representing the next time included
      *         after the specified time.

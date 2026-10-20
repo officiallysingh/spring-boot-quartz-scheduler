@@ -461,7 +461,7 @@ public class DailyCalendar extends BaseCalendar {
      * Determines whether the given time (in milliseconds) is 'included' by the
      * <CODE>BaseCalendar</CODE>
      * 
-     * @param timeInMillis the date/time to test
+     * @param timeStamp the date/time to test
      * @return a boolean indicating whether the specified time is 'included' by
      *         the <CODE>BaseCalendar</CODE>
      */
@@ -498,7 +498,7 @@ public class DailyCalendar extends BaseCalendar {
      * Determines the next time included by the <CODE>DailyCalendar</CODE>
      * after the specified time.
      * 
-     * @param timeInMillis the initial date/time after which to find an 
+     * @param timeStamp the initial date/time after which to find an 
      *                     included time
      * @return the time in milliseconds representing the next time included
      *         after the specified time.
@@ -563,7 +563,7 @@ public class DailyCalendar extends BaseCalendar {
      * Returns the start time of the time range (in milliseconds) of the day 
      * specified in <CODE>timeInMillis</CODE>
      * 
-     * @param timeInMillis a time containing the desired date for the starting
+     * @param timeStamp a time containing the desired date for the starting
      *                     time of the time range.
      * @return a date/time (in milliseconds) representing the start time of the
      *         time range for the specified date.
@@ -585,7 +585,7 @@ public class DailyCalendar extends BaseCalendar {
      * Returns the end time of the time range (in milliseconds) of the day
      * specified in <CODE>timeInMillis</CODE>
      * 
-     * @param timeInMillis a time containing the desired date for the ending
+     * @param timeStamp a time containing the desired date for the ending
      *                     time of the time range.
      * @return a date/time (in milliseconds) representing the end time of the
      *         time range for the specified date.
