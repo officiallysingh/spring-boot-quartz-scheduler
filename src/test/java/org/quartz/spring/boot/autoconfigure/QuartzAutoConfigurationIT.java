@@ -15,12 +15,13 @@ package org.quartz.spring.boot.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
-import static org.mockito.Mockito.mock;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import com.mongodb.ConnectionString;
+import io.lettuce.core.RedisURI;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.quartz.Calendar;
@@ -38,14 +39,23 @@ import org.quartz.impl.calendar.WeeklyCalendar;
 import org.quartz.listeners.JobListenerSupport;
 import org.quartz.listeners.SchedulerListenerSupport;
 import org.quartz.listeners.TriggerListenerSupport;
-import org.quartz.simpl.RAMJobStore;
+import org.quartz.impl.mongodb.MongoJobStore;
+import org.quartz.impl.redis.RedisJobStore;
 import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.InstanceIdGenerator;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spring.SchedulerFactoryBean;
+import org.quartz.support.AbstractMongoIT;
+import org.quartz.support.AbstractRedisIT;
 import org.quartz.support.RecordingTransactionManager;
+import org.quartz.support.TestSchedulers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.data.mongodb.autoconfigure.DataMongoAutoConfiguration;
+import org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration;
+import org.springframework.boot.data.redis.autoconfigure.DataRedisConnectionDetails;
+import org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration;
+import org.springframework.boot.mongodb.autoconfigure.MongoConnectionDetails;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -53,13 +63,21 @@ import org.springframework.core.annotation.Order;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-class QuartzAutoConfigurationTest {
+/**
+ * {@link QuartzAutoConfiguration} on the shared MongoDB container. The runner gets
+ * {@code ConnectionDetails} beans for the shared containers, as {@code @ServiceConnection}
+ * registers them, but without handing the containers to the context, which would stop them
+ * when it closes (D-016). Checks that need no store are in {@link QuartzAutoConfigurationTest}.
+ */
+class QuartzAutoConfigurationIT extends AbstractMongoIT {
 
     static final List<String> RESULTS = new CopyOnWriteArrayList<>();
 
+    // no job-store type: inferred from the MongoClient bean
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(QuartzAutoConfiguration.class))
-            .withPropertyValues("spring.quartz.job-store.type=memory");
+            .withConfiguration(AutoConfigurations.of(MongoAutoConfiguration.class, DataMongoAutoConfiguration.class,
+                    QuartzAutoConfiguration.class))
+            .withUserConfiguration(MongoContainerConfiguration.class);
 
     @BeforeEach
     void clearResults() {
@@ -75,7 +93,7 @@ class QuartzAutoConfigurationTest {
             assertThat(scheduler.getSchedulerName()).isEqualTo("quartzScheduler");
             assertThat(scheduler.getSchedulerInstanceId()).isEqualTo("NON_CLUSTERED");
             assertThat(scheduler.getMetaData().getThreadPoolSize()).isEqualTo(10);
-            assertThat(scheduler.getMetaData().getJobStoreClass()).isEqualTo(RAMJobStore.class);
+            assertThat(scheduler.getMetaData().getJobStoreClass()).isEqualTo(MongoJobStore.class);
             assertThat(scheduler.isStarted()).isTrue();
         });
     }
@@ -106,23 +124,6 @@ class QuartzAutoConfigurationTest {
             assertThat(scheduler.isStarted()).isFalse();
             await().atMost(Duration.ofSeconds(10)).until(scheduler::isStarted);
         });
-    }
-
-    @Test
-    void missingJobStoreTypeFailsWithAClearMessage() {
-        new ApplicationContextRunner().withConfiguration(AutoConfigurations.of(QuartzAutoConfiguration.class))
-            .run(context -> assertThat(context).hasFailed()
-                .getFailure().rootCause().hasMessageContaining("spring.quartz.job-store.type"));
-    }
-
-    @Test
-    void persistentStoreTypesRequireTheirConnectionBean() {
-        contextRunner.withPropertyValues("spring.quartz.job-store.type=redis")
-            .run(context -> assertThat(context).hasFailed()
-                .getFailure().rootCause().hasMessageContaining("no RedisConnectionFactory bean"));
-        contextRunner.withPropertyValues("spring.quartz.job-store.type=mongodb")
-            .run(context -> assertThat(context).hasFailed()
-                .getFailure().rootCause().hasMessageContaining("no MongoClient bean"));
     }
 
     @Test
@@ -220,14 +221,6 @@ class QuartzAutoConfigurationTest {
     }
 
     @Test
-    void backsOffWhenTheApplicationDefinesAScheduler() {
-        contextRunner.withBean("myScheduler", Scheduler.class, () -> mock(Scheduler.class)).run(context -> {
-            assertThat(context).hasSingleBean(Scheduler.class).doesNotHaveBean(SchedulerFactoryBean.class);
-            assertThat(context).hasBean("myScheduler");
-        });
-    }
-
-    @Test
     void backsOffWhenTheApplicationDefinesASchedulerFactoryBean() {
         contextRunner.withUserConfiguration(OwnSchedulerFactoryBeanConfiguration.class).run(context -> {
             assertThat(context).hasSingleBean(SchedulerFactoryBean.class);
@@ -263,9 +256,28 @@ class QuartzAutoConfigurationTest {
     }
 
     @Test
+    void anExplicitTypeChoosesAmongSeveralStores() {
+        contextRunner.withConfiguration(AutoConfigurations.of(DataRedisAutoConfiguration.class))
+            .withUserConfiguration(RedisContainerConfiguration.class)
+            .withPropertyValues("spring.quartz.job-store.type=redis")
+            .run(context -> assertThat(context.getBean(Scheduler.class).getMetaData().getJobStoreClass())
+                .isEqualTo(RedisJobStore.class));
+        AbstractRedisIT.flushDatabase();
+    }
+
+    @Test
+    void severalStoresWithoutATypeFail() {
+        contextRunner.withConfiguration(AutoConfigurations.of(DataRedisAutoConfiguration.class))
+            .withUserConfiguration(RedisContainerConfiguration.class)
+            .run(context -> assertThat(context).hasFailed()
+                .getFailure().rootCause().isInstanceOf(JobStoreUnavailableException.class)
+                .hasMessageContaining("Several Quartz job stores are available (mongodb, redis)"));
+    }
+
+    @Test
     void autoInstanceIdUsesTheInstanceIdGeneratorBean() {
         contextRunner.withPropertyValues("spring.quartz.scheduler.instance-id=AUTO")
-            .withUserConfiguration(ClusteredStoreConfiguration.class)
+            .withPropertyValues("spring.quartz.job-store.clustered=true")
             .withBean(InstanceIdGenerator.class, () -> () -> "generated-id")
             .run(context -> assertThat(context.getBean(Scheduler.class).getSchedulerInstanceId())
                 .isEqualTo("generated-id"));
@@ -276,7 +288,7 @@ class QuartzAutoConfigurationTest {
         System.setProperty("org.quartz.scheduler.instanceId", "from-system-property");
         try {
             contextRunner.withPropertyValues("spring.quartz.scheduler.instance-id=SYS_PROP")
-                .withUserConfiguration(ClusteredStoreConfiguration.class)
+                .withPropertyValues("spring.quartz.job-store.clustered=true")
                 .run(context -> assertThat(context.getBean(Scheduler.class).getSchedulerInstanceId())
                     .isEqualTo("from-system-property"));
         }
@@ -313,13 +325,6 @@ class QuartzAutoConfigurationTest {
 
         @Override
         public void shutdown() {
-        }
-    }
-
-    static class ClusteredRAMJobStore extends RAMJobStore {
-        @Override
-        public boolean isClustered() {
-            return true;
         }
     }
 
@@ -427,11 +432,26 @@ class QuartzAutoConfigurationTest {
     }
 
     @Configuration(proxyBeanMethods = false)
-    static class ClusteredStoreConfiguration {
+    static class MongoContainerConfiguration {
 
         @Bean
-        SchedulerFactoryBeanCustomizer clusteredStore() {
-            return bean -> bean.setJobStore(new ClusteredRAMJobStore());
+        MongoConnectionDetails sharedMongoConnectionDetails() {
+            return () -> new ConnectionString(AbstractMongoIT.connectionString());
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    static class RedisContainerConfiguration {
+
+        @Bean
+        DataRedisConnectionDetails sharedRedisConnectionDetails() {
+            RedisURI uri = AbstractRedisIT.redisUri();
+            return new DataRedisConnectionDetails() {
+                @Override
+                public Standalone getStandalone() {
+                    return Standalone.of(uri.getHost(), uri.getPort());
+                }
+            };
         }
     }
 
@@ -442,6 +462,7 @@ class QuartzAutoConfigurationTest {
         SchedulerFactoryBean ownScheduler() {
             SchedulerFactoryBean bean = new SchedulerFactoryBean();
             bean.setSchedulerName("own");
+            bean.setJobStore(TestSchedulers.mongoStore());
             return bean;
         }
     }

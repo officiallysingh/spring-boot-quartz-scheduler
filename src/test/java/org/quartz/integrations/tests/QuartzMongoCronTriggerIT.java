@@ -34,7 +34,7 @@ import static org.quartz.integrations.tests.TrackingJob.SCHEDULED_TIMES_KEY;
  * A integration test for Quartz In-Memory Scheduler with Cron Trigger.
  * @author Zemian Deng
  */
-public class QuartzMemoryCronTriggerTest extends QuartzMemoryTestSupport {
+public class QuartzMongoCronTriggerIT extends QuartzMongoTestSupport {
     @Test
     void testCronRepeatCount() throws Exception {
         CronTrigger trigger = TriggerBuilder.newTrigger()

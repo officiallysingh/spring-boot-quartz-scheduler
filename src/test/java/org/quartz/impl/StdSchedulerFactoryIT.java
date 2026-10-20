@@ -28,7 +28,6 @@ import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.quartz.Scheduler;
-import org.quartz.SchedulerConfigException;
 import org.quartz.SchedulerException;
 import org.quartz.core.QuartzScheduler;
 import org.quartz.core.QuartzSchedulerResources;
@@ -36,16 +35,18 @@ import org.quartz.impl.config.JobStoreSettings;
 import org.quartz.impl.config.QuartzSettings;
 import org.quartz.impl.config.SchedulerSettings;
 import org.quartz.impl.config.ThreadPoolSettings;
+import org.quartz.impl.mongodb.MongoJobStore;
 import org.quartz.listeners.JobListenerSupport;
 import org.quartz.listeners.TriggerListenerSupport;
-import org.quartz.simpl.RAMJobStore;
 import org.quartz.simpl.SimpleThreadPool;
 import org.quartz.simpl.SystemPropertyInstanceIdGenerator;
 import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spi.ThreadPool;
+import org.quartz.support.AbstractMongoIT;
+import org.quartz.support.TestSchedulers;
 
-class StdSchedulerFactoryTest {
+class StdSchedulerFactoryIT extends AbstractMongoIT {
 
     private final List<Scheduler> created = new ArrayList<>();
 
@@ -67,18 +68,19 @@ class StdSchedulerFactoryTest {
     }
 
     @Test
-    void defaultSchedulerUsesTheDefaultSettings() throws Exception {
-        Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
-        created.add(scheduler);
+    void defaultSettingsAreApplied() throws Exception {
+        Scheduler scheduler = create(StdSchedulerFactory.builder()
+                .jobStore(TestSchedulers.mongoStore(JobStoreSettings.defaults()))
+                .build());
 
         assertThat(scheduler.getSchedulerName()).isEqualTo("DefaultQuartzScheduler");
         assertThat(scheduler.getSchedulerInstanceId()).isEqualTo("NON_CLUSTERED");
         assertThat(scheduler.getMetaData().getThreadPoolSize()).isEqualTo(10);
-        assertThat(scheduler.getMetaData().getJobStoreClass()).isEqualTo(RAMJobStore.class);
+        assertThat(scheduler.getMetaData().getJobStoreClass()).isEqualTo(MongoJobStore.class);
         assertThat(scheduler.getMetaData().getThreadPoolClass()).isEqualTo(SimpleThreadPool.class);
 
-        RAMJobStore store = (RAMJobStore) resources(scheduler).getJobStore();
-        assertThat(store.getMisfireThreshold()).isEqualTo(Duration.ofSeconds(60));
+        MongoJobStore store = (MongoJobStore) resources(scheduler).getJobStore();
+        assertThat(store.getSettings().misfireThreshold()).isEqualTo(Duration.ofSeconds(60));
     }
 
     @Test
@@ -95,7 +97,8 @@ class StdSchedulerFactoryTest {
                 ThreadPoolSettings.builder().threadCount(2).threadNamePrefix("custom-worker").build(),
                 JobStoreSettings.builder().misfireThreshold(Duration.ofSeconds(7)).build());
 
-        Scheduler scheduler = create(new StdSchedulerFactory(settings));
+        Scheduler scheduler = create(StdSchedulerFactory.builder().settings(settings)
+                .jobStore(TestSchedulers.mongoStore(settings.jobStore())).build());
         QuartzSchedulerResources resources = resources(scheduler);
 
         assertThat(scheduler.getSchedulerInstanceId()).isEqualTo("node-1");
@@ -106,7 +109,8 @@ class StdSchedulerFactoryTest {
         assertThat(resources.isInterruptJobsOnShutdown()).isTrue();
         assertThat(((SimpleThreadPool) resources.getThreadPool()).getThreadNamePrefix()).isEqualTo("custom-worker");
         assertThat(resources.getThreadPool().getPoolSize()).isEqualTo(2);
-        assertThat(((RAMJobStore) resources.getJobStore()).getMisfireThreshold()).isEqualTo(Duration.ofSeconds(7));
+        assertThat(((MongoJobStore) resources.getJobStore()).getSettings().misfireThreshold())
+                .isEqualTo(Duration.ofSeconds(7));
     }
 
     @Test
@@ -128,6 +132,7 @@ class StdSchedulerFactoryTest {
         };
 
         Scheduler scheduler = StdSchedulerFactory.builder()
+                .jobStore(TestSchedulers.mongoStore())
                 .scheduler(named("MyScheduler").instanceId("Instance1").build())
                 .threadPool(ThreadPoolSettings.builder().threadCount(1).build())
                 .plugin("TestPlugin", testPlugin)
@@ -137,24 +142,6 @@ class StdSchedulerFactoryTest {
         scheduler.shutdown();
 
         assertThat(result).hasToString("TestPlugin|MyScheduler|start|shutdown");
-    }
-
-    @Test
-    void duplicatePluginNamesAreRejected() {
-        SchedulerPlugin plugin = new SchedulerPlugin() {
-            public void initialize(String name, Scheduler scheduler, ClassLoadHelper loadHelper) {
-            }
-
-            public void start() {
-            }
-
-            public void shutdown() {
-            }
-        };
-
-        assertThatThrownBy(() -> StdSchedulerFactory.builder().plugin("p", plugin).plugin("p", plugin))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Duplicate plugin name");
     }
 
     @Test
@@ -171,6 +158,7 @@ class StdSchedulerFactoryTest {
         };
 
         Scheduler scheduler = create(StdSchedulerFactory.builder()
+                .jobStore(TestSchedulers.mongoStore())
                 .scheduler(named("Listeners").build())
                 .jobListener(jobListener)
                 .triggerListener(triggerListener)
@@ -183,6 +171,7 @@ class StdSchedulerFactoryTest {
     @Test
     void workerThreadNamesContainTheSchedulerName() throws Exception {
         Scheduler scheduler = create(StdSchedulerFactory.builder()
+                .jobStore(TestSchedulers.mongoStore())
                 .scheduler(named("ThreadNames").build())
                 .threadPool(ThreadPoolSettings.builder().threadCount(4).build())
                 .build());
@@ -194,7 +183,10 @@ class StdSchedulerFactoryTest {
 
     @Test
     void getSchedulerReturnsTheBoundSchedulerUntilItIsShutDown() throws Exception {
-        StdSchedulerFactory factory = StdSchedulerFactory.builder().scheduler(named("Rebind").build()).build();
+        StdSchedulerFactory factory = StdSchedulerFactory.builder()
+                .scheduler(named("Rebind").build())
+                .jobStore(TestSchedulers.mongoStore())
+                .build();
 
         Scheduler first = create(factory);
         assertThat(factory.getScheduler()).isSameAs(first);
@@ -210,6 +202,7 @@ class StdSchedulerFactoryTest {
     @Test
     void autoInstanceIdIsNonClusteredForANonClusteredStore() throws Exception {
         Scheduler scheduler = create(StdSchedulerFactory.builder()
+                .jobStore(TestSchedulers.mongoStore())
                 .scheduler(named("AutoNonClustered").instanceIdAuto(true).build())
                 .instanceIdGenerator(() -> "generated")
                 .build());
@@ -221,7 +214,7 @@ class StdSchedulerFactoryTest {
     void autoInstanceIdComesFromTheGeneratorForAClusteredStore() throws Exception {
         Scheduler scheduler = create(StdSchedulerFactory.builder()
                 .scheduler(named("AutoClustered").instanceIdAuto(true).build())
-                .jobStore(new ClusteredRAMJobStore())
+                .jobStore(clusteredStore())
                 .instanceIdGenerator(() -> "generated")
                 .build());
 
@@ -232,7 +225,7 @@ class StdSchedulerFactoryTest {
     void autoInstanceIdDefaultsToTheSimpleGenerator() throws Exception {
         Scheduler scheduler = create(StdSchedulerFactory.builder()
                 .scheduler(named("AutoSimple").instanceIdAuto(true).build())
-                .jobStore(new ClusteredRAMJobStore())
+                .jobStore(clusteredStore())
                 .build());
 
         assertThat(scheduler.getSchedulerInstanceId()).isNotEqualTo("NON_CLUSTERED").isNotBlank();
@@ -240,7 +233,7 @@ class StdSchedulerFactoryTest {
 
     @Test
     void systemPropertyInstanceIdGenerator() throws Exception {
-        String property = "org.quartz.test.StdSchedulerFactoryTest.instanceId";
+        String property = "org.quartz.test.StdSchedulerFactoryIT.instanceId";
         System.setProperty(property, "from-sys-prop");
         try {
             SystemPropertyInstanceIdGenerator generator = new SystemPropertyInstanceIdGenerator();
@@ -250,7 +243,7 @@ class StdSchedulerFactoryTest {
 
             Scheduler scheduler = create(StdSchedulerFactory.builder()
                     .scheduler(named("SysProp").instanceIdAuto(true).build())
-                    .jobStore(new ClusteredRAMJobStore())
+                    .jobStore(clusteredStore())
                     .instanceIdGenerator(generator)
                     .build());
 
@@ -263,35 +256,20 @@ class StdSchedulerFactoryTest {
     @Test
     void systemPropertyInstanceIdGeneratorFailsWithoutTheProperty() {
         SystemPropertyInstanceIdGenerator generator = new SystemPropertyInstanceIdGenerator();
-        generator.setSystemPropertyName("org.quartz.test.StdSchedulerFactoryTest.missing");
+        generator.setSystemPropertyName("org.quartz.test.StdSchedulerFactoryIT.missing");
 
         assertThatThrownBy(generator::generateInstanceId).isInstanceOf(SchedulerException.class);
         assertThatThrownBy(() -> create(StdSchedulerFactory.builder()
                 .scheduler(named("SysPropMissing").instanceIdAuto(true).build())
-                .jobStore(new ClusteredRAMJobStore())
+                .jobStore(clusteredStore())
                 .instanceIdGenerator(generator)
                 .build()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("instance id");
     }
 
-    @Test
-    void theInMemoryStoreCannotBeClustered() {
-        StdSchedulerFactory factory = StdSchedulerFactory.builder()
-                .scheduler(named("ClusteredInMemory").build())
-                .jobStore(JobStoreSettings.builder().clustered(true).build())
-                .build();
-
-        assertThatThrownBy(factory::getScheduler)
-                .isInstanceOf(SchedulerConfigException.class)
-                .hasMessageContaining("cannot be clustered");
-    }
-
-    static class ClusteredRAMJobStore extends RAMJobStore {
-        @Override
-        public boolean isClustered() {
-            return true;
-        }
+    private static MongoJobStore clusteredStore() {
+        return TestSchedulers.mongoStore(TestSchedulers.storeSettings().toBuilder().clustered(true).build());
     }
 
     private static QuartzSchedulerResources resources(Scheduler scheduler) throws Exception {

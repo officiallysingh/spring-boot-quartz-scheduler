@@ -21,12 +21,16 @@ import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.impl.config.JobStoreSettings;
 import org.quartz.impl.config.SchedulerSettings;
 import org.quartz.impl.config.ThreadPoolSettings;
+import org.quartz.impl.mongodb.MongoJobStore;
+import org.quartz.impl.mongodb.MongoJobStoreSettings;
 
 /**
- * Builds in-memory schedulers for tests with the values a {@code Properties}-configured
+ * Builds schedulers for integration tests, stored in the shared MongoDB container (database
+ * {@value #DATABASE}), with the values a {@code Properties}-configured
  * {@code StdSchedulerFactory} used for absent keys before Phase 5 (DECISIONS.md D-012):
- * scheduler name {@code QuartzScheduler}, a 5 s misfire threshold (the in-memory store's own
- * default) and worker threads that do not inherit the context class loader.
+ * scheduler name {@code QuartzScheduler}, a 5 s misfire threshold (the former in-memory
+ * store's default) and worker threads that do not inherit the context class loader. Callers
+ * clean the store with {@link AbstractMongoIT} (D-016).
  */
 public final class TestSchedulers {
 
@@ -44,15 +48,26 @@ public final class TestSchedulers {
                 .build();
     }
 
-    public static JobStoreSettings inMemoryStore() {
+    public static final String DATABASE = "test";
+
+    public static JobStoreSettings storeSettings() {
         return JobStoreSettings.builder().misfireThreshold(Duration.ofSeconds(5)).build();
+    }
+
+    /** A new MongoDB store on the shared container. */
+    public static MongoJobStore mongoStore(JobStoreSettings settings) {
+        return new MongoJobStore(AbstractMongoIT.mongoClient(), DATABASE, settings, MongoJobStoreSettings.defaults());
+    }
+
+    public static MongoJobStore mongoStore() {
+        return mongoStore(storeSettings());
     }
 
     public static StdSchedulerFactory.Builder factory(SchedulerSettings.Builder scheduler, int threadCount) {
         return StdSchedulerFactory.builder()
                 .scheduler(scheduler.build())
                 .threadPool(threadPool(threadCount))
-                .jobStore(inMemoryStore());
+                .jobStore(mongoStore());
     }
 
     public static Scheduler create(SchedulerSettings.Builder scheduler, int threadCount) throws SchedulerException {

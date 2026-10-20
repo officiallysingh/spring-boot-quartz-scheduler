@@ -32,7 +32,7 @@ import static org.quartz.TriggerKey.triggerKey;
 /**
  * Created by zemian on 10/25/16.
  */
-public class QuartzMemoryPauseAndResumeTest extends QuartzMemoryTestSupport {
+public class QuartzMongoPauseAndResumeIT extends QuartzMongoTestSupport {
 
     @Test
     void testPauseAndResumeTriggers() throws Exception {

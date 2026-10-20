@@ -41,7 +41,7 @@ import org.quartz.impl.matchers.GroupMatcher;
 
 
 /**
- * Test High Level Scheduler functionality (implicitly tests the underlying jobstore (RAMJobStore))
+ * Test High Level Scheduler functionality (implicitly tests the underlying job store)
  */
 public abstract class AbstractSchedulerTest {
 

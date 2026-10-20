@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.quartz.impl.JobDetailImpl;
 import org.quartz.impl.triggers.SimpleTriggerImpl;
 import org.quartz.spi.MutableTrigger;
+import org.quartz.support.AbstractMongoIT;
 import org.quartz.support.TestSchedulers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  * Test Trigger priority support.
  */
-class PriorityTest  {
+class PriorityIT extends AbstractMongoIT {
 
     private static CountDownLatch latch;
     private static StringBuffer result;
@@ -48,8 +49,8 @@ class PriorityTest  {
 
     @BeforeEach
     protected void setUp() {
-        PriorityTest.latch = new CountDownLatch(2);
-        PriorityTest.result = new StringBuffer();
+        PriorityIT.latch = new CountDownLatch(2);
+        PriorityIT.result = new StringBuffer();
     }
 
     @SuppressWarnings("deprecation")

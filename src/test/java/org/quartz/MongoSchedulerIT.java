@@ -16,9 +16,17 @@
  */
 package org.quartz;
 
+import org.junit.jupiter.api.AfterEach;
+import org.quartz.support.AbstractMongoIT;
 import org.quartz.support.TestSchedulers;
 
-public class RAMSchedulerTest extends AbstractSchedulerTest {
+/** {@link AbstractSchedulerTest} on a {@code MongoJobStore} in the shared container. */
+public class MongoSchedulerIT extends AbstractSchedulerTest {
+
+    @AfterEach
+    void cleanStore() {
+        AbstractMongoIT.dropAllCollections();
+    }
 
     @Override
     protected Scheduler createScheduler(String name, int threadPoolSize) throws SchedulerException {

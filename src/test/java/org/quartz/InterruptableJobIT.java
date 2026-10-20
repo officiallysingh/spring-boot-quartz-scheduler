@@ -28,12 +28,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 
 import org.junit.jupiter.api.Test;
+import org.quartz.support.AbstractMongoIT;
 import org.quartz.support.TestSchedulers;
 
 /**
  * Test job interruption
  */
-public class InterruptableJobTest  {
+public class InterruptableJobIT extends AbstractMongoIT {
 
     static final CyclicBarrier sync = new CyclicBarrier(2);
 

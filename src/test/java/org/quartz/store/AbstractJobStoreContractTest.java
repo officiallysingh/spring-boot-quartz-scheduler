@@ -23,7 +23,6 @@ import java.time.Instant;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -1442,7 +1441,7 @@ public abstract class AbstractJobStoreContractTest {
 
     @Test
     void testRecoveryOfJobsInProgressAfterRestart() throws Exception {
-        assumeTrue(fJobStore.supportsPersistence(), "only persistent stores survive a restart");
+        assertThat(fJobStore.supportsPersistence()).isTrue();
         JobDetail job = JobBuilder.newJob(MyJob.class).withIdentity("recoverable").requestRecovery().storeDurably().build();
         fJobStore.storeJob(job, false);
         OperableTrigger trigger = dueTrigger("recoverableTrigger", job.getKey());

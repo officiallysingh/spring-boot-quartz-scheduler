@@ -40,6 +40,7 @@ import org.quartz.Trigger;
 import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.impl.config.SchedulerSettings;
 import org.quartz.listeners.SchedulerListenerSupport;
+import org.quartz.support.AbstractMongoIT;
 import org.quartz.support.MutableClock;
 import org.quartz.support.TestSchedulers;
 
@@ -48,9 +49,12 @@ import org.quartz.support.TestSchedulers;
  * rather than System.currentTimeMillis().
  * (Ported from QuartzSchedulerTimeBrokerTest by Thanos Tsiamis https://github.com/ThanosTsiamis.)
  */
-public class QuartzSchedulerClockTest {
+public class QuartzSchedulerClockIT extends AbstractMongoIT {
 
+    /** Fails once {@link #failing} is set: a persistent store reads the clock when the scheduler starts. */
     static final class FailingClock extends Clock {
+        volatile boolean failing;
+
         @Override
         public ZoneId getZone() {
             return ZoneOffset.UTC;
@@ -63,7 +67,10 @@ public class QuartzSchedulerClockTest {
 
         @Override
         public Instant instant() {
-            throw new IllegalStateException("Test scheduling-time failure");
+            if (failing) {
+                throw new IllegalStateException("Test scheduling-time failure");
+            }
+            return Instant.now();
         }
     }
 
@@ -108,7 +115,8 @@ public class QuartzSchedulerClockTest {
 
     @Test
     void repeatedClockFailuresNotifyListenersOnlyOnce() throws Exception {
-        Scheduler scheduler = createScheduler(new FailingClock());
+        FailingClock clock = new FailingClock();
+        Scheduler scheduler = createScheduler(clock);
         AtomicInteger errorCount = new AtomicInteger();
         scheduler.getListenerManager().addSchedulerListener(new SchedulerListenerSupport() {
             @Override
@@ -121,12 +129,14 @@ public class QuartzSchedulerClockTest {
 
         try {
             scheduler.start();
+            clock.failing = true;
             await().atMost(Duration.ofSeconds(5)).until(() -> errorCount.get() == 1);
 
             // the scheduler thread retries once per second; consecutive failures must not re-notify
             await().during(Duration.ofMillis(2_200)).atMost(Duration.ofSeconds(4))
                     .until(() -> errorCount.get() == 1);
         } finally {
+            clock.failing = false;
             scheduler.shutdown(true);
         }
     }

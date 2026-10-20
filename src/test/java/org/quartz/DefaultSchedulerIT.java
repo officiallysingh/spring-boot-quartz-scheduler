@@ -16,26 +16,27 @@
  */
 package org.quartz;
 
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 
 import org.junit.jupiter.api.Test;
 import org.quartz.impl.JobDetailImpl;
-import org.quartz.impl.StdSchedulerFactory;
+import org.quartz.support.AbstractMongoIT;
+import org.quartz.support.TestSchedulers;
 
 
 
 /**
- * DefaultSchedulerTest
+ * DefaultSchedulerIT
  */
-class DefaultSchedulerTest  {
+class DefaultSchedulerIT extends AbstractMongoIT {
 
     @Test
     void testAddJobNoTrigger() throws Exception {
-        Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
+        Scheduler scheduler = TestSchedulers.create(TestSchedulers.scheduler(), 1);
         JobDetailImpl jobDetail = new JobDetailImpl();
         jobDetail.setName("testjob");
+        jobDetail.setJobClass(NoOpJob.class); // persistent stores need the job class
 
         try {
             scheduler.addJob(jobDetail, false);
@@ -45,5 +46,12 @@ class DefaultSchedulerTest  {
 
         jobDetail.setDurability(true);
         scheduler.addJob(jobDetail, false);
+        scheduler.shutdown();
+    }
+
+    public static class NoOpJob implements Job {
+        @Override
+        public void execute(JobExecutionContext context) {
+        }
     }
 }

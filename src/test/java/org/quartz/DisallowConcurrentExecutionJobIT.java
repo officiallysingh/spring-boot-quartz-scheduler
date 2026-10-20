@@ -29,6 +29,7 @@ import java.time.Duration;
 
 import org.junit.jupiter.api.Test;
 import org.quartz.listeners.JobListenerSupport;
+import org.quartz.support.AbstractMongoIT;
 import org.quartz.support.TestSchedulers;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 
  * @author Zemian Deng <saltnlight5@gmail.com>
  */
-class DisallowConcurrentExecutionJobTest {
+class DisallowConcurrentExecutionJobIT extends AbstractMongoIT {
 	
 	private static final long JOB_BLOCK_TIME = 300L;
 	

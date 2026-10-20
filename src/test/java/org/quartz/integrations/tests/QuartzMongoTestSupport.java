@@ -23,6 +23,7 @@ import org.quartz.Scheduler;
 import org.quartz.SchedulerFactory;
 import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.impl.config.SchedulerSettings;
+import org.quartz.support.AbstractMongoIT;
 import org.quartz.support.TestSchedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,13 +31,13 @@ import org.slf4j.LoggerFactory;
 import java.time.Duration;
 
 /**
- * A base class to support in-memory scheduler integration testing. Each test will have a fresh
+ * A base class to support scheduler integration testing on the shared MongoDB container. Each test will have a fresh
  * scheduler created and started, and it will auto shutdown upon each test run.
  *
  * @author Zemian Deng
  */
-public class QuartzMemoryTestSupport {
-    protected static final Logger LOG = LoggerFactory.getLogger(QuartzMemoryTestSupport.class);
+public class QuartzMongoTestSupport extends AbstractMongoIT {
+    protected static final Logger LOG = LoggerFactory.getLogger(QuartzMongoTestSupport.class);
     protected Scheduler scheduler;
 
     @BeforeEach
@@ -56,7 +57,8 @@ public class QuartzMemoryTestSupport {
         return StdSchedulerFactory.builder()
                 .scheduler(SchedulerSettings.builder().name("TestScheduler").instanceIdAuto(true).build())
                 .threadPool(TestSchedulers.threadPool(12))
-                .jobStore(TestSchedulers.inMemoryStore().toBuilder().misfireThreshold(Duration.ofSeconds(10)).build())
+                .jobStore(TestSchedulers.mongoStore(
+                        TestSchedulers.storeSettings().toBuilder().misfireThreshold(Duration.ofSeconds(10)).build()))
                 .build();
     }
 

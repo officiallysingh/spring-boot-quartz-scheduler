@@ -27,6 +27,7 @@ import java.time.Duration;
 
 import org.junit.jupiter.api.Test;
 import org.quartz.Trigger.CompletedExecutionInstruction;
+import org.quartz.support.AbstractMongoIT;
 import org.quartz.support.TestSchedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,8 +38,8 @@ import org.slf4j.LoggerFactory;
  * 
  * @author Zemian Deng <saltnlight5@gmail.com>
  */
-class Qtz205SchedulerListenerTest {
-	private static Logger logger = LoggerFactory.getLogger(Qtz205SchedulerListenerTest.class);
+class Qtz205SchedulerListenerIT extends AbstractMongoIT {
+	private static Logger logger = LoggerFactory.getLogger(Qtz205SchedulerListenerIT.class);
 	
 	public static class Qtz205Job implements Job {
 		private static volatile int jobExecutionCount = 0;	

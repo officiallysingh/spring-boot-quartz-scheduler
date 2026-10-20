@@ -13,6 +13,7 @@
  */
 package org.quartz.spring;
 
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
@@ -38,10 +39,12 @@ import org.quartz.impl.config.SchedulerSettings;
 import org.quartz.impl.config.ThreadPoolSettings;
 import org.quartz.impl.config.JobStoreSettings;
 import org.quartz.simpl.SimpleThreadPool;
+import org.quartz.support.AbstractMongoIT;
+import org.quartz.support.TestSchedulers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
-class SchedulerFactoryBeanTest {
+class SchedulerFactoryBeanIT extends AbstractMongoIT {
 
     static final List<String> RESULTS = new CopyOnWriteArrayList<>();
 
@@ -114,6 +117,7 @@ class SchedulerFactoryBeanTest {
         bean.setApplicationContext(context);
         bean.setSettings(new QuartzSettings(SchedulerSettings.builder().name(beanName).build(),
                 ThreadPoolSettings.builder().threadCount(2).build(), JobStoreSettings.defaults()));
+        bean.setJobStore(TestSchedulers.mongoStore());
         return bean;
     }
 
@@ -186,6 +190,7 @@ class SchedulerFactoryBeanTest {
 
         SchedulerFactoryBean fromBeanName = new SchedulerFactoryBean();
         fromBeanName.setBeanName("beanNameScheduler");
+        fromBeanName.setJobStore(TestSchedulers.mongoStore());
         fromBeanName.afterPropertiesSet();
         assertThat(fromBeanName.getScheduler().getSchedulerName()).isEqualTo("beanNameScheduler");
         fromBeanName.destroy();

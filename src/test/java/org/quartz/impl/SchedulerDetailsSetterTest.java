@@ -24,24 +24,31 @@ import org.springframework.asm.ClassWriter;
 import org.springframework.asm.MethodVisitor;
 import org.springframework.asm.Opcodes;
 import org.quartz.SchedulerException;
-import org.quartz.simpl.RAMJobStore;
 import org.quartz.simpl.SimpleThreadPool;
+import org.quartz.spi.JobStore;
 import org.quartz.spi.ThreadPool;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 public class SchedulerDetailsSetterTest  {
     @Test
     void testSetter() throws SchedulerException {
+        JobStore jobStore = mock(JobStore.class);
         StdSchedulerFactory factory = StdSchedulerFactory.builder()
                 .threadPool(new MyThreadPool())
-                .jobStore(new MyJobStore())
+                .jobStore(jobStore)
                 .build();
-        factory.getScheduler(); // this will initialize all the test fixtures.
-        
-        assertEquals(3, instanceIdCalls.get());
-        assertEquals(3, instanceNameCalls.get());
+        factory.getScheduler().shutdown(); // this will initialize all the test fixtures.
+
+        // the thread pool is told once, the store twice (before and after it is initialized)
+        assertEquals(1, instanceIdCalls.get());
+        assertEquals(1, instanceNameCalls.get());
+        verify(jobStore, times(2)).setInstanceId("NON_CLUSTERED");
+        verify(jobStore, times(2)).setInstanceName("DefaultQuartzScheduler");
     }
     @Test
     void testMissingSetterMethods() throws SchedulerException  {
@@ -91,22 +98,6 @@ public class SchedulerDetailsSetterTest  {
         @Override
         public void initialize() {
         }
-
-        @Override
-        public void setInstanceId(String schedInstId) {
-            super.setInstanceId(schedInstId);
-            instanceIdCalls.incrementAndGet();
-        }
-
-        @Override
-        public void setInstanceName(String schedName) {
-            super.setInstanceName(schedName);
-            instanceNameCalls.incrementAndGet();
-        }
-    }
-
-
-    public static class MyJobStore extends RAMJobStore {
 
         @Override
         public void setInstanceId(String schedInstId) {

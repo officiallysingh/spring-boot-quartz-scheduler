@@ -31,7 +31,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.quartz.DateBuilder.IntervalUnit;
-import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.spi.OperableTrigger;
 
 /**
@@ -44,14 +43,13 @@ public class DailyTimeIntervalScheduleBuilderTest  {
 
   @Test
   void testScheduleActualTrigger() throws Exception {
-    Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
+    // what Scheduler.scheduleJob computes; storing it is covered by the job store ITs and CodecsTest
     JobDetail job = newJob(MyJob.class).build();
-    DailyTimeIntervalTrigger trigger = newTrigger().withIdentity("test")
+    DailyTimeIntervalTrigger trigger = newTrigger().withIdentity("test").forJob(job)
         .withSchedule(dailyTimeIntervalSchedule()
             .withIntervalInSeconds(3))
             .build();
-    scheduler.scheduleJob(job, trigger); //We are not verify anything other than just run through the scheduler.
-    scheduler.shutdown();
+    assertNotNull(((OperableTrigger) trigger).computeFirstFireTime(null));
   }
   
   void testScheduleInMiddleOfDailyInterval() throws Exception {
@@ -65,17 +63,13 @@ public class DailyTimeIntervalScheduleBuilderTest  {
     if(currHour < 3)
       return;
     
-    Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
-    JobDetail job = newJob(MyJob.class).build();
     Trigger trigger = newTrigger().withIdentity("test")
         .withSchedule(dailyTimeIntervalSchedule()
             .startingDailyAt(TimeOfDay.hourAndMinuteOfDay(2, 15))
             .withIntervalInMinutes(5))
             .startAt(currTime.toInstant())
             .build();
-    scheduler.scheduleJob(job, trigger); 
-    
-    trigger = scheduler.getTrigger(trigger.getKey());
+    ((OperableTrigger) trigger).computeFirstFireTime(null);
     
     System.out.println("testScheduleInMiddleOfDailyInterval: currTime = " + currTime.getTime());
     System.out.println("testScheduleInMiddleOfDailyInterval: computed first fire time = " + trigger.getNextFireTime());
@@ -85,24 +79,18 @@ public class DailyTimeIntervalScheduleBuilderTest  {
     
     Instant startTime = DateBuilder.todayAt(2, 15, 0);
     
-    job = newJob(MyJob.class).build();
     trigger = newTrigger().withIdentity("test2")
         .withSchedule(dailyTimeIntervalSchedule()
             .startingDailyAt(TimeOfDay.hourAndMinuteOfDay(2, 15))
             .withIntervalInMinutes(5))
             .startAt(startTime)
             .build();
-    scheduler.scheduleJob(job, trigger); 
-    
-    trigger = scheduler.getTrigger(trigger.getKey());
+    ((OperableTrigger) trigger).computeFirstFireTime(null);
     
     System.out.println("testScheduleInMiddleOfDailyInterval: startTime = " + startTime);
     System.out.println("testScheduleInMiddleOfDailyInterval: computed first fire time = " + trigger.getNextFireTime());
 
       assertEquals(trigger.getNextFireTime(), startTime, "First fire time is not after now!");
- 
-    
-    scheduler.shutdown();
   }
 
   @Test

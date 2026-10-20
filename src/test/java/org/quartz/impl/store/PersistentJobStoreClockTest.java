@@ -11,7 +11,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package org.quartz.simpl;
+package org.quartz.impl.store;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.quartz.JobBuilder.newJob;
@@ -32,29 +32,39 @@ import org.quartz.JobExecutionContext;
 import org.quartz.JobKey;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
+import org.quartz.impl.config.JobStoreSettings;
+import org.quartz.simpl.CascadingClassLoadHelper;
 import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.SchedulerSignaler;
 import org.quartz.support.MutableClock;
 
 /**
- * Misfire detection in {@link RAMJobStore} uses the scheduler's {@link Clock} (via the signaler), so it is
- * deterministic: nothing here depends on the wall clock (D-010).
+ * Misfire detection in {@link PersistentJobStore} uses the scheduler's {@link Clock} (via the signaler), so
+ * it is deterministic: nothing here depends on the wall clock (D-010). Runs the engine over the in-memory
+ * test delegate; the misfire pass the handler thread would run is called directly.
  */
-class RAMJobStoreClockTest {
+class PersistentJobStoreClockTest {
 
     private static final Instant T0 = Instant.parse("2030-01-01T00:00:00Z");
 
     private final MutableClock clock = new MutableClock(T0);
     private final List<Trigger> misfired = new ArrayList<>();
-    private RAMJobStore store;
+    private PersistentJobStore store;
 
     @BeforeEach
-    void setUp() {
-        store = new RAMJobStore();
-        store.setMisfireThreshold(Duration.ofSeconds(5));
+    void setUp() throws SchedulerException {
+        store = new InMemoryPersistentJobStore(new InMemoryStoreDelegate.Data(),
+                JobStoreSettings.builder().misfireThreshold(Duration.ofSeconds(5)).build());
+        store.setInstanceName("ClockTest");
+        store.setInstanceId("NON_CLUSTERED");
         CascadingClassLoadHelper loadHelper = new CascadingClassLoadHelper();
         loadHelper.initialize();
         store.initialize(loadHelper, new ClockSignaler());
+    }
+
+    private List<OperableTrigger> acquireAfterMisfirePass(Instant noLaterThan) throws Exception {
+        store.recoverMisfiredTriggers();
+        return store.acquireNextTriggers(noLaterThan, 1, Duration.ZERO);
     }
 
     @Test
@@ -64,7 +74,7 @@ class RAMJobStoreClockTest {
 
         clock.advance(Duration.ofMinutes(10)); // far in the future in real time, but the clock says so
 
-        List<OperableTrigger> acquired = store.acquireNextTriggers(clock.instant().plusSeconds(30), 1, Duration.ZERO);
+        List<OperableTrigger> acquired = acquireAfterMisfirePass(clock.instant().plusSeconds(30));
 
         assertThat(misfired).extracting(Trigger::getKey).extracting(Object::toString).containsExactly("DEFAULT.once");
         assertThat(acquired).singleElement()
@@ -78,7 +88,7 @@ class RAMJobStoreClockTest {
 
         clock.advance(Duration.ofSeconds(4)); // below the 5 s threshold
 
-        List<OperableTrigger> acquired = store.acquireNextTriggers(clock.instant().plusSeconds(30), 1, Duration.ZERO);
+        List<OperableTrigger> acquired = acquireAfterMisfirePass(clock.instant().plusSeconds(30));
 
         assertThat(misfired).isEmpty();
         assertThat(acquired).singleElement().extracting(Trigger::getNextFireTime).isEqualTo(T0);
@@ -93,7 +103,7 @@ class RAMJobStoreClockTest {
 
         clock.advance(Duration.ofMinutes(3).plusSeconds(30));
 
-        List<OperableTrigger> acquired = store.acquireNextTriggers(clock.instant().plusSeconds(60), 1, Duration.ZERO);
+        List<OperableTrigger> acquired = acquireAfterMisfirePass(clock.instant().plusSeconds(60));
 
         assertThat(misfired).hasSize(1);
         assertThat(acquired).singleElement()

@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.quartz.JobBuilder.newJob;
 import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
+import static org.awaitility.Awaitility.await;
 import static org.quartz.TriggerBuilder.newTrigger;
 
 import java.util.ArrayList;
@@ -39,12 +40,16 @@ import org.quartz.Job;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.quartz.JobPersistenceException;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerFactory;
 import org.quartz.SimpleTrigger;
 import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.impl.config.JobStoreSettings;
-import org.quartz.simpl.RAMJobStore;
+import org.quartz.impl.mongodb.MongoJobStore;
+import org.quartz.impl.mongodb.MongoJobStoreSettings;
+import org.quartz.support.AbstractMongoIT;
+import org.quartz.support.TestSchedulers;
 import org.quartz.spi.OperableTrigger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,14 +58,13 @@ import org.slf4j.LoggerFactory;
  * Integration test for reproducing QTZ-336 where we don't check for the scheduling change signal.
  */
 @Disabled /* ignoring now since the bug is years ago fixed, and the test takes a full minute! */
-class QTZ336_MissSchedulingChangeSignalTest {
-    private static final Logger LOG = LoggerFactory.getLogger(QTZ336_MissSchedulingChangeSignalTest.class);
+class QTZ336_MissSchedulingChangeSignalIT extends AbstractMongoIT {
+    private static final Logger LOG = LoggerFactory.getLogger(QTZ336_MissSchedulingChangeSignalIT.class);
 	
     @Test
     void simpleScheduleAlwaysFiredUnder20s() throws Exception {
-        // Use a custom RAMJobStore to produce context switches leading to the race condition
-        SlowRAMJobStore jobStore = new SlowRAMJobStore();
-        jobStore.setMisfireThreshold(JobStoreSettings.DEFAULT_MISFIRE_THRESHOLD);
+        // Use a custom job store to produce context switches leading to the race condition
+        SlowMongoJobStore jobStore = new SlowMongoJobStore();
         SchedulerFactory sf = StdSchedulerFactory.builder().jobStore(jobStore).build();
         Scheduler sched = sf.getScheduler();
 		LOG.info("------- Initialization Complete -----------");
@@ -89,11 +93,8 @@ class QTZ336_MissSchedulingChangeSignalTest {
 
         // wait long enough so that the scheduler has an opportunity to
         // run the job in theory around 50 times
-		try {
-            Thread.sleep(50000L);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+        await().pollDelay(Duration.ofSeconds(50)).atMost(Duration.ofSeconds(51)).until(() -> true);
+        sched.shutdown(true);
 		
         List<Long> durationBetweenFireTimesInMillis = CollectDurationBetweenFireTimesJob.getDurations();
         
@@ -140,11 +141,17 @@ class QTZ336_MissSchedulingChangeSignalTest {
     }
 
     /**
-     * Custom RAMJobStore for producing context switches.
+     * Custom job store for producing context switches.
      */
-    public static class SlowRAMJobStore extends RAMJobStore {
+    public static class SlowMongoJobStore extends MongoJobStore {
+        SlowMongoJobStore() {
+            super(AbstractMongoIT.mongoClient(), TestSchedulers.DATABASE, JobStoreSettings.defaults(),
+                    MongoJobStoreSettings.defaults());
+        }
+
         @Override
-        public List<OperableTrigger> acquireNextTriggers(Instant noLaterThan, int maxCount, Duration timeWindow) {
+        public List<OperableTrigger> acquireNextTriggers(Instant noLaterThan, int maxCount, Duration timeWindow)
+                throws JobPersistenceException {
             List<OperableTrigger> nextTriggers = super.acquireNextTriggers(noLaterThan, maxCount, timeWindow);
             try {
                 // Wait just a bit for hopefully having a context switch leading to the race condition
