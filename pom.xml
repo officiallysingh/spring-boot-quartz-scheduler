@@ -224,28 +224,6 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <parameters>true</parameters>
-                    <!-- Phase 2 temporary excludes (DECISIONS.md D-006); deleted in Phase 3 -->
-                    <excludes>
-                        <exclude>org/quartz/ExecuteInJTATransaction.java</exclude>
-                        <exclude>org/quartz/commonj/**</exclude>
-                        <exclude>org/quartz/ee/jmx/jboss/**</exclude>
-                        <exclude>org/quartz/ee/jta/**</exclude>
-                        <exclude>org/quartz/ee/servlet/**</exclude>
-                        <exclude>org/quartz/impl/jdbcjobstore/CUBRIDDelegate.java</exclude>
-                        <exclude>org/quartz/impl/jdbcjobstore/JTANonClusteredSemaphore.java</exclude>
-                        <exclude>org/quartz/impl/jdbcjobstore/WebLogicDelegate.java</exclude>
-                        <exclude>org/quartz/impl/jdbcjobstore/oracle/**</exclude>
-                        <exclude>org/quartz/plugins/SchedulerPluginWithUserTransactionSupport.java</exclude>
-                        <exclude>org/quartz/plugins/xml/**</exclude>
-                        <exclude>org/quartz/xml/**</exclude>
-                        <exclude>org/quartz/utils/C3p0PoolingConnectionProvider.java</exclude>
-                        <exclude>org/quartz/utils/HikariCpPoolingConnectionProvider.java</exclude>
-                        <exclude>org/quartz/utils/weblogic/**</exclude>
-                    </excludes>
-                    <testExcludes>
-                        <testExclude>org/quartz/xml/**</testExclude>
-                        <testExclude>org/quartz/impl/RemoteMBeanSchedulerTest.java</testExclude>
-                    </testExcludes>
                 </configuration>
             </plugin>
             <plugin>
@@ -306,24 +284,6 @@
                 <configuration>
                     <!-- classpath mode, like the compiler: there is no module-info, only Automatic-Module-Name -->
                     <legacyMode>true</legacyMode>
-                    <!-- same Phase 2 excludes as the compiler (D-006) -->
-                    <sourceFileExcludes>
-                        <sourceFileExclude>org/quartz/ExecuteInJTATransaction.java</sourceFileExclude>
-                        <sourceFileExclude>org/quartz/commonj/**</sourceFileExclude>
-                        <sourceFileExclude>org/quartz/ee/jmx/jboss/**</sourceFileExclude>
-                        <sourceFileExclude>org/quartz/ee/jta/**</sourceFileExclude>
-                        <sourceFileExclude>org/quartz/ee/servlet/**</sourceFileExclude>
-                        <sourceFileExclude>org/quartz/impl/jdbcjobstore/CUBRIDDelegate.java</sourceFileExclude>
-                        <sourceFileExclude>org/quartz/impl/jdbcjobstore/JTANonClusteredSemaphore.java</sourceFileExclude>
-                        <sourceFileExclude>org/quartz/impl/jdbcjobstore/WebLogicDelegate.java</sourceFileExclude>
-                        <sourceFileExclude>org/quartz/impl/jdbcjobstore/oracle/**</sourceFileExclude>
-                        <sourceFileExclude>org/quartz/plugins/SchedulerPluginWithUserTransactionSupport.java</sourceFileExclude>
-                        <sourceFileExclude>org/quartz/plugins/xml/**</sourceFileExclude>
-                        <sourceFileExclude>org/quartz/xml/**</sourceFileExclude>
-                        <sourceFileExclude>org/quartz/utils/C3p0PoolingConnectionProvider.java</sourceFileExclude>
-                        <sourceFileExclude>org/quartz/utils/HikariCpPoolingConnectionProvider.java</sourceFileExclude>
-                        <sourceFileExclude>org/quartz/utils/weblogic/**</sourceFileExclude>
-                    </sourceFileExcludes>
                 </configuration>
                 <executions>
                     <execution>
