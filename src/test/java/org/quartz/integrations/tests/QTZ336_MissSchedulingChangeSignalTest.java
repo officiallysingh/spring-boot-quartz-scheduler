@@ -28,11 +28,9 @@ import static org.quartz.JobBuilder.newJob;
 import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
 import static org.quartz.TriggerBuilder.newTrigger;
 
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
 
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -45,6 +43,7 @@ import org.quartz.Scheduler;
 import org.quartz.SchedulerFactory;
 import org.quartz.SimpleTrigger;
 import org.quartz.impl.StdSchedulerFactory;
+import org.quartz.impl.config.JobStoreSettings;
 import org.quartz.simpl.RAMJobStore;
 import org.quartz.spi.OperableTrigger;
 import org.slf4j.Logger;
@@ -59,18 +58,10 @@ class QTZ336_MissSchedulingChangeSignalTest {
 	
     @Test
     void simpleScheduleAlwaysFiredUnder20s() throws Exception {
-        Properties properties = new Properties();
-        InputStream propertiesIs = getClass().getResourceAsStream("/org/quartz/quartz.properties");
-        try {
-            properties.load(propertiesIs);
-        } finally {
-            propertiesIs.close();
-        }
-        properties.setProperty("org.quartz.scheduler.name", "QTZ336_MissSchedulingChangeSignalTest.simpleScheduleAlwaysFiredUnder20s");
-        properties.setProperty("org.quartz.scheduler.skipUpdateCheck", "true");
         // Use a custom RAMJobStore to produce context switches leading to the race condition
-        properties.setProperty("org.quartz.jobStore.class", SlowRAMJobStore.class.getName());
-        SchedulerFactory sf = new StdSchedulerFactory(properties);
+        SlowRAMJobStore jobStore = new SlowRAMJobStore();
+        jobStore.setMisfireThreshold(JobStoreSettings.DEFAULT_MISFIRE_THRESHOLD);
+        SchedulerFactory sf = StdSchedulerFactory.builder().jobStore(jobStore).build();
         Scheduler sched = sf.getScheduler();
 		LOG.info("------- Initialization Complete -----------");
 

@@ -21,15 +21,15 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.time.Duration;
 
 
 import org.junit.jupiter.api.Test;
-import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.listeners.JobListenerSupport;
+import org.quartz.support.TestSchedulers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -108,10 +108,8 @@ class DisallowConcurrentExecutionJobTest {
 		Trigger trigger2 = TriggerBuilder.newTrigger().withSchedule(SimpleScheduleBuilder.simpleSchedule())
 				.startAt(startTime).forJob(job1.getKey()).build();
 
-		Properties props = new Properties();
-		props.setProperty("org.quartz.scheduler.idleWaitTime", "1500");
-		props.setProperty("org.quartz.threadPool.threadCount", "2");
-		Scheduler scheduler = new StdSchedulerFactory(props).getScheduler();
+		Scheduler scheduler = TestSchedulers.create(
+				TestSchedulers.scheduler().idleWaitTime(Duration.ofMillis(1500)), 2);
 		scheduler.getContext().put(BARRIER, barrier);
 		scheduler.getContext().put(DATE_STAMPS, jobExecDates);
 		scheduler.getListenerManager().addJobListener(new TestJobListener(2));
@@ -145,11 +143,8 @@ class DisallowConcurrentExecutionJobTest {
 		Trigger trigger2 = TriggerBuilder.newTrigger().withSchedule(SimpleScheduleBuilder.simpleSchedule())
 				.startAt(startTime).forJob(job1.getKey()).build();
 
-		Properties props = new Properties();
-		props.setProperty("org.quartz.scheduler.idleWaitTime", "1500");
-		props.setProperty("org.quartz.scheduler.batchTriggerAcquisitionMaxCount", "2");
-		props.setProperty("org.quartz.threadPool.threadCount", "2");
-		Scheduler scheduler = new StdSchedulerFactory(props).getScheduler();
+		Scheduler scheduler = TestSchedulers.create(TestSchedulers.scheduler()
+				.idleWaitTime(Duration.ofMillis(1500)).batchTriggerAcquisitionMaxCount(2), 2);
 		scheduler.getContext().put(BARRIER, barrier);
 		scheduler.getContext().put(DATE_STAMPS, jobExecDates);
 		scheduler.getListenerManager().addJobListener(new TestJobListener(2));

@@ -22,14 +22,13 @@ import static org.quartz.JobBuilder.newJob;
 import static org.quartz.TriggerBuilder.newTrigger;
 
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 
 import org.junit.jupiter.api.Test;
-import org.quartz.impl.StdSchedulerFactory;
+import org.quartz.support.TestSchedulers;
 
 /**
  * Test job interruption
@@ -82,12 +81,8 @@ public class InterruptableJobTest  {
         
         // create a simple scheduler
         
-        Properties config = new Properties();
-        config.setProperty("org.quartz.scheduler.instanceName", "InterruptableJobTest_Scheduler");
-        config.setProperty("org.quartz.scheduler.instanceId", "AUTO");
-        config.setProperty("org.quartz.threadPool.threadCount", "2");
-        config.setProperty("org.quartz.threadPool.class", "org.quartz.simpl.SimpleThreadPool");
-        Scheduler sched = new StdSchedulerFactory(config).getScheduler();
+        Scheduler sched = TestSchedulers.create(TestSchedulers.scheduler()
+                .name("InterruptableJobTest_Scheduler").instanceIdAuto(true), 2);
         sched.start();
 
         // add a job with a trigger that will fire immediately

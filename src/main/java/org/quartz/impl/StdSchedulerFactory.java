@@ -18,6 +18,14 @@
 
 package org.quartz.impl;
 
+import java.time.Clock;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
 import org.quartz.JobListener;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerConfigException;
@@ -27,8 +35,14 @@ import org.quartz.TriggerListener;
 import org.quartz.core.JobRunShellFactory;
 import org.quartz.core.QuartzScheduler;
 import org.quartz.core.QuartzSchedulerResources;
+import org.quartz.impl.config.JobStoreSettings;
+import org.quartz.impl.config.QuartzSettings;
+import org.quartz.impl.config.SchedulerSettings;
+import org.quartz.impl.config.ThreadPoolSettings;
 import org.quartz.impl.matchers.EverythingMatcher;
+import org.quartz.simpl.CascadingClassLoadHelper;
 import org.quartz.simpl.RAMJobStore;
+import org.quartz.simpl.SimpleInstanceIdGenerator;
 import org.quartz.simpl.SimpleThreadPool;
 import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.InstanceIdGenerator;
@@ -37,74 +51,39 @@ import org.quartz.spi.JobStore;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spi.ThreadExecutor;
 import org.quartz.spi.ThreadPool;
-import org.quartz.utils.PropertiesParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.time.Clock;
-import java.time.Duration;
-import java.beans.BeanInfo;
-import java.beans.IntrospectionException;
-import java.beans.Introspector;
-import java.beans.PropertyDescriptor;
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
-import java.security.AccessControlException;
-import java.util.Collection;
-import java.util.Enumeration;
-import java.util.Locale;
-import java.util.Properties;
 
 /**
  * <p>
  * An implementation of <code>{@link org.quartz.SchedulerFactory}</code> that
- * does all of its work of creating a <code>QuartzScheduler</code> instance
- * based on the contents of a <code>Properties</code> file.
+ * creates a <code>QuartzScheduler</code> from typed settings
+ * ({@link QuartzSettings}) and collaborator instances.
+ * </p>
+ *
+ * <pre>
+ * Scheduler scheduler = StdSchedulerFactory.builder()
+ *         .scheduler(SchedulerSettings.builder().name("MyScheduler").build())
+ *         .threadPool(ThreadPoolSettings.builder().threadCount(4).build())
+ *         .plugin("jobHistory", new LoggingJobHistoryPlugin())
+ *         .build()
+ *         .getScheduler();
+ * </pre>
+ *
+ * <p>
+ * {@link ThreadPoolSettings} and {@link JobStoreSettings} configure the
+ * {@link SimpleThreadPool} and job store this factory creates when no
+ * {@link ThreadPool} / {@link JobStore} instance is supplied; a supplied
+ * instance is used as it is. The factory creates a fresh default thread pool
+ * and job store each time it instantiates a scheduler; supplied instances,
+ * plugins and listeners are reused.
  * </p>
  *
  * <p>
- * By default a properties file named "quartz.properties" is loaded from the
- * 'current working directory'. If that fails, then the "quartz.properties"
- * file located (as a resource) in the org/quartz package is loaded. If you
- * wish to use a file other than these defaults, you must define the system
- * property 'org.quartz.properties' to point to the file you want.
+ * Schedulers are bound by name in the {@link SchedulerRepository}:
+ * {@link #getScheduler()} returns the bound scheduler while it is not shut
+ * down, and creates a new one otherwise.
  * </p>
- *
- * <p>
- * Alternatively, you can explicitly initialize the factory by calling one of
- * the <code>initialize(xx)</code> methods before calling <code>getScheduler()</code>.
- * </p>
- *
- * <p>
- * See the sample properties files that are distributed with Quartz for
- * information about the various settings available within the file.
- * Full configuration documentation can be found at
- * http://www.quartz-scheduler.org/docs/index.html
- * </p>
- *
- * <p>
- * Instances of the specified <code>{@link org.quartz.spi.JobStore}</code>,
- * <code>{@link org.quartz.spi.ThreadPool}</code>, and other SPI classes will be created
- * by name, and then any additional properties specified for them in the config
- * file will be set on the instance by calling an equivalent 'set' method. For
- * example if the properties file contains the property
- * 'org.quartz.jobStore.myProp = 10' then after the JobStore class has been
- * instantiated, the method 'setMyProp()' will be called on it. Type conversion
- * to primitive Java types (int, long, float, double, boolean, and String) are
- * performed before calling the property's setter method.
- * </p>
- * 
- * <p>
- * One property can reference another property's value by specifying a value
- * following the convention of "$@other.property.name", for example, to reference
- * the scheduler's instance name as the value for some other property, you
- * would use "$@org.quartz.scheduler.instanceName".
- * </p> 
  *
  * @author James House
  * @author Anthony Eden
@@ -112,814 +91,104 @@ import java.util.Properties;
  */
 public class StdSchedulerFactory implements SchedulerFactory {
 
-    /*
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     *
-     * Constants.
-     *
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     */
+    private final QuartzSettings settings;
 
-    public static final String PROPERTIES_FILE = "org.quartz.properties";
+    private final ThreadPool threadPool;
 
-    public static final String PROP_SCHED_INSTANCE_NAME = "org.quartz.scheduler.instanceName";
+    private final JobStore jobStore;
 
-    public static final String PROP_SCHED_INSTANCE_ID = "org.quartz.scheduler.instanceId";
+    private final JobFactory jobFactory;
 
-    public static final String PROP_SCHED_INSTANCE_ID_GENERATOR_PREFIX = "org.quartz.scheduler.instanceIdGenerator";
+    private final InstanceIdGenerator instanceIdGenerator;
 
-    public static final String PROP_SCHED_INSTANCE_ID_GENERATOR_CLASS =
-        PROP_SCHED_INSTANCE_ID_GENERATOR_PREFIX + ".class";
+    private final ClassLoadHelper classLoadHelper;
 
-    public static final String PROP_SCHED_THREAD_NAME = "org.quartz.scheduler.threadName";
+    private final ThreadExecutor threadExecutor;
 
-    public static final String PROP_SCHED_BATCH_TIME_WINDOW = "org.quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow";
+    private final Map<String, SchedulerPlugin> plugins;
 
-    public static final String PROP_SCHED_MAX_BATCH_SIZE = "org.quartz.scheduler.batchTriggerAcquisitionMaxCount";
+    private final List<JobListener> jobListeners;
 
-    public static final String PROP_SCHED_WRAP_JOB_IN_USER_TX = "org.quartz.scheduler.wrapJobExecutionInUserTransaction";
+    private final List<TriggerListener> triggerListeners;
 
-    public static final String PROP_SCHED_USER_TX_URL = "org.quartz.scheduler.userTransactionURL";
-
-    public static final String PROP_SCHED_IDLE_WAIT_TIME = "org.quartz.scheduler.idleWaitTime";
-
-    public static final String PROP_SCHED_DB_FAILURE_RETRY_INTERVAL = "org.quartz.scheduler.dbFailureRetryInterval";
-
-    public static final String PROP_SCHED_MAKE_SCHEDULER_THREAD_DAEMON = "org.quartz.scheduler.makeSchedulerThreadDaemon";
-
-    public static final String PROP_SCHED_SCHEDULER_THREADS_INHERIT_CONTEXT_CLASS_LOADER_OF_INITIALIZING_THREAD = "org.quartz.scheduler.threadsInheritContextClassLoaderOfInitializer";
-
-    public static final String PROP_SCHED_CLASS_LOAD_HELPER_CLASS = "org.quartz.scheduler.classLoadHelper.class";
-
-    public static final String PROP_SCHED_JOB_FACTORY_CLASS = "org.quartz.scheduler.jobFactory.class";
-
-    public static final String PROP_SCHED_JOB_FACTORY_PREFIX = "org.quartz.scheduler.jobFactory";
-
-    public static final String PROP_SCHED_INTERRUPT_JOBS_ON_SHUTDOWN = "org.quartz.scheduler.interruptJobsOnShutdown";
-
-    public static final String PROP_SCHED_INTERRUPT_JOBS_ON_SHUTDOWN_WITH_WAIT = "org.quartz.scheduler.interruptJobsOnShutdownWithWait";
-
-    public static final String PROP_SCHED_CONTEXT_PREFIX = "org.quartz.context.key";
-
-    public static final String PROP_THREAD_POOL_PREFIX = "org.quartz.threadPool";
-
-    public static final String PROP_THREAD_POOL_CLASS = "org.quartz.threadPool.class";
-
-    public static final String PROP_JOB_STORE_PREFIX = "org.quartz.jobStore";
-
-    public static final String PROP_SCHED_NAME = "schedName";
-
-    public static final String PROP_JOB_STORE_CLASS = "org.quartz.jobStore.class";
-
-    public static final String PROP_JOB_STORE_USE_PROP = "org.quartz.jobStore.useProperties";
-
-    public static final String PROP_PLUGIN_PREFIX = "org.quartz.plugin";
-
-    public static final String PROP_PLUGIN_CLASS = "class";
-
-    public static final String PROP_JOB_LISTENER_PREFIX = "org.quartz.jobListener";
-
-    public static final String PROP_TRIGGER_LISTENER_PREFIX = "org.quartz.triggerListener";
-
-    public static final String PROP_LISTENER_CLASS = "class";
-
-    public static final String DEFAULT_INSTANCE_ID = "NON_CLUSTERED";
-
-    public static final String AUTO_GENERATE_INSTANCE_ID = "AUTO";
-
-    public static final String PROP_THREAD_EXECUTOR = "org.quartz.threadExecutor";
-
-    public static final String PROP_THREAD_EXECUTOR_CLASS = "org.quartz.threadExecutor.class";
-
-    public static final String SYSTEM_PROPERTY_AS_INSTANCE_ID = "SYS_PROP";
-    
-    public static final String TIMEBROKER_CLASS = "org.quartz.scheduler.timeBroker.class";
-
-
-    /*
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     *
-     * Data members.
-     *
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     */
-
-    private SchedulerException initException = null;
-
-    private String propSrc = null;
-
-    private PropertiesParser cfg;
-
-    private Clock clock = Clock.systemUTC();
+    private final Clock clock;
 
     private final Logger log = LoggerFactory.getLogger(getClass());
 
-    //  private Scheduler scheduler;
-
-    /*
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     *
-     * Constructors.
-     *
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     */
-
     /**
-     * Create an uninitialized StdSchedulerFactory.
+     * Create a factory with default settings ({@link QuartzSettings#defaults()}).
      */
-    /**
-     * Sets the {@link Clock} the scheduler created by this factory uses as its source of "now".
-     * Must be called before the scheduler is created; defaults to {@link Clock#systemUTC()}.
-     */
-    public void setClock(Clock clock) {
-        if (clock == null) {
-            throw new IllegalArgumentException("Clock cannot be null.");
-        }
-        this.clock = clock;
-    }
-
     public StdSchedulerFactory() {
+        this(builder());
     }
 
     /**
-     * Create a StdSchedulerFactory that has been initialized via
-     * <code>{@link #initialize(Properties)}</code>.
-     *
-     * @see #initialize(Properties)
+     * Create a factory with the given settings and default collaborators.
      */
-    public StdSchedulerFactory(Properties props) throws SchedulerException {
-        initialize(props);
+    public StdSchedulerFactory(QuartzSettings settings) {
+        this(builder().settings(settings));
     }
 
-    /**
-     * Create a StdSchedulerFactory that has been initialized via
-     * <code>{@link #initialize(String)}</code>.
-     *
-     * @see #initialize(String)
-     */
-    public StdSchedulerFactory(String fileName) throws SchedulerException {
-        initialize(fileName);
+    private StdSchedulerFactory(Builder builder) {
+        this.settings = new QuartzSettings(builder.scheduler, builder.threadPoolSettings, builder.jobStoreSettings);
+        this.threadPool = builder.threadPool;
+        this.jobStore = builder.jobStore;
+        this.jobFactory = builder.jobFactory;
+        this.instanceIdGenerator = builder.instanceIdGenerator;
+        this.classLoadHelper = builder.classLoadHelper;
+        this.threadExecutor = builder.threadExecutor;
+        this.plugins = new LinkedHashMap<>(builder.plugins);
+        this.jobListeners = List.copyOf(builder.jobListeners);
+        this.triggerListeners = List.copyOf(builder.triggerListeners);
+        this.clock = builder.clock;
     }
 
-    /*
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     *
-     * Interface.
-     *
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     */
+    public static Builder builder() {
+        return new Builder();
+    }
 
     public Logger getLog() {
         return log;
     }
 
-    /**
-     * <p>
-     * Initialize the <code>{@link org.quartz.SchedulerFactory}</code> with
-     * the contents of a <code>Properties</code> file and overriding System
-     * properties.
-     * </p>
-     *
-     * <p>
-     * By default a properties file named "quartz.properties" is loaded from
-     * the 'current working directory'. If that fails, then the
-     * "quartz.properties" file located (as a resource) in the org/quartz
-     * package is loaded. If you wish to use a file other than these defaults,
-     * you must define the system property 'org.quartz.properties' to point to
-     * the file you want.
-     * </p>
-     *
-     * <p>
-     * System properties (environment variables, and -D definitions on the
-     * command-line when running the JVM) override any properties in the
-     * loaded file.  For this reason, you may want to use a different initialize()
-     * method if your application security policy prohibits access to
-     * <code>{@link java.lang.System#getProperties()}</code>.
-     * </p>
-     */
-    public void initialize() throws SchedulerException {
-        // short-circuit if already initialized
-        if (cfg != null) {
-            return;
-        }
-        if (initException != null) {
-            throw initException;
-        }
-
-        String requestedFile = System.getProperty(PROPERTIES_FILE);
-        String propFileName = requestedFile != null ? requestedFile
-                : "quartz.properties";
-        File propFile = new File(propFileName);
-
-        Properties props = new Properties();
-
-        InputStream in = null;
-
-        try {
-            if (propFile.exists()) {
-                try {
-                    if (requestedFile != null) {
-                        propSrc = "specified file: '" + requestedFile + "'";
-                    } else {
-                        propSrc = "default file in current working dir: 'quartz.properties'";
-                    }
-
-                    in = new BufferedInputStream(new FileInputStream(propFileName));
-                    props.load(in);
-
-                } catch (IOException ioe) {
-                    initException = new SchedulerException("Properties file: '"
-                            + propFileName + "' could not be read.", ioe);
-                    throw initException;
-                }
-            } else if (requestedFile != null) {
-                in =
-                    Thread.currentThread().getContextClassLoader().getResourceAsStream(requestedFile);
-
-                if(in == null) {
-                    initException = new SchedulerException("Properties file: '"
-                        + requestedFile + "' could not be found.");
-                    throw initException;
-                }
-
-                propSrc = "specified file: '" + requestedFile + "' in the class resource path.";
-
-                in = new BufferedInputStream(in);
-                try {
-                    props.load(in);
-                } catch (IOException ioe) {
-                    initException = new SchedulerException("Properties file: '"
-                            + requestedFile + "' could not be read.", ioe);
-                    throw initException;
-                }
-
-            } else {
-                propSrc = "default resource file in Quartz package: 'quartz.properties'";
-
-                ClassLoader cl = getClass().getClassLoader();
-                if(cl == null)
-                    cl = findClassLoader();
-                if(cl == null)
-                    throw new SchedulerConfigException("Unable to find a class loader on the current thread or class.");
-
-                in = cl.getResourceAsStream(
-                        "quartz.properties");
-
-                if (in == null) {
-                    in = cl.getResourceAsStream(
-                            "/quartz.properties");
-                }
-                if (in == null) {
-                    in = cl.getResourceAsStream(
-                            "org/quartz/quartz.properties");
-                }
-                if (in == null) {
-                    initException = new SchedulerException(
-                            "Default quartz.properties not found in class path");
-                    throw initException;
-                }
-                try {
-                    props.load(in);
-                } catch (IOException ioe) {
-                    initException = new SchedulerException(
-                            "Resource properties file: 'org/quartz/quartz.properties' "
-                                    + "could not be read from the classpath.", ioe);
-                    throw initException;
-                }
-            }
-        } finally {
-            if(in != null) {
-                try { in.close(); } catch(IOException ignore) { /* ignore */ }
-            }
-        }
-
-        initialize(overrideWithSysProps(props, getLog()));
-    }
-
-    /**
-     * Add all System properties to the given <code>props</code>.  Will override
-     * any properties that already exist in the given <code>props</code>.
-     */
-    // Visible for testing
-    static Properties overrideWithSysProps(Properties props, Logger log) {
-        Properties sysProps = null;
-        try {
-            sysProps = System.getProperties();
-        } catch (AccessControlException e) {
-            log.warn(
-                "Skipping overriding quartz properties with System properties " +
-                "during initialization because of an AccessControlException.  " +
-                "This is likely due to not having read/write access for " +
-                "java.util.PropertyPermission as required by java.lang.System.getProperties().  " +
-                "To resolve this warning, either add this permission to your policy file or " +
-                "use a non-default version of initialize().",
-                e);
-        }
-
-        if (sysProps != null) {
-            // Use the propertyNames to iterate to avoid 
-            // a possible ConcurrentModificationException
-            Enumeration<?> en = sysProps.propertyNames();
-            while (en.hasMoreElements()) {
-                Object name = en.nextElement();
-                Object value = sysProps.get(name);
-                if (name instanceof String && value instanceof String) {
-                    // Properties javadoc discourages use of put so we use setProperty
-                    props.setProperty((String) name, (String) value);
-                }
-            }
-        }
-
-        return props;
-    }
-
-    /**
-     * <p>
-     * Initialize the <code>{@link org.quartz.SchedulerFactory}</code> with
-     * the contents of the <code>Properties</code> file with the given
-     * name.
-     * </p>
-     */
-    public void initialize(String filename) throws SchedulerException {
-        // short-circuit if already initialized
-        if (cfg != null) {
-            return;
-        }
-
-        if (initException != null) {
-            throw initException;
-        }
-
-        InputStream is;
-        Properties props = new Properties();
-
-        is = Thread.currentThread().getContextClassLoader().getResourceAsStream(filename);
-
-        try {
-            if(is != null) {
-                is = new BufferedInputStream(is);
-                propSrc = "the specified file : '" + filename + "' from the class resource path.";
-            } else {
-                is = new BufferedInputStream(new FileInputStream(filename));
-                propSrc = "the specified file : '" + filename + "'";
-            }
-            props.load(is);
-        } catch (IOException ioe) {
-            initException = new SchedulerException("Properties file: '"
-                    + filename + "' could not be read.", ioe);
-            throw initException;
-        }
-        finally {
-            if(is != null)
-                try { is.close(); } catch(IOException ignore) {}
-        }
-
-        initialize(props);
-    }
-
-    /**
-     * <p>
-     * Initialize the <code>{@link org.quartz.SchedulerFactory}</code> with
-     * the contents of the <code>Properties</code> file opened with the
-     * given <code>InputStream</code>.
-     * </p>
-     */
-    public void initialize(InputStream propertiesStream)
-        throws SchedulerException {
-        // short-circuit if already initialized
-        if (cfg != null) {
-            return;
-        }
-
-        if (initException != null) {
-            throw initException;
-        }
-
-        Properties props = new Properties();
-
-        if (propertiesStream != null) {
-            try {
-                props.load(propertiesStream);
-                propSrc = "an externally opened InputStream.";
-            } catch (IOException e) {
-                initException = new SchedulerException(
-                        "Error loading property data from InputStream", e);
-                throw initException;
-            }
-        } else {
-            initException = new SchedulerException(
-                    "Error loading property data from InputStream - InputStream is null.");
-            throw initException;
-        }
-
-        initialize(props);
-    }
-
-    /**
-     * <p>
-     * Initialize the <code>{@link org.quartz.SchedulerFactory}</code> with
-     * the contents of the given <code>Properties</code> object.
-     * </p>
-     */
-    public void initialize(Properties props) {
-        if (propSrc == null) {
-            propSrc = "an externally provided properties instance.";
-        }
-
-        this.cfg = new PropertiesParser(props);
+    public QuartzSettings getSettings() {
+        return settings;
     }
 
     private Scheduler instantiate() throws SchedulerException {
-        if (cfg == null) {
-            initialize();
-        }
-
-        if (initException != null) {
-            throw initException;
-        }
-
-        JobStore js;
-        ThreadPool tp;
-        QuartzScheduler qs = null;
-        String instanceIdGeneratorClass = null;
-        Properties tProps;
-        String userTXLocation = null;
-        boolean wrapJobInTx = false;
-        boolean autoId = false;
-        long idleWaitTime = -1;
-        long dbFailureRetry = 15000L; // 15 secs
-        String classLoadHelperClass;
-        String jobFactoryClass;
-        ThreadExecutor threadExecutor;
-
+        SchedulerSettings sched = settings.scheduler();
+        String schedName = sched.name();
+        String schedInstId = sched.instanceId();
+        boolean threadsInheritInitializersClassLoader = sched.threadsInheritContextClassLoaderOfInitializer();
 
         SchedulerRepository schedRep = SchedulerRepository.getInstance();
 
-        // Get Scheduler Properties
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        String schedName = cfg.getStringProperty(PROP_SCHED_INSTANCE_NAME,
-                "QuartzScheduler");
-
-        String threadName = cfg.getStringProperty(PROP_SCHED_THREAD_NAME,
-                schedName + "_QuartzSchedulerThread");
-
-        String schedInstId = cfg.getStringProperty(PROP_SCHED_INSTANCE_ID,
-                DEFAULT_INSTANCE_ID);
-
-        if (schedInstId.equals(AUTO_GENERATE_INSTANCE_ID)) {
-            autoId = true;
-            instanceIdGeneratorClass = cfg.getStringProperty(
-                    PROP_SCHED_INSTANCE_ID_GENERATOR_CLASS,
-                    "org.quartz.simpl.SimpleInstanceIdGenerator");
-        }
-        else if (schedInstId.equals(SYSTEM_PROPERTY_AS_INSTANCE_ID)) {
-            autoId = true;
-            instanceIdGeneratorClass = 
-                    "org.quartz.simpl.SystemPropertyInstanceIdGenerator";
-        }
-
-        userTXLocation = cfg.getStringProperty(PROP_SCHED_USER_TX_URL,
-                userTXLocation);
-        if (userTXLocation != null && userTXLocation.trim().isEmpty()) {
-            userTXLocation = null;
-        }
-
-        classLoadHelperClass = cfg.getStringProperty(
-                PROP_SCHED_CLASS_LOAD_HELPER_CLASS,
-                "org.quartz.simpl.CascadingClassLoadHelper");
-        wrapJobInTx = cfg.getBooleanProperty(PROP_SCHED_WRAP_JOB_IN_USER_TX,
-                wrapJobInTx);
-
-        jobFactoryClass = cfg.getStringProperty(
-                PROP_SCHED_JOB_FACTORY_CLASS, null);
-
-        idleWaitTime = cfg.getLongProperty(PROP_SCHED_IDLE_WAIT_TIME,
-                idleWaitTime);
-        if(idleWaitTime > -1 && idleWaitTime < 1000) {
-            throw new SchedulerException("org.quartz.scheduler.idleWaitTime of less than 1000ms is not legal.");
-        }
-        
-        dbFailureRetry = cfg.getLongProperty(PROP_SCHED_DB_FAILURE_RETRY_INTERVAL, dbFailureRetry);
-        if (dbFailureRetry < 0) {
-            throw new SchedulerException(PROP_SCHED_DB_FAILURE_RETRY_INTERVAL + " of less than 0 ms is not legal.");
-        }
-
-        boolean makeSchedulerThreadDaemon =
-            cfg.getBooleanProperty(PROP_SCHED_MAKE_SCHEDULER_THREAD_DAEMON);
-
-        boolean threadsInheritInitializersClassLoader =
-            cfg.getBooleanProperty(PROP_SCHED_SCHEDULER_THREADS_INHERIT_CONTEXT_CLASS_LOADER_OF_INITIALIZING_THREAD);
-
-        long batchTimeWindow = cfg.getLongProperty(PROP_SCHED_BATCH_TIME_WINDOW, 0L);
-        int maxBatchSize = cfg.getIntProperty(PROP_SCHED_MAX_BATCH_SIZE, 1);
-
-        boolean interruptJobsOnShutdown = cfg.getBooleanProperty(PROP_SCHED_INTERRUPT_JOBS_ON_SHUTDOWN, false);
-        boolean interruptJobsOnShutdownWithWait = cfg.getBooleanProperty(PROP_SCHED_INTERRUPT_JOBS_ON_SHUTDOWN_WITH_WAIT, false);
-
-        Properties schedCtxProps = cfg.getPropertyGroup(PROP_SCHED_CONTEXT_PREFIX, true);
-
-        // Create class load helper
-        ClassLoadHelper loadHelper;
-        try {
-            loadHelper = (ClassLoadHelper) loadClass(classLoadHelperClass).getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            throw new SchedulerConfigException(
-                    "Unable to instantiate class load helper class: "
-                            + e.getMessage(), e);
-        }
+        ClassLoadHelper loadHelper = classLoadHelper != null ? classLoadHelper : new CascadingClassLoadHelper();
         loadHelper.initialize();
 
-        
-        JobFactory jobFactory = null;
-        if(jobFactoryClass != null) {
-            try {
-                jobFactory = (JobFactory) loadHelper.loadClass(jobFactoryClass).getDeclaredConstructor().newInstance();
-            } catch (Exception e) {
-                throw new SchedulerConfigException(
-                        "Unable to instantiate JobFactory class: "
-                                + e.getMessage(), e);
-            }
-
-            tProps = cfg.getPropertyGroup(PROP_SCHED_JOB_FACTORY_PREFIX, true);
-            try {
-                setBeanProps(jobFactory, tProps);
-            } catch (Exception e) {
-                initException = new SchedulerException("JobFactory class '"
-                        + jobFactoryClass + "' props could not be configured.", e);
-                throw initException;
-            }
-        }
-
-        InstanceIdGenerator instanceIdGenerator = null;
-        if(instanceIdGeneratorClass != null) {
-            try {
-                instanceIdGenerator = (InstanceIdGenerator) loadHelper.loadClass(instanceIdGeneratorClass)
-                        .getDeclaredConstructor()
-                        .newInstance();
-            } catch (Exception e) {
-                throw new SchedulerConfigException(
-                        "Unable to instantiate InstanceIdGenerator class: "
-                        + e.getMessage(), e);
-            }
-
-            tProps = cfg.getPropertyGroup(PROP_SCHED_INSTANCE_ID_GENERATOR_PREFIX, true);
-            try {
-                setBeanProps(instanceIdGenerator, tProps);
-            } catch (Exception e) {
-                initException = new SchedulerException("InstanceIdGenerator class '"
-                        + instanceIdGeneratorClass + "' props could not be configured.", e);
-                throw initException;
-            }
-        }
-
-        // Get ThreadPool Properties
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        String tpClass = cfg.getStringProperty(PROP_THREAD_POOL_CLASS, SimpleThreadPool.class.getName());
-
-        if (tpClass == null) {
-            initException = new SchedulerException(
-                    "ThreadPool class not specified. ");
-            throw initException;
-        }
-
-        try {
-            tp = (ThreadPool) loadHelper.loadClass(tpClass).getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            initException = new SchedulerException("ThreadPool class '"
-                    + tpClass + "' could not be instantiated.", e);
-            throw initException;
-        }
-        tProps = cfg.getPropertyGroup(PROP_THREAD_POOL_PREFIX, true);
-        try {
-            setBeanProps(tp, tProps);
-        } catch (Exception e) {
-            initException = new SchedulerException("ThreadPool class '"
-                    + tpClass + "' props could not be configured.", e);
-            throw initException;
-        }
-
-        // Get JobStore Properties
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        String jsClass = cfg.getStringProperty(PROP_JOB_STORE_CLASS,
-                RAMJobStore.class.getName());
-
-        if (jsClass == null) {
-            initException = new SchedulerException(
-                    "JobStore class not specified. ");
-            throw initException;
-        }
-
-        try {
-            js = (JobStore) loadHelper.loadClass(jsClass).getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            initException = new SchedulerException("JobStore class '" + jsClass
-                    + "' could not be instantiated.", e);
-            throw initException;
-        }
-
+        ThreadPool tp = threadPool != null ? threadPool : createThreadPool(settings.threadPool());
+        JobStore js = jobStore != null ? jobStore : createJobStore(settings.jobStore());
         SchedulerDetailsSetter.setDetails(js, schedName, schedInstId);
 
-        tProps = cfg.getPropertyGroup(PROP_JOB_STORE_PREFIX, true);
-        try {
-            setBeanProps(js, tProps);
-        } catch (Exception e) {
-            initException = new SchedulerException("JobStore class '" + jsClass
-                    + "' props could not be configured.", e);
-            throw initException;
-        }
+        ThreadExecutor executor = threadExecutor != null ? threadExecutor : new DefaultThreadExecutor();
 
-        // Set up any SchedulerPlugins
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        String[] pluginNames = cfg.getPropertyGroups(PROP_PLUGIN_PREFIX);
-        SchedulerPlugin[] plugins = new SchedulerPlugin[pluginNames.length];
-        for (int i = 0; i < pluginNames.length; i++) {
-            Properties pp = cfg.getPropertyGroup(PROP_PLUGIN_PREFIX + "."
-                    + pluginNames[i], true);
-
-            String plugInClass = pp.getProperty(PROP_PLUGIN_CLASS, null);
-
-            if (plugInClass == null) {
-                initException = new SchedulerException(
-                        "SchedulerPlugin class not specified for plugin '"
-                                + pluginNames[i] + "'");
-                throw initException;
-            }
-            SchedulerPlugin plugin;
-            try {
-                plugin = (SchedulerPlugin)
-                        loadHelper.loadClass(plugInClass).getDeclaredConstructor().newInstance();
-            } catch (Exception e) {
-                initException = new SchedulerException(
-                        "SchedulerPlugin class '" + plugInClass
-                                + "' could not be instantiated.", e);
-                throw initException;
-            }
-            try {
-                setBeanProps(plugin, pp);
-            } catch (Exception e) {
-                initException = new SchedulerException(
-                        "JobStore SchedulerPlugin '" + plugInClass
-                                + "' props could not be configured.", e);
-                throw initException;
-            }
-
-            plugins[i] = plugin;
-        }
-
-        // Set up any JobListeners
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        Class<?>[] strArg = new Class[] { String.class };
-        String[] jobListenerNames = cfg.getPropertyGroups(PROP_JOB_LISTENER_PREFIX);
-        JobListener[] jobListeners = new JobListener[jobListenerNames.length];
-        for (int i = 0; i < jobListenerNames.length; i++) {
-            Properties lp = cfg.getPropertyGroup(PROP_JOB_LISTENER_PREFIX + "."
-                    + jobListenerNames[i], true);
-
-            String listenerClass = lp.getProperty(PROP_LISTENER_CLASS, null);
-
-            if (listenerClass == null) {
-                initException = new SchedulerException(
-                        "JobListener class not specified for listener '"
-                                + jobListenerNames[i] + "'");
-                throw initException;
-            }
-            JobListener listener;
-            try {
-                listener = (JobListener)
-                        loadHelper.loadClass(listenerClass).getDeclaredConstructor().newInstance();
-            } catch (Exception e) {
-                initException = new SchedulerException(
-                        "JobListener class '" + listenerClass
-                                + "' could not be instantiated.", e);
-                throw initException;
-            }
-            try {
-                Method nameSetter = null;
-                try { 
-                    nameSetter = listener.getClass().getMethod("setName", strArg);
-                }
-                catch(NoSuchMethodException ignore) { 
-                    /* do nothing */ 
-                }
-                if(nameSetter != null) {
-                    nameSetter.invoke(listener, new Object[] {jobListenerNames[i] } );
-                }
-                setBeanProps(listener, lp);
-            } catch (Exception e) {
-                initException = new SchedulerException(
-                        "JobListener '" + listenerClass
-                                + "' props could not be configured.", e);
-                throw initException;
-            }
-            jobListeners[i] = listener;
-        }
-
-        // Set up any TriggerListeners
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        String[] triggerListenerNames = cfg.getPropertyGroups(PROP_TRIGGER_LISTENER_PREFIX);
-        TriggerListener[] triggerListeners = new TriggerListener[triggerListenerNames.length];
-        for (int i = 0; i < triggerListenerNames.length; i++) {
-            Properties lp = cfg.getPropertyGroup(PROP_TRIGGER_LISTENER_PREFIX + "."
-                    + triggerListenerNames[i], true);
-
-            String listenerClass = lp.getProperty(PROP_LISTENER_CLASS, null);
-
-            if (listenerClass == null) {
-                initException = new SchedulerException(
-                        "TriggerListener class not specified for listener '"
-                                + triggerListenerNames[i] + "'");
-                throw initException;
-            }
-            TriggerListener listener;
-            try {
-                listener = (TriggerListener)
-                        loadHelper.loadClass(listenerClass).getDeclaredConstructor().newInstance();
-            } catch (Exception e) {
-                initException = new SchedulerException(
-                        "TriggerListener class '" + listenerClass
-                                + "' could not be instantiated.", e);
-                throw initException;
-            }
-            try {
-                Method nameSetter = null;
-                try { 
-                    nameSetter = listener.getClass().getMethod("setName", strArg);
-                }
-                catch(NoSuchMethodException ignore) { /* do nothing */ }
-                if(nameSetter != null) {
-                    nameSetter.invoke(listener, new Object[] {triggerListenerNames[i] } );
-                }
-                setBeanProps(listener, lp);
-            } catch (Exception e) {
-                initException = new SchedulerException(
-                        "TriggerListener '" + listenerClass
-                                + "' props could not be configured.", e);
-                throw initException;
-            }
-            triggerListeners[i] = listener;
-        }
-
+        QuartzScheduler qs = null;
         boolean tpInited = false;
         boolean qsInited = false;
-
-
-        // Get ThreadExecutor Properties
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        String threadExecutorClass = cfg.getStringProperty(PROP_THREAD_EXECUTOR_CLASS);
-        if (threadExecutorClass != null) {
-            tProps = cfg.getPropertyGroup(PROP_THREAD_EXECUTOR, true);
-            try {
-                threadExecutor = (ThreadExecutor) loadHelper.loadClass(threadExecutorClass)
-                        .getDeclaredConstructor()
-                        .newInstance();
-                log.info("Using custom implementation for ThreadExecutor: {}", threadExecutorClass);
-
-                setBeanProps(threadExecutor, tProps);
-            } catch (Exception e) {
-                initException = new SchedulerException(
-                        "ThreadExecutor class '" + threadExecutorClass + "' could not be instantiated.", e);
-                throw initException;
-            }
-        } else {
-            log.info("Using default implementation for ThreadExecutor");
-            threadExecutor = new DefaultThreadExecutor();
-        }
-
-
 
         // Fire everything up
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         try {
-                
-    
-            JobRunShellFactory jrsf; // Create correct run-shell factory...
-    
-            // JTA support was removed (DECISIONS.md D-006, D-009); Spring transactions come in Phase 8
-            if (wrapJobInTx || userTXLocation != null) {
-                throw new SchedulerConfigException("JTA is not supported: remove "
-                        + PROP_SCHED_WRAP_JOB_IN_USER_TX + " and " + PROP_SCHED_USER_TX_URL);
-            }
-            jrsf = new StdJobRunShellFactory();
+            JobRunShellFactory jrsf = new StdJobRunShellFactory();
 
-            // the TimeBroker SPI was replaced by java.time.Clock (DECISIONS.md D-010)
-            if (cfg.getStringProperty(TIMEBROKER_CLASS) != null) {
-                throw new SchedulerConfigException("TimeBroker is not supported: remove "
-                        + TIMEBROKER_CLASS + " and supply a java.time.Clock with setClock(Clock)");
-            }
-    
-            if (autoId) {
+            if (sched.instanceIdAuto()) {
                 try {
-                  schedInstId = DEFAULT_INSTANCE_ID;
-                  if (js.isClustered()) {
-                      schedInstId = instanceIdGenerator.generateInstanceId();
-                  }
+                    schedInstId = SchedulerSettings.DEFAULT_INSTANCE_ID;
+                    if (js.isClustered()) {
+                        InstanceIdGenerator generator = instanceIdGenerator != null
+                                ? instanceIdGenerator : new SimpleInstanceIdGenerator();
+                        schedInstId = generator.generateInstanceId();
+                    }
                 } catch (Exception e) {
                     getLog().error("Couldn't generate instance Id!", e);
                     throw new IllegalStateException("Cannot run without an instance id.");
@@ -928,53 +197,52 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
             QuartzSchedulerResources rsrcs = new QuartzSchedulerResources();
             rsrcs.setName(schedName);
-            rsrcs.setThreadName(threadName);
+            rsrcs.setThreadName(sched.effectiveThreadName());
             rsrcs.setInstanceId(schedInstId);
             rsrcs.setJobRunShellFactory(jrsf);
-            rsrcs.setMakeSchedulerThreadDaemon(makeSchedulerThreadDaemon);
+            rsrcs.setMakeSchedulerThreadDaemon(sched.makeSchedulerThreadDaemon());
             rsrcs.setThreadsInheritInitializersClassLoadContext(threadsInheritInitializersClassLoader);
-            rsrcs.setBatchTimeWindow(Duration.ofMillis(batchTimeWindow));
-            rsrcs.setMaxBatchSize(maxBatchSize);
-            rsrcs.setInterruptJobsOnShutdown(interruptJobsOnShutdown);
-            rsrcs.setInterruptJobsOnShutdownWithWait(interruptJobsOnShutdownWithWait);
+            rsrcs.setBatchTimeWindow(sched.batchTriggerAcquisitionFireAheadTimeWindow());
+            rsrcs.setMaxBatchSize(sched.batchTriggerAcquisitionMaxCount());
+            rsrcs.setInterruptJobsOnShutdown(sched.interruptJobsOnShutdown());
+            rsrcs.setInterruptJobsOnShutdownWithWait(sched.interruptJobsOnShutdownWithWait());
             rsrcs.setClock(clock);
 
             SchedulerDetailsSetter.setDetails(tp, schedName, schedInstId);
 
-            rsrcs.setThreadExecutor(threadExecutor);
-            threadExecutor.initialize();
+            rsrcs.setThreadExecutor(executor);
+            executor.initialize();
 
             rsrcs.setThreadPool(tp);
-            if(tp instanceof SimpleThreadPool) {
-                if(threadsInheritInitializersClassLoader)
-                    ((SimpleThreadPool)tp).setThreadsInheritContextClassLoaderOfInitializingThread(threadsInheritInitializersClassLoader);
+            if (tp instanceof SimpleThreadPool && threadsInheritInitializersClassLoader) {
+                ((SimpleThreadPool) tp).setThreadsInheritContextClassLoaderOfInitializingThread(true);
             }
             tp.initialize();
             tpInited = true;
-    
+
             rsrcs.setJobStore(js);
-    
+
             // add plugins
-            for (SchedulerPlugin plugin : plugins) {
+            for (SchedulerPlugin plugin : plugins.values()) {
                 rsrcs.addSchedulerPlugin(plugin);
             }
-    
-            qs = new QuartzScheduler(rsrcs, idleWaitTime > -1 ? Duration.ofMillis(idleWaitTime) : null, Duration.ofMillis(dbFailureRetry));
+
+            qs = new QuartzScheduler(rsrcs, sched.idleWaitTime());
             qsInited = true;
-    
+
             // Create Scheduler ref...
             Scheduler scheduler = instantiate(rsrcs, qs);
-    
+
             // set job factory if specified
-            if(jobFactory != null) {
+            if (jobFactory != null) {
                 qs.setJobFactory(jobFactory);
             }
-    
+
             // Initialize plugins now that we have a Scheduler instance.
-            for (int i = 0; i < plugins.length; i++) {
-                plugins[i].initialize(pluginNames[i], scheduler, loadHelper);
+            for (Map.Entry<String, SchedulerPlugin> plugin : plugins.entrySet()) {
+                plugin.getValue().initialize(plugin.getKey(), scheduler, loadHelper);
             }
-    
+
             // add listeners
             for (JobListener jobListener : jobListeners) {
                 qs.getListenerManager().addJobListener(jobListener, EverythingMatcher.allJobs());
@@ -982,31 +250,28 @@ public class StdSchedulerFactory implements SchedulerFactory {
             for (TriggerListener triggerListener : triggerListeners) {
                 qs.getListenerManager().addTriggerListener(triggerListener, EverythingMatcher.allTriggers());
             }
-    
+
             // set scheduler context data...
-            for(Object key: schedCtxProps.keySet()) {
-                String val = schedCtxProps.getProperty((String) key);    
-                scheduler.getContext().put((String)key, val);
-            }
-    
+            scheduler.getContext().putAll(sched.context());
+
             // fire up job store, and runshell factory
-    
+
             js.setInstanceId(schedInstId);
             js.setInstanceName(schedName);
             js.setThreadPoolSize(tp.getPoolSize());
             js.initialize(loadHelper, qs.getSchedulerSignaler());
 
             jrsf.initialize(scheduler);
-            
+
             qs.initialize();
 
-            getLog().info("Quartz scheduler '{}' initialized from {}", scheduler.getSchedulerName(), propSrc);
+            getLog().info("Quartz scheduler '{}' initialized", scheduler.getSchedulerName());
 
             getLog().info("Quartz scheduler version: {}", qs.getVersion());
-    
+
             // prevents the repository from being garbage collected
             qs.addNoGCObject(schedRep);
-    
+
             schedRep.bind(scheduler);
             return scheduler;
         }
@@ -1016,6 +281,28 @@ public class StdSchedulerFactory implements SchedulerFactory {
         }
     }
 
+    private static ThreadPool createThreadPool(ThreadPoolSettings tps) {
+        SimpleThreadPool tp = new SimpleThreadPool(tps.threadCount(), tps.threadPriority());
+        if (tps.threadNamePrefix() != null) {
+            tp.setThreadNamePrefix(tps.threadNamePrefix());
+        }
+        tp.setMakeThreadsDaemons(tps.daemon());
+        tp.setThreadsInheritContextClassLoaderOfInitializingThread(
+                tps.threadsInheritContextClassLoaderOfInitializingThread());
+        tp.setThreadsInheritGroupOfInitializingThread(tps.threadsInheritGroupOfInitializingThread());
+        return tp;
+    }
+
+    // the in-memory store stays the default until Phase 9 (REFACTOR_PLAN.md)
+    private static JobStore createJobStore(JobStoreSettings jss) throws SchedulerConfigException {
+        if (jss.clustered()) {
+            throw new SchedulerConfigException(
+                    "The in-memory job store cannot be clustered: supply a persistent JobStore");
+        }
+        RAMJobStore js = new RAMJobStore();
+        js.setMisfireThreshold(jss.misfireThreshold());
+        return js;
+    }
 
     private void shutdownFromInstantiateException(ThreadPool tp, QuartzScheduler qs, boolean tpInited, boolean qsInited) {
         try {
@@ -1033,153 +320,28 @@ public class StdSchedulerFactory implements SchedulerFactory {
         return new StdScheduler(qs);
     }
 
-
-    private void setBeanProps(Object obj, Properties props)
-        throws NoSuchMethodException, IllegalAccessException,
-            java.lang.reflect.InvocationTargetException,
-            IntrospectionException, SchedulerConfigException {
-        props.remove("class");
-
-        BeanInfo bi = Introspector.getBeanInfo(obj.getClass());
-        PropertyDescriptor[] propDescs = bi.getPropertyDescriptors();
-        PropertiesParser pp = new PropertiesParser(props);
-
-        java.util.Enumeration<Object> keys = props.keys();
-        while (keys.hasMoreElements()) {
-            String name = (String) keys.nextElement();
-            String c = name.substring(0, 1).toUpperCase(Locale.US);
-            String methName = "set" + c + name.substring(1);
-
-            java.lang.reflect.Method setMeth = getSetMethod(methName, propDescs);
-
-            try {
-                if (setMeth == null) {
-                    throw new NoSuchMethodException(
-                            "No setter for property '" + name + "'");
-                }
-
-                Class<?>[] params = setMeth.getParameterTypes();
-                if (params.length != 1) {
-                    throw new NoSuchMethodException(
-                        "No 1-argument setter for property '" + name + "'");
-                }
-                
-                // does the property value reference another property's value? If so, swap to look at its value
-                PropertiesParser refProps = pp;
-                String refName = pp.getStringProperty(name);
-                if(refName != null && refName.startsWith("$@")) {
-                    refName =  refName.substring(2);
-                    refProps = cfg;
-                }
-                else
-                    refName = name;
-                
-                if (params[0].equals(int.class)) {
-                    setMeth.invoke(obj, new Object[]{refProps.getIntProperty(refName)});
-                } else if (params[0].equals(long.class)) {
-                    setMeth.invoke(obj, new Object[]{refProps.getLongProperty(refName)});
-                } else if (params[0].equals(float.class)) {
-                    setMeth.invoke(obj, new Object[]{refProps.getFloatProperty(refName)});
-                } else if (params[0].equals(double.class)) {
-                    setMeth.invoke(obj, new Object[]{refProps.getDoubleProperty(refName)});
-                } else if (params[0].equals(boolean.class)) {
-                    setMeth.invoke(obj, new Object[]{refProps.getBooleanProperty(refName)});
-                } else if (params[0].equals(String.class)) {
-                    setMeth.invoke(obj, new Object[]{refProps.getStringProperty(refName)});
-                } else if (params[0].equals(Duration.class)) {
-                    // plain numbers are milliseconds, as before; ISO-8601 ("PT5M") is accepted too (D-010)
-                    setMeth.invoke(obj, new Object[]{parseDuration(refProps.getStringProperty(refName))});
-                } else {
-                    throw new NoSuchMethodException(
-                            "No primitive-type setter for property '" + name
-                                    + "'");
-                }
-            } catch (NumberFormatException | java.time.format.DateTimeParseException nfe) {
-                throw new SchedulerConfigException("Could not parse property '"
-                        + name + "' into correct data type: " + nfe);
-            }
-        }
-    }
-
-    private static Duration parseDuration(String value) {
-        String trimmed = value.trim();
-        if (!trimmed.isEmpty() && (Character.isDigit(trimmed.charAt(0)) || trimmed.charAt(0) == '-')) {
-            return Duration.ofMillis(Long.parseLong(trimmed));
-        }
-        return Duration.parse(trimmed);
-    }
-
-    private java.lang.reflect.Method getSetMethod(String name,
-            PropertyDescriptor[] props) {
-        for (PropertyDescriptor prop : props) {
-            Method wMeth = prop.getWriteMethod();
-
-            if (wMeth != null && wMeth.getName().equals(name)) {
-                return wMeth;
-            }
-        }
-
-        return null;
-    }
-
-    private Class<?> loadClass(String className) throws ClassNotFoundException, SchedulerConfigException {
-
-        try {
-            ClassLoader cl = findClassLoader();
-            if(cl != null)
-                return cl.loadClass(className);
-            throw new SchedulerConfigException("Unable to find a class loader on the current thread or class.");
-        } catch (ClassNotFoundException e) {
-            if(getClass().getClassLoader() != null)
-                return getClass().getClassLoader().loadClass(className);
-            throw e;
-        }
-    }
-
-    private ClassLoader findClassLoader() {
-        // work-around set context loader for windows-service started jvms (QUARTZ-748)
-        if(Thread.currentThread().getContextClassLoader() == null && getClass().getClassLoader() != null) {
-            Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
-        }
-        return Thread.currentThread().getContextClassLoader();
-    }
-
-    private String getSchedulerName() {
-        return cfg.getStringProperty(PROP_SCHED_INSTANCE_NAME,
-                "QuartzScheduler");
-    }
-
     /**
      * <p>
-     * Returns a handle to the Scheduler produced by this factory.
-     * </p>
-     *
-     * <p>
-     * If one of the <code>initialize</code> methods has not be previously
-     * called, then the default (no-arg) <code>initialize()</code> method
-     * will be called by this method.
+     * Returns a handle to the Scheduler produced by this factory, creating it
+     * if no scheduler with the configured name is bound, or the bound one has
+     * been shut down.
      * </p>
      */
     public Scheduler getScheduler() throws SchedulerException {
-        if (cfg == null) {
-            initialize();
-        }
-
         SchedulerRepository schedRep = SchedulerRepository.getInstance();
+        String schedName = settings.scheduler().name();
 
-        Scheduler sched = schedRep.lookup(getSchedulerName());
+        Scheduler sched = schedRep.lookup(schedName);
 
         if (sched != null) {
             if (sched.isShutdown()) {
-                schedRep.remove(getSchedulerName());
+                schedRep.remove(schedName);
             } else {
                 return sched;
             }
         }
 
-        sched = instantiate();
-
-        return sched;
+        return instantiate();
     }
 
     /**
@@ -1188,12 +350,10 @@ public class StdSchedulerFactory implements SchedulerFactory {
      * yet exist.
      * </p>
      *
-     * @see #initialize()
+     * @see QuartzSettings#defaults()
      */
     public static Scheduler getDefaultScheduler() throws SchedulerException {
-        StdSchedulerFactory fact = new StdSchedulerFactory();
-
-        return fact.getScheduler();
+        return new StdSchedulerFactory().getScheduler();
     }
 
     /**
@@ -1214,5 +374,139 @@ public class StdSchedulerFactory implements SchedulerFactory {
      */
     public Collection<Scheduler> getAllSchedulers() throws SchedulerException {
         return SchedulerRepository.getInstance().lookupAll();
+    }
+
+    /**
+     * Builds a {@link StdSchedulerFactory}. Everything not set falls back to
+     * its default: {@link QuartzSettings#defaults()}, a {@link SimpleThreadPool}
+     * and in-memory job store configured from the settings,
+     * {@link CascadingClassLoadHelper}, {@link SimpleInstanceIdGenerator},
+     * {@link DefaultThreadExecutor}, the scheduler's default job factory and
+     * {@link Clock#systemUTC()}.
+     */
+    public static final class Builder {
+        private SchedulerSettings scheduler = SchedulerSettings.defaults();
+        private ThreadPoolSettings threadPoolSettings = ThreadPoolSettings.defaults();
+        private JobStoreSettings jobStoreSettings = JobStoreSettings.defaults();
+        private ThreadPool threadPool;
+        private JobStore jobStore;
+        private JobFactory jobFactory;
+        private InstanceIdGenerator instanceIdGenerator;
+        private ClassLoadHelper classLoadHelper;
+        private ThreadExecutor threadExecutor;
+        private final Map<String, SchedulerPlugin> plugins = new LinkedHashMap<>();
+        private final List<JobListener> jobListeners = new ArrayList<>();
+        private final List<TriggerListener> triggerListeners = new ArrayList<>();
+        private Clock clock = Clock.systemUTC();
+
+        private Builder() {
+        }
+
+        public Builder settings(QuartzSettings settings) {
+            Objects.requireNonNull(settings, "settings");
+            this.scheduler = settings.scheduler();
+            this.threadPoolSettings = settings.threadPool();
+            this.jobStoreSettings = settings.jobStore();
+            return this;
+        }
+
+        public Builder scheduler(SchedulerSettings scheduler) {
+            this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
+            return this;
+        }
+
+        public Builder threadPool(ThreadPoolSettings threadPool) {
+            this.threadPoolSettings = Objects.requireNonNull(threadPool, "threadPool");
+            return this;
+        }
+
+        public Builder jobStore(JobStoreSettings jobStore) {
+            this.jobStoreSettings = Objects.requireNonNull(jobStore, "jobStore");
+            return this;
+        }
+
+        /**
+         * Use this thread pool instead of creating a {@link SimpleThreadPool}
+         * from the {@link ThreadPoolSettings}.
+         */
+        public Builder threadPool(ThreadPool threadPool) {
+            this.threadPool = threadPool;
+            return this;
+        }
+
+        /**
+         * Use this job store instead of creating one from the
+         * {@link JobStoreSettings}.
+         */
+        public Builder jobStore(JobStore jobStore) {
+            this.jobStore = jobStore;
+            return this;
+        }
+
+        public Builder jobFactory(JobFactory jobFactory) {
+            this.jobFactory = jobFactory;
+            return this;
+        }
+
+        /**
+         * The generator used when {@link SchedulerSettings#instanceIdAuto()} is set
+         * and the job store is clustered.
+         */
+        public Builder instanceIdGenerator(InstanceIdGenerator instanceIdGenerator) {
+            this.instanceIdGenerator = instanceIdGenerator;
+            return this;
+        }
+
+        public Builder classLoadHelper(ClassLoadHelper classLoadHelper) {
+            this.classLoadHelper = classLoadHelper;
+            return this;
+        }
+
+        public Builder threadExecutor(ThreadExecutor threadExecutor) {
+            this.threadExecutor = threadExecutor;
+            return this;
+        }
+
+        /**
+         * Adds a plugin; {@code name} is passed to
+         * {@link SchedulerPlugin#initialize(String, Scheduler, ClassLoadHelper)}.
+         * Plugins are initialized in the order they were added.
+         */
+        public Builder plugin(String name, SchedulerPlugin plugin) {
+            Objects.requireNonNull(name, "name");
+            Objects.requireNonNull(plugin, "plugin");
+            if (plugins.putIfAbsent(name, plugin) != null) {
+                throw new IllegalArgumentException("Duplicate plugin name: " + name);
+            }
+            return this;
+        }
+
+        /**
+         * Adds a job listener for all jobs.
+         */
+        public Builder jobListener(JobListener listener) {
+            jobListeners.add(Objects.requireNonNull(listener, "listener"));
+            return this;
+        }
+
+        /**
+         * Adds a trigger listener for all triggers.
+         */
+        public Builder triggerListener(TriggerListener listener) {
+            triggerListeners.add(Objects.requireNonNull(listener, "listener"));
+            return this;
+        }
+
+        /**
+         * The source of "now" for the scheduler; defaults to {@link Clock#systemUTC()}.
+         */
+        public Builder clock(Clock clock) {
+            this.clock = Objects.requireNonNull(clock, "clock");
+            return this;
+        }
+
+        public StdSchedulerFactory build() {
+            return new StdSchedulerFactory(this);
+        }
     }
 }

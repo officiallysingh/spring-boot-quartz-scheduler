@@ -34,9 +34,9 @@ import org.quartz.SchedulerException;
  * </p>
  * 
  * <p>
- * If you use <code>{@link org.quartz.impl.StdSchedulerFactory}</code> to
- * initialize your Scheduler, it can also create and initialize your plugins -
- * look at the configuration docs for details.
+ * Plugin instances are registered with
+ * <code>{@link org.quartz.impl.StdSchedulerFactory.Builder#plugin(String, SchedulerPlugin)}</code>,
+ * which initializes them once the scheduler exists.
  * </p>
  * 
  * <p>

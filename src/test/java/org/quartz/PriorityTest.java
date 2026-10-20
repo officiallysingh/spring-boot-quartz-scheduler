@@ -17,16 +17,15 @@
 package org.quartz;
 
 import java.util.Calendar;
-import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.quartz.impl.JobDetailImpl;
-import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.impl.triggers.SimpleTriggerImpl;
 import org.quartz.spi.MutableTrigger;
+import org.quartz.support.TestSchedulers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -56,11 +55,7 @@ class PriorityTest  {
     @SuppressWarnings("deprecation")
     @Test
     void testSameDefaultPriority() throws Exception {
-        Properties config = new Properties();
-        config.setProperty("org.quartz.threadPool.threadCount", "1");
-        config.setProperty("org.quartz.threadPool.class", "org.quartz.simpl.SimpleThreadPool");
-
-        Scheduler sched = new StdSchedulerFactory(config).getScheduler();
+        Scheduler sched = TestSchedulers.create(TestSchedulers.scheduler(), 1);
 
         Calendar cal = Calendar.getInstance();
         cal.add(Calendar.SECOND, 1);
@@ -87,11 +82,7 @@ class PriorityTest  {
     @SuppressWarnings("deprecation")
     @Test
     void testDifferentPriority() throws Exception {
-        Properties config = new Properties();
-        config.setProperty("org.quartz.threadPool.threadCount", "1");
-        config.setProperty("org.quartz.threadPool.class", "org.quartz.simpl.SimpleThreadPool");
-
-        Scheduler sched = new StdSchedulerFactory(config).getScheduler();
+        Scheduler sched = TestSchedulers.create(TestSchedulers.scheduler(), 1);
 
         Calendar cal = Calendar.getInstance();
         cal.add(Calendar.SECOND, 1);

@@ -22,10 +22,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerFactory;
 import org.quartz.impl.StdSchedulerFactory;
+import org.quartz.impl.config.SchedulerSettings;
+import org.quartz.support.TestSchedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Properties;
+import java.time.Duration;
 
 /**
  * A base class to support in-memory scheduler integration testing. Each test will have a fresh
@@ -39,8 +41,7 @@ public class QuartzMemoryTestSupport {
 
     @BeforeEach
     public void initSchedulerBeforeTest() throws Exception {
-        Properties properties = createSchedulerProperties();
-        SchedulerFactory sf = new StdSchedulerFactory(properties);
+        SchedulerFactory sf = createSchedulerFactory();
         scheduler = sf.getScheduler();
         afterSchedulerInit();
     }
@@ -51,16 +52,12 @@ public class QuartzMemoryTestSupport {
         LOG.info("Scheduler started.");
     }
 
-    protected Properties createSchedulerProperties() {
-        Properties properties = new Properties();
-        properties.put("org.quartz.scheduler.instanceName","TestScheduler");
-        properties.put("org.quartz.scheduler.instanceId","AUTO");
-        properties.put("org.quartz.scheduler.skipUpdateCheck","true");
-        properties.put("org.quartz.threadPool.class","org.quartz.simpl.SimpleThreadPool");
-        properties.put("org.quartz.threadPool.threadCount","12");
-        properties.put("org.quartz.threadPool.threadPriority","5");
-        properties.put("org.quartz.jobStore.misfireThreshold","10000");
-        return properties;
+    protected SchedulerFactory createSchedulerFactory() {
+        return StdSchedulerFactory.builder()
+                .scheduler(SchedulerSettings.builder().name("TestScheduler").instanceIdAuto(true).build())
+                .threadPool(TestSchedulers.threadPool(12))
+                .jobStore(TestSchedulers.inMemoryStore().toBuilder().misfireThreshold(Duration.ofSeconds(10)).build())
+                .build();
     }
 
     @AfterEach

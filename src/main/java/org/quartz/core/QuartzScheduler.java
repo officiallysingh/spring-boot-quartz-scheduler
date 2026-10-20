@@ -23,14 +23,17 @@ import java.time.Duration;
 
 import java.time.Instant;
 
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.Map.Entry;
@@ -102,11 +105,9 @@ public class QuartzScheduler {
     private static String VERSION_ITERATION = "UNKNOWN";
 
     static {
-        Properties props = new Properties();
         try (InputStream is = QuartzScheduler.class.getResourceAsStream("quartz-build.properties")) {
             if (is != null) {
-                props.load(is);
-                String version = props.getProperty("version");
+                String version = readVersion(is);
                 if (version != null) {
                     String[] versionComponents = version.split("\\.");
                     VERSION_MAJOR = versionComponents[0];
@@ -124,6 +125,19 @@ public class QuartzScheduler {
             (LoggerFactory.getLogger(QuartzScheduler.class)).error(
                     "Error loading version info from quartz-build.properties.", e);
         }
+    }
+
+    // the Maven-filtered build file holds plain "key=value" lines
+    private static String readVersion(InputStream is) throws IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+        String line;
+        while ((line = reader.readLine()) != null) {
+            line = line.trim();
+            if (line.startsWith("version=")) {
+                return line.substring("version=".length()).trim();
+            }
+        }
+        return null;
     }
     
 
@@ -188,7 +202,7 @@ public class QuartzScheduler {
      * 
      * @see QuartzSchedulerResources
      */
-    public QuartzScheduler(QuartzSchedulerResources resources, Duration idleWaitTime, @Deprecated Duration dbRetryInterval)
+    public QuartzScheduler(QuartzSchedulerResources resources, Duration idleWaitTime)
         throws SchedulerException {
         this.resources = resources;
         if (resources.getJobStore() instanceof JobListener) {

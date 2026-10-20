@@ -27,7 +27,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
@@ -36,12 +35,13 @@ import org.quartz.JobBuilder;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
 import org.quartz.Scheduler;
-import org.quartz.SchedulerConfigException;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.impl.StdSchedulerFactory;
+import org.quartz.impl.config.SchedulerSettings;
 import org.quartz.listeners.SchedulerListenerSupport;
 import org.quartz.support.MutableClock;
+import org.quartz.support.TestSchedulers;
 
 /**
  * Verifies that Quartz uses the configured {@link Clock} as its time source,
@@ -88,20 +88,11 @@ public class QuartzSchedulerClockTest {
         }
     }
 
-    private static Properties properties() {
-        Properties props = new Properties();
-        props.setProperty("org.quartz.scheduler.instanceName", "ClockTest");
-        props.setProperty("org.quartz.threadPool.threadCount", "1");
-        props.setProperty("org.quartz.threadPool.class", "org.quartz.simpl.SimpleThreadPool");
-        props.setProperty("org.quartz.jobStore.class", "org.quartz.simpl.RAMJobStore");
-        return props;
-    }
-
     private static Scheduler createScheduler(Clock clock) throws SchedulerException {
-        StdSchedulerFactory factory = new StdSchedulerFactory();
-        factory.setClock(clock);
-        factory.initialize(properties());
-        return factory.getScheduler();
+        return TestSchedulers.factory(SchedulerSettings.builder().name("ClockTest"), 1)
+                .clock(clock)
+                .build()
+                .getScheduler();
     }
 
     @Test
@@ -111,20 +102,8 @@ public class QuartzSchedulerClockTest {
         assertThatThrownBy(() -> resources.setClock(null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Clock cannot be null.");
-        assertThatThrownBy(() -> new StdSchedulerFactory().setClock(null))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    void timeBrokerPropertyIsRejected() throws Exception {
-        Properties props = properties();
-        props.setProperty(StdSchedulerFactory.TIMEBROKER_CLASS, "org.quartz.simpl.SimpleTimeBroker");
-        StdSchedulerFactory factory = new StdSchedulerFactory();
-        factory.initialize(props);
-
-        assertThatThrownBy(factory::getScheduler)
-                .isInstanceOf(SchedulerConfigException.class)
-                .hasMessageContaining("TimeBroker is not supported");
+        assertThatThrownBy(() -> StdSchedulerFactory.builder().clock(null))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
