@@ -1247,6 +1247,14 @@ public final class CronExpression implements Serializable, Cloneable {
                     continue;
                 }
                 setCalendarHour(cl, hr);
+                if (cl.get(LenientDateTime.MINUTE) != min) {
+                    // Setting the minute above landed in a DST gap that is not a
+                    // whole hour and moved forward by the gap; setting the hour
+                    // kept that minute. Re-apply the requested one so the first
+                    // hour after the gap is not skipped (D-011).
+                    cl.set(LenientDateTime.SECOND, 0);
+                    cl.set(LenientDateTime.MINUTE, min);
+                }
                 continue;
             }
             cl.set(LenientDateTime.MINUTE, min);

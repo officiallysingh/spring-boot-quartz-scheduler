@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.function.Function;
@@ -55,10 +56,23 @@ import org.quartz.impl.triggers.SimpleTriggerImpl;
  * Rows recorded as {@code HANG} looped forever in the original code and are covered by the DST tests instead.
  * The fixtures were recorded with {@code -Duser.timezone=UTC} and the {@code en_US} locale: the original
  * {@code getTimeBefore} for {@code W} expressions depended on the JVM defaults, so the replay pins them too.
+ * {@link #CORRECTED_NEXT} replaces the recorded fire times of the rows deliberately changed by D-011.
  */
 class GoldenBehaviourTest {
 
     private static final String HANG = "HANG";
+
+    /**
+     * Cron rows whose recorded {@code next} fire times skipped the first full hour after the 30-minute
+     * Australia/Lord_Howe DST gap on 2024-10-06 (02:00 -> 02:30). D-011 fixed that; these are the exact
+     * corrected values, keyed by expression, zone and start millis. Each only gains the missing 03:00
+     * (and 03:15) local times; the earlier fire times are unchanged.
+     */
+    private static final Map<String, String> CORRECTED_NEXT = Map.of(
+            "0 0/30 * * * ?\tAustralia/Lord_Howe\t1728135000000",
+            "1728136800000,1728138600000,1728140400000,1728142200000,1728144000000,1728145800000,1728147600000,1728149400000",
+            "0 */15 1-3 * * ?\tAustralia/Lord_Howe\t1728135000000",
+            "1728138600000,1728139500000,1728140400000,1728141300000,1728142200000,1728143100000,1728144000000,1728144900000");
 
     private static TimeZone originalZone;
     private static Locale originalLocale;
@@ -94,7 +108,8 @@ class GoldenBehaviourTest {
                     }
                     out.add(t);
                 }
-                diffs.add(compare("next", r[3], join(out)));
+                String expectedNext = CORRECTED_NEXT.getOrDefault(r[0] + "\t" + r[1] + "\t" + r[2], r[3]);
+                diffs.add(compare("next", expectedNext, join(out)));
             }
             if (!HANG.equals(r[4])) {
                 String before = ms(ce.getTimeBefore(start));

@@ -76,9 +76,9 @@ class CronDstTest {
         assertThat(times).extracting(t -> t.atZone(LORD_HOWE).toLocalTime())
                 .doesNotContain(LocalTime.of(2, 0))
                 .contains(LocalTime.of(1, 30), LocalTime.of(2, 30));
-        // Known limitation kept from the original algorithm (golden fixtures): the 03:00 after the
-        // gap is skipped as well, the schedule continues at 03:30 (D-010).
-        assertThat(times.get(3)).isEqualTo(Instant.parse("2024-10-05T16:30:00Z"));
+        // The first full hour after the gap is not skipped: 02:30 is followed by 03:00 (D-011).
+        assertThat(times.get(3)).isEqualTo(Instant.parse("2024-10-05T16:00:00Z")); // 03:00
+        assertThat(times.get(4)).isEqualTo(Instant.parse("2024-10-05T16:30:00Z")); // 03:30
     }
 
     @Test
