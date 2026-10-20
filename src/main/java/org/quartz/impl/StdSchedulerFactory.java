@@ -113,6 +113,8 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
     private final Clock clock;
 
+    private final JobRunShellFactory jobRunShellFactory;
+
     private final Logger log = LoggerFactory.getLogger(getClass());
 
     /**
@@ -141,6 +143,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
         this.jobListeners = List.copyOf(builder.jobListeners);
         this.triggerListeners = List.copyOf(builder.triggerListeners);
         this.clock = builder.clock;
+        this.jobRunShellFactory = builder.jobRunShellFactory;
     }
 
     public static Builder builder() {
@@ -179,7 +182,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
         // Fire everything up
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         try {
-            JobRunShellFactory jrsf = new StdJobRunShellFactory();
+            JobRunShellFactory jrsf = jobRunShellFactory != null ? jobRunShellFactory : new StdJobRunShellFactory();
 
             if (sched.instanceIdAuto()) {
                 try {
@@ -381,7 +384,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
      * its default: {@link QuartzSettings#defaults()}, a {@link SimpleThreadPool}
      * and in-memory job store configured from the settings,
      * {@link CascadingClassLoadHelper}, {@link SimpleInstanceIdGenerator},
-     * {@link DefaultThreadExecutor}, the scheduler's default job factory and
+     * {@link DefaultThreadExecutor}, the scheduler's default job factory, {@link StdJobRunShellFactory} and
      * {@link Clock#systemUTC()}.
      */
     public static final class Builder {
@@ -398,6 +401,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
         private final List<JobListener> jobListeners = new ArrayList<>();
         private final List<TriggerListener> triggerListeners = new ArrayList<>();
         private Clock clock = Clock.systemUTC();
+        private JobRunShellFactory jobRunShellFactory;
 
         private Builder() {
         }
@@ -502,6 +506,15 @@ public class StdSchedulerFactory implements SchedulerFactory {
          */
         public Builder clock(Clock clock) {
             this.clock = Objects.requireNonNull(clock, "clock");
+            return this;
+        }
+
+        /**
+         * The factory of the shells that run each job; defaults to
+         * {@link StdJobRunShellFactory}. A factory instance belongs to one scheduler.
+         */
+        public Builder jobRunShellFactory(JobRunShellFactory jobRunShellFactory) {
+            this.jobRunShellFactory = jobRunShellFactory;
             return this;
         }
 

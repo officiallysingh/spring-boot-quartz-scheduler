@@ -202,7 +202,7 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
                 // execute the job
                 try {
                     log.debug("Calling execute on job {}", jobDetail.getKey());
-                    job.execute(jec);
+                    executeJob(job, jec);
                     endTime = System.currentTimeMillis();
                 } catch (JobExecutionException jee) {
                     endTime = System.currentTimeMillis();
@@ -273,6 +273,16 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
         } finally {
             qs.removeInternalSchedulerListener(this);
         }
+    }
+
+    /**
+     * Runs the job itself; called once per execution attempt, after the listeners were
+     * notified and only when the execution was not vetoed. Subclasses may wrap the
+     * execution (for example in a transaction); whatever this method throws is reported as
+     * the job's outcome.
+     */
+    protected void executeJob(Job job, JobExecutionContextImpl context) throws JobExecutionException {
+        job.execute(context);
     }
 
     protected void begin() throws SchedulerException {
