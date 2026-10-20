@@ -53,7 +53,7 @@ public interface SchedulerSignaler {
      *
      * <p>The default preserves compatibility for third-party signaler
      * implementations. Quartz's own implementation delegates to the configured
-     * {@link TimeBroker}.</p>
+     * {@link java.time.Clock}.</p>
      */
     default Date getCurrentTime() throws SchedulerException {
         return new Date();

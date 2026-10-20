@@ -29,7 +29,7 @@ import org.quartz.CronTrigger;
 import org.quartz.SimpleTrigger;
 import org.quartz.impl.calendar.BaseCalendar;
 
-class TimeBrokerMisfireTest {
+class ClockMisfireTest {
 
     @Test
     void simpleTriggerFireNowUsesSuppliedSchedulingTime() {

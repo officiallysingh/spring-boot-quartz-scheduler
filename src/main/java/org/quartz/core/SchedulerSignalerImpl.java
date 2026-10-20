@@ -19,6 +19,7 @@
 
 package org.quartz.core;
 
+import java.time.Clock;
 import java.util.Date;
 
 import org.slf4j.Logger;
@@ -26,9 +27,7 @@ import org.slf4j.LoggerFactory;
 import org.quartz.JobKey;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
-import org.quartz.simpl.SimpleTimeBroker;
 import org.quartz.spi.SchedulerSignaler;
-import org.quartz.spi.TimeBroker;
 
 /**
  * An interface to be used by <code>JobStore</code> instances in order to
@@ -50,7 +49,7 @@ public class SchedulerSignalerImpl implements SchedulerSignaler {
 
     protected final QuartzScheduler sched;
     protected final QuartzSchedulerThread schedThread;
-    protected final TimeBroker timeBroker;
+    protected final Clock clock;
 
     /*
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -64,13 +63,13 @@ public class SchedulerSignalerImpl implements SchedulerSignaler {
      * Creates a signaler that uses the system clock for scheduling time.
      */
     public SchedulerSignalerImpl(QuartzScheduler sched, QuartzSchedulerThread schedThread) {
-        this(sched, schedThread, new SimpleTimeBroker());
+        this(sched, schedThread, Clock.systemUTC());
     }
 
-    public SchedulerSignalerImpl(QuartzScheduler sched, QuartzSchedulerThread schedThread, TimeBroker timeBroker) {
+    public SchedulerSignalerImpl(QuartzScheduler sched, QuartzSchedulerThread schedThread, Clock clock) {
         this.sched = sched;
         this.schedThread = schedThread;
-        this.timeBroker = timeBroker;
+        this.clock = clock;
 
         log.info("Initialized Scheduler Signaller of type: {}", getClass());
     }
@@ -104,11 +103,11 @@ public class SchedulerSignalerImpl implements SchedulerSignaler {
 
     @Override
     public Date getCurrentTime() throws SchedulerException {
-        Date currentTime = timeBroker.getCurrentTime();
-        if (currentTime == null) {
-            throw new SchedulerException("TimeBroker returned null scheduling time");
+        try {
+            return new Date(clock.millis());
+        } catch (RuntimeException e) {
+            throw new SchedulerException("Clock failed to supply the scheduling time", e);
         }
-        return new Date(currentTime.getTime());
     }
 
     public void notifySchedulerListenersJobDeleted(JobKey jobKey) {

@@ -19,15 +19,14 @@
 
 package org.quartz.core;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.quartz.simpl.SimpleTimeBroker;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spi.ThreadExecutor;
 import org.quartz.spi.ThreadPool;
-import org.quartz.spi.TimeBroker;
 
 /**
  * <p>
@@ -76,7 +75,7 @@ public class QuartzSchedulerResources {
     private boolean interruptJobsOnShutdown = false;
     private boolean interruptJobsOnShutdownWithWait = false;
 
-    private TimeBroker timeBroker = new SimpleTimeBroker();
+    private Clock clock = Clock.systemUTC();
     
     /*
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -384,15 +383,18 @@ public class QuartzSchedulerResources {
     }
 
 
-    public TimeBroker getTimeBroker() {
-        return timeBroker;
+    /**
+     * The source of "now" for the scheduler thread, the job store and misfire handling.
+     */
+    public Clock getClock() {
+        return clock;
     }
 
-    public void setTimeBroker(TimeBroker timeBroker) {
-        if (timeBroker == null) {
-            throw new IllegalArgumentException("TimeBroker cannot be null.");
+    public void setClock(Clock clock) {
+        if (clock == null) {
+            throw new IllegalArgumentException("Clock cannot be null.");
         }
 
-        this.timeBroker = timeBroker;
+        this.clock = clock;
     }
 }

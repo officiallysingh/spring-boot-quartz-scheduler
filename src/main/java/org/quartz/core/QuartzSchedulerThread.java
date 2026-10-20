@@ -556,17 +556,13 @@ public class QuartzSchedulerThread extends Thread {
     }
 
     /**
-     * Get current scheduling time from the configured TimeBroker.
+     * Get current scheduling time from the configured {@link java.time.Clock}.
      */
     private long currentTimeMillis() {
         try {
-            Date currentTime = qsRsrcs.getTimeBroker().getCurrentTime();
-            if (currentTime == null) {
-                throw new SchedulerException("TimeBroker returned null scheduling time");
-            }
-            return currentTime.getTime();
-        } catch (SchedulerException e) {
-            throw new SchedulingTimeException(e);
+            return qsRsrcs.getClock().millis();
+        } catch (RuntimeException e) {
+            throw new SchedulingTimeException(new SchedulerException("Clock failed to supply the scheduling time", e));
         }
     }
 

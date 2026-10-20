@@ -37,11 +37,11 @@ import org.quartz.spi.JobStore;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spi.ThreadExecutor;
 import org.quartz.spi.ThreadPool;
-import org.quartz.spi.TimeBroker;
 import org.quartz.utils.PropertiesParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Clock;
 import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
@@ -194,7 +194,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
     
     public static final String TIMEBROKER_CLASS = "org.quartz.scheduler.timeBroker.class";
 
-    public static final String SIMPLE_TIMEBROKER_CLASS = "org.quartz.simpl.SimpleTimeBroker";
 
     /*
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -209,6 +208,8 @@ public class StdSchedulerFactory implements SchedulerFactory {
     private String propSrc = null;
 
     private PropertiesParser cfg;
+
+    private Clock clock = Clock.systemUTC();
 
     private final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -225,6 +226,17 @@ public class StdSchedulerFactory implements SchedulerFactory {
     /**
      * Create an uninitialized StdSchedulerFactory.
      */
+    /**
+     * Sets the {@link Clock} the scheduler created by this factory uses as its source of "now".
+     * Must be called before the scheduler is created; defaults to {@link Clock#systemUTC()}.
+     */
+    public void setClock(Clock clock) {
+        if (clock == null) {
+            throw new IllegalArgumentException("Clock cannot be null.");
+        }
+        this.clock = clock;
+    }
+
     public StdSchedulerFactory() {
     }
 
@@ -894,6 +906,12 @@ public class StdSchedulerFactory implements SchedulerFactory {
                         + PROP_SCHED_WRAP_JOB_IN_USER_TX + " and " + PROP_SCHED_USER_TX_URL);
             }
             jrsf = new StdJobRunShellFactory();
+
+            // the TimeBroker SPI was replaced by java.time.Clock (DECISIONS.md D-010)
+            if (cfg.getStringProperty(TIMEBROKER_CLASS) != null) {
+                throw new SchedulerConfigException("TimeBroker is not supported: remove "
+                        + TIMEBROKER_CLASS + " and supply a java.time.Clock with setClock(Clock)");
+            }
     
             if (autoId) {
                 try {
@@ -918,13 +936,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
             rsrcs.setMaxBatchSize(maxBatchSize);
             rsrcs.setInterruptJobsOnShutdown(interruptJobsOnShutdown);
             rsrcs.setInterruptJobsOnShutdownWithWait(interruptJobsOnShutdownWithWait);
-            String timeBrokerClassName = cfg.getStringProperty(
-                    TIMEBROKER_CLASS,
-                    SIMPLE_TIMEBROKER_CLASS);
-
-            TimeBroker timeBroker;
-            timeBroker = instantiateTimeBroker(loadHelper, timeBrokerClassName);
-            rsrcs.setTimeBroker(timeBroker);
+            rsrcs.setClock(clock);
 
             SchedulerDetailsSetter.setDetails(tp, schedName, schedInstId);
 
@@ -1003,20 +1015,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
         }
     }
 
-    private TimeBroker instantiateTimeBroker(ClassLoadHelper loadHelper, String timeBrokerClassName) throws SchedulerException {
-        TimeBroker timeBroker;
-        try {
-            timeBroker = (TimeBroker) loadHelper
-                    .loadClass(timeBrokerClassName)
-                    .getDeclaredConstructor()
-                    .newInstance();
-        } catch (Exception e) {
-            initException = new SchedulerException(
-                    "TimeBroker class '" + timeBrokerClassName + "' could not be instantiated.", e);
-            throw initException;
-        }
-        return timeBroker;
-    }
 
     private void shutdownFromInstantiateException(ThreadPool tp, QuartzScheduler qs, boolean tpInited, boolean qsInited) {
         try {
