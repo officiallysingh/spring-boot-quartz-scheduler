@@ -192,8 +192,8 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 	}
 
 	/**
-	 * Set the {@link JobStore} to use instead of one created from the
-	 * job-store settings.
+	 * Set the {@link JobStore} (required: there is no default store, so
+	 * {@link #afterPropertiesSet()} fails without one).
 	 */
 	public void setJobStore(JobStore jobStore) {
 		this.jobStore = jobStore;

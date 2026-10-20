@@ -189,7 +189,7 @@ public interface JobStore {
      * <p>
      * Gets all the <code>{@link org.quartz.JobDetail}s</code> in the matching groups.
      * </p>
-     * These will NOT necessarily be in lexicographical order, particularly on {@link org.quartz.simpl.RAMJobStore}
+     * These will NOT necessarily be in lexicographical order.
      * You may need to re-sort them yourself.
      * @param matcher Matcher to evaluate against known groups
      * @return List of all JobDetail matching

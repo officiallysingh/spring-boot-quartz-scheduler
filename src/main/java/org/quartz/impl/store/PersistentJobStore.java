@@ -921,7 +921,7 @@ public abstract class PersistentJobStore implements JobStore {
     public Collection<String> pauseJobs(GroupMatcher<JobKey> matcher) throws JobPersistenceException {
         return executeInLock(LOCK_TRIGGER_ACCESS, () -> {
             List<String> groups = new ArrayList<>(matchingGroups(delegate.selectJobGroups(), matcher));
-            // an exact match also pauses jobs added to the group later (as RAMJobStore does)
+            // an exact match also pauses jobs added to the group later (as Quartz's in-memory store did)
             if (matcher.getCompareWithOperator() == StringOperatorName.EQUALS
                     && !groups.contains(matcher.getCompareToValue())) {
                 groups.add(matcher.getCompareToValue());

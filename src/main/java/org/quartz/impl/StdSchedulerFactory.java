@@ -41,7 +41,6 @@ import org.quartz.impl.config.SchedulerSettings;
 import org.quartz.impl.config.ThreadPoolSettings;
 import org.quartz.impl.matchers.EverythingMatcher;
 import org.quartz.simpl.CascadingClassLoadHelper;
-import org.quartz.simpl.RAMJobStore;
 import org.quartz.simpl.SimpleInstanceIdGenerator;
 import org.quartz.simpl.SimpleThreadPool;
 import org.quartz.spi.ClassLoadHelper;
@@ -65,18 +64,21 @@ import org.slf4j.LoggerFactory;
  * Scheduler scheduler = StdSchedulerFactory.builder()
  *         .scheduler(SchedulerSettings.builder().name("MyScheduler").build())
  *         .threadPool(ThreadPoolSettings.builder().threadCount(4).build())
+ *         .jobStore(new MongoJobStore(mongoClient, "app", JobStoreSettings.defaults(), MongoJobStoreSettings.defaults()))
  *         .plugin("jobHistory", new LoggingJobHistoryPlugin())
  *         .build()
  *         .getScheduler();
  * </pre>
  *
  * <p>
- * {@link ThreadPoolSettings} and {@link JobStoreSettings} configure the
- * {@link SimpleThreadPool} and job store this factory creates when no
- * {@link ThreadPool} / {@link JobStore} instance is supplied; a supplied
- * instance is used as it is. The factory creates a fresh default thread pool
- * and job store each time it instantiates a scheduler; supplied instances,
- * plugins and listeners are reused.
+ * A {@link JobStore} must be supplied ({@code MongoJobStore} or
+ * {@code RedisJobStore}): there is no default store, and
+ * {@link #getScheduler()} fails without one. {@link ThreadPoolSettings}
+ * configure the {@link SimpleThreadPool} this factory creates when no
+ * {@link ThreadPool} instance is supplied; a supplied instance is used as it
+ * is. The factory creates a fresh default thread pool each time it
+ * instantiates a scheduler; supplied instances, plugins and listeners are
+ * reused.
  * </p>
  *
  * <p>
@@ -170,7 +172,11 @@ public class StdSchedulerFactory implements SchedulerFactory {
         loadHelper.initialize();
 
         ThreadPool tp = threadPool != null ? threadPool : createThreadPool(settings.threadPool());
-        JobStore js = jobStore != null ? jobStore : createJobStore(settings.jobStore());
+        if (jobStore == null) {
+            throw new SchedulerConfigException("No JobStore configured: supply one with "
+                    + "StdSchedulerFactory.Builder.jobStore(JobStore) (MongoJobStore or RedisJobStore)");
+        }
+        JobStore js = jobStore;
         SchedulerDetailsSetter.setDetails(js, schedName, schedInstId);
 
         ThreadExecutor executor = threadExecutor != null ? threadExecutor : new DefaultThreadExecutor();
@@ -296,17 +302,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
         return tp;
     }
 
-    // the in-memory store stays the default until Phase 9 (REFACTOR_PLAN.md)
-    private static JobStore createJobStore(JobStoreSettings jss) throws SchedulerConfigException {
-        if (jss.clustered()) {
-            throw new SchedulerConfigException(
-                    "The in-memory job store cannot be clustered: supply a persistent JobStore");
-        }
-        RAMJobStore js = new RAMJobStore();
-        js.setMisfireThreshold(jss.misfireThreshold());
-        return js;
-    }
-
     private void shutdownFromInstantiateException(ThreadPool tp, QuartzScheduler qs, boolean tpInited, boolean qsInited) {
         try {
             if(qsInited)
@@ -351,6 +346,11 @@ public class StdSchedulerFactory implements SchedulerFactory {
      * <p>
      * Returns a handle to the default Scheduler, creating it if it does not
      * yet exist.
+     * </p>
+     * <p>
+     * The default settings name no {@link JobStore}, so creating the scheduler
+     * fails with a {@link SchedulerConfigException}; only a default scheduler
+     * already bound in the {@link SchedulerRepository} is returned.
      * </p>
      *
      * @see QuartzSettings#defaults()
@@ -439,8 +439,9 @@ public class StdSchedulerFactory implements SchedulerFactory {
         }
 
         /**
-         * Use this job store instead of creating one from the
-         * {@link JobStoreSettings}.
+         * The job store (required: there is no default store). It is configured
+         * by its own constructor; {@link #jobStore(JobStoreSettings)} does not
+         * apply to it.
          */
         public Builder jobStore(JobStore jobStore) {
             this.jobStore = jobStore;
