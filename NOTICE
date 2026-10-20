@@ -1,0 +1,23 @@
+spring-boot-quartz-scheduler
+Copyright the original author or authors.
+
+This product is derived from the following projects, licensed under the
+Apache License, Version 2.0 (see LICENSE.txt):
+
+Quartz Scheduler
+  Copyright Terracotta, Inc. and IBM Corp.
+  https://github.com/quartz-scheduler/quartz
+  The core scheduler (package org.quartz and sub-packages).
+
+Spring Framework
+  Copyright 2002-present the original author or authors.
+  https://github.com/spring-projects/spring-framework
+  The Spring integration in org.quartz.spring is ported from
+  org.springframework.scheduling.quartz (spring-context-support 7.0.9).
+
+Spring Boot
+  Copyright 2012-present the original author or authors.
+  https://github.com/spring-projects/spring-boot
+  The auto-configuration in org.quartz.spring.boot.autoconfigure is ported from
+  org.springframework.boot.quartz.autoconfigure (module spring-boot-quartz,
+  commit 57a1ca37c36f3cf355211aa8dea8c500b2dd3a09).
