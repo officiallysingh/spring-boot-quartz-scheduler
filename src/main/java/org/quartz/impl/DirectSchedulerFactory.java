@@ -105,10 +105,6 @@ public class DirectSchedulerFactory implements SchedulerFactory {
 
     public static final String DEFAULT_SCHEDULER_NAME = "SimpleQuartzScheduler";
 
-    private static final boolean DEFAULT_JMX_EXPORT = false;
-
-    private static final String DEFAULT_JMX_OBJECTNAME = null;
-
     private static final DefaultThreadExecutor DEFAULT_THREAD_EXECUTOR = new DefaultThreadExecutor();
 
     private static final int DEFAULT_BATCH_MAX_SIZE = 1;
@@ -245,8 +241,7 @@ public class DirectSchedulerFactory implements SchedulerFactory {
         createScheduler(schedulerName,
                 schedulerInstanceId, threadPool,
                 jobStore, null, // plugins
-                idleWaitTime, dbFailureRetryInterval,
-                DEFAULT_JMX_EXPORT, DEFAULT_JMX_OBJECTNAME);
+                idleWaitTime, dbFailureRetryInterval);
     }
 
     /**
@@ -274,13 +269,12 @@ public class DirectSchedulerFactory implements SchedulerFactory {
     public void createScheduler(String schedulerName,
             String schedulerInstanceId, ThreadPool threadPool,
             JobStore jobStore, Map<String, SchedulerPlugin> schedulerPluginMap,
-            long idleWaitTime, long dbFailureRetryInterval,
-            boolean jmxExport, String jmxObjectName)
+            long idleWaitTime, long dbFailureRetryInterval)
         throws SchedulerException {
         createScheduler(schedulerName, schedulerInstanceId, threadPool,
                 DEFAULT_THREAD_EXECUTOR, jobStore, schedulerPluginMap,
                 idleWaitTime,
-                dbFailureRetryInterval, jmxExport, jmxObjectName);
+                dbFailureRetryInterval);
     }
 
     /**
@@ -311,13 +305,12 @@ public class DirectSchedulerFactory implements SchedulerFactory {
             String schedulerInstanceId, ThreadPool threadPool,
             ThreadExecutor threadExecutor,
             JobStore jobStore, Map<String, SchedulerPlugin> schedulerPluginMap,
-            long idleWaitTime, long dbFailureRetryInterval,
-            boolean jmxExport, String jmxObjectName)
+            long idleWaitTime, long dbFailureRetryInterval)
         throws SchedulerException {
         createScheduler(schedulerName, schedulerInstanceId, threadPool,
                 DEFAULT_THREAD_EXECUTOR, jobStore, schedulerPluginMap,
                 idleWaitTime,
-                dbFailureRetryInterval, jmxExport, jmxObjectName, DEFAULT_BATCH_MAX_SIZE, DEFAULT_BATCH_TIME_WINDOW);
+                dbFailureRetryInterval, DEFAULT_BATCH_MAX_SIZE, DEFAULT_BATCH_TIME_WINDOW);
     }
 
     /**
@@ -353,14 +346,13 @@ public class DirectSchedulerFactory implements SchedulerFactory {
             ThreadExecutor threadExecutor,
             JobStore jobStore, Map<String, SchedulerPlugin> schedulerPluginMap,
             long idleWaitTime, long dbFailureRetryInterval,
-            boolean jmxExport, String jmxObjectName, int maxBatchSize, long batchTimeWindow)
+            int maxBatchSize, long batchTimeWindow)
         throws SchedulerException {
 
         createScheduler(schedulerName, schedulerInstanceId,
                 threadPool, threadExecutor,
                 jobStore, schedulerPluginMap,
                 idleWaitTime, dbFailureRetryInterval,
-                jmxExport, jmxObjectName,
                 maxBatchSize, batchTimeWindow,
                 false);
     }
@@ -400,7 +392,6 @@ public class DirectSchedulerFactory implements SchedulerFactory {
                                 ThreadExecutor threadExecutor,
                                 JobStore jobStore, Map<String, SchedulerPlugin> schedulerPluginMap,
                                 long idleWaitTime, long dbFailureRetryInterval,
-                                boolean jmxExport, String jmxObjectName,
                                 int maxBatchSize, long batchTimeWindow,
                                 boolean makeSchedThreadDaemon)
             throws SchedulerException {
@@ -425,10 +416,6 @@ public class DirectSchedulerFactory implements SchedulerFactory {
         qrs.setJobStore(jobStore);
         qrs.setMaxBatchSize(maxBatchSize);
         qrs.setBatchTimeWindow(batchTimeWindow);
-        qrs.setJMXExport(jmxExport);
-        if (jmxObjectName != null) {
-           qrs.setJMXObjectName(jmxObjectName);
-        }
         
         // add plugins
         if (schedulerPluginMap != null) {

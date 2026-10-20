@@ -31,7 +31,6 @@ import org.quartz.impl.jdbcjobstore.JobStoreSupport;
 import org.quartz.impl.jdbcjobstore.Semaphore;
 import org.quartz.impl.jdbcjobstore.TablePrefixAware;
 import org.quartz.impl.matchers.EverythingMatcher;
-import org.quartz.management.ManagementRESTServiceConfiguration;
 import org.quartz.simpl.RAMJobStore;
 import org.quartz.simpl.SimpleThreadPool;
 import org.quartz.spi.ClassLoadHelper;
@@ -144,14 +143,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
     public static final String PROP_SCHED_MAX_BATCH_SIZE = "org.quartz.scheduler.batchTriggerAcquisitionMaxCount";
 
-    public static final String PROP_SCHED_JMX_EXPORT = "org.quartz.scheduler.jmx.export";
-
-    public static final String PROP_SCHED_JMX_OBJECT_NAME = "org.quartz.scheduler.jmx.objectName";
-
-    public static final String PROP_SCHED_JMX_PROXY = "org.quartz.scheduler.jmx.proxy";
-
-    public static final String PROP_SCHED_JMX_PROXY_CLASS = "org.quartz.scheduler.jmx.proxy.class";
-    
     public static final String PROP_SCHED_WRAP_JOB_IN_USER_TX = "org.quartz.scheduler.wrapJobExecutionInUserTransaction";
 
     public static final String PROP_SCHED_USER_TX_URL = "org.quartz.scheduler.userTransactionURL";
@@ -266,10 +257,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
     public static final String SYSTEM_PROPERTY_AS_INSTANCE_ID = "SYS_PROP";
     
-    public static final String MANAGEMENT_REST_SERVICE_ENABLED = "org.quartz.managementRESTService.enabled";
-
-    public static final String MANAGEMENT_REST_SERVICE_HOST_PORT = "org.quartz.managementRESTService.bind";
-
     public static final String TIMEBROKER_CLASS = "org.quartz.scheduler.timeBroker.class";
 
     public static final String SIMPLE_TIMEBROKER_CLASS = "org.quartz.simpl.SimpleTimeBroker";
@@ -683,15 +670,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
         boolean interruptJobsOnShutdown = cfg.getBooleanProperty(PROP_SCHED_INTERRUPT_JOBS_ON_SHUTDOWN, false);
         boolean interruptJobsOnShutdownWithWait = cfg.getBooleanProperty(PROP_SCHED_INTERRUPT_JOBS_ON_SHUTDOWN_WITH_WAIT, false);
 
-        boolean jmxExport = cfg.getBooleanProperty(PROP_SCHED_JMX_EXPORT);
-        String jmxObjectName = cfg.getStringProperty(PROP_SCHED_JMX_OBJECT_NAME);
-        
-        boolean jmxProxy = cfg.getBooleanProperty(PROP_SCHED_JMX_PROXY);
-        String jmxProxyClass = cfg.getStringProperty(PROP_SCHED_JMX_PROXY_CLASS);
-
-        boolean managementRESTServiceEnabled = cfg.getBooleanProperty(MANAGEMENT_REST_SERVICE_ENABLED, false);
-        String managementRESTServiceHostAndPort = cfg.getStringProperty(MANAGEMENT_REST_SERVICE_HOST_PORT, "0.0.0.0:9889");
-
         Properties schedCtxProps = cfg.getPropertyGroup(PROP_SCHED_CONTEXT_PREFIX, true);
 
         // Create class load helper
@@ -704,48 +682,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
                             + e.getMessage(), e);
         }
         loadHelper.initialize();
-
-        // If Proxying to remote JMX scheduler, short-circuit here...
-        // ~~~~~~~~~~~~~~~~~~
-        if (jmxProxy) {
-            if (autoId) {
-                schedInstId = DEFAULT_INSTANCE_ID;
-            }
-
-            if (jmxProxyClass == null) {
-                throw new SchedulerConfigException("No JMX Proxy Scheduler class provided");
-            }
-
-            RemoteMBeanScheduler jmxScheduler;
-            try {
-                jmxScheduler = (RemoteMBeanScheduler) loadHelper.loadClass(jmxProxyClass).getDeclaredConstructor()
-                        .newInstance();
-            } catch (Exception e) {
-                throw new SchedulerConfigException(
-                        "Unable to instantiate RemoteMBeanScheduler class.", e);
-            }
-
-            if (jmxObjectName == null) {
-                jmxObjectName = QuartzSchedulerResources.generateJMXObjectName(schedName, schedInstId);
-            }
-
-            jmxScheduler.setSchedulerObjectName(jmxObjectName);
-
-            tProps = cfg.getPropertyGroup(PROP_SCHED_JMX_PROXY, true);
-            try {
-                setBeanProps(jmxScheduler, tProps);
-            } catch (Exception e) {
-                initException = new SchedulerException("RemoteMBeanScheduler class '"
-                        + jmxProxyClass + "' props could not be configured.", e);
-                throw initException;
-            }
-
-            jmxScheduler.initialize();
-
-            schedRep.bind(jmxScheduler);
-
-            return jmxScheduler;
-        }
 
         
         JobFactory jobFactory = null;
@@ -1205,26 +1141,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
                 }
             }
 
-            if (js.getClass().getName().startsWith("org.terracotta.quartz")) {
-                try {
-                    String uuid = (String) js.getClass().getMethod("getUUID").invoke(js);
-                    if(schedInstId.equals(DEFAULT_INSTANCE_ID)) {
-                        schedInstId = "TERRACOTTA_CLUSTERED,node=" + uuid;
-                        if (jmxObjectName == null) {
-                            jmxObjectName = QuartzSchedulerResources.generateJMXObjectName(schedName, schedInstId);
-                        }
-                    } else if(jmxObjectName == null) {
-                        jmxObjectName = QuartzSchedulerResources.generateJMXObjectName(schedName, schedInstId + ",node=" + uuid);
-                    }
-                } catch(Exception e) {
-                    throw new RuntimeException("Problem obtaining node id from TerracottaJobStore.", e);
-                }
-
-                if(null == cfg.getStringProperty(PROP_SCHED_JMX_EXPORT)) {
-                    jmxExport = true;
-                }
-            }
-            
             if (js instanceof JobStoreSupport) {
                 JobStoreSupport jjs = (JobStoreSupport)js;
                 jjs.setDbRetryInterval(dbFailureRetry);
@@ -1245,8 +1161,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
             rsrcs.setMaxBatchSize(maxBatchSize);
             rsrcs.setInterruptJobsOnShutdown(interruptJobsOnShutdown);
             rsrcs.setInterruptJobsOnShutdownWithWait(interruptJobsOnShutdownWithWait);
-            rsrcs.setJMXExport(jmxExport);
-            rsrcs.setJMXObjectName(jmxObjectName);
             String timeBrokerClassName = cfg.getStringProperty(
                     TIMEBROKER_CLASS,
                     SIMPLE_TIMEBROKER_CLASS);
@@ -1255,13 +1169,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
             timeBroker = instantiateTimeBroker(loadHelper, timeBrokerClassName);
             rsrcs.setTimeBroker(timeBroker);
 
-            if (managementRESTServiceEnabled) {
-                ManagementRESTServiceConfiguration managementRESTServiceConfiguration = new ManagementRESTServiceConfiguration();
-                managementRESTServiceConfiguration.setBind(managementRESTServiceHostAndPort);
-                managementRESTServiceConfiguration.setEnabled(managementRESTServiceEnabled);
-                rsrcs.setManagementRESTServiceConfiguration(managementRESTServiceConfiguration);
-            }
-    
             SchedulerDetailsSetter.setDetails(tp, schedName, schedInstId);
 
             rsrcs.setThreadExecutor(threadExecutor);

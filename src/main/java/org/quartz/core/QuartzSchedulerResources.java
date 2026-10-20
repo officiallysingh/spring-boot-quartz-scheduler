@@ -22,7 +22,6 @@ package org.quartz.core;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.quartz.management.ManagementRESTServiceConfiguration;
 import org.quartz.simpl.SimpleTimeBroker;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.SchedulerPlugin;
@@ -67,12 +66,6 @@ public class QuartzSchedulerResources {
     private boolean makeSchedulerThreadDaemon = false;
 
     private boolean threadsInheritInitializersClassLoadContext = false;
-
-    private boolean jmxExport;
-    
-    private String jmxObjectName;
-
-    private ManagementRESTServiceConfiguration managementRESTServiceConfiguration;
 
     private ThreadExecutor threadExecutor;
 
@@ -344,44 +337,6 @@ public class QuartzSchedulerResources {
     }
 
     /**
-     * Get whether the QuartzScheduler should be registered with the local 
-     * MBeanServer.
-     */
-    public boolean getJMXExport() {
-        return jmxExport;
-    }
-
-    /**
-     * Set whether the QuartzScheduler should be registered with the local 
-     * MBeanServer.
-     */
-    public void setJMXExport(boolean jmxExport) {
-        this.jmxExport = jmxExport;
-    }
-
-    /**
-     * Get the name under which the QuartzScheduler should be registered with 
-     * the local MBeanServer.  If unset, defaults to the value calculated by 
-     * <code>generateJMXObjectName</code>.
-     * 
-     * @see #generateJMXObjectName(String, String)
-     */
-    public String getJMXObjectName() {
-        return (jmxObjectName == null) ? generateJMXObjectName(name, instanceId) : jmxObjectName;
-    }
-
-    /**
-     * Set the name under which the QuartzScheduler should be registered with 
-     * the local MBeanServer.  If unset, defaults to the value calculated by 
-     * <code>generateJMXObjectName</code>.
-     * 
-     * @see #generateJMXObjectName(String, String)
-     */
-    public void setJMXObjectName(String jmxObjectName) {
-        this.jmxObjectName = jmxObjectName;
-    }
-
-    /**
      * Get the ThreadExecutor which runs the QuartzSchedulerThread
      */
     public ThreadExecutor getThreadExecutor() {
@@ -393,19 +348,6 @@ public class QuartzSchedulerResources {
      */
     public void setThreadExecutor(ThreadExecutor threadExecutor) {
         this.threadExecutor = threadExecutor;
-    }
-
-    /**
-     * Create the name under which this scheduler should be registered in JMX.
-     * <p>
-     * The name is composed as:
-     * quartz:type=QuartzScheduler,name=<i>[schedName]</i>,instance=<i>[schedInstId]</i>
-     * </p>
-     */
-    public static String generateJMXObjectName(String schedName, String schedInstId) {
-        return "quartz:type=QuartzScheduler" + ",name="
-            + schedName.replaceAll(":|=|\n", ".")
-            + ",instance=" + schedInstId;
     }
 
     public long getBatchTimeWindow() {
@@ -441,14 +383,6 @@ public class QuartzSchedulerResources {
         this.interruptJobsOnShutdownWithWait = interruptJobsOnShutdownWithWait;
     }
 
-
-    public ManagementRESTServiceConfiguration getManagementRESTServiceConfiguration() {
-        return managementRESTServiceConfiguration;
-    }
-
-    public void setManagementRESTServiceConfiguration(ManagementRESTServiceConfiguration managementRESTServiceConfiguration) {
-        this.managementRESTServiceConfiguration = managementRESTServiceConfiguration;
-    }
 
     public TimeBroker getTimeBroker() {
         return timeBroker;

@@ -20,7 +20,6 @@
 package org.quartz.core;
 
 import java.io.InputStream;
-import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -33,9 +32,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
 
 import org.quartz.Calendar;
 import org.quartz.InterruptableJob;
@@ -61,7 +57,6 @@ import org.quartz.TriggerListener;
 import org.quartz.UnableToInterruptJobException;
 import org.quartz.Trigger.CompletedExecutionInstruction;
 import org.quartz.Trigger.TriggerState;
-import org.quartz.core.jmx.QuartzSchedulerMBean;
 import org.quartz.impl.SchedulerRepository;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.listeners.SchedulerListenerSupport;
@@ -169,15 +164,9 @@ public class QuartzScheduler {
     private volatile boolean closed = false;
     private volatile boolean shuttingDown = false;
 
-    private QuartzSchedulerMBean jmxBean = null;
-    
     private Date initialStart = null;
 
     private final Logger log = LoggerFactory.getLogger(getClass());
-
-    // private static final Map<String, ManagementServer> MGMT_SVR_BY_BIND = new
-    // HashMap<String, ManagementServer>();
-    // private String registeredManagementServerBind;
 
     /*
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -222,59 +211,6 @@ public class QuartzScheduler {
 
     public void initialize() throws SchedulerException {
         
-        if (resources.getJMXExport()) {
-            try {
-                registerJMX();
-            } catch (Exception e) {
-                throw new SchedulerException(
-                        "Unable to register scheduler with MBeanServer.", e);
-            }
-        }
-
-        // ManagementRESTServiceConfiguration managementRESTServiceConfiguration
-        // = resources.getManagementRESTServiceConfiguration();
-        //
-        // if (managementRESTServiceConfiguration != null &&
-        // managementRESTServiceConfiguration.isEnabled()) {
-        // try {
-        // /**
-        // * ManagementServer will only be instantiated and started if one
-        // * isn't already running on the configured port for this class
-        // * loader space.
-        // */
-        // synchronized (QuartzScheduler.class) {
-        // if
-        // (!MGMT_SVR_BY_BIND.containsKey(managementRESTServiceConfiguration.getBind()))
-        // {
-        // Class<?> managementServerImplClass =
-        // Class.forName("org.quartz.management.ManagementServerImpl");
-        // Class<?> managementRESTServiceConfigurationClass[] = new Class[] {
-        // managementRESTServiceConfiguration.getClass() };
-        // Constructor<?> managementRESTServiceConfigurationConstructor =
-        // managementServerImplClass
-        // .getConstructor(managementRESTServiceConfigurationClass);
-        // Object arglist[] = new Object[] { managementRESTServiceConfiguration
-        // };
-        // ManagementServer embeddedRESTServer = ((ManagementServer)
-        // managementRESTServiceConfigurationConstructor.newInstance(arglist));
-        // embeddedRESTServer.start();
-        // MGMT_SVR_BY_BIND.put(managementRESTServiceConfiguration.getBind(),
-        // embeddedRESTServer);
-        // }
-        // registeredManagementServerBind =
-        // managementRESTServiceConfiguration.getBind();
-        // ManagementServer embeddedRESTServer =
-        // MGMT_SVR_BY_BIND.get(registeredManagementServerBind);
-        // embeddedRESTServer.register(this);
-        // }
-        // } catch (Exception e) {
-        // throw new
-        // SchedulerException("Unable to start the scheduler management REST service",
-        // e);
-        // }
-        // }
-
-
         getLog().info("Scheduler meta-data: {}", new SchedulerMetaData(getSchedulerName(),
                 getSchedulerInstanceId(), getClass(), false, runningSince() != null,
                 isInStandbyMode(), isShutdown(), runningSince(),
@@ -316,27 +252,6 @@ public class QuartzScheduler {
         return log;
     }
     
-    /**
-     * Register the scheduler in the local MBeanServer.
-     */
-    private void registerJMX() throws Exception {
-        String jmxObjectName = resources.getJMXObjectName();
-        MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-        jmxBean = new QuartzSchedulerMBeanImpl(this);
-        mbs.registerMBean(jmxBean, new ObjectName(jmxObjectName));
-    }
-
-    /**
-     * Unregister the scheduler from the local MBeanServer.
-     */
-    private void unregisterJMX() throws Exception {
-        String jmxObjectName = resources.getJMXObjectName();
-        MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-        mbs.unregisterMBean(new ObjectName(jmxObjectName));
-        jmxBean.setSampledStatisticsEnabled(false);
-        getLog().info("Scheduler unregistered from name '{}' in the local MBeanServer.", jmxObjectName);
-    }
-
     /**
      * <p>
      * Returns the name of the <code>QuartzScheduler</code>.
@@ -550,28 +465,6 @@ public class QuartzScheduler {
         shuttingDown = true;
 
         getLog().info("Scheduler {} shutting down.", resources.getUniqueIdentifier());
-        // boolean removeMgmtSvr = false;
-        // if (registeredManagementServerBind != null) {
-        // ManagementServer standaloneRestServer =
-        // MGMT_SVR_BY_BIND.get(registeredManagementServerBind);
-        //
-        // try {
-        // standaloneRestServer.unregister(this);
-        //
-        // if (!standaloneRestServer.hasRegistered()) {
-        // removeMgmtSvr = true;
-        // standaloneRestServer.stop();
-        // }
-        // } catch (Exception e) {
-        // getLog().warn("Failed to shutdown the ManagementRESTService", e);
-        // } finally {
-        // if (removeMgmtSvr) {
-        // MGMT_SVR_BY_BIND.remove(registeredManagementServerBind);
-        // }
-        //
-        // registeredManagementServerBind = null;
-        // }
-        // }
 
         standby();
 
@@ -596,13 +489,6 @@ public class QuartzScheduler {
         resources.getThreadPool().shutdown(waitForJobsToComplete);
         
         closed = true;
-
-        if (resources.getJMXExport()) {
-            try {
-                unregisterJMX();
-            } catch (Exception e) {
-            }
-        }
 
         shutdownPlugins();
 
