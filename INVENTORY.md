@@ -357,3 +357,65 @@ From `quartz/build.gradle` (versions in `gradle.properties`); root build adds on
 | JDK modules `java.sql`, `java.rmi`, `java.management`, `java.naming` | JDK | JDBC, RMI, JMX, JNDI code | removed with that code (Phase 3) |
 
 Build-time specifics to replicate in Maven: `processResources` filters `quartz-build.properties` (`${version}`, `${fullname}`, `${name}`); JAR manifest sets `Automatic-Module-Name: org.quartz` (keep); test task uses `forkEvery 1` (tests may rely on JVM isolation via `SchedulerRepository` singletons — watch in Phase 2).
+
+## Removed in Phase 11
+
+Analysis of `3ffa3b58`, done before anything was deleted. Method: reference counts for every main type, constant, method and record component across `src/main`, `src/test` and the resource files (comments stripped; a reference must be an import, a same-package use or a fully qualified name). Cross-checked with `jdeps -verbose:class -filter:none` on `target/classes`, which found 182 classes, 29 with no incoming bytecode edge, all explained below. Also checked: a Javadoc grep for legacy terms, `dependency:analyze` (plugin 3.9.0), and an unused-import scan (javac has no lint for it). Status: **proposed**. Nothing is deleted until confirmed.
+
+### A. Delete: code nothing uses
+
+| # | Item | Evidence | Action |
+|---|------|----------|--------|
+| A1 | `org.quartz.utils.FindbugsSuppressWarnings` | 0 references (main, test, bytecode) | delete |
+| A2 | `JobDetailCodec.FIELDS`, `TriggerCodec.BINARY_FIELDS` | 0 readers; Phase 7 leftovers | delete |
+| A3 | `AbstractTrigger.VOLATILITY` (private static) | never read; its comment says it is kept "for serialization backward compatibility", but static fields are not serialized | delete |
+| A4 | `QuartzScheduler`: `removeNoGCObject`, `setSignalOnSchedulingChange` (+ field and `isSignalOnSchedulingChange`, then always `true`), `isShuttingDown`, `removeInternalJobListener`, `getInternalJobListener`, `addInternalTriggerListener`, `removeinternalTriggerListener`, `getInternalTriggerListener` (+ the internal trigger listener map, which nothing fills), `getNumJobsCurrentlyExecuting` | 0 callers; used by the JMX/RMI code deleted in Phase 3. `QuartzScheduler` is internal (users use `Scheduler`) | delete; inline the always-true signal check |
+| A5 | `StringKeyDirtyFlagMap`: deprecated `setAllowsTransientData`, `getAllowsTransientData`, `containsTransientData`, `removeTransientData` + field `allowsTransientData`; the commented-out `putAll` block | The Javadoc says "JDBCJobStores no longer prune out transient data": these only mattered to the JDBC store. The only user is one assertion in `JobDataMapTest` | delete; drop that assertion. The old `.ser` fixtures still deserialize, because Java serialization ignores removed fields |
+| A6 | Unused imports: `CalendarIntervalTriggerImpl` (`ChronoUnit`), `CronTriggerImpl` (`Year`); tests `DateBuilderTest` (`java.util.Calendar`), `SimpleTriggerTest` (`ParseException`), `QuartzMetricsTest` (`ArgumentMatchers.any`) | scan: 5 in total, no duplicates | delete |
+
+### B. Delete: dead configuration (Phase 9 leftovers, D-016)
+
+Since Phase 9 a scheduler can only be built with a `JobStore` instance (`StdSchedulerFactory.builder().jobStore(store)`, `SchedulerFactoryBean.setJobStore`). The following can no longer produce a scheduler, or are never read:
+
+| # | Item | Evidence | Action |
+|---|------|----------|--------|
+| B1 | `StdSchedulerFactory.getDefaultScheduler()`, `StdSchedulerFactory()` and `StdSchedulerFactory(QuartzSettings)` | They always fail with "No JobStore configured". Only used by `StdSchedulerFactoryTest.aJobStoreIsRequired`, which asserts that failure | delete; the test keeps the `builder().build().getScheduler()` failure case |
+| B2 | `QuartzSettings.jobStore` component, `StdSchedulerFactory.Builder.jobStore(JobStoreSettings)` and its field | Never read: stores take `JobStoreSettings` in their own constructors; `SchedulerFactoryBean` and the auto-configuration pass it along only to have it ignored | `QuartzSettings(scheduler, threadPool)`; delete the builder method. `JobStoreSettings` itself stays (store constructors, `spring.quartz.job-store.*`) |
+
+### C. Reword: stale Javadoc and comments
+
+| # | Where | Now | Action |
+|---|-------|-----|--------|
+| C1 | `Scheduler` (l.365), `SchedulerContext` (l.29–35), `JobExecutionContext` (l.50), `SchedulerMetaData` (l.162, and the `toString` text "access via RMI") | describe RMI / servlet-container access that no longer exists | reword. `isSchedulerRemote()` stays (API) and is documented as always `false`; the "via RMI" branch of `getSummary` goes |
+| C2 | the three Spring-ported files `LocalTaskExecutorThreadPool`, `SchedulerAccessor`, `ResourceLoaderClassLoadHelper` | log through commons-logging, while every other class uses SLF4J (`slf4j-api` is declared) | switch them to SLF4J, which removes the undeclared `commons-logging` use (E) |
+
+Kept as accurate history notes: "ported from / semantics of the original JDBC store" in `JobStoreSettings`, `QuartzSettings`, `JobDataCodec`, `PersistentJobStore` and `SpringTransactionJobRunShellFactory`; "no `quartz.properties` or `DataSource` support" in `SchedulerFactoryBean`; the Terracotta / IBM copyright headers (licence); `java.util.Date` in `MongoJobStore` (a BSON date for the TTL index).
+
+### D. Keep: no internal reference, but public API (the `org.quartz` usage model, CLAUDE.md)
+
+These are the items the scan found with no internal reference, or listed by `jdeps` with no incoming edge. Users call them; the library itself does not.
+- `Calendar` implementations: `AnnualCalendar`, `CronCalendar`, `DailyCalendar`, `HolidayCalendar`, `MonthlyCalendar`, `WeeklyCalendar`.
+- Matchers: `AndMatcher`, `OrMatcher`, `NotMatcher`, `KeyMatcher`, `NameMatcher`.
+- Listeners: `BroadcastJobListener`, `BroadcastSchedulerListener`, `BroadcastTriggerListener`, `JobChainingJobListener`.
+- `HostnameInstanceIdGenerator` and `ZeroSizeThreadPool`. They are pluggable via `Builder.instanceIdGenerator` / `threadPool`; `ZeroSizeThreadPool` is for schedule-only cluster nodes.
+- `TriggerUtils` and the deprecated `StatefulJob` (kept like the other upstream `@Deprecated` API).
+- `DateBuilder` month constants and `MILLISECONDS_IN_*`.
+- The Spring API listed in Phase 6: `CronTriggerFactoryBean`, `JobDetailFactoryBean`, `SimpleTriggerFactoryBean`, `SimpleThreadPoolTaskExecutor`, and the `SchedulerFactoryBean` setters / `SmartLifecycle` methods.
+- The auto-configurations and the failure analyzer (`AutoConfiguration.imports`, `spring.factories`).
+
+Checked and in use, nothing to remove: resources (`quartz-build.properties` is read by `QuartzScheduler`); test resources (the `JobDataMap-*.ser` fixtures and `golden/*.tsv.gz`); every test helper; every `package-info.java`; record components (no unread ones beyond B2). There are no empty packages.
+
+### E. Dependencies (`dependency:analyze`, 3.9.0)
+
+The main code uses the MongoDB and Redis APIs directly but declares them only through starters, and tests use transitive test libraries. Proposed pom:
+
+| Change | Scope | Why |
+|--------|-------|-----|
+| replace `spring-boot-starter-data-mongodb` / `-redis` (optional) with `mongodb-driver-sync`, `mongodb-driver-core`, `bson`, `spring-data-mongodb`, `spring-data-redis` | optional | what `MongoJobStore`, `RedisJobStore` and `JobStoreConfigurations` compile against ("used undeclared"); the starters were "unused declared" |
+| add `spring-core`, `spring-beans`, `spring-boot`, `spring-boot-actuator` | compile / optional | used directly, only present transitively |
+| `spring-boot-mongodb`, `spring-boot-data-mongodb`, `spring-boot-data-redis`, `lettuce-core` | test | used only by tests (`@ServiceConnection`, `MongoConnectionDetails`, `RedisURI`) ("non-test scoped test only") |
+| replace `junit-jupiter` with `junit-jupiter-api`, `junit-jupiter-params`, and `junit-jupiter-engine` (runtime) | test | the aggregator was "unused declared" |
+| add `testcontainers`, `spring-test`, `tools.jackson.core:jackson-databind` | test | used directly |
+| remove the `spring-boot-configuration-processor` dependency | n/a | it already runs from `annotationProcessorPaths`; the dependency entry is unused |
+| keep `spring-boot-starter-webmvc` (test) and `junit-jupiter-engine` | test | needed only at run time (embedded server, test engine): listed in `ignoredUnusedDeclaredDependencies` with that reason |
+| bind `maven-dependency-plugin:analyze-only` to `verify` with `failOnWarning=true` | build plugin | keeps "dependency:analyze clean" enforced |
