@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
 import org.quartz.Scheduler;
@@ -79,15 +80,15 @@ public class SimpleTriggerFactoryBean implements FactoryBean<SimpleTrigger>, Bea
 				SimpleTrigger.MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_REMAINING_REPEAT_COUNT
 		);
 
-	private String name;
+	private @Nullable String name;
 
-	private String group;
+	private @Nullable String group;
 
-	private JobDetail jobDetail;
+	private @Nullable JobDetail jobDetail;
 
 	private JobDataMap jobDataMap = new JobDataMap();
 
-	private Instant startTime;
+	private @Nullable Instant startTime;
 
 	private Duration startDelay = Duration.ZERO;
 
@@ -99,11 +100,11 @@ public class SimpleTriggerFactoryBean implements FactoryBean<SimpleTrigger>, Bea
 
 	private int misfireInstruction = SimpleTrigger.MISFIRE_INSTRUCTION_SMART_POLICY;
 
-	private String description;
+	private @Nullable String description;
 
-	private String beanName;
+	private @Nullable String beanName;
 
-	private SimpleTrigger simpleTrigger;
+	private @Nullable SimpleTrigger simpleTrigger;
 
 
 	/**
@@ -271,7 +272,7 @@ public class SimpleTriggerFactoryBean implements FactoryBean<SimpleTrigger>, Bea
 
 
 	@Override
-	public SimpleTrigger getObject() {
+	public @Nullable SimpleTrigger getObject() {
 		return this.simpleTrigger;
 	}
 

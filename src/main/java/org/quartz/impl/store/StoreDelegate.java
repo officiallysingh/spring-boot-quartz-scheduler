@@ -19,6 +19,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
@@ -49,7 +50,7 @@ public interface StoreDelegate {
 
     boolean jobExists(JobKey jobKey);
 
-    JobDetail selectJob(JobKey jobKey) throws JobPersistenceException;
+    @Nullable JobDetail selectJob(JobKey jobKey) throws JobPersistenceException;
 
     boolean deleteJob(JobKey jobKey);
 
@@ -68,13 +69,13 @@ public interface StoreDelegate {
 
     boolean triggerExists(TriggerKey triggerKey);
 
-    OperableTrigger selectTrigger(TriggerKey triggerKey) throws JobPersistenceException;
+    @Nullable OperableTrigger selectTrigger(TriggerKey triggerKey) throws JobPersistenceException;
 
     /** The trigger's job data only (used to build recovery triggers). */
     JobDataMap selectTriggerJobData(TriggerKey triggerKey) throws JobPersistenceException;
 
     /** The trigger's state, or {@code null} if it does not exist. */
-    String selectTriggerState(TriggerKey triggerKey);
+    @Nullable String selectTriggerState(TriggerKey triggerKey);
 
     boolean deleteTrigger(TriggerKey triggerKey);
 
@@ -130,7 +131,7 @@ public interface StoreDelegate {
 
     boolean calendarExists(String name);
 
-    Calendar selectCalendar(String name) throws JobPersistenceException;
+    @Nullable Calendar selectCalendar(String name) throws JobPersistenceException;
 
     boolean deleteCalendar(String name);
 

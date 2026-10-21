@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.spi.ClassLoadHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +44,7 @@ public class ResourceLoaderClassLoadHelper implements ClassLoadHelper {
 
 	protected static final Logger logger = LoggerFactory.getLogger(ResourceLoaderClassLoadHelper.class);
 
-	private ResourceLoader resourceLoader;
+	private @Nullable ResourceLoader resourceLoader;
 
 
 	/**
@@ -56,7 +57,7 @@ public class ResourceLoaderClassLoadHelper implements ClassLoadHelper {
 	 * Create a new ResourceLoaderClassLoadHelper for the given ResourceLoader.
 	 * @param resourceLoader the ResourceLoader to delegate to
 	 */
-	public ResourceLoaderClassLoadHelper(ResourceLoader resourceLoader) {
+	public ResourceLoaderClassLoadHelper(@Nullable ResourceLoader resourceLoader) {
 		this.resourceLoader = resourceLoader;
 	}
 
@@ -81,7 +82,7 @@ public class ResourceLoaderClassLoadHelper implements ClassLoadHelper {
 	}
 
 	@Override
-	public URL getResource(String name) {
+	public @Nullable URL getResource(String name) {
 		Assert.state(this.resourceLoader != null, "ResourceLoaderClassLoadHelper not initialized");
 		Resource resource = this.resourceLoader.getResource(name);
 		if (resource.exists()) {
@@ -101,7 +102,7 @@ public class ResourceLoaderClassLoadHelper implements ClassLoadHelper {
 	}
 
 	@Override
-	public InputStream getResourceAsStream(String name) {
+	public @Nullable InputStream getResourceAsStream(String name) {
 		Assert.state(this.resourceLoader != null, "ResourceLoaderClassLoadHelper not initialized");
 		Resource resource = this.resourceLoader.getResource(name);
 		if (resource.exists()) {

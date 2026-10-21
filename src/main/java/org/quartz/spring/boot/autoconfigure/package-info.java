@@ -19,4 +19,7 @@
  * {@code org.springframework.boot.quartz.autoconfigure} and bound to the typed
  * {@code spring.quartz.*} properties of this library.
  */
+@NullMarked
 package org.quartz.spring.boot.autoconfigure;
+
+import org.jspecify.annotations.NullMarked;

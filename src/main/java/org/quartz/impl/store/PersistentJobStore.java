@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
@@ -106,19 +107,25 @@ public abstract class PersistentJobStore implements JobStore {
 
     private final JobStoreSettings settings;
 
+    @SuppressWarnings("NullAway.Init")
     private String instanceId;
 
+    @SuppressWarnings("NullAway.Init")
     private String instanceName;
 
+    @SuppressWarnings("NullAway.Init")
     private ClassLoadHelper classLoadHelper;
 
+    @SuppressWarnings("NullAway.Init")
     private SchedulerSignaler signaler;
 
+    @SuppressWarnings("NullAway.Init")
     private StoreDelegate delegate;
 
+    @SuppressWarnings("NullAway.Init")
     private StoreLock lock;
 
-    private ClassLoader initializersLoader;
+    private @Nullable ClassLoader initializersLoader;
 
     private final ThreadLocal<Set<String>> heldLocks = ThreadLocal.withInitial(HashSet::new);
 
@@ -128,9 +135,9 @@ public abstract class PersistentJobStore implements JobStore {
 
     private volatile boolean shutdown;
 
-    private MisfireHandler misfireHandler;
+    private @Nullable MisfireHandler misfireHandler;
 
-    private ClusterManager clusterManager;
+    private @Nullable ClusterManager clusterManager;
 
     private volatile boolean firstCheckIn = true;
 
@@ -181,7 +188,7 @@ public abstract class PersistentJobStore implements JobStore {
 
     /** A store operation. */
     @FunctionalInterface
-    protected interface StoreCallback<T> {
+    protected interface StoreCallback<T extends @Nullable Object> {
         T execute() throws JobPersistenceException;
     }
 
@@ -302,7 +309,7 @@ public abstract class PersistentJobStore implements JobStore {
         log.debug("JobStore background threads shutdown.");
     }
 
-    private void stopThread(StoreThread thread) {
+    private void stopThread(@Nullable StoreThread thread) {
         if (thread != null) {
             thread.halt();
             if (thread != Thread.currentThread()) {
@@ -385,7 +392,8 @@ public abstract class PersistentJobStore implements JobStore {
      * Runs an operation under the given lock ({@code null} for none) and, once the
      * outermost operation has completed, signals scheduling changes it recorded.
      */
-    protected <T> T executeInLock(String lockName, StoreCallback<T> callback) throws JobPersistenceException {
+    protected <T extends @Nullable Object> T executeInLock(@Nullable String lockName, StoreCallback<T> callback)
+            throws JobPersistenceException {
         boolean owner = false;
         PendingSignal signal = pendingSignal.get();
         boolean outermost = signal == null;
@@ -410,7 +418,7 @@ public abstract class PersistentJobStore implements JobStore {
             throw new JobPersistenceException("Unexpected runtime exception: " + ex.getMessage(), ex);
         }
         finally {
-            if (owner) {
+            if (owner && lockName != null) {
                 releaseLock(lockName);
             }
             if (outermost) {
@@ -419,7 +427,7 @@ public abstract class PersistentJobStore implements JobStore {
         }
     }
 
-    protected <T> T executeWithoutLock(StoreCallback<T> callback) throws JobPersistenceException {
+    protected <T extends @Nullable Object> T executeWithoutLock(StoreCallback<T> callback) throws JobPersistenceException {
         return executeInLock(null, callback);
     }
 
@@ -427,7 +435,7 @@ public abstract class PersistentJobStore implements JobStore {
      * Like {@link #executeInLock}, but retries every {@code retryInterval} until it
      * succeeds or the store shuts down (used where the scheduler cannot handle a failure).
      */
-    protected void retryExecuteInLock(String lockName, StoreCallback<Void> callback) {
+    protected void retryExecuteInLock(String lockName, StoreCallback<@Nullable Void> callback) {
         for (int retry = 1; !shutdown; retry++) {
             try {
                 executeInLock(lockName, callback);
@@ -451,7 +459,7 @@ public abstract class PersistentJobStore implements JobStore {
     }
 
     /** Records that the scheduler thread should be woken once the current operation completes. */
-    protected void signalSchedulingChangeOnCompletion(Instant candidateNewNextFireTime) {
+    protected void signalSchedulingChangeOnCompletion(@Nullable Instant candidateNewNextFireTime) {
         PendingSignal signal = pendingSignal.get();
         if (signal == null) {
             signaler.signalSchedulingChange(candidateNewNextFireTime);
@@ -469,7 +477,7 @@ public abstract class PersistentJobStore implements JobStore {
 
     private static final class PendingSignal {
         boolean pending;
-        Instant candidate;
+        @Nullable Instant candidate;
     }
 
     // ------------------------------------------------------------------
@@ -545,7 +553,7 @@ public abstract class PersistentJobStore implements JobStore {
     }
 
     @Override
-    public JobDetail retrieveJob(JobKey jobKey) throws JobPersistenceException {
+    public @Nullable JobDetail retrieveJob(JobKey jobKey) throws JobPersistenceException {
         return executeWithoutLock(() -> delegate.selectJob(jobKey));
     }
 
@@ -616,7 +624,7 @@ public abstract class PersistentJobStore implements JobStore {
      * Stores a trigger. Unless {@code forceState} is set, a trigger in a paused group is
      * stored {@code PAUSED} and one whose non-concurrent job is executing {@code BLOCKED}.
      */
-    protected void storeTrigger(OperableTrigger newTrigger, JobDetail job, boolean replaceExisting, String state,
+    protected void storeTrigger(OperableTrigger newTrigger, @Nullable JobDetail job, boolean replaceExisting, String state,
             boolean forceState, boolean recovering) throws JobPersistenceException {
         boolean existing = delegate.triggerExists(newTrigger.getKey());
         if (existing && !replaceExisting) {
@@ -717,7 +725,7 @@ public abstract class PersistentJobStore implements JobStore {
     }
 
     @Override
-    public OperableTrigger retrieveTrigger(TriggerKey triggerKey) throws JobPersistenceException {
+    public @Nullable OperableTrigger retrieveTrigger(TriggerKey triggerKey) throws JobPersistenceException {
         return executeWithoutLock(() -> delegate.selectTrigger(triggerKey));
     }
 
@@ -857,7 +865,7 @@ public abstract class PersistentJobStore implements JobStore {
     }
 
     @Override
-    public Calendar retrieveCalendar(String name) throws JobPersistenceException {
+    public @Nullable Calendar retrieveCalendar(String name) throws JobPersistenceException {
         return executeWithoutLock(() -> delegate.selectCalendar(name));
     }
 
@@ -1163,7 +1171,7 @@ public abstract class PersistentJobStore implements JobStore {
         });
     }
 
-    private TriggerFiredBundle triggerFired(OperableTrigger trigger) throws JobPersistenceException {
+    private @Nullable TriggerFiredBundle triggerFired(OperableTrigger trigger) throws JobPersistenceException {
         // make sure the trigger wasn't deleted, paused, or completed since it was acquired
         if (!STATE_ACQUIRED.equals(delegate.selectTriggerState(trigger.getKey()))) {
             return null;
@@ -1284,7 +1292,7 @@ public abstract class PersistentJobStore implements JobStore {
 
     /** Result of a misfire pass. */
     public record MisfireResult(boolean hasMoreMisfiredTriggers, int processedMisfiredTriggerCount,
-            Instant earliestNewTime) {
+            @Nullable Instant earliestNewTime) {
 
         static final MisfireResult NO_OP = new MisfireResult(false, 0, null);
     }
@@ -1450,7 +1458,7 @@ public abstract class PersistentJobStore implements JobStore {
      */
     protected boolean doCheckin() throws JobPersistenceException {
         boolean recovered = false;
-        List<SchedulerStateRecord> failed = null;
+        List<SchedulerStateRecord> failed = List.of();
         // other than the first time, check in first to see whether there is work to do before taking the locks
         if (!firstCheckIn) {
             failed = executeWithoutLock(this::clusterCheckIn);
@@ -1509,7 +1517,8 @@ public abstract class PersistentJobStore implements JobStore {
         Duration sinceOwnCheckin = Duration.between(lastCheckin, now);
         Duration interval = record.checkinInterval();
         Duration window = (interval != null && interval.compareTo(sinceOwnCheckin) > 0) ? interval : sinceOwnCheckin;
-        return record.lastCheckin().plus(window).plus(settings.clusterCheckinMisfireThreshold());
+        return Objects.requireNonNull(record.lastCheckin(), "lastCheckin").plus(window)
+            .plus(settings.clusterCheckinMisfireThreshold());
     }
 
     private List<SchedulerStateRecord> clusterCheckIn() {

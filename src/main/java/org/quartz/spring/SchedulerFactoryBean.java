@@ -22,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.SchedulerFactory;
@@ -88,31 +89,31 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 		BeanNameAware, ApplicationContextAware, InitializingBean, DisposableBean, SmartLifecycle,
 		ApplicationListener<ContextClosedEvent> {
 
-	private SchedulerFactory schedulerFactory;
+	private @Nullable SchedulerFactory schedulerFactory;
 
-	private String schedulerName;
+	private @Nullable String schedulerName;
 
-	private QuartzSettings settings;
+	private @Nullable QuartzSettings settings;
 
-	private Executor taskExecutor;
+	private @Nullable Executor taskExecutor;
 
-	private ThreadPool threadPool;
+	private @Nullable ThreadPool threadPool;
 
-	private JobStore jobStore;
+	private @Nullable JobStore jobStore;
 
 	private final Map<String, SchedulerPlugin> plugins = new LinkedHashMap<>();
 
-	private InstanceIdGenerator instanceIdGenerator;
+	private @Nullable InstanceIdGenerator instanceIdGenerator;
 
-	private Clock clock;
+	private @Nullable Clock clock;
 
-	private Map<String, ?> schedulerContextMap;
+	private @Nullable Map<String, ?> schedulerContextMap;
 
-	private String applicationContextSchedulerContextKey;
+	private @Nullable String applicationContextSchedulerContextKey;
 
-	private JobFactory jobFactory;
+	private @Nullable JobFactory jobFactory;
 
-	private JobRunShellFactory jobRunShellFactory;
+	private @Nullable JobRunShellFactory jobRunShellFactory;
 
 	private boolean transactionalJobs = false;
 
@@ -130,11 +131,11 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 
 	private boolean waitForJobsToCompleteOnShutdown = false;
 
-	private String beanName;
+	private @Nullable String beanName;
 
-	private ApplicationContext applicationContext;
+	private @Nullable ApplicationContext applicationContext;
 
-	private Scheduler scheduler;
+	private @Nullable Scheduler scheduler;
 
 
 	/**
@@ -205,7 +206,7 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 	/**
 	 * Return the {@link JobStore} the scheduler uses, or {@code null} if none was set.
 	 */
-	public JobStore getJobStore() {
+	public @Nullable JobStore getJobStore() {
 		return this.jobStore;
 	}
 
@@ -473,7 +474,7 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 		return builder.build();
 	}
 
-	private JobRunShellFactory determineJobRunShellFactory() {
+	private @Nullable JobRunShellFactory determineJobRunShellFactory() {
 		if (this.jobRunShellFactory != null) {
 			return this.jobRunShellFactory;
 		}
@@ -539,16 +540,17 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 	 * @see #afterPropertiesSet
 	 * @see org.quartz.SchedulerFactory#getScheduler
 	 */
-	protected Scheduler createScheduler(SchedulerFactory schedulerFactory, String schedulerName)
+	protected Scheduler createScheduler(SchedulerFactory schedulerFactory, @Nullable String schedulerName)
 			throws SchedulerException {
 
 		// Override thread context ClassLoader to work around naive Quartz ClassLoadHelper loading.
 		Thread currentThread = Thread.currentThread();
 		ClassLoader threadContextClassLoader = currentThread.getContextClassLoader();
-		boolean overrideClassLoader = (this.resourceLoader != null &&
-				this.resourceLoader.getClassLoader() != threadContextClassLoader);
+		ClassLoader resourceClassLoader = (this.resourceLoader != null ?
+				this.resourceLoader.getClassLoader() : threadContextClassLoader);
+		boolean overrideClassLoader = (resourceClassLoader != threadContextClassLoader);
 		if (overrideClassLoader) {
-			currentThread.setContextClassLoader(this.resourceLoader.getClassLoader());
+			currentThread.setContextClassLoader(resourceClassLoader);
 		}
 		try {
 			SchedulerRepository repository = SchedulerRepository.getInstance();
@@ -649,7 +651,7 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 	}
 
 	@Override
-	public Scheduler getObject() {
+	public @Nullable Scheduler getObject() {
 		return this.scheduler;
 	}
 

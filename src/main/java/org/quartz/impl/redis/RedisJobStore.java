@@ -43,6 +43,7 @@ public class RedisJobStore extends PersistentJobStore {
 
     private final RedisJobStoreSettings redisSettings;
 
+    @SuppressWarnings("NullAway.Init")
     private RedisKeys keys;
 
     public RedisJobStore(StringRedisTemplate redis, JobStoreSettings settings, RedisJobStoreSettings redisSettings) {

@@ -24,6 +24,7 @@ import org.springframework.data.mongodb.MongoDatabaseUtils;
 import org.springframework.data.mongodb.MongoTransactionManager;
 import org.springframework.data.mongodb.SessionSynchronization;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.util.Assert;
 
 /**
  * Lets the job data of a {@link org.quartz.PersistJobDataAfterExecution} job be written in
@@ -61,7 +62,9 @@ final class MongoJobDataTransactions {
 	}
 
 	private static MongoDatabaseFactory databaseFactory(PlatformTransactionManager transactionManager) {
-		return ((MongoTransactionManager) transactionManager).getDatabaseFactory();
+		MongoDatabaseFactory databaseFactory = ((MongoTransactionManager) transactionManager).getDatabaseFactory();
+		Assert.state(databaseFactory != null, "MongoTransactionManager has no MongoDatabaseFactory");
+		return databaseFactory;
 	}
 
 }

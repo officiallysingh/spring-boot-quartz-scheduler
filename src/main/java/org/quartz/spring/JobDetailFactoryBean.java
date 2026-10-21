@@ -18,6 +18,7 @@ package org.quartz.spring;
 
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.Job;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
@@ -49,11 +50,11 @@ import org.springframework.util.Assert;
 public class JobDetailFactoryBean
 		implements FactoryBean<JobDetail>, BeanNameAware, ApplicationContextAware, InitializingBean {
 
-	private String name;
+	private @Nullable String name;
 
-	private String group;
+	private @Nullable String group;
 
-	private Class<? extends Job> jobClass;
+	private @Nullable Class<? extends Job> jobClass;
 
 	private JobDataMap jobDataMap = new JobDataMap();
 
@@ -61,15 +62,15 @@ public class JobDetailFactoryBean
 
 	private boolean requestsRecovery = false;
 
-	private String description;
+	private @Nullable String description;
 
-	private String beanName;
+	private @Nullable String beanName;
 
-	private ApplicationContext applicationContext;
+	private @Nullable ApplicationContext applicationContext;
 
-	private String applicationContextJobDataKey;
+	private @Nullable String applicationContextJobDataKey;
 
-	private JobDetail jobDetail;
+	private @Nullable JobDetail jobDetail;
 
 
 	/**
@@ -209,7 +210,7 @@ public class JobDetailFactoryBean
 
 
 	@Override
-	public JobDetail getObject() {
+	public @Nullable JobDetail getObject() {
 		return this.jobDetail;
 	}
 

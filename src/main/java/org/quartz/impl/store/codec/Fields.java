@@ -15,6 +15,8 @@ package org.quartz.impl.store.codec;
 
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Typed reads from a store-neutral field map, whose values are either typed
  * ({@code String}, {@code Long}, {@code Integer}, {@code Boolean}, {@code byte[]}, as written
@@ -25,12 +27,12 @@ final class Fields {
     private Fields() {
     }
 
-    static String string(Map<String, ?> fields, String name) {
+    static @Nullable String string(Map<String, ?> fields, String name) {
         Object value = fields.get(name);
         return (value != null) ? value.toString() : null;
     }
 
-    static Long longValue(Map<String, ?> fields, String name) {
+    static @Nullable Long longValue(Map<String, ?> fields, String name) {
         Object value = fields.get(name);
         if (value == null) {
             return null;
@@ -51,7 +53,7 @@ final class Fields {
         return (value instanceof Boolean bool) ? bool : value != null && Boolean.parseBoolean(value.toString());
     }
 
-    static byte[] bytes(Map<String, ?> fields, String name) {
+    static byte @Nullable [] bytes(Map<String, ?> fields, String name) {
         Object value = fields.get(name);
         if (value == null) {
             return null;

@@ -30,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -44,6 +45,7 @@ import com.mongodb.client.model.Updates;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.Binary;
+import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
@@ -91,12 +93,12 @@ class MongoStoreDelegate implements StoreDelegate {
 
     private final MongoCollections collections;
 
-    private final ClassLoadHelper loadHelper;
+    private final @Nullable ClassLoadHelper loadHelper;
 
-    private final Supplier<ClientSession> session;
+    private final Supplier<@Nullable ClientSession> session;
 
-    MongoStoreDelegate(String schedName, MongoCollections collections, ClassLoadHelper loadHelper,
-            Supplier<ClientSession> session) {
+    MongoStoreDelegate(String schedName, MongoCollections collections, @Nullable ClassLoadHelper loadHelper,
+            Supplier<@Nullable ClientSession> session) {
         this.schedName = schedName;
         this.collections = collections;
         this.loadHelper = loadHelper;
@@ -150,7 +152,11 @@ class MongoStoreDelegate implements StoreDelegate {
         return (s != null) ? collection.find(s, filter) : collection.find(filter);
     }
 
-    private Document first(MongoCollection<Document> collection, Bson filter) {
+    private ClassLoadHelper classLoadHelper() {
+        return Objects.requireNonNull(this.loadHelper, "loadHelper");
+    }
+
+    private @Nullable Document first(MongoCollection<Document> collection, Bson filter) {
         return find(collection, filter).first();
     }
 
@@ -214,7 +220,7 @@ class MongoStoreDelegate implements StoreDelegate {
     // encoding
     // ------------------------------------------------------------------
 
-    private void putJobData(Document document, JobDataMap data) throws JobPersistenceException {
+    private void putJobData(Document document, @Nullable JobDataMap data) throws JobPersistenceException {
         if (data == null || data.isEmpty()) {
             document.put(JOB_DATA, new Document());
         }
@@ -229,7 +235,7 @@ class MongoStoreDelegate implements StoreDelegate {
     private JobDataMap jobData(Document document) throws JobPersistenceException {
         Binary blob = document.get(JOB_DATA_BLOB, Binary.class);
         if (blob != null) {
-            return JobDataCodec.deserialize(blob.getData(), loadHelper);
+            return JobDataCodec.deserialize(blob.getData(), classLoadHelper());
         }
         return JobDataCodec.fromNative(document.get(JOB_DATA, Document.class));
     }
@@ -294,9 +300,9 @@ class MongoStoreDelegate implements StoreDelegate {
     }
 
     @Override
-    public JobDetail selectJob(JobKey jobKey) throws JobPersistenceException {
+    public @Nullable JobDetail selectJob(JobKey jobKey) throws JobPersistenceException {
         Document document = first(collections.jobs(), jobKey(jobKey));
-        return (document != null) ? JobDetailCodec.decode(fields(document), jobData(document), loadHelper) : null;
+        return (document != null) ? JobDetailCodec.decode(fields(document), jobData(document), classLoadHelper()) : null;
     }
 
     @Override
@@ -354,9 +360,9 @@ class MongoStoreDelegate implements StoreDelegate {
     }
 
     @Override
-    public OperableTrigger selectTrigger(TriggerKey triggerKey) throws JobPersistenceException {
+    public @Nullable OperableTrigger selectTrigger(TriggerKey triggerKey) throws JobPersistenceException {
         Document document = first(collections.triggers(), triggerKey(triggerKey));
-        return (document != null) ? TriggerCodec.decode(fields(document), jobData(document), loadHelper) : null;
+        return (document != null) ? TriggerCodec.decode(fields(document), jobData(document), classLoadHelper()) : null;
     }
 
     @Override
@@ -366,7 +372,7 @@ class MongoStoreDelegate implements StoreDelegate {
     }
 
     @Override
-    public String selectTriggerState(TriggerKey triggerKey) {
+    public @Nullable String selectTriggerState(TriggerKey triggerKey) {
         Document document = find(collections.triggers(), triggerKey(triggerKey))
             .projection(Projections.include(STATE)).first();
         return (document != null) ? document.getString(STATE) : null;
@@ -503,10 +509,11 @@ class MongoStoreDelegate implements StoreDelegate {
     }
 
     @Override
-    public Calendar selectCalendar(String name) throws JobPersistenceException {
+    public @Nullable Calendar selectCalendar(String name) throws JobPersistenceException {
         Document document = first(collections.calendars(), calendar(name));
         return (document != null)
-                ? SerializationCodec.deserialize(document.get(CALENDAR, Binary.class).getData(), Calendar.class, loadHelper)
+                ? SerializationCodec.deserialize(document.get(CALENDAR, Binary.class).getData(), Calendar.class,
+                        classLoadHelper())
                 : null;
     }
 

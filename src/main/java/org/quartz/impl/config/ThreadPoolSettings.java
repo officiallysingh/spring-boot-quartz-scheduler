@@ -13,6 +13,8 @@
  */
 package org.quartz.impl.config;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Settings of the worker thread pool (the former {@code org.quartz.threadPool.*} keys).
  * They apply to the {@link org.quartz.simpl.SimpleThreadPool} the scheduler factory creates
@@ -30,7 +32,7 @@ package org.quartz.impl.config;
 public record ThreadPoolSettings(
         int threadCount,
         int threadPriority,
-        String threadNamePrefix,
+        @Nullable String threadNamePrefix,
         boolean daemon,
         boolean threadsInheritContextClassLoaderOfInitializingThread,
         boolean threadsInheritGroupOfInitializingThread) {
@@ -71,7 +73,7 @@ public record ThreadPoolSettings(
     public static final class Builder {
         private int threadCount = DEFAULT_THREAD_COUNT;
         private int threadPriority = Thread.NORM_PRIORITY;
-        private String threadNamePrefix;
+        private @Nullable String threadNamePrefix;
         private boolean daemon;
         private boolean threadsInheritContextClassLoaderOfInitializingThread = true;
         private boolean threadsInheritGroupOfInitializingThread = true;
@@ -89,7 +91,7 @@ public record ThreadPoolSettings(
             return this;
         }
 
-        public Builder threadNamePrefix(String threadNamePrefix) {
+        public Builder threadNamePrefix(@Nullable String threadNamePrefix) {
             this.threadNamePrefix = threadNamePrefix;
             return this;
         }

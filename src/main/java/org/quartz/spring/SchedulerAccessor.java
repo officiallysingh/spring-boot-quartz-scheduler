@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.JobDetail;
 import org.quartz.JobListener;
@@ -59,21 +60,21 @@ public abstract class SchedulerAccessor implements ResourceLoaderAware {
 
 	private boolean overwriteExistingJobs = false;
 
-	private List<JobDetail> jobDetails;
+	private @Nullable List<JobDetail> jobDetails;
 
-	private Map<String, Calendar> calendars;
+	private @Nullable Map<String, Calendar> calendars;
 
-	private List<Trigger> triggers;
+	private @Nullable List<Trigger> triggers;
 
-	private SchedulerListener[] schedulerListeners;
+	private SchedulerListener @Nullable [] schedulerListeners;
 
-	private JobListener[] globalJobListeners;
+	private JobListener @Nullable [] globalJobListeners;
 
-	private TriggerListener[] globalTriggerListeners;
+	private TriggerListener @Nullable [] globalTriggerListeners;
 
-	private PlatformTransactionManager transactionManager;
+	private @Nullable PlatformTransactionManager transactionManager;
 
-	protected ResourceLoader resourceLoader;
+	protected @Nullable ResourceLoader resourceLoader;
 
 
 	/**
@@ -167,9 +168,10 @@ public abstract class SchedulerAccessor implements ResourceLoaderAware {
 	 * Register jobs and triggers (within a transaction, if possible).
 	 */
 	protected void registerJobsAndTriggers() throws SchedulerException {
+		PlatformTransactionManager transactionManager = this.transactionManager;
 		TransactionStatus transactionStatus = null;
-		if (this.transactionManager != null) {
-			transactionStatus = this.transactionManager.getTransaction(TransactionDefinition.withDefaults());
+		if (transactionManager != null) {
+			transactionStatus = transactionManager.getTransaction(TransactionDefinition.withDefaults());
 		}
 
 		try {
@@ -201,9 +203,9 @@ public abstract class SchedulerAccessor implements ResourceLoaderAware {
 		}
 
 		catch (Throwable ex) {
-			if (transactionStatus != null) {
+			if (transactionManager != null && transactionStatus != null) {
 				try {
-					this.transactionManager.rollback(transactionStatus);
+					transactionManager.rollback(transactionStatus);
 				}
 				catch (TransactionException tex) {
 					logger.error("Job registration exception overridden by rollback exception", ex);
@@ -219,8 +221,8 @@ public abstract class SchedulerAccessor implements ResourceLoaderAware {
 			throw new SchedulerException("Registration of jobs and triggers failed: " + ex.getMessage());
 		}
 
-		if (transactionStatus != null) {
-			this.transactionManager.commit(transactionStatus);
+		if (transactionManager != null && transactionStatus != null) {
+			transactionManager.commit(transactionStatus);
 		}
 	}
 

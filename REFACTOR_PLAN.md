@@ -242,7 +242,7 @@ Tests:
 
 ## Follow-up after Phase 12 — jspecify nullness (separate activity)
 
-Requested on 2026-10-20 and deferred, by request, until the phases above are done.
+Requested on 2026-10-20 and deferred, by request, until the phases above are done. **Done on 2026-10-21** (D-020): scope is the refactor's own packages.
 
 - Add `org.jspecify:jspecify` (managed by the Spring Boot BOM) and annotate with Spring's convention: `@NullMarked` in `package-info.java`, `@Nullable` on everything that accepts or returns `null`.
 - Scope to decide then: the code written or ported in this refactor (`org.quartz.impl.config`, `org.quartz.impl.store`, `org.quartz.impl.mongodb`, `org.quartz.impl.redis`, `org.quartz.spring`, `org.quartz.spring.boot.*`), or also the legacy Quartz core packages.

@@ -21,6 +21,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.ExecuteInTransaction;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionException;
@@ -75,15 +76,16 @@ public class SpringTransactionJobRunShellFactory implements JobRunShellFactory {
 
 	private Propagation defaultPropagation = Propagation.REQUIRED;
 
-	private JobStore jobStore;
+	private @Nullable JobStore jobStore;
 
 	private Clock clock = Clock.systemUTC();
 
+	@SuppressWarnings("NullAway.Init")
 	private Scheduler scheduler;
 
 	private final Map<Class<?>, Optional<ExecuteInTransaction>> annotations = new ConcurrentHashMap<>();
 
-	private volatile PlatformTransactionManager defaultTransactionManager;
+	private volatile @Nullable PlatformTransactionManager defaultTransactionManager;
 
 	public SpringTransactionJobRunShellFactory(ListableBeanFactory beanFactory) {
 		this.beanFactory = Objects.requireNonNull(beanFactory, "beanFactory");
@@ -110,7 +112,7 @@ public class SpringTransactionJobRunShellFactory implements JobRunShellFactory {
 	 * The scheduler's job store; needed only to write the job data of
 	 * {@link org.quartz.PersistJobDataAfterExecution} jobs in their transaction.
 	 */
-	public void setJobStore(JobStore jobStore) {
+	public void setJobStore(@Nullable JobStore jobStore) {
 		this.jobStore = jobStore;
 	}
 
@@ -145,7 +147,7 @@ public class SpringTransactionJobRunShellFactory implements JobRunShellFactory {
 	 * transaction. The attribute's qualifier is the transaction manager bean name, its
 	 * name the job key.
 	 */
-	RuleBasedTransactionAttribute transactionAttribute(JobDetail jobDetail) {
+	@Nullable RuleBasedTransactionAttribute transactionAttribute(JobDetail jobDetail) {
 		ExecuteInTransaction annotation = this.annotations
 			.computeIfAbsent(jobDetail.getJobClass(), (jobClass) -> Optional
 				.ofNullable(AnnotatedElementUtils.findMergedAnnotation(jobClass, ExecuteInTransaction.class)))
@@ -192,7 +194,7 @@ public class SpringTransactionJobRunShellFactory implements JobRunShellFactory {
 		return transactionManager;
 	}
 
-	private PlatformTransactionManager findDefaultTransactionManager() {
+	private @Nullable PlatformTransactionManager findDefaultTransactionManager() {
 		PlatformTransactionManager transactionManager = this.defaultTransactionManager;
 		if (transactionManager == null) {
 			transactionManager = this.beanFactory.getBeanProvider(PlatformTransactionManager.class).getIfUnique();
@@ -217,7 +219,8 @@ public class SpringTransactionJobRunShellFactory implements JobRunShellFactory {
 
 	void updateJobDataInTransaction(PlatformTransactionManager transactionManager, JobDetail jobDetail)
 			throws JobPersistenceException {
-		MongoJobDataTransactions.updateJobData(transactionManager, this.jobStore, jobDetail);
+		MongoJobDataTransactions.updateJobData(transactionManager, Objects.requireNonNull(this.jobStore, "jobStore"),
+				jobDetail);
 	}
 
 	private static boolean isPresent(String className) {

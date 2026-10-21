@@ -18,6 +18,7 @@ package org.quartz.spring.boot.actuate.metrics;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import org.jspecify.annotations.Nullable;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.Scheduler;
@@ -46,6 +47,7 @@ public class QuartzMetrics implements SchedulerPlugin {
 
 	private final MeterRegistry registry;
 
+	@SuppressWarnings("NullAway.Init")
 	private String schedulerName;
 
 	public QuartzMetrics(MeterRegistry registry) {
@@ -75,7 +77,7 @@ public class QuartzMetrics implements SchedulerPlugin {
 		}
 
 		@Override
-		public void jobWasExecuted(JobExecutionContext context, JobExecutionException jobException) {
+		public void jobWasExecuted(JobExecutionContext context, @Nullable JobExecutionException jobException) {
 			String group = context.getJobDetail().getKey().getGroup();
 			boolean failed = jobException != null;
 			counter("quartz.jobs.executed", "Finished Quartz job executions", group).increment();

@@ -18,6 +18,8 @@ package org.quartz.spring.boot.autoconfigure;
 import java.util.List;
 import java.util.Locale;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Thrown at startup when the auto-configuration cannot create a Quartz job store: no
  * {@code spring.quartz.job-store.type} and no MongoDB / Redis connection bean, both
@@ -26,18 +28,18 @@ import java.util.Locale;
  */
 public class JobStoreUnavailableException extends IllegalStateException {
 
-	private final JobStoreType configuredType;
+	private final @Nullable JobStoreType configuredType;
 
 	private final List<JobStoreType> availableTypes;
 
-	JobStoreUnavailableException(JobStoreType configuredType, List<JobStoreType> availableTypes) {
+	JobStoreUnavailableException(@Nullable JobStoreType configuredType, List<JobStoreType> availableTypes) {
 		super(message(configuredType, availableTypes));
 		this.configuredType = configuredType;
 		this.availableTypes = List.copyOf(availableTypes);
 	}
 
 	/** The configured {@code spring.quartz.job-store.type}, or {@code null} if unset. */
-	public JobStoreType getConfiguredType() {
+	public @Nullable JobStoreType getConfiguredType() {
 		return this.configuredType;
 	}
 
@@ -46,7 +48,7 @@ public class JobStoreUnavailableException extends IllegalStateException {
 		return this.availableTypes;
 	}
 
-	private static String message(JobStoreType configuredType, List<JobStoreType> availableTypes) {
+	private static String message(@Nullable JobStoreType configuredType, List<JobStoreType> availableTypes) {
 		if (configuredType != null) {
 			return "'spring.quartz.job-store.type' is " + name(configuredType) + " but no "
 					+ JobStoreConfigurations.requirement(configuredType) + " is available";

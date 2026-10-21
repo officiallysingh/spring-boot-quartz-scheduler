@@ -16,6 +16,7 @@ package org.quartz.impl.store.codec;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.JobDataMap;
 import org.quartz.JobPersistenceException;
 import org.quartz.spi.ClassLoadHelper;
@@ -35,7 +36,7 @@ public final class JobDataCodec {
     /**
      * Fails if {@code useProperties} is set and a value is not a {@code String}.
      */
-    public static void checkUseProperties(JobDataMap data, boolean useProperties) throws JobPersistenceException {
+    public static void checkUseProperties(@Nullable JobDataMap data, boolean useProperties) throws JobPersistenceException {
         if (!useProperties || data == null) {
             return;
         }
@@ -64,7 +65,7 @@ public final class JobDataCodec {
     }
 
     /** Copies a natively stored map back into a clean {@link JobDataMap}. */
-    public static JobDataMap fromNative(Map<String, ?> values) {
+    public static JobDataMap fromNative(@Nullable Map<String, ?> values) {
         JobDataMap data = new JobDataMap();
         if (values != null) {
             data.putAll(new LinkedHashMap<>(values));

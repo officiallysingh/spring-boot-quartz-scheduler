@@ -19,6 +19,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerMetaData;
 import org.quartz.impl.config.JobStoreSettings;
@@ -38,7 +39,7 @@ public class QuartzHealthIndicator extends AbstractHealthIndicator {
 
 	private final Scheduler scheduler;
 
-	private final JobStore jobStore;
+	private final @Nullable JobStore jobStore;
 
 	private final Clock clock;
 
@@ -46,11 +47,11 @@ public class QuartzHealthIndicator extends AbstractHealthIndicator {
 	 * @param scheduler the scheduler
 	 * @param jobStore its job store, if known: enables the cluster check-in check
 	 */
-	public QuartzHealthIndicator(Scheduler scheduler, JobStore jobStore) {
+	public QuartzHealthIndicator(Scheduler scheduler, @Nullable JobStore jobStore) {
 		this(scheduler, jobStore, Clock.systemUTC());
 	}
 
-	QuartzHealthIndicator(Scheduler scheduler, JobStore jobStore, Clock clock) {
+	QuartzHealthIndicator(Scheduler scheduler, @Nullable JobStore jobStore, Clock clock) {
 		super("Quartz health check failed");
 		this.scheduler = scheduler;
 		this.jobStore = jobStore;

@@ -19,6 +19,7 @@ package org.quartz.spring.boot.autoconfigure;
 import java.time.Duration;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.impl.config.JobStoreSettings;
 import org.quartz.impl.config.SchedulerSettings;
 import org.quartz.impl.config.ThreadPoolSettings;
@@ -98,7 +99,7 @@ public record QuartzProperties(
 	public record Scheduler(
 			@DefaultValue("quartzScheduler") String name,
 			@DefaultValue(SchedulerSettings.DEFAULT_INSTANCE_ID) String instanceId,
-			String threadName,
+			@Nullable String threadName,
 			boolean makeSchedulerThreadDaemon,
 			boolean threadsInheritContextClassLoaderOfInitializer,
 			@DefaultValue("30s") Duration idleWaitTime,
@@ -106,7 +107,7 @@ public record QuartzProperties(
 			@DefaultValue("1") int batchTriggerAcquisitionMaxCount,
 			boolean interruptJobsOnShutdown,
 			boolean interruptJobsOnShutdownWithWait,
-			Map<String, String> context) {
+			@Nullable Map<String, String> context) {
 
 		/**
 		 * Whether the instance id is read from a system property ({@code SYS_PROP}).
@@ -154,7 +155,7 @@ public record QuartzProperties(
 	public record ThreadPool(
 			@DefaultValue("10") int threadCount,
 			@DefaultValue("5") int threadPriority,
-			String threadNamePrefix,
+			@Nullable String threadNamePrefix,
 			boolean daemon,
 			@DefaultValue("true") boolean threadsInheritContextClassLoaderOfInitializingThread,
 			@DefaultValue("true") boolean threadsInheritGroupOfInitializingThread,
@@ -200,7 +201,7 @@ public record QuartzProperties(
 	 * @param redis Redis job store settings
 	 */
 	public record JobStore(
-			JobStoreType type,
+			@Nullable JobStoreType type,
 			@DefaultValue("60s") Duration misfireThreshold,
 			boolean clustered,
 			@DefaultValue("7500ms") Duration clusterCheckinInterval,
@@ -241,7 +242,7 @@ public record QuartzProperties(
 		 * @param collectionPrefix prefix of the collections the store uses
 		 * @param lockTimeout how long a lock is held before it is considered abandoned
 		 */
-		public record Mongodb(String database, @DefaultValue("qrtz_") String collectionPrefix,
+		public record Mongodb(@Nullable String database, @DefaultValue("qrtz_") String collectionPrefix,
 				@DefaultValue("10m") Duration lockTimeout) {
 		}
 
@@ -276,8 +277,9 @@ public record QuartzProperties(
 		 * @param jobFailedMessage message logged after a job failed
 		 * @param jobWasVetoedMessage message logged when a job execution was vetoed
 		 */
-		public record JobHistory(boolean enabled, String jobToBeFiredMessage, String jobSuccessMessage,
-				String jobFailedMessage, String jobWasVetoedMessage) {
+		public record JobHistory(boolean enabled, @Nullable String jobToBeFiredMessage,
+				@Nullable String jobSuccessMessage, @Nullable String jobFailedMessage,
+				@Nullable String jobWasVetoedMessage) {
 		}
 
 		/**
@@ -289,8 +291,8 @@ public record QuartzProperties(
 		 * @param triggerMisfiredMessage message logged when a trigger misfires
 		 * @param triggerCompleteMessage message logged when a triggered job completed
 		 */
-		public record TriggerHistory(boolean enabled, String triggerFiredMessage, String triggerMisfiredMessage,
-				String triggerCompleteMessage) {
+		public record TriggerHistory(boolean enabled, @Nullable String triggerFiredMessage,
+				@Nullable String triggerMisfiredMessage, @Nullable String triggerCompleteMessage) {
 		}
 
 		/**

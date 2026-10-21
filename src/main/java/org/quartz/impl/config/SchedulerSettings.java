@@ -19,6 +19,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Scheduler-level settings (the former {@code org.quartz.scheduler.*} and
  * {@code org.quartz.context.key.*} keys).
@@ -43,7 +45,7 @@ public record SchedulerSettings(
         String name,
         String instanceId,
         boolean instanceIdAuto,
-        String threadName,
+        @Nullable String threadName,
         boolean makeSchedulerThreadDaemon,
         boolean threadsInheritContextClassLoaderOfInitializer,
         Duration idleWaitTime,
@@ -123,7 +125,7 @@ public record SchedulerSettings(
         private String name = DEFAULT_NAME;
         private String instanceId = DEFAULT_INSTANCE_ID;
         private boolean instanceIdAuto;
-        private String threadName;
+        private @Nullable String threadName;
         private boolean makeSchedulerThreadDaemon;
         private boolean threadsInheritContextClassLoaderOfInitializer;
         private Duration idleWaitTime = DEFAULT_IDLE_WAIT_TIME;
@@ -151,7 +153,7 @@ public record SchedulerSettings(
             return this;
         }
 
-        public Builder threadName(String threadName) {
+        public Builder threadName(@Nullable String threadName) {
             this.threadName = threadName;
             return this;
         }
@@ -194,7 +196,7 @@ public record SchedulerSettings(
         /**
          * Replaces the scheduler context entries.
          */
-        public Builder context(Map<String, String> context) {
+        public Builder context(@Nullable Map<String, String> context) {
             this.context.clear();
             if (context != null) {
                 this.context.putAll(context);

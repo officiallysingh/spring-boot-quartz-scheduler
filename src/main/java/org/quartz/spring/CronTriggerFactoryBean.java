@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.time.ZoneId;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.CronTrigger;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
@@ -72,33 +73,33 @@ public class CronTriggerFactoryBean implements FactoryBean<CronTrigger>, BeanNam
 		);
 
 
-	private String name;
+	private @Nullable String name;
 
-	private String group;
+	private @Nullable String group;
 
-	private JobDetail jobDetail;
+	private @Nullable JobDetail jobDetail;
 
 	private JobDataMap jobDataMap = new JobDataMap();
 
-	private Instant startTime;
+	private @Nullable Instant startTime;
 
 	private Duration startDelay = Duration.ZERO;
 
-	private String cronExpression;
+	private @Nullable String cronExpression;
 
-	private ZoneId timeZone;
+	private @Nullable ZoneId timeZone;
 
-	private String calendarName;
+	private @Nullable String calendarName;
 
 	private int priority;
 
 	private int misfireInstruction = CronTrigger.MISFIRE_INSTRUCTION_SMART_POLICY;
 
-	private String description;
+	private @Nullable String description;
 
-	private String beanName;
+	private @Nullable String beanName;
 
-	private CronTrigger cronTrigger;
+	private @Nullable CronTrigger cronTrigger;
 
 
 	/**
@@ -274,7 +275,7 @@ public class CronTriggerFactoryBean implements FactoryBean<CronTrigger>, BeanNam
 
 
 	@Override
-	public CronTrigger getObject() {
+	public @Nullable CronTrigger getObject() {
 		return this.cronTrigger;
 	}
 

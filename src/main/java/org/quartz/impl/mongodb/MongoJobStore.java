@@ -75,6 +75,7 @@ public class MongoJobStore extends PersistentJobStore {
 
     private final ThreadLocal<ClientSession> session = new ThreadLocal<>();
 
+    @SuppressWarnings("NullAway.Init")
     private MongoCollections collections;
 
     private volatile boolean transactional;

@@ -20,9 +20,11 @@ import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.DateBuilder.IntervalUnit;
 import org.quartz.JobDataMap;
 import org.quartz.JobKey;
@@ -156,8 +158,8 @@ public final class TriggerCodec {
                 case TYPE_CRON -> decodeCron(fields);
                 case TYPE_CALENDAR_INTERVAL -> decodeCalendarInterval(fields);
                 case TYPE_DAILY_TIME_INTERVAL -> decodeDailyTimeInterval(fields);
-                case TYPE_BLOB -> SerializationCodec.deserialize(Fields.bytes(fields, BLOB), OperableTrigger.class,
-                        loadHelper);
+                case TYPE_BLOB -> SerializationCodec.deserialize(Objects.requireNonNull(Fields.bytes(fields, BLOB), BLOB),
+                        OperableTrigger.class, loadHelper);
                 case null, default -> throw new JobPersistenceException("Unknown trigger type '" + type + "'");
             };
         }
@@ -190,7 +192,8 @@ public final class TriggerCodec {
     private static SimpleTriggerImpl decodeSimple(Map<String, ?> fields) {
         SimpleTriggerImpl trigger = new SimpleTriggerImpl();
         trigger.setRepeatCount(Fields.intValue(fields, REPEAT_COUNT, 0));
-        trigger.setRepeatInterval(Duration.ofMillis(Fields.longValue(fields, REPEAT_INTERVAL)));
+        trigger.setRepeatInterval(
+                Duration.ofMillis(Objects.requireNonNull(Fields.longValue(fields, REPEAT_INTERVAL), REPEAT_INTERVAL)));
         trigger.setTimesTriggered(Fields.intValue(fields, TIMES_TRIGGERED, 0));
         return trigger;
     }
@@ -235,7 +238,7 @@ public final class TriggerCodec {
         return trigger;
     }
 
-    private static String timeOfDay(TimeOfDay timeOfDay) {
+    private static @Nullable String timeOfDay(@Nullable TimeOfDay timeOfDay) {
         return (timeOfDay != null)
                 ? String.format("%02d:%02d:%02d", timeOfDay.getHour(), timeOfDay.getMinute(), timeOfDay.getSecond())
                 : null;
@@ -246,16 +249,16 @@ public final class TriggerCodec {
         return new TimeOfDay(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]), Integer.parseInt(parts[2]));
     }
 
-    private static Long millis(Instant instant) {
+    private static @Nullable Long millis(@Nullable Instant instant) {
         return (instant != null) ? instant.toEpochMilli() : null;
     }
 
-    private static Instant instant(Map<String, ?> fields, String name) {
+    private static @Nullable Instant instant(Map<String, ?> fields, String name) {
         Long millis = Fields.longValue(fields, name);
         return (millis != null) ? Instant.ofEpochMilli(millis) : null;
     }
 
-    private static void putIfNotNull(Map<String, Object> fields, String name, Object value) {
+    private static void putIfNotNull(Map<String, Object> fields, String name, @Nullable Object value) {
         if (value != null) {
             fields.put(name, value);
         }

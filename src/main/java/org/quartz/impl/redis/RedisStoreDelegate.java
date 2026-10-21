@@ -23,8 +23,10 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
@@ -95,7 +97,7 @@ class RedisStoreDelegate implements StoreDelegate {
         });
     }
 
-    private static void addJobData(List<String> args, JobDataMap data) throws JobPersistenceException {
+    private static void addJobData(List<String> args, @Nullable JobDataMap data) throws JobPersistenceException {
         if (data == null || data.isEmpty()) {
             return;
         }
@@ -168,7 +170,7 @@ class RedisStoreDelegate implements StoreDelegate {
     }
 
     @Override
-    public JobDetail selectJob(JobKey jobKey) throws JobPersistenceException {
+    public @Nullable JobDetail selectJob(JobKey jobKey) throws JobPersistenceException {
         Map<String, String> fields = hash(keys.job(RedisKeys.k(jobKey)));
         return fields.isEmpty() ? null : JobDetailCodec.decode(fields, jobData(fields), loadHelper);
     }
@@ -223,7 +225,7 @@ class RedisStoreDelegate implements StoreDelegate {
     }
 
     @Override
-    public OperableTrigger selectTrigger(TriggerKey triggerKey) throws JobPersistenceException {
+    public @Nullable OperableTrigger selectTrigger(TriggerKey triggerKey) throws JobPersistenceException {
         Map<String, String> fields = hash(keys.trigger(RedisKeys.k(triggerKey)));
         return fields.isEmpty() ? null : TriggerCodec.decode(fields, jobData(fields), loadHelper);
     }
@@ -235,7 +237,7 @@ class RedisStoreDelegate implements StoreDelegate {
     }
 
     @Override
-    public String selectTriggerState(TriggerKey triggerKey) {
+    public @Nullable String selectTriggerState(TriggerKey triggerKey) {
         return (String) redis.opsForHash().get(keys.trigger(RedisKeys.k(triggerKey)), STATE);
     }
 
@@ -284,11 +286,12 @@ class RedisStoreDelegate implements StoreDelegate {
         return triggerKeys(keys.state(state));
     }
 
-    private int setState(String sourceSet, String singleK, String newState, Collection<String> oldStates) {
+    private int setState(@Nullable String sourceSet, @Nullable String singleK, String newState,
+            Collection<String> oldStates) {
         List<String> args = new ArrayList<>(List.of(keys.prefix(), (sourceSet != null) ? sourceSet : "",
                 (singleK != null) ? singleK : "", newState));
         args.addAll(oldStates);
-        String routing = (sourceSet != null) ? sourceSet : keys.trigger(singleK);
+        String routing = (sourceSet != null) ? sourceSet : keys.trigger(Objects.requireNonNull(singleK, "singleK"));
         return (int) run(RedisScripts.SET_STATE, routing, args);
     }
 
@@ -332,14 +335,15 @@ class RedisStoreDelegate implements StoreDelegate {
     private static final Comparator<Candidate> FIRE_ORDER = Comparator.comparingDouble(Candidate::nextFireTime)
         .thenComparing(Comparator.comparingInt(Candidate::priority).reversed());
 
-    private List<Candidate> candidates(Set<TypedTuple<String>> tuples) {
+    private List<Candidate> candidates(@Nullable Set<TypedTuple<String>> tuples) {
         List<Candidate> candidates = new ArrayList<>();
         if (tuples == null) {
             return candidates;
         }
         for (TypedTuple<String> tuple : tuples) {
-            Object priority = redis.opsForHash().get(keys.trigger(tuple.getValue()), TriggerCodec.PRIORITY);
-            candidates.add(new Candidate(tuple.getValue(), tuple.getScore(),
+            String k = Objects.requireNonNull(tuple.getValue(), "member");
+            Object priority = redis.opsForHash().get(keys.trigger(k), TriggerCodec.PRIORITY);
+            candidates.add(new Candidate(k, Objects.requireNonNull(tuple.getScore(), "score"),
                     (priority != null) ? Integer.parseInt((String) priority) : 5));
         }
         return candidates;
@@ -415,7 +419,7 @@ class RedisStoreDelegate implements StoreDelegate {
     }
 
     @Override
-    public Calendar selectCalendar(String name) throws JobPersistenceException {
+    public @Nullable Calendar selectCalendar(String name) throws JobPersistenceException {
         Object value = redis.opsForHash().get(keys.calendars(), name);
         return (value != null)
                 ? SerializationCodec.deserialize(SerializationCodec.fromBase64((String) value), Calendar.class, loadHelper)
@@ -502,10 +506,14 @@ class RedisStoreDelegate implements StoreDelegate {
         return fields;
     }
 
+    private static String required(Map<String, String> fields, String name) {
+        return Objects.requireNonNull(fields.get(name), name);
+    }
+
     private static FiredTriggerRecord toFiredRecord(Map<String, String> fields) {
-        return new FiredTriggerRecord(fields.get(FIRE_INSTANCE_ID), fields.get(INSTANCE_ID),
+        return new FiredTriggerRecord(required(fields, FIRE_INSTANCE_ID), required(fields, INSTANCE_ID),
                 new TriggerKey(fields.get(TRIGGER_NAME), fields.get(TRIGGER_GROUP)),
-                new JobKey(fields.get(TriggerCodec.JOB_NAME), fields.get(TriggerCodec.JOB_GROUP)), fields.get(STATE),
+                new JobKey(fields.get(TriggerCodec.JOB_NAME), fields.get(TriggerCodec.JOB_GROUP)), required(fields, STATE),
                 Instant.ofEpochMilli(Long.parseLong(fields.get(FIRED_TIME))),
                 Instant.ofEpochMilli(Long.parseLong(fields.get(SCHEDULED_TIME))),
                 Integer.parseInt(fields.get(TriggerCodec.PRIORITY)),
