@@ -20,17 +20,14 @@ import java.util.Objects;
  */
 public record QuartzSettings(
         SchedulerSettings scheduler,
-        ThreadPoolSettings threadPool,
-        JobStoreSettings jobStore) {
+        ThreadPoolSettings threadPool) {
 
     public QuartzSettings {
         Objects.requireNonNull(scheduler, "scheduler");
         Objects.requireNonNull(threadPool, "threadPool");
-        Objects.requireNonNull(jobStore, "jobStore");
     }
 
     public static QuartzSettings defaults() {
-        return new QuartzSettings(SchedulerSettings.defaults(), ThreadPoolSettings.defaults(),
-                JobStoreSettings.defaults());
+        return new QuartzSettings(SchedulerSettings.defaults(), ThreadPoolSettings.defaults());
     }
 }

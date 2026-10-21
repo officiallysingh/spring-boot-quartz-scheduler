@@ -83,9 +83,6 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
 
     private JobDataMap jobDataMap;
 
-    @SuppressWarnings("unused")
-    private static final boolean VOLATILITY = false; // still here for serialization backward compatibility
-
     private String calendarName = null;
 
     private String fireInstanceId = null;

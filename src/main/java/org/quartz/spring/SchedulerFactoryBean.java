@@ -446,7 +446,7 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 		SchedulerSettings schedulerSettings = base.scheduler().toBuilder().name(this.schedulerName).build();
 
 		StdSchedulerFactory.Builder builder = StdSchedulerFactory.builder()
-				.settings(new QuartzSettings(schedulerSettings, base.threadPool(), base.jobStore()));
+				.settings(new QuartzSettings(schedulerSettings, base.threadPool()));
 		if (this.resourceLoader != null) {
 			builder.classLoadHelper(new ResourceLoaderClassLoadHelper(this.resourceLoader));
 		}

@@ -20,7 +20,6 @@ import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
@@ -76,9 +75,6 @@ public final class TriggerCodec {
     public static final String TYPE_CALENDAR_INTERVAL = "CAL_INT";
     public static final String TYPE_DAILY_TIME_INTERVAL = "DAILY_I";
     public static final String TYPE_BLOB = "BLOB";
-
-    /** Fields holding binary values ({@code byte[]}). */
-    public static final Set<String> BINARY_FIELDS = Set.of(BLOB);
 
     private TriggerCodec() {
     }

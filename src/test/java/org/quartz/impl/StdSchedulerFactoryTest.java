@@ -33,11 +33,9 @@ class StdSchedulerFactoryTest {
 
     @Test
     void aJobStoreIsRequired() {
-        assertThatThrownBy(StdSchedulerFactory::getDefaultScheduler)
+        assertThatThrownBy(() -> StdSchedulerFactory.builder().build().getScheduler())
                 .isInstanceOf(SchedulerConfigException.class)
-                .hasMessageContaining("No JobStore configured");
-        assertThatThrownBy(() -> new StdSchedulerFactory().getScheduler())
-                .isInstanceOf(SchedulerConfigException.class)
+                .hasMessageContaining("No JobStore configured")
                 .hasMessageContaining("Builder.jobStore(JobStore)");
     }
 

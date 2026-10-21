@@ -122,7 +122,7 @@ class SettingsTest {
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("retryInterval");
         assertThatThrownBy(() -> JobStoreSettings.builder().maxMisfiresToHandleAtATime(0).build())
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new QuartzSettings(null, ThreadPoolSettings.defaults(), JobStoreSettings.defaults()))
+        assertThatThrownBy(() -> new QuartzSettings(null, ThreadPoolSettings.defaults()))
                 .isInstanceOf(NullPointerException.class);
     }
 }

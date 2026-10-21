@@ -39,7 +39,6 @@ import org.quartz.impl.calendar.WeeklyCalendar;
 import org.quartz.impl.config.QuartzSettings;
 import org.quartz.impl.config.SchedulerSettings;
 import org.quartz.impl.config.ThreadPoolSettings;
-import org.quartz.impl.config.JobStoreSettings;
 import org.quartz.simpl.SimpleThreadPool;
 import org.quartz.support.AbstractMongoIT;
 import org.quartz.support.TestSchedulers;
@@ -119,7 +118,7 @@ class SchedulerFactoryBeanIT extends AbstractMongoIT {
         bean.setBeanName(beanName);
         bean.setApplicationContext(context);
         bean.setSettings(new QuartzSettings(SchedulerSettings.builder().name(beanName).build(),
-                ThreadPoolSettings.builder().threadCount(2).build(), JobStoreSettings.defaults()));
+                ThreadPoolSettings.builder().threadCount(2).build()));
         bean.setJobStore(TestSchedulers.mongoStore());
         return bean;
     }
@@ -144,7 +143,7 @@ class SchedulerFactoryBeanIT extends AbstractMongoIT {
             app.registerBean("lifecycle", SchedulerFactoryBean.class, () -> {
                 SchedulerFactoryBean bean = new SchedulerFactoryBean();
                 bean.setSettings(new QuartzSettings(SchedulerSettings.builder().name("lifecycle").build(),
-                        ThreadPoolSettings.builder().threadCount(2).build(), JobStoreSettings.defaults()));
+                        ThreadPoolSettings.builder().threadCount(2).build()));
                 bean.setJobStore(TestSchedulers.mongoStore());
                 return bean;
             });
@@ -238,7 +237,7 @@ class SchedulerFactoryBeanIT extends AbstractMongoIT {
 
         SchedulerFactoryBean fromSettings = newFactoryBean("beanB");
         fromSettings.setSettings(new QuartzSettings(SchedulerSettings.builder().name("settingsName").build(),
-                ThreadPoolSettings.builder().threadCount(1).build(), JobStoreSettings.defaults()));
+                ThreadPoolSettings.builder().threadCount(1).build()));
         fromSettings.afterPropertiesSet();
         assertThat(fromSettings.getScheduler().getSchedulerName()).isEqualTo("settingsName");
         fromSettings.destroy();

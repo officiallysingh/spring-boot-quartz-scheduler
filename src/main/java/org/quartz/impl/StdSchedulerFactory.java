@@ -119,22 +119,8 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
 
-    /**
-     * Create a factory with default settings ({@link QuartzSettings#defaults()}).
-     */
-    public StdSchedulerFactory() {
-        this(builder());
-    }
-
-    /**
-     * Create a factory with the given settings and default collaborators.
-     */
-    public StdSchedulerFactory(QuartzSettings settings) {
-        this(builder().settings(settings));
-    }
-
     private StdSchedulerFactory(Builder builder) {
-        this.settings = new QuartzSettings(builder.scheduler, builder.threadPoolSettings, builder.jobStoreSettings);
+        this.settings = new QuartzSettings(builder.scheduler, builder.threadPoolSettings);
         this.threadPool = builder.threadPool;
         this.jobStore = builder.jobStore;
         this.jobFactory = builder.jobFactory;
@@ -344,23 +330,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
     /**
      * <p>
-     * Returns a handle to the default Scheduler, creating it if it does not
-     * yet exist.
-     * </p>
-     * <p>
-     * The default settings name no {@link JobStore}, so creating the scheduler
-     * fails with a {@link SchedulerConfigException}; only a default scheduler
-     * already bound in the {@link SchedulerRepository} is returned.
-     * </p>
-     *
-     * @see QuartzSettings#defaults()
-     */
-    public static Scheduler getDefaultScheduler() throws SchedulerException {
-        return new StdSchedulerFactory().getScheduler();
-    }
-
-    /**
-     * <p>
      * Returns a handle to the Scheduler with the given name, if it exists (if
      * it has already been instantiated).
      * </p>
@@ -390,7 +359,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
     public static final class Builder {
         private SchedulerSettings scheduler = SchedulerSettings.defaults();
         private ThreadPoolSettings threadPoolSettings = ThreadPoolSettings.defaults();
-        private JobStoreSettings jobStoreSettings = JobStoreSettings.defaults();
         private ThreadPool threadPool;
         private JobStore jobStore;
         private JobFactory jobFactory;
@@ -410,7 +378,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
             Objects.requireNonNull(settings, "settings");
             this.scheduler = settings.scheduler();
             this.threadPoolSettings = settings.threadPool();
-            this.jobStoreSettings = settings.jobStore();
             return this;
         }
 
@@ -421,11 +388,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
         public Builder threadPool(ThreadPoolSettings threadPool) {
             this.threadPoolSettings = Objects.requireNonNull(threadPool, "threadPool");
-            return this;
-        }
-
-        public Builder jobStore(JobStoreSettings jobStore) {
-            this.jobStoreSettings = Objects.requireNonNull(jobStore, "jobStore");
             return this;
         }
 
@@ -440,8 +402,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
         /**
          * The job store (required: there is no default store). It is configured
-         * by its own constructor; {@link #jobStore(JobStoreSettings)} does not
-         * apply to it.
+         * by its own constructor, with its own {@link JobStoreSettings}.
          */
         public Builder jobStore(JobStore jobStore) {
             this.jobStore = jobStore;

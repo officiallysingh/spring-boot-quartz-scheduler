@@ -15,7 +15,6 @@ package org.quartz.impl.store.codec;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 
 import org.quartz.Job;
 import org.quartz.JobDataMap;
@@ -39,9 +38,6 @@ public final class JobDetailCodec {
     public static final String REQUESTS_RECOVERY = "requestsRecovery";
     public static final String NON_CONCURRENT = "nonConcurrent";
     public static final String PERSIST_JOB_DATA = "persistJobData";
-
-    public static final Set<String> FIELDS = Set.of(NAME, GROUP, DESCRIPTION, JOB_CLASS, DURABLE, REQUESTS_RECOVERY,
-            NON_CONCURRENT, PERSIST_JOB_DATA);
 
     private JobDetailCodec() {
     }

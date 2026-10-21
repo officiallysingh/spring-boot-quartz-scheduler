@@ -161,8 +161,6 @@ public class QuartzScheduler {
     
     private final HashMap<String, JobListener> internalJobListeners = new HashMap<>(10);
 
-    private final HashMap<String, TriggerListener> internalTriggerListeners = new HashMap<>(10);
-
     private final ArrayList<SchedulerListener> internalSchedulerListeners = new ArrayList<>(10);
 
     private JobFactory jobFactory = new PropertySettingJobFactory();
@@ -176,8 +174,6 @@ public class QuartzScheduler {
     private final Random random = new Random();
 
     private final ArrayList<Object> holdToPreventGC = new ArrayList<>(5);
-
-    private boolean signalOnSchedulingChange = true;
 
     private volatile boolean closed = false;
     private volatile boolean shuttingDown = false;
@@ -308,10 +304,6 @@ public class QuartzScheduler {
         holdToPreventGC.add(obj);
     }
 
-    public boolean removeNoGCObject(Object obj) {
-        return holdToPreventGC.remove(obj);
-    }
-
     /**
      * <p>
      * Returns the <code>SchedulerContext</code> of the <code>Scheduler</code>.
@@ -319,14 +311,6 @@ public class QuartzScheduler {
      */
     public SchedulerContext getSchedulerContext() throws SchedulerException {
         return context;
-    }
-
-    public boolean isSignalOnSchedulingChange() {
-        return signalOnSchedulingChange;
-    }
-
-    public void setSignalOnSchedulingChange(boolean signalOnSchedulingChange) {
-        this.signalOnSchedulingChange = signalOnSchedulingChange;
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -527,10 +511,6 @@ public class QuartzScheduler {
      */
     public boolean isShutdown() {
         return closed;
-    }
-
-    public boolean isShuttingDown() {
-        return shuttingDown;
     }
 
     public boolean isStarted() {
@@ -1437,21 +1417,6 @@ J     *
 
     /**
      * <p>
-     * Remove the identified <code>{@link JobListener}</code> from the <code>Scheduler</code>'s
-     * list of <i>internal</i> listeners.
-     * </p>
-     * 
-     * @return true if the identified listener was found in the list, and
-     *         removed.
-     */
-    public boolean removeInternalJobListener(String name) {
-        synchronized (internalJobListeners) {
-            return (internalJobListeners.remove(name) != null);
-        }
-    }
-    
-    /**
-     * <p>
      * Get a List containing all of the <code>{@link org.quartz.JobListener}</code>s
      * in the <code>Scheduler</code>'s <i>internal</i> list.
      * </p>
@@ -1459,75 +1424,6 @@ J     *
     public List<JobListener> getInternalJobListeners() {
         synchronized (internalJobListeners) {
             return java.util.Collections.unmodifiableList(new LinkedList<>(internalJobListeners.values()));
-        }
-    }
-
-    /**
-     * <p>
-     * Get the <i>internal</i> <code>{@link org.quartz.JobListener}</code>
-     * that has the given name.
-     * </p>
-     */
-    public JobListener getInternalJobListener(String name) {
-        synchronized (internalJobListeners) {
-            return internalJobListeners.get(name);
-        }
-    }
-    
-    /**
-     * <p>
-     * Add the given <code>{@link org.quartz.TriggerListener}</code> to the
-     * <code>Scheduler</code>'s <i>internal</i> list.
-     * </p>
-     */
-    public void addInternalTriggerListener(TriggerListener triggerListener) {
-        if (triggerListener.getName() == null
-                || triggerListener.getName().isEmpty()) {
-            throw new IllegalArgumentException(
-                    "TriggerListener name cannot be empty.");
-        }
-
-        synchronized (internalTriggerListeners) {
-            internalTriggerListeners.put(triggerListener.getName(), triggerListener);
-        }
-    }
-
-    /**
-     * <p>
-     * Remove the identified <code>{@link TriggerListener}</code> from the <code>Scheduler</code>'s
-     * list of <i>internal</i> listeners.
-     * </p>
-     * 
-     * @return true if the identified listener was found in the list, and
-     *         removed.
-     */
-    public boolean removeinternalTriggerListener(String name) {
-        synchronized (internalTriggerListeners) {
-            return (internalTriggerListeners.remove(name) != null);
-        }
-    }
-
-    /**
-     * <p>
-     * Get a list containing all of the <code>{@link org.quartz.TriggerListener}</code>s
-     * in the <code>Scheduler</code>'s <i>internal</i> list.
-     * </p>
-     */
-    public List<TriggerListener> getInternalTriggerListeners() {
-        synchronized (internalTriggerListeners) {
-            return java.util.Collections.unmodifiableList(new LinkedList<>(internalTriggerListeners.values()));
-        }
-    }
-
-    /**
-     * <p>
-     * Get the <i>internal</i> <code>{@link TriggerListener}</code> that
-     * has the given name.
-     * </p>
-     */
-    public TriggerListener getInternalTriggerListener(String name) {
-        synchronized (internalTriggerListeners) {
-            return internalTriggerListeners.get(name);
         }
     }
 
@@ -1579,17 +1475,13 @@ J     *
     }
 
     protected void notifySchedulerThread(Instant candidateNewNextFireTime) {
-        if (isSignalOnSchedulingChange()) {
-            signaler.signalSchedulingChange(candidateNewNextFireTime);
-        }
+        signaler.signalSchedulingChange(candidateNewNextFireTime);
     }
 
     private List<TriggerListener> buildTriggerListenerList()
         throws SchedulerException {
         List<TriggerListener> allListeners = new LinkedList<>();
         allListeners.addAll(getListenerManager().getTriggerListeners());
-        allListeners.addAll(getInternalTriggerListeners());
-
         return allListeners;
     }
 
@@ -2168,12 +2060,6 @@ class ExecutingJobsManager implements JobListener {
 
     public String getName() {
         return getClass().getName();
-    }
-
-    public int getNumJobsCurrentlyExecuting() {
-        synchronized (executingJobs) {
-            return executingJobs.size();
-        }
     }
 
     public void jobToBeExecuted(JobExecutionContext context) {

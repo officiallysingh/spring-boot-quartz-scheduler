@@ -94,11 +94,11 @@ class StdSchedulerFactoryIT extends AbstractMongoIT {
                         .interruptJobsOnShutdown(true)
                         .contextEntry("greeting", "hello")
                         .build(),
-                ThreadPoolSettings.builder().threadCount(2).threadNamePrefix("custom-worker").build(),
-                JobStoreSettings.builder().misfireThreshold(Duration.ofSeconds(7)).build());
+                ThreadPoolSettings.builder().threadCount(2).threadNamePrefix("custom-worker").build());
+        JobStoreSettings storeSettings = JobStoreSettings.builder().misfireThreshold(Duration.ofSeconds(7)).build();
 
         Scheduler scheduler = create(StdSchedulerFactory.builder().settings(settings)
-                .jobStore(TestSchedulers.mongoStore(settings.jobStore())).build());
+                .jobStore(TestSchedulers.mongoStore(storeSettings)).build());
         QuartzSchedulerResources resources = resources(scheduler);
 
         assertThat(scheduler.getSchedulerInstanceId()).isEqualTo("node-1");
