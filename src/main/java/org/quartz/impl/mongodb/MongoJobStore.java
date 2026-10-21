@@ -19,7 +19,7 @@ import static com.mongodb.client.model.Filters.lt;
 import static com.mongodb.client.model.Filters.or;
 
 import java.time.Duration;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -265,8 +265,8 @@ public class MongoJobStore extends PersistentJobStore {
 
         @Override
         protected boolean tryAcquire(String lockName, String owner, Duration leaseTime) {
-            Date now = new Date();
-            Date expiresAt = new Date(now.getTime() + leaseTime.toMillis());
+            Instant now = Instant.now();
+            Instant expiresAt = now.plus(leaseTime);
             try {
                 Document lock = locks.findOneAndUpdate(
                         and(eq("_id", id(lockName)), or(lt(EXPIRES_AT, now), eq(OWNER, owner))),
