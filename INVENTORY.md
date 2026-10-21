@@ -360,7 +360,7 @@ Build-time specifics to replicate in Maven: `processResources` filters `quartz-b
 
 ## Removed in Phase 11
 
-Analysis of `3ffa3b58`, done before anything was deleted. Method: reference counts for every main type, constant, method and record component across `src/main`, `src/test` and the resource files (comments stripped; a reference must be an import, a same-package use or a fully qualified name). Cross-checked with `jdeps -verbose:class -filter:none` on `target/classes`, which found 182 classes, 29 with no incoming bytecode edge, all explained below. Also checked: a Javadoc grep for legacy terms, `dependency:analyze` (plugin 3.9.0), and an unused-import scan (javac has no lint for it). Status: **proposed**. Nothing is deleted until confirmed.
+Analysis of `3ffa3b58`, done before anything was deleted. Method: reference counts for every main type, constant, method and record component across `src/main`, `src/test` and the resource files (comments stripped; a reference must be an import, a same-package use or a fully qualified name). Cross-checked with `jdeps -verbose:class -filter:none` on `target/classes`, which found 182 classes, 29 with no incoming bytecode edge, all explained below. Also checked: a Javadoc grep for legacy terms, `dependency:analyze` (plugin 3.9.0), and an unused-import scan (javac has no lint for it). Status: **applied** (confirmed 2026-10-21), on top of the Phase 12 commits; `dependency:analyze` was re-run first and reported the same findings as at `3ffa3b58`. `maven-dependency-plugin:analyze-only` now runs in `verify` with `failOnWarning`.
 
 ### A. Delete: code nothing uses
 
