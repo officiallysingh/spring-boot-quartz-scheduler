@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +33,7 @@ import org.quartz.Job;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
 import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
 import org.quartz.SimpleTrigger;
 import org.quartz.impl.calendar.WeeklyCalendar;
 import org.quartz.impl.config.QuartzSettings;
@@ -42,6 +44,7 @@ import org.quartz.simpl.SimpleThreadPool;
 import org.quartz.support.AbstractMongoIT;
 import org.quartz.support.TestSchedulers;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.SmartLifecycle;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 class SchedulerFactoryBeanIT extends AbstractMongoIT {
@@ -131,6 +134,58 @@ class SchedulerFactoryBeanIT extends AbstractMongoIT {
 
         await().atMost(Duration.ofSeconds(10)).until(() -> !RESULTS.isEmpty());
         assertThat(RESULTS.get(0)).startsWith("hello quartz on autowiring_Worker");
+    }
+
+    @Test
+    void schedulerIsShutDownBeforeTheContextStopsItsLifecycleBeans() throws Exception {
+        // e.g. a LettuceConnectionFactory (phase 0) the job store still needs to complete running jobs
+        AtomicReference<Boolean> shutDownWhenStopped = new AtomicReference<>();
+        try (AnnotationConfigApplicationContext app = new AnnotationConfigApplicationContext()) {
+            app.registerBean("lifecycle", SchedulerFactoryBean.class, () -> {
+                SchedulerFactoryBean bean = new SchedulerFactoryBean();
+                bean.setSettings(new QuartzSettings(SchedulerSettings.builder().name("lifecycle").build(),
+                        ThreadPoolSettings.builder().threadCount(2).build(), JobStoreSettings.defaults()));
+                bean.setJobStore(TestSchedulers.mongoStore());
+                return bean;
+            });
+            app.registerBean("connectionFactory", SmartLifecycle.class, () -> new SmartLifecycle() {
+                private volatile boolean running;
+
+                @Override
+                public void start() {
+                    running = true;
+                }
+
+                @Override
+                public void stop() {
+                    Scheduler scheduler = app.getBean(Scheduler.class);
+                    shutDownWhenStopped.set(isShutdown(scheduler));
+                    running = false;
+                }
+
+                @Override
+                public boolean isRunning() {
+                    return running;
+                }
+
+                @Override
+                public int getPhase() {
+                    return 0;
+                }
+            });
+            app.refresh();
+            assertThat(app.getBean(Scheduler.class).isStarted()).isTrue();
+        }
+        assertThat(shutDownWhenStopped.get()).isTrue();
+    }
+
+    private static boolean isShutdown(Scheduler scheduler) {
+        try {
+            return scheduler.isShutdown();
+        }
+        catch (SchedulerException ex) {
+            throw new IllegalStateException(ex);
+        }
     }
 
     @Test

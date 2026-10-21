@@ -42,7 +42,9 @@ import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.ApplicationListener;
 import org.springframework.context.SmartLifecycle;
+import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.scheduling.SchedulingException;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.util.Assert;
@@ -83,7 +85,8 @@ import org.springframework.util.Assert;
  * @see org.quartz.impl.StdSchedulerFactory
  */
 public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBean<Scheduler>,
-		BeanNameAware, ApplicationContextAware, InitializingBean, DisposableBean, SmartLifecycle {
+		BeanNameAware, ApplicationContextAware, InitializingBean, DisposableBean, SmartLifecycle,
+		ApplicationListener<ContextClosedEvent> {
 
 	private SchedulerFactory schedulerFactory;
 
@@ -704,6 +707,29 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 
 
 	//---------------------------------------------------------------------
+	// Implementation of ApplicationListener interface
+	//---------------------------------------------------------------------
+
+	/**
+	 * Shut down the Quartz scheduler when its application context closes, before the
+	 * context stops its lifecycle beans: jobs still running (or waited for, see
+	 * {@link #setWaitForJobsToCompleteOnShutdown}) can then still reach the job store,
+	 * whose connection (e.g. a {@code LettuceConnectionFactory}) may be such a bean.
+	 * {@link #destroy()} has nothing left to do afterwards.
+	 */
+	@Override
+	public void onApplicationEvent(ContextClosedEvent event) {
+		if (this.applicationContext != null && event.getApplicationContext() == this.applicationContext) {
+			try {
+				destroy();
+			}
+			catch (SchedulerException ex) {
+				logger.warn("Could not shut down Quartz Scheduler", ex);
+			}
+		}
+	}
+
+	//---------------------------------------------------------------------
 	// Implementation of DisposableBean interface
 	//---------------------------------------------------------------------
 
@@ -713,7 +739,7 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 	 */
 	@Override
 	public void destroy() throws SchedulerException {
-		if (this.scheduler != null) {
+		if (this.scheduler != null && !this.scheduler.isShutdown()) {
 			logger.info("Shutting down Quartz Scheduler");
 			this.scheduler.shutdown(this.waitForJobsToCompleteOnShutdown);
 		}
