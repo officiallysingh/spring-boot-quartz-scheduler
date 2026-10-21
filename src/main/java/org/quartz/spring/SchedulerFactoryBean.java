@@ -200,6 +200,13 @@ public class SchedulerFactoryBean extends SchedulerAccessor implements FactoryBe
 	}
 
 	/**
+	 * Return the {@link JobStore} the scheduler uses, or {@code null} if none was set.
+	 */
+	public JobStore getJobStore() {
+		return this.jobStore;
+	}
+
+	/**
 	 * Register {@link SchedulerPlugin}s by name. Plugins are initialized in
 	 * map iteration order.
 	 */

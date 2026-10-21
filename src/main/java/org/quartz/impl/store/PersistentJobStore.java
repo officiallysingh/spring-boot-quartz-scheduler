@@ -193,6 +193,14 @@ public abstract class PersistentJobStore implements JobStore {
         return settings;
     }
 
+    /**
+     * When this instance last checked in with the cluster (only meaningful while a
+     * clustered store's scheduler runs; used by the health indicator).
+     */
+    public Instant getLastCheckin() {
+        return lastCheckin;
+    }
+
     protected StoreDelegate getDelegate() {
         return delegate;
     }
