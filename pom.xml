@@ -101,6 +101,23 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- actuator endpoint, health indicator and metrics (Phase 10) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-actuator-autoconfigure</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-health</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- test -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -140,6 +157,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- an HTTP server for the RANDOM_PORT actuator ITs (Phase 10) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
