@@ -26,14 +26,8 @@ import org.quartz.utils.StringKeyDirtyFlagMap;
 
 /**
  * Holds context/environment data that can be made available to Jobs as they
- * are executed. This feature is much like the ServletContext feature when
- * working with J2EE servlets.
- * 
- * <p>
- * Future versions of Quartz may make distinctions on how it propagates
- * data in <code>SchedulerContext</code> between instances of proxies to a 
- * single scheduler instance - i.e. if Quartz is being used via RMI.
- * </p>
+ * are executed. Entries are shared by every job of the scheduler, in this JVM
+ * only: the context is not persisted in the job store.
  *  
  * @see Scheduler#getContext
  * 

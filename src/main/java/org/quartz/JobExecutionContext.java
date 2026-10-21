@@ -46,12 +46,7 @@ import java.time.Instant;
  * <code>JobExecutionContext</code> s are also returned from the 
  * <code>Scheduler.getCurrentlyExecutingJobs()</code>
  * method. These are the same instances as those passed into the jobs that are
- * currently executing within the scheduler. The exception to this is when your
- * application is using Quartz remotely (i.e. via RMI) - in which case you get
- * a clone of the <code>JobExecutionContext</code>s, and their references to
- * the <code>Scheduler</code> and <code>Job</code> instances have been lost (a
- * clone of the <code>JobDetail</code> is still available - just not a handle
- * to the job instance that is running).
+ * currently executing within the scheduler.
  * </p>
  * 
  * @see #getScheduler()

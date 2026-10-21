@@ -20,9 +20,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.quartz.spi.ClassLoadHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
@@ -41,7 +41,7 @@ import org.springframework.util.ClassUtils;
  */
 public class ResourceLoaderClassLoadHelper implements ClassLoadHelper {
 
-	protected static final Log logger = LogFactory.getLog(ResourceLoaderClassLoadHelper.class);
+	protected static final Logger logger = LoggerFactory.getLogger(ResourceLoaderClassLoadHelper.class);
 
 	private ResourceLoader resourceLoader;
 

@@ -158,8 +158,9 @@ public class SchedulerMetaData implements java.io.Serializable {
 
     /**
      * <p>
-     * Returns whether the <code>Scheduler</code> is being used remotely (via
-     * RMI).
+     * Returns whether the <code>Scheduler</code> is being used remotely.
+     * Always <code>false</code> for the schedulers of this library, which
+     * has no remote (RMI) access; kept for API compatibility.
      * </p>
      */
     public boolean isSchedulerRemote() {
@@ -294,13 +295,7 @@ public class SchedulerMetaData implements java.io.Serializable {
 
         str.append("  Scheduler class: '");
         str.append(getSchedulerClass().getName());
-        str.append("'");
-        if (isSchedulerRemote()) {
-            str.append(" - access via RMI.");
-        } else {
-            str.append(" - running locally.");
-        }
-        str.append("\n");
+        str.append("' - running locally.\n");
 
         if (!isShutdown()) {
             if (getRunningSince() != null) {

@@ -361,8 +361,7 @@ public interface Scheduler {
      * <p>
      * Note that the list returned is an 'instantaneous' snap-shot, and that as
      * soon as it's returned, the true list of executing jobs may be different.
-     * Also please read the doc associated with <code>JobExecutionContext</code>-
-     * especially if you're using RMI.
+     * Also please read the doc associated with <code>JobExecutionContext</code>.
      * </p>
      * 
      * @see JobExecutionContext
