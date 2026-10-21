@@ -31,6 +31,21 @@ Both stores support clustering (`spring.quartz.job-store.clustered: true`, uniqu
   last snapshot (new jobs, fired one-shot triggers, paused groups) is lost when Redis restarts, and with
   `appendfsync everysec` up to one second of changes can be lost on a crash.
 
+## Actuator
+
+With `spring-boot-starter-actuator` on the classpath:
+
+- **`/actuator/quartz`** (expose it with `management.endpoints.web.exposure.include=quartz`): job and trigger groups,
+  jobs/triggers by group, job and trigger details, and `POST /actuator/quartz/jobs/{group}/{name}` with
+  `{"state":"running"}` to run a job now. Same JSON as Spring Boot's endpoint: intervals in milliseconds, times
+  ISO-8601. Job data values are sanitized (`management.endpoint.quartz.show-values`, `roles`).
+- **Health `quartz`**: `DOWN` when the scheduler is shut down, its store cannot be read, or (clustered) its own
+  check-in is older than `cluster-checkin-interval` + `cluster-checkin-misfire-threshold`; `UP` otherwise, standby
+  included. `management.health.quartz.enabled=false` turns it off.
+- **Metrics** (when a `MeterRegistry` bean exists): `quartz.jobs.executed`, `quartz.jobs.failed`,
+  `quartz.jobs.duration`, `quartz.triggers.misfired`, tagged with `scheduler` and the job/trigger group.
+  `management.metrics.quartz.enabled=false` turns them off.
+
 ## Transactions
 
 A job class annotated with `@org.quartz.ExecuteInTransaction` runs its `execute` method in a Spring-managed
