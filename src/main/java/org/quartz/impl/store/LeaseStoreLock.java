@@ -84,6 +84,14 @@ public abstract class LeaseStoreLock implements StoreLock {
             throw new JobPersistenceException("Interrupted while waiting for lock '" + lockName + "'", ex);
         }
         catch (RuntimeException ex) {
+            // the store may have granted the lease before the call failed (e.g. an interrupted
+            // thread at shutdown): give it back, or the other instances wait for it to expire
+            try {
+                releaseLeaseUninterruptibly(lockName);
+            }
+            catch (RuntimeException releaseFailure) {
+                ex.addSuppressed(releaseFailure);
+            }
             localLock.release(lockName);
             throw new JobPersistenceException("Couldn't obtain lock '" + lockName + "': " + ex.getMessage(), ex);
         }
@@ -92,7 +100,7 @@ public abstract class LeaseStoreLock implements StoreLock {
     @Override
     public void release(String lockName) {
         try {
-            releaseLease(lockName, owner);
+            releaseLeaseUninterruptibly(lockName);
             log.trace("Lock '{}' released by {}", lockName, owner);
         }
         catch (RuntimeException ex) {
@@ -100,6 +108,22 @@ public abstract class LeaseStoreLock implements StoreLock {
         }
         finally {
             localLock.release(lockName);
+        }
+    }
+
+    /**
+     * Releases the lease with the thread's interrupt flag cleared (and restored afterwards): an
+     * interrupted thread, e.g. a store thread stopped at shutdown, cannot talk to the store.
+     */
+    private void releaseLeaseUninterruptibly(String lockName) {
+        boolean interrupted = Thread.interrupted();
+        try {
+            releaseLease(lockName, owner);
+        }
+        finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 }
