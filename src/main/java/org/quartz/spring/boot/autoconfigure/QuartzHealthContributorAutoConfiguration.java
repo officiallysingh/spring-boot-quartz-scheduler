@@ -28,6 +28,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.health.autoconfigure.contributor.ConditionalOnEnabledHealthIndicator;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 /**
  * {@link EnableAutoConfiguration Auto-configuration} for {@link QuartzHealthIndicator}
@@ -35,16 +36,23 @@ import org.springframework.context.annotation.Bean;
  */
 @AutoConfiguration(after = QuartzAutoConfiguration.class)
 @ConditionalOnClass({ Scheduler.class, HealthIndicator.class, ConditionalOnEnabledHealthIndicator.class })
-@ConditionalOnBean(Scheduler.class)
-@ConditionalOnEnabledHealthIndicator("quartz")
 public final class QuartzHealthContributorAutoConfiguration {
 
-	@Bean
-	@ConditionalOnMissingBean(name = "quartzHealthIndicator")
-	QuartzHealthIndicator quartzHealthIndicator(Scheduler scheduler,
-			ObjectProvider<SchedulerFactoryBean> schedulerFactoryBean) {
-		SchedulerFactoryBean factoryBean = schedulerFactoryBean.getIfUnique();
-		return new QuartzHealthIndicator(scheduler, (factoryBean != null) ? factoryBean.getJobStore() : null);
+	// the health condition lives on a nested class: it is only loaded once the class
+	// condition above has passed (no auto-configuration metadata filters this class)
+	@Configuration(proxyBeanMethods = false)
+	@ConditionalOnBean(Scheduler.class)
+	@ConditionalOnEnabledHealthIndicator("quartz")
+	static class QuartzHealthIndicatorConfiguration {
+
+		@Bean
+		@ConditionalOnMissingBean(name = "quartzHealthIndicator")
+		QuartzHealthIndicator quartzHealthIndicator(Scheduler scheduler,
+				ObjectProvider<SchedulerFactoryBean> schedulerFactoryBean) {
+			SchedulerFactoryBean factoryBean = schedulerFactoryBean.getIfUnique();
+			return new QuartzHealthIndicator(scheduler, (factoryBean != null) ? factoryBean.getJobStore() : null);
+		}
+
 	}
 
 }

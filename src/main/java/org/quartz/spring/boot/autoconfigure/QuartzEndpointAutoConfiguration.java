@@ -31,6 +31,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.quartz.spring.boot.actuate.endpoint.QuartzEndpoint;
 import org.quartz.spring.boot.actuate.endpoint.QuartzEndpointWebExtension;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 /**
  * {@link EnableAutoConfiguration Auto-configuration} for {@link QuartzEndpoint}.
@@ -41,24 +42,31 @@ import org.springframework.context.annotation.Bean;
  */
 @AutoConfiguration(after = QuartzAutoConfiguration.class)
 @ConditionalOnClass({ Scheduler.class, QuartzEndpoint.class, ConditionalOnAvailableEndpoint.class })
-@ConditionalOnAvailableEndpoint(QuartzEndpoint.class)
-@EnableConfigurationProperties(QuartzEndpointProperties.class)
 public final class QuartzEndpointAutoConfiguration {
 
-	@Bean
-	@ConditionalOnBean(Scheduler.class)
-	@ConditionalOnMissingBean
-	QuartzEndpoint quartzEndpoint(Scheduler scheduler, ObjectProvider<SanitizingFunction> sanitizingFunctions) {
-		return new QuartzEndpoint(scheduler, sanitizingFunctions.orderedStream().toList());
-	}
+	// actuator conditions live on a nested class: they are only loaded once the class
+	// condition above has passed (no auto-configuration metadata filters this class)
+	@Configuration(proxyBeanMethods = false)
+	@ConditionalOnAvailableEndpoint(QuartzEndpoint.class)
+	@EnableConfigurationProperties(QuartzEndpointProperties.class)
+	static class QuartzEndpointConfiguration {
 
-	@Bean
-	@ConditionalOnBean(QuartzEndpoint.class)
-	@ConditionalOnMissingBean
-	@ConditionalOnAvailableEndpoint(exposure = EndpointExposure.WEB)
-	QuartzEndpointWebExtension quartzEndpointWebExtension(QuartzEndpoint endpoint,
-			QuartzEndpointProperties properties) {
-		return new QuartzEndpointWebExtension(endpoint, properties.getShowValues(), properties.getRoles());
+		@Bean
+		@ConditionalOnBean(Scheduler.class)
+		@ConditionalOnMissingBean
+		QuartzEndpoint quartzEndpoint(Scheduler scheduler, ObjectProvider<SanitizingFunction> sanitizingFunctions) {
+			return new QuartzEndpoint(scheduler, sanitizingFunctions.orderedStream().toList());
+		}
+
+		@Bean
+		@ConditionalOnBean(QuartzEndpoint.class)
+		@ConditionalOnMissingBean
+		@ConditionalOnAvailableEndpoint(exposure = EndpointExposure.WEB)
+		QuartzEndpointWebExtension quartzEndpointWebExtension(QuartzEndpoint endpoint,
+				QuartzEndpointProperties properties) {
+			return new QuartzEndpointWebExtension(endpoint, properties.getShowValues(), properties.getRoles());
+		}
+
 	}
 
 }
