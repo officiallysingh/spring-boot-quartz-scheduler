@@ -33,6 +33,7 @@ import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.TriggerFiredBundle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 /**
  * JobRunShell instances are responsible for providing the 'safe' environment for <code>Job</code> s
@@ -45,6 +46,11 @@ import org.slf4j.LoggerFactory;
  * configured <code>ThreadPool</code> when the scheduler determines that a <code>Job</code> has been
  * triggered.
  *
+ * <p>While a job runs, including its listeners, the SLF4J {@link MDC} holds {@value #MDC_JOB_KEY},
+ * {@value #MDC_TRIGGER_KEY} and {@value #MDC_FIRE_INSTANCE_ID}, so every log line of the execution
+ * names it (add them to the log pattern, for example {@code %X{quartz.jobKey}}). They are removed
+ * when the execution ends.
+ *
  * @see JobRunShellFactory
  * @see org.quartz.core.QuartzSchedulerThread
  * @see org.quartz.Job
@@ -52,6 +58,16 @@ import org.slf4j.LoggerFactory;
  * @author James House
  */
 public class JobRunShell extends SchedulerListenerSupport implements Runnable {
+
+  /** MDC key of the executing job's key, as {@code group.name}. */
+  public static final String MDC_JOB_KEY = "quartz.jobKey";
+
+  /** MDC key of the key of the trigger that fired the execution, as {@code group.name}. */
+  public static final String MDC_TRIGGER_KEY = "quartz.triggerKey";
+
+  /** MDC key of the fire instance id, unique to this firing of the trigger. */
+  public static final String MDC_FIRE_INSTANCE_ID = "quartz.fireInstanceId";
+
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    *
@@ -144,6 +160,9 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
 
   public void run() {
     qs.addInternalSchedulerListener(this);
+    MDC.put(MDC_JOB_KEY, jec.getJobDetail().getKey().toString());
+    MDC.put(MDC_TRIGGER_KEY, jec.getTrigger().getKey().toString());
+    MDC.put(MDC_FIRE_INSTANCE_ID, jec.getFireInstanceId());
 
     try {
       OperableTrigger trigger = (OperableTrigger) jec.getTrigger();
@@ -268,6 +287,10 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
       } while (true);
 
     } finally {
+      // pool threads are reused: leave nothing behind for the next job
+      MDC.remove(MDC_JOB_KEY);
+      MDC.remove(MDC_TRIGGER_KEY);
+      MDC.remove(MDC_FIRE_INSTANCE_ID);
       qs.removeInternalSchedulerListener(this);
     }
   }

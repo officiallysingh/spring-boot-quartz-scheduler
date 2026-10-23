@@ -227,6 +227,19 @@ With `spring-boot-starter-actuator` on the classpath:
   `quartz.jobs.duration`, `quartz.triggers.misfired`, tagged with `scheduler` and the job/trigger group.
   `management.metrics.quartz.enabled=false` turns them off.
 
+## Logging
+
+While a job runs, the SLF4J MDC holds `quartz.jobKey` and `quartz.triggerKey` (as `group.name`) and
+`quartz.fireInstanceId` (unique to that firing). Everything logged during the execution, the job's own code and the
+job / trigger listeners included, can therefore be traced back to it. Add them to the log pattern, for example:
+
+```yaml
+logging.pattern.level: "%5p [%X{quartz.jobKey:-}] [%X{quartz.fireInstanceId:-}]"
+```
+
+JSON encoders that write the whole MDC pick them up without configuration. The keys are removed when the execution
+ends. Threads a job starts itself do not inherit them (MDC is per thread); pass them on if those threads log.
+
 ## Transactions
 
 A job class annotated with `@org.quartz.ExecuteInTransaction` runs its `execute` method in a Spring-managed
