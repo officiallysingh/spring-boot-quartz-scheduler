@@ -1,6 +1,6 @@
 # spring-boot-quartz-scheduler
 
-A Spring Boot 4 (Java 21) library derived from the core of the [Quartz Scheduler](https://github.com/quartz-scheduler/quartz).
+A Spring Boot 4 (Java 25) library derived from the core of the [Quartz Scheduler](https://github.com/quartz-scheduler/quartz).
 It keeps the familiar `org.quartz` API (`JobBuilder`, `TriggerBuilder`, `Scheduler`, `Job`, …) with `java.time`
 types, is configured entirely through `application.yml`, and persists jobs in MongoDB or Redis.
 The history of the refactor is in [`REFACTOR_PLAN.md`](REFACTOR_PLAN.md) and [`DECISIONS.md`](DECISIONS.md).
@@ -20,7 +20,7 @@ The history of the refactor is in [`REFACTOR_PLAN.md`](REFACTOR_PLAN.md) and [`D
 </dependency>
 ```
 
-Requires Java 21 and Spring Boot 4.x (built against 4.1.1). Do not add Spring Boot's own
+Requires Java 25 and Spring Boot 4.x (built against 4.1.1). Do not add Spring Boot's own
 `spring-boot-starter-quartz` next to it: this library replaces it (its Boot code lives under
 `org.quartz.spring.boot`, so the two do not clash on packages, but both would configure a scheduler).
 
@@ -277,7 +277,7 @@ Docker must be running: the integration tests start real MongoDB (`mongo:8.0`, s
 
 `verify` runs the unit tests (Surefire, `*Test`) and the container tests (Failsafe, `*IT`), including
 `SampleApplicationIT`, which runs a sample application on {MongoDB, Redis} × {single node, two-node cluster} ×
-{jobs in transactions, without}. Use JDK 21. `./mvnw javadoc:javadoc` builds the API docs.
+{jobs in transactions, without}. Use JDK 25. `./mvnw javadoc:javadoc` builds the API docs.
 
 ## License
 
