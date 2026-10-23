@@ -28,32 +28,31 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Proves {@link AbstractMongoIT}: the Spring context connects through
- * {@code @ServiceConnection} to the shared container, and collections are dropped between tests.
+ * Proves {@link AbstractMongoIT}: the Spring context connects through {@code @ServiceConnection} to
+ * the shared container, and collections are dropped between tests.
  */
 @SpringBootTest(classes = MongoServiceConnectionIT.Config.class)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class MongoServiceConnectionIT extends AbstractMongoIT {
 
-    @Autowired
-    private MongoClient springClient;
+  @Autowired private MongoClient springClient;
 
-    @Test
-    @Order(1)
-    void springContextWritesToTheSharedContainer() {
-        springClient.getDatabase("test").getCollection("smoke").insertOne(new Document("n", 1));
+  @Test
+  @Order(1)
+  void springContextWritesToTheSharedContainer() {
+    springClient.getDatabase("test").getCollection("smoke").insertOne(new Document("n", 1));
 
-        assertThat(mongoClient().getDatabase("test").getCollection("smoke").countDocuments()).isEqualTo(1);
-    }
+    assertThat(mongoClient().getDatabase("test").getCollection("smoke").countDocuments())
+        .isEqualTo(1);
+  }
 
-    @Test
-    @Order(2)
-    void collectionsAreDroppedBetweenTests() {
-        assertThat(mongoClient().getDatabase("test").listCollectionNames()).doesNotContain("smoke");
-    }
+  @Test
+  @Order(2)
+  void collectionsAreDroppedBetweenTests() {
+    assertThat(mongoClient().getDatabase("test").listCollectionNames()).doesNotContain("smoke");
+  }
 
-    @Configuration(proxyBeanMethods = false)
-    @ImportAutoConfiguration(MongoAutoConfiguration.class)
-    static class Config {
-    }
+  @Configuration(proxyBeanMethods = false)
+  @ImportAutoConfiguration(MongoAutoConfiguration.class)
+  static class Config {}
 }

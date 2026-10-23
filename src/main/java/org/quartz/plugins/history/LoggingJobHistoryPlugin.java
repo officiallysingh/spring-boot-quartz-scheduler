@@ -1,49 +1,47 @@
-/* 
+/*
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
  * Copyright IBM Corp. 2024, 2025
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 package org.quartz.plugins.history;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.time.Instant;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.quartz.JobListener;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerConfigException;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
-import org.quartz.JobListener;
 import org.quartz.impl.matchers.EverythingMatcher;
 import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.utils.InstantMessageFormat;
-
-import java.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Logs a history of all job executions (and execution vetoes) via the slf4j.
- * 
- * <p>
- * The logged message is customizable by setting one of the following message
- * properties to a String that conforms to the syntax of <code>java.util.MessageFormat</code>.
- * </p>
- * 
- * <p>
- * JobToBeFiredMessage - available message data are:</p> <table>
+ *
+ * <p>The logged message is customizable by setting one of the following message properties to a
+ * String that conforms to the syntax of <code>java.util.MessageFormat</code>.
+ *
+ * <p>JobToBeFiredMessage - available message data are:
+ *
+ * <table>
  * <caption>List of available data for messages.</caption>
  * <tr>
  * <th>Element</th>
@@ -91,14 +89,13 @@ import java.time.Instant;
  * <td>The re-fire count from the JobExecutionContext.</td>
  * </tr>
  * </table>
- * <p>
- * The default message text is <i>"Job {1}.{0} fired (by trigger {4}.{3}) at:
- * {2, date, HH:mm:ss MM/dd/yyyy}"</i>
- * </p>
- * 
- * 
- * <p>
- * JobSuccessMessage - available message data are: </p> <table>
+ *
+ * <p>The default message text is <i>"Job {1}.{0} fired (by trigger {4}.{3}) at: {2, date, HH:mm:ss
+ * MM/dd/yyyy}"</i>
+ *
+ * <p>JobSuccessMessage - available message data are:
+ *
+ * <table>
  * <caption>List of available data for messages.</caption>
  * <tr>
  * <th>Element</th>
@@ -148,18 +145,18 @@ import java.time.Instant;
  * <tr>
  * <td>8</td>
  * <td>Object</td>
- * <td>The string value (toString() having been called) of the result (if any) 
- *      that the Job set on the JobExecutionContext, with on it.  "NULL" if no 
+ * <td>The string value (toString() having been called) of the result (if any)
+ *      that the Job set on the JobExecutionContext, with on it.  "NULL" if no
  *      result was set.</td>
  * </tr>
  * </table>
- * <p>
- * The default message text is <i>"Job {1}.{0} execution complete at {2, date,
- * HH:mm:ss MM/dd/yyyy} and reports: {8}"</i>
- * </p>
- * 
- * <p>
- * JobFailedMessage - available message data are: </p> <table>
+ *
+ * <p>The default message text is <i>"Job {1}.{0} execution complete at {2, date, HH:mm:ss
+ * MM/dd/yyyy} and reports: {8}"</i>
+ *
+ * <p>JobFailedMessage - available message data are:
+ *
+ * <table>
  * <caption>List of available data for messages.</caption>
  * <tr>
  * <th>Element</th>
@@ -213,14 +210,13 @@ import java.time.Instant;
  * </td>
  * </tr>
  * </table>
- * <p>
- * The default message text is <i>"Job {1}.{0} execution failed at {2, date,
- * HH:mm:ss MM/dd/yyyy} and reports: {8}"</i>
- * </p>
- * 
- * 
- * <p>
- * JobWasVetoedMessage - available message data are:</p> <table>
+ *
+ * <p>The default message text is <i>"Job {1}.{0} execution failed at {2, date, HH:mm:ss MM/dd/yyyy}
+ * and reports: {8}"</i>
+ *
+ * <p>JobWasVetoedMessage - available message data are:
+ *
+ * <table>
  * <caption>List of available data for messages.</caption>
  * <tr>
  * <th>Element</th>
@@ -268,275 +264,268 @@ import java.time.Instant;
  * <td>The re-fire count from the JobExecutionContext.</td>
  * </tr>
  * </table>
- * <p>
- * The default message text is <i>"Job {1}.{0} was vetoed.  It was to be fired 
- * (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy}"</i>
- * </p>
- * 
- * 
+ *
+ * <p>The default message text is <i>"Job {1}.{0} was vetoed. It was to be fired (by trigger
+ * {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy}"</i>
+ *
  * @author James House
  */
 public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
 
-    /*
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
-     * Data members.
-     * 
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     */
+  /*
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   *
+   * Data members.
+   *
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   */
 
-    private String name;
+  private String name;
 
-    private String jobToBeFiredMessage = "Job {1}.{0} fired (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy}";
-    
-    private String jobSuccessMessage = "Job {1}.{0} execution complete at {2, date, HH:mm:ss MM/dd/yyyy} and reports: {8}";
+  private String jobToBeFiredMessage =
+      "Job {1}.{0} fired (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy}";
 
-    private String jobFailedMessage = "Job {1}.{0} execution failed at {2, date, HH:mm:ss MM/dd/yyyy} and reports: {8}";
+  private String jobSuccessMessage =
+      "Job {1}.{0} execution complete at {2, date, HH:mm:ss MM/dd/yyyy} and reports: {8}";
 
-    private String jobWasVetoedMessage = "Job {1}.{0} was vetoed.  It was to be fired (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy}";
+  private String jobFailedMessage =
+      "Job {1}.{0} execution failed at {2, date, HH:mm:ss MM/dd/yyyy} and reports: {8}";
 
-    private final Logger log = LoggerFactory.getLogger(getClass());
+  private String jobWasVetoedMessage =
+      "Job {1}.{0} was vetoed.  It was to be fired (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy}";
 
-    /*
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
-     * Constructors.
-     * 
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     */
+  private final Logger log = LoggerFactory.getLogger(getClass());
 
-    public LoggingJobHistoryPlugin() {
+  /*
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   *
+   * Constructors.
+   *
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   */
+
+  public LoggingJobHistoryPlugin() {}
+
+  /*
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   *
+   * Interface.
+   *
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   */
+
+  protected Logger getLog() {
+    return log;
+  }
+
+  /** Get the message that is logged when a Job successfully completes its execution. */
+  public String getJobSuccessMessage() {
+    return jobSuccessMessage;
+  }
+
+  /** Get the message that is logged when a Job fails its execution. */
+  public String getJobFailedMessage() {
+    return jobFailedMessage;
+  }
+
+  /** Get the message that is logged when a Job is about to execute. */
+  public String getJobToBeFiredMessage() {
+    return jobToBeFiredMessage;
+  }
+
+  /**
+   * Set the message that is logged when a Job successfully completes its execution.
+   *
+   * @param jobSuccessMessage String in java.text.MessageFormat syntax.
+   */
+  public void setJobSuccessMessage(String jobSuccessMessage) {
+    this.jobSuccessMessage = jobSuccessMessage;
+  }
+
+  /**
+   * Set the message that is logged when a Job fails its execution.
+   *
+   * @param jobFailedMessage String in java.text.MessageFormat syntax.
+   */
+  public void setJobFailedMessage(String jobFailedMessage) {
+    this.jobFailedMessage = jobFailedMessage;
+  }
+
+  /**
+   * Set the message that is logged when a Job is about to execute.
+   *
+   * @param jobToBeFiredMessage String in java.text.MessageFormat syntax.
+   */
+  public void setJobToBeFiredMessage(String jobToBeFiredMessage) {
+    this.jobToBeFiredMessage = jobToBeFiredMessage;
+  }
+
+  /** Get the message that is logged when a Job execution is vetoed by a trigger listener. */
+  public String getJobWasVetoedMessage() {
+    return jobWasVetoedMessage;
+  }
+
+  /**
+   * Set the message that is logged when a Job execution is vetoed by a trigger listener.
+   *
+   * @param jobWasVetoedMessage String in java.text.MessageFormat syntax.
+   */
+  public void setJobWasVetoedMessage(String jobWasVetoedMessage) {
+    this.jobWasVetoedMessage = jobWasVetoedMessage;
+  }
+
+  /*
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   *
+   * SchedulerPlugin Interface.
+   *
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   */
+
+  /**
+   * Called during creation of the <code>Scheduler</code> in order to give the <code>SchedulerPlugin
+   * </code> a chance to initialize.
+   *
+   * @throws SchedulerConfigException if there is an error initializing.
+   */
+  public void initialize(String pname, Scheduler scheduler, ClassLoadHelper classLoadHelper)
+      throws SchedulerException {
+    this.name = pname;
+    scheduler.getListenerManager().addJobListener(this, EverythingMatcher.allJobs());
+  }
+
+  public void start() {
+    // do nothing...
+  }
+
+  /**
+   * Called in order to inform the <code>SchedulerPlugin</code> that it should free up all of it's
+   * resources because the scheduler is shutting down.
+   */
+  public void shutdown() {
+    // nothing to do...
+  }
+
+  /*
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   *
+   * JobListener Interface.
+   *
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   */
+
+  /*
+   * Object[] arguments = { new Integer(7), new
+   * Date(System.currentTimeMillis()), "a disturbance in the Force" };
+   *
+   * String result = InstantMessageFormat.format( "At {1,time} on {1,date}, there
+   * was {2} on planet {0,number,integer}.", arguments);
+   */
+
+  public String getName() {
+    return name;
+  }
+
+  /**
+   * @see org.quartz.JobListener#jobToBeExecuted(JobExecutionContext)
+   */
+  public void jobToBeExecuted(JobExecutionContext context) {
+    if (!getLog().isInfoEnabled()) {
+      return;
     }
 
-    /*
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
-     * Interface.
-     * 
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     */
+    Trigger trigger = context.getTrigger();
 
-    protected Logger getLog() {
-        return log;
-    }
+    Object[] args = {
+      context.getJobDetail().getKey().getName(),
+      context.getJobDetail().getKey().getGroup(),
+      Instant.now(),
+      trigger.getKey().getName(),
+      trigger.getKey().getGroup(),
+      trigger.getPreviousFireTime(),
+      trigger.getNextFireTime(),
+      context.getRefireCount()
+    };
 
-    /**
-     * Get the message that is logged when a Job successfully completes its 
-     * execution.
-     */
-    public String getJobSuccessMessage() {
-        return jobSuccessMessage;
-    }
+    getLog().info(InstantMessageFormat.format(getJobToBeFiredMessage(), args));
+  }
 
-    /**
-     * Get the message that is logged when a Job fails its 
-     * execution.
-     */
-    public String getJobFailedMessage() {
-        return jobFailedMessage;
-    }
+  /**
+   * @see org.quartz.JobListener#jobWasExecuted(JobExecutionContext, JobExecutionException)
+   */
+  public void jobWasExecuted(JobExecutionContext context, JobExecutionException jobException) {
 
-    /**
-     * Get the message that is logged when a Job is about to execute.
-     */
-    public String getJobToBeFiredMessage() {
-        return jobToBeFiredMessage;
-    }
+    Trigger trigger = context.getTrigger();
 
-    /**
-     * Set the message that is logged when a Job successfully completes its 
-     * execution.
-     * 
-     * @param jobSuccessMessage
-     *          String in java.text.MessageFormat syntax.
-     */
-    public void setJobSuccessMessage(String jobSuccessMessage) {
-        this.jobSuccessMessage = jobSuccessMessage;
-    }
+    Object[] args;
 
-    /**
-     * Set the message that is logged when a Job fails its 
-     * execution.
-     * 
-     * @param jobFailedMessage
-     *          String in java.text.MessageFormat syntax.
-     */
-    public void setJobFailedMessage(String jobFailedMessage) {
-        this.jobFailedMessage = jobFailedMessage;
-    }
+    if (jobException != null) {
+      if (!getLog().isWarnEnabled()) {
+        return;
+      }
 
-    /**
-     * Set the message that is logged when a Job is about to execute.
-     * 
-     * @param jobToBeFiredMessage
-     *          String in java.text.MessageFormat syntax.
-     */
-    public void setJobToBeFiredMessage(String jobToBeFiredMessage) {
-        this.jobToBeFiredMessage = jobToBeFiredMessage;
-    }
-
-    /**
-     * Get the message that is logged when a Job execution is vetoed by a
-     * trigger listener.
-     */
-    public String getJobWasVetoedMessage() {
-        return jobWasVetoedMessage;
-    }
-
-    /**
-     * Set the message that is logged when a Job execution is vetoed by a
-     * trigger listener.
-     * 
-     * @param jobWasVetoedMessage
-     *          String in java.text.MessageFormat syntax.
-     */
-    public void setJobWasVetoedMessage(String jobWasVetoedMessage) {
-        this.jobWasVetoedMessage = jobWasVetoedMessage;
-    }
-
-    /*
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
-     * SchedulerPlugin Interface.
-     * 
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     */
-
-    /**
-     * Called during creation of the <code>Scheduler</code> in order to give
-     * the <code>SchedulerPlugin</code> a chance to initialize.
-     *
-     * @throws SchedulerConfigException
-     *           if there is an error initializing.
-     */
-    public void initialize(String pname, Scheduler scheduler,ClassLoadHelper classLoadHelper)
-        throws SchedulerException {
-        this.name = pname;
-        scheduler.getListenerManager().addJobListener(this, EverythingMatcher.allJobs());
-    }
-
-    public void start() {
-        // do nothing...
-    }
-
-    /**
-     * Called in order to inform the <code>SchedulerPlugin</code> that it
-     * should free up all of it's resources because the scheduler is shutting
-     * down.
-     */
-    public void shutdown() {
-        // nothing to do...
-    }
-
-    /*
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
-     * JobListener Interface.
-     * 
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     */
-
-    /*
-     * Object[] arguments = { new Integer(7), new
-     * Date(System.currentTimeMillis()), "a disturbance in the Force" };
-     * 
-     * String result = InstantMessageFormat.format( "At {1,time} on {1,date}, there
-     * was {2} on planet {0,number,integer}.", arguments);
-     */
-
-    public String getName() {
-        return name;
-    }
-
-    /** 
-     * @see org.quartz.JobListener#jobToBeExecuted(JobExecutionContext)
-     */
-    public void jobToBeExecuted(JobExecutionContext context) {
-        if (!getLog().isInfoEnabled()) {
-            return;
-        } 
-        
-        Trigger trigger = context.getTrigger();
-
-        Object[] args = {
+      String errMsg = jobException.getMessage();
+      args =
+          new Object[] {
             context.getJobDetail().getKey().getName(),
-            context.getJobDetail().getKey().getGroup(), Instant.now(),
-            trigger.getKey().getName(), trigger.getKey().getGroup(),
-            trigger.getPreviousFireTime(), trigger.getNextFireTime(),
-                context.getRefireCount()
-        };
+            context.getJobDetail().getKey().getGroup(),
+            Instant.now(),
+            trigger.getKey().getName(),
+            trigger.getKey().getGroup(),
+            trigger.getPreviousFireTime(),
+            trigger.getNextFireTime(),
+            context.getRefireCount(),
+            errMsg
+          };
 
-        getLog().info(InstantMessageFormat.format(getJobToBeFiredMessage(), args));
-    }
-    
-    /** 
-     * @see org.quartz.JobListener#jobWasExecuted(JobExecutionContext, JobExecutionException)
-     */
-    public void jobWasExecuted(JobExecutionContext context,
-            JobExecutionException jobException) {
+      getLog().warn(InstantMessageFormat.format(getJobFailedMessage(), args), jobException);
+    } else {
+      if (!getLog().isInfoEnabled()) {
+        return;
+      }
 
-        Trigger trigger = context.getTrigger();
-        
-        Object[] args;
-        
-        if (jobException != null) {
-            if (!getLog().isWarnEnabled()) {
-                return;
-            } 
-            
-            String errMsg = jobException.getMessage();
-            args = 
-                new Object[] {
-                    context.getJobDetail().getKey().getName(),
-                    context.getJobDetail().getKey().getGroup(), Instant.now(),
-                    trigger.getKey().getName(), trigger.getKey().getGroup(),
-                    trigger.getPreviousFireTime(), trigger.getNextFireTime(),
-                        context.getRefireCount(), errMsg
-                };
-            
-            getLog().warn(InstantMessageFormat.format(getJobFailedMessage(), args), jobException); 
-        } else {
-            if (!getLog().isInfoEnabled()) {
-                return;
-            } 
-            
-            String result = String.valueOf(context.getResult());
-            args =
-                new Object[] {
-                    context.getJobDetail().getKey().getName(),
-                    context.getJobDetail().getKey().getGroup(), Instant.now(),
-                    trigger.getKey().getName(), trigger.getKey().getGroup(),
-                    trigger.getPreviousFireTime(), trigger.getNextFireTime(),
-                        context.getRefireCount(), result
-                };
-            
-            getLog().info(InstantMessageFormat.format(getJobSuccessMessage(), args));
-        }
-    }
-
-    /** 
-     * @see org.quartz.JobListener#jobExecutionVetoed(org.quartz.JobExecutionContext)
-     */
-    public void jobExecutionVetoed(JobExecutionContext context) {
-        
-        if (!getLog().isInfoEnabled()) {
-            return;
-        } 
-        
-        Trigger trigger = context.getTrigger();
-
-        Object[] args = {
+      String result = String.valueOf(context.getResult());
+      args =
+          new Object[] {
             context.getJobDetail().getKey().getName(),
-            context.getJobDetail().getKey().getGroup(), Instant.now(),
-            trigger.getKey().getName(), trigger.getKey().getGroup(),
-            trigger.getPreviousFireTime(), trigger.getNextFireTime(),
-                context.getRefireCount()
-        };
+            context.getJobDetail().getKey().getGroup(),
+            Instant.now(),
+            trigger.getKey().getName(),
+            trigger.getKey().getGroup(),
+            trigger.getPreviousFireTime(),
+            trigger.getNextFireTime(),
+            context.getRefireCount(),
+            result
+          };
 
-        getLog().info(InstantMessageFormat.format(getJobWasVetoedMessage(), args));
+      getLog().info(InstantMessageFormat.format(getJobSuccessMessage(), args));
+    }
+  }
+
+  /**
+   * @see org.quartz.JobListener#jobExecutionVetoed(org.quartz.JobExecutionContext)
+   */
+  public void jobExecutionVetoed(JobExecutionContext context) {
+
+    if (!getLog().isInfoEnabled()) {
+      return;
     }
 
+    Trigger trigger = context.getTrigger();
+
+    Object[] args = {
+      context.getJobDetail().getKey().getName(),
+      context.getJobDetail().getKey().getGroup(),
+      Instant.now(),
+      trigger.getKey().getName(),
+      trigger.getKey().getGroup(),
+      trigger.getPreviousFireTime(),
+      trigger.getNextFireTime(),
+      context.getRefireCount()
+    };
+
+    getLog().info(InstantMessageFormat.format(getJobWasVetoedMessage(), args));
+  }
 }
 
 // EOF

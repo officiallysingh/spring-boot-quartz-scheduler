@@ -14,14 +14,12 @@
 package org.quartz.impl.store;
 
 import java.time.Instant;
-
 import org.quartz.JobKey;
 import org.quartz.TriggerKey;
 
 /**
- * A fired-trigger entry: a trigger acquired or executing on a scheduler instance.
- * Kept until the execution completes, so that a failed instance's work can be
- * recovered by another one.
+ * A fired-trigger entry: a trigger acquired or executing on a scheduler instance. Kept until the
+ * execution completes, so that a failed instance's work can be recovered by another one.
  *
  * @param fireInstanceId unique id of this firing
  * @param instanceId the scheduler instance that acquired the trigger
@@ -35,14 +33,13 @@ import org.quartz.TriggerKey;
  * @param requestsRecovery whether the job requests recovery (only known once executing)
  */
 public record FiredTriggerRecord(
-        String fireInstanceId,
-        String instanceId,
-        TriggerKey triggerKey,
-        JobKey jobKey,
-        String state,
-        Instant firedTime,
-        Instant scheduledTime,
-        int priority,
-        boolean nonConcurrent,
-        boolean requestsRecovery) {
-}
+    String fireInstanceId,
+    String instanceId,
+    TriggerKey triggerKey,
+    JobKey jobKey,
+    String state,
+    Instant firedTime,
+    Instant scheduledTime,
+    int priority,
+    boolean nonConcurrent,
+    boolean requestsRecovery) {}

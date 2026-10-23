@@ -20,45 +20,46 @@ import org.testcontainers.mongodb.MongoDBContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * MongoDB and Redis containers shared by every integration test in the JVM.
- * Each container starts on first use and is stopped by Testcontainers' Ryuk
- * when the JVM exits; tests clean state themselves instead of restarting it.
+ * MongoDB and Redis containers shared by every integration test in the JVM. Each container starts
+ * on first use and is stopped by Testcontainers' Ryuk when the JVM exits; tests clean state
+ * themselves instead of restarting it.
  */
 public final class SharedContainers {
 
-    public static final DockerImageName MONGO_IMAGE = DockerImageName.parse("mongo:8.0");
-    public static final DockerImageName REDIS_IMAGE = DockerImageName.parse("redis:7.4");
-    public static final int REDIS_PORT = 6379;
+  public static final DockerImageName MONGO_IMAGE = DockerImageName.parse("mongo:8.0");
+  public static final DockerImageName REDIS_IMAGE = DockerImageName.parse("redis:7.4");
+  public static final int REDIS_PORT = 6379;
 
-    private SharedContainers() {
+  private SharedContainers() {}
+
+  /** Single-node replica set, so multi-document transactions work. */
+  public static MongoDBContainer mongo() {
+    return MongoHolder.CONTAINER;
+  }
+
+  public static GenericContainer<?> redis() {
+    return RedisHolder.CONTAINER;
+  }
+
+  private static final class MongoHolder {
+    static final MongoDBContainer CONTAINER =
+        new MongoDBContainer(MONGO_IMAGE)
+            .withReplicaSet(); // not the default since Testcontainers 2
+
+    static {
+      CONTAINER.start();
     }
+  }
 
-    /** Single-node replica set, so multi-document transactions work. */
-    public static MongoDBContainer mongo() {
-        return MongoHolder.CONTAINER;
+  private static final class RedisHolder {
+    // AOF persistence, as recommended for the Redis job store
+    static final GenericContainer<?> CONTAINER =
+        new GenericContainer<>(REDIS_IMAGE)
+            .withCommand("redis-server", "--appendonly", "yes")
+            .withExposedPorts(REDIS_PORT);
+
+    static {
+      CONTAINER.start();
     }
-
-    public static GenericContainer<?> redis() {
-        return RedisHolder.CONTAINER;
-    }
-
-    private static final class MongoHolder {
-        static final MongoDBContainer CONTAINER = new MongoDBContainer(MONGO_IMAGE)
-                .withReplicaSet(); // not the default since Testcontainers 2
-
-        static {
-            CONTAINER.start();
-        }
-    }
-
-    private static final class RedisHolder {
-        // AOF persistence, as recommended for the Redis job store
-        static final GenericContainer<?> CONTAINER = new GenericContainer<>(REDIS_IMAGE)
-                .withCommand("redis-server", "--appendonly", "yes")
-                .withExposedPorts(REDIS_PORT);
-
-        static {
-            CONTAINER.start();
-        }
-    }
+  }
 }

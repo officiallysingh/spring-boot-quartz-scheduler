@@ -17,7 +17,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.SpringApplication;
@@ -31,69 +30,79 @@ import org.springframework.context.annotation.Configuration;
 @ExtendWith(OutputCaptureExtension.class)
 class JobStoreUnavailableFailureAnalyzerTest {
 
-    private final JobStoreUnavailableFailureAnalyzer analyzer = new JobStoreUnavailableFailureAnalyzer();
+  private final JobStoreUnavailableFailureAnalyzer analyzer =
+      new JobStoreUnavailableFailureAnalyzer();
 
-    @Test
-    void noStoreAtAll() {
-        FailureAnalysis analysis = analyze(new JobStoreUnavailableException(null, List.of()));
+  @Test
+  void noStoreAtAll() {
+    FailureAnalysis analysis = analyze(new JobStoreUnavailableException(null, List.of()));
 
-        assertThat(analysis.getDescription()).contains("No Quartz job store configured")
-            .contains("spring.quartz.job-store.type");
-        assertThat(analysis.getAction()).contains("spring-boot-starter-data-mongodb")
-            .contains("spring.quartz.job-store.type=mongodb")
-            .contains("spring-boot-starter-data-redis")
-            .contains("spring.quartz.job-store.type=redis");
-    }
+    assertThat(analysis.getDescription())
+        .contains("No Quartz job store configured")
+        .contains("spring.quartz.job-store.type");
+    assertThat(analysis.getAction())
+        .contains("spring-boot-starter-data-mongodb")
+        .contains("spring.quartz.job-store.type=mongodb")
+        .contains("spring-boot-starter-data-redis")
+        .contains("spring.quartz.job-store.type=redis");
+  }
 
-    @Test
-    void configuredTypeWithoutItsConnectionBean() {
-        FailureAnalysis analysis = analyze(new JobStoreUnavailableException(JobStoreType.REDIS,
-                List.of(JobStoreType.MONGODB)));
+  @Test
+  void configuredTypeWithoutItsConnectionBean() {
+    FailureAnalysis analysis =
+        analyze(
+            new JobStoreUnavailableException(JobStoreType.REDIS, List.of(JobStoreType.MONGODB)));
 
-        assertThat(analysis.getDescription()).contains("'spring.quartz.job-store.type' is redis")
-            .contains("no RedisConnectionFactory bean");
-        assertThat(analysis.getAction()).contains("spring-boot-starter-data-redis").contains("spring.data.redis.*");
-    }
+    assertThat(analysis.getDescription())
+        .contains("'spring.quartz.job-store.type' is redis")
+        .contains("no RedisConnectionFactory bean");
+    assertThat(analysis.getAction())
+        .contains("spring-boot-starter-data-redis")
+        .contains("spring.data.redis.*");
+  }
 
-    @Test
-    void severalStoresWithoutAType() {
-        FailureAnalysis analysis = analyze(new JobStoreUnavailableException(null,
-                List.of(JobStoreType.MONGODB, JobStoreType.REDIS)));
+  @Test
+  void severalStoresWithoutAType() {
+    FailureAnalysis analysis =
+        analyze(
+            new JobStoreUnavailableException(
+                null, List.of(JobStoreType.MONGODB, JobStoreType.REDIS)));
 
-        assertThat(analysis.getDescription()).contains("Several Quartz job stores are available (mongodb, redis)");
-        assertThat(analysis.getAction()).isEqualTo("Set 'spring.quartz.job-store.type' to one of: mongodb, redis.");
-    }
+    assertThat(analysis.getDescription())
+        .contains("Several Quartz job stores are available (mongodb, redis)");
+    assertThat(analysis.getAction())
+        .isEqualTo("Set 'spring.quartz.job-store.type' to one of: mongodb, redis.");
+  }
 
-    @Test
-    void causeIsFoundInsideABeanCreationFailure() {
-        JobStoreUnavailableException cause = new JobStoreUnavailableException(null, List.of());
+  @Test
+  void causeIsFoundInsideABeanCreationFailure() {
+    JobStoreUnavailableException cause = new JobStoreUnavailableException(null, List.of());
 
-        FailureAnalysis analysis = analyzer.analyze(new IllegalStateException("context failed", cause));
+    FailureAnalysis analysis = analyzer.analyze(new IllegalStateException("context failed", cause));
 
-        assertThat(analysis).isNotNull();
-        assertThat(analysis.getCause()).isSameAs(cause);
-    }
+    assertThat(analysis).isNotNull();
+    assertThat(analysis.getCause()).isSameAs(cause);
+  }
 
-    @Test
-    void isRegisteredSoStartupFailuresAreExplained(CapturedOutput output) {
-        SpringApplication application = new SpringApplication(QuartzOnlyConfiguration.class);
-        application.setWebApplicationType(WebApplicationType.NONE);
+  @Test
+  void isRegisteredSoStartupFailuresAreExplained(CapturedOutput output) {
+    SpringApplication application = new SpringApplication(QuartzOnlyConfiguration.class);
+    application.setWebApplicationType(WebApplicationType.NONE);
 
-        assertThatThrownBy(application::run).hasRootCauseInstanceOf(JobStoreUnavailableException.class);
-        assertThat(output).contains("APPLICATION FAILED TO START")
-            .contains("No Quartz job store configured")
-            .contains("Quartz needs a persistent job store");
-    }
+    assertThatThrownBy(application::run).hasRootCauseInstanceOf(JobStoreUnavailableException.class);
+    assertThat(output)
+        .contains("APPLICATION FAILED TO START")
+        .contains("No Quartz job store configured")
+        .contains("Quartz needs a persistent job store");
+  }
 
-    @Configuration(proxyBeanMethods = false)
-    @ImportAutoConfiguration(QuartzAutoConfiguration.class)
-    static class QuartzOnlyConfiguration {
-    }
+  @Configuration(proxyBeanMethods = false)
+  @ImportAutoConfiguration(QuartzAutoConfiguration.class)
+  static class QuartzOnlyConfiguration {}
 
-    private FailureAnalysis analyze(JobStoreUnavailableException failure) {
-        FailureAnalysis analysis = analyzer.analyze(failure);
-        assertThat(analysis).isNotNull();
-        return analysis;
-    }
-
+  private FailureAnalysis analyze(JobStoreUnavailableException failure) {
+    FailureAnalysis analysis = analyzer.analyze(failure);
+    assertThat(analysis).isNotNull();
+    return analysis;
+  }
 }

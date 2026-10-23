@@ -27,32 +27,30 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
- * Proves {@link AbstractRedisIT}: the Spring context connects through
- * {@code @ServiceConnection} to the shared container, and the database is flushed between tests.
+ * Proves {@link AbstractRedisIT}: the Spring context connects through {@code @ServiceConnection} to
+ * the shared container, and the database is flushed between tests.
  */
 @SpringBootTest(classes = RedisServiceConnectionIT.Config.class)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class RedisServiceConnectionIT extends AbstractRedisIT {
 
-    @Autowired
-    private StringRedisTemplate redisTemplate;
+  @Autowired private StringRedisTemplate redisTemplate;
 
-    @Test
-    @Order(1)
-    void springContextWritesToTheSharedContainer() {
-        redisTemplate.opsForValue().set("smoke", "1");
+  @Test
+  @Order(1)
+  void springContextWritesToTheSharedContainer() {
+    redisTemplate.opsForValue().set("smoke", "1");
 
-        assertThat(redisConnection().sync().get("smoke")).isEqualTo("1");
-    }
+    assertThat(redisConnection().sync().get("smoke")).isEqualTo("1");
+  }
 
-    @Test
-    @Order(2)
-    void databaseIsFlushedBetweenTests() {
-        assertThat(redisConnection().sync().dbsize()).isZero();
-    }
+  @Test
+  @Order(2)
+  void databaseIsFlushedBetweenTests() {
+    assertThat(redisConnection().sync().dbsize()).isZero();
+  }
 
-    @Configuration(proxyBeanMethods = false)
-    @ImportAutoConfiguration(DataRedisAutoConfiguration.class)
-    static class Config {
-    }
+  @Configuration(proxyBeanMethods = false)
+  @ImportAutoConfiguration(DataRedisAutoConfiguration.class)
+  static class Config {}
 }

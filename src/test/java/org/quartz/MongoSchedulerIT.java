@@ -23,14 +23,14 @@ import org.quartz.support.TestSchedulers;
 /** {@link AbstractSchedulerTest} on a {@code MongoJobStore} in the shared container. */
 public class MongoSchedulerIT extends AbstractSchedulerTest {
 
-    @AfterEach
-    void cleanStore() {
-        AbstractMongoIT.dropAllCollections();
-    }
+  @AfterEach
+  void cleanStore() {
+    AbstractMongoIT.dropAllCollections();
+  }
 
-    @Override
-    protected Scheduler createScheduler(String name, int threadPoolSize) throws SchedulerException {
-        return TestSchedulers.create(
-                TestSchedulers.scheduler().name(name + "Scheduler").instanceIdAuto(true), threadPoolSize);
-    }
+  @Override
+  protected Scheduler createScheduler(String name, int threadPoolSize) throws SchedulerException {
+    return TestSchedulers.create(
+        TestSchedulers.scheduler().name(name + "Scheduler").instanceIdAuto(true), threadPoolSize);
+  }
 }

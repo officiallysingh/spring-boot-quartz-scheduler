@@ -20,17 +20,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-
 class JobDetailImplTest {
-	@Test
-	void testHashCode() {
-		JobDetailImpl job = new JobDetailImpl();
-		assertThat(job.hashCode()).isEqualTo(0);
-		
-		job.setName("test");
-		assertThat(job.hashCode()).isNotEqualTo(0);
-		
-		job.setGroup("test");
-		assertThat(job.hashCode()).isNotEqualTo(0);
-	}
+  @Test
+  void testHashCode() {
+    JobDetailImpl job = new JobDetailImpl();
+    assertThat(job.hashCode()).isEqualTo(0);
+
+    job.setName("test");
+    assertThat(job.hashCode()).isNotEqualTo(0);
+
+    job.setGroup("test");
+    assertThat(job.hashCode()).isNotEqualTo(0);
+  }
 }

@@ -25,7 +25,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
 import org.quartz.JobListener;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerConfigException;
@@ -54,11 +53,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * <p>
- * An implementation of <code>{@link org.quartz.SchedulerFactory}</code> that
- * creates a <code>QuartzScheduler</code> from typed settings
- * ({@link QuartzSettings}) and collaborator instances.
- * </p>
+ * An implementation of <code>{@link org.quartz.SchedulerFactory}</code> that creates a <code>
+ * QuartzScheduler</code> from typed settings ({@link QuartzSettings}) and collaborator instances.
  *
  * <pre>
  * Scheduler scheduler = StdSchedulerFactory.builder()
@@ -70,22 +66,14 @@ import org.slf4j.LoggerFactory;
  *         .getScheduler();
  * </pre>
  *
- * <p>
- * A {@link JobStore} must be supplied ({@code MongoJobStore} or
- * {@code RedisJobStore}): there is no default store, and
- * {@link #getScheduler()} fails without one. {@link ThreadPoolSettings}
- * configure the {@link SimpleThreadPool} this factory creates when no
- * {@link ThreadPool} instance is supplied; a supplied instance is used as it
- * is. The factory creates a fresh default thread pool each time it
- * instantiates a scheduler; supplied instances, plugins and listeners are
- * reused.
- * </p>
+ * <p>A {@link JobStore} must be supplied ({@code MongoJobStore} or {@code RedisJobStore}): there is
+ * no default store, and {@link #getScheduler()} fails without one. {@link ThreadPoolSettings}
+ * configure the {@link SimpleThreadPool} this factory creates when no {@link ThreadPool} instance
+ * is supplied; a supplied instance is used as it is. The factory creates a fresh default thread
+ * pool each time it instantiates a scheduler; supplied instances, plugins and listeners are reused.
  *
- * <p>
- * Schedulers are bound by name in the {@link SchedulerRepository}:
- * {@link #getScheduler()} returns the bound scheduler while it is not shut
- * down, and creates a new one otherwise.
- * </p>
+ * <p>Schedulers are bound by name in the {@link SchedulerRepository}: {@link #getScheduler()}
+ * returns the bound scheduler while it is not shut down, and creates a new one otherwise.
  *
  * @author James House
  * @author Anthony Eden
@@ -93,395 +81,379 @@ import org.slf4j.LoggerFactory;
  */
 public class StdSchedulerFactory implements SchedulerFactory {
 
-    private final QuartzSettings settings;
+  private final QuartzSettings settings;
 
-    private final ThreadPool threadPool;
+  private final ThreadPool threadPool;
 
-    private final JobStore jobStore;
+  private final JobStore jobStore;
 
-    private final JobFactory jobFactory;
+  private final JobFactory jobFactory;
 
-    private final InstanceIdGenerator instanceIdGenerator;
+  private final InstanceIdGenerator instanceIdGenerator;
 
-    private final ClassLoadHelper classLoadHelper;
+  private final ClassLoadHelper classLoadHelper;
 
-    private final ThreadExecutor threadExecutor;
+  private final ThreadExecutor threadExecutor;
 
-    private final Map<String, SchedulerPlugin> plugins;
+  private final Map<String, SchedulerPlugin> plugins;
 
-    private final List<JobListener> jobListeners;
+  private final List<JobListener> jobListeners;
 
-    private final List<TriggerListener> triggerListeners;
+  private final List<TriggerListener> triggerListeners;
 
-    private final Clock clock;
+  private final Clock clock;
 
-    private final JobRunShellFactory jobRunShellFactory;
+  private final JobRunShellFactory jobRunShellFactory;
 
-    private final Logger log = LoggerFactory.getLogger(getClass());
+  private final Logger log = LoggerFactory.getLogger(getClass());
 
-    private StdSchedulerFactory(Builder builder) {
-        this.settings = new QuartzSettings(builder.scheduler, builder.threadPoolSettings);
-        this.threadPool = builder.threadPool;
-        this.jobStore = builder.jobStore;
-        this.jobFactory = builder.jobFactory;
-        this.instanceIdGenerator = builder.instanceIdGenerator;
-        this.classLoadHelper = builder.classLoadHelper;
-        this.threadExecutor = builder.threadExecutor;
-        this.plugins = new LinkedHashMap<>(builder.plugins);
-        this.jobListeners = List.copyOf(builder.jobListeners);
-        this.triggerListeners = List.copyOf(builder.triggerListeners);
-        this.clock = builder.clock;
-        this.jobRunShellFactory = builder.jobRunShellFactory;
+  private StdSchedulerFactory(Builder builder) {
+    this.settings = new QuartzSettings(builder.scheduler, builder.threadPoolSettings);
+    this.threadPool = builder.threadPool;
+    this.jobStore = builder.jobStore;
+    this.jobFactory = builder.jobFactory;
+    this.instanceIdGenerator = builder.instanceIdGenerator;
+    this.classLoadHelper = builder.classLoadHelper;
+    this.threadExecutor = builder.threadExecutor;
+    this.plugins = new LinkedHashMap<>(builder.plugins);
+    this.jobListeners = List.copyOf(builder.jobListeners);
+    this.triggerListeners = List.copyOf(builder.triggerListeners);
+    this.clock = builder.clock;
+    this.jobRunShellFactory = builder.jobRunShellFactory;
+  }
+
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  public Logger getLog() {
+    return log;
+  }
+
+  public QuartzSettings getSettings() {
+    return settings;
+  }
+
+  private Scheduler instantiate() throws SchedulerException {
+    SchedulerSettings sched = settings.scheduler();
+    String schedName = sched.name();
+    String schedInstId = sched.instanceId();
+    boolean threadsInheritInitializersClassLoader =
+        sched.threadsInheritContextClassLoaderOfInitializer();
+
+    SchedulerRepository schedRep = SchedulerRepository.getInstance();
+
+    ClassLoadHelper loadHelper =
+        classLoadHelper != null ? classLoadHelper : new CascadingClassLoadHelper();
+    loadHelper.initialize();
+
+    ThreadPool tp = threadPool != null ? threadPool : createThreadPool(settings.threadPool());
+    if (jobStore == null) {
+      throw new SchedulerConfigException(
+          "No JobStore configured: supply one with "
+              + "StdSchedulerFactory.Builder.jobStore(JobStore) (MongoJobStore or RedisJobStore)");
     }
+    JobStore js = jobStore;
+    SchedulerDetailsSetter.setDetails(js, schedName, schedInstId);
 
-    public static Builder builder() {
-        return new Builder();
-    }
+    ThreadExecutor executor = threadExecutor != null ? threadExecutor : new DefaultThreadExecutor();
 
-    public Logger getLog() {
-        return log;
-    }
+    QuartzScheduler qs = null;
+    boolean tpInited = false;
+    boolean qsInited = false;
 
-    public QuartzSettings getSettings() {
-        return settings;
-    }
+    // Fire everything up
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    try {
+      JobRunShellFactory jrsf =
+          jobRunShellFactory != null ? jobRunShellFactory : new StdJobRunShellFactory();
 
-    private Scheduler instantiate() throws SchedulerException {
-        SchedulerSettings sched = settings.scheduler();
-        String schedName = sched.name();
-        String schedInstId = sched.instanceId();
-        boolean threadsInheritInitializersClassLoader = sched.threadsInheritContextClassLoaderOfInitializer();
-
-        SchedulerRepository schedRep = SchedulerRepository.getInstance();
-
-        ClassLoadHelper loadHelper = classLoadHelper != null ? classLoadHelper : new CascadingClassLoadHelper();
-        loadHelper.initialize();
-
-        ThreadPool tp = threadPool != null ? threadPool : createThreadPool(settings.threadPool());
-        if (jobStore == null) {
-            throw new SchedulerConfigException("No JobStore configured: supply one with "
-                    + "StdSchedulerFactory.Builder.jobStore(JobStore) (MongoJobStore or RedisJobStore)");
-        }
-        JobStore js = jobStore;
-        SchedulerDetailsSetter.setDetails(js, schedName, schedInstId);
-
-        ThreadExecutor executor = threadExecutor != null ? threadExecutor : new DefaultThreadExecutor();
-
-        QuartzScheduler qs = null;
-        boolean tpInited = false;
-        boolean qsInited = false;
-
-        // Fire everything up
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      if (sched.instanceIdAuto()) {
         try {
-            JobRunShellFactory jrsf = jobRunShellFactory != null ? jobRunShellFactory : new StdJobRunShellFactory();
-
-            if (sched.instanceIdAuto()) {
-                try {
-                    schedInstId = SchedulerSettings.DEFAULT_INSTANCE_ID;
-                    if (js.isClustered()) {
-                        InstanceIdGenerator generator = instanceIdGenerator != null
-                                ? instanceIdGenerator : new SimpleInstanceIdGenerator();
-                        schedInstId = generator.generateInstanceId();
-                    }
-                } catch (Exception e) {
-                    getLog().error("Couldn't generate instance Id!", e);
-                    throw new IllegalStateException("Cannot run without an instance id.");
-                }
-            }
-
-            QuartzSchedulerResources rsrcs = new QuartzSchedulerResources();
-            rsrcs.setName(schedName);
-            rsrcs.setThreadName(sched.effectiveThreadName());
-            rsrcs.setInstanceId(schedInstId);
-            rsrcs.setJobRunShellFactory(jrsf);
-            rsrcs.setMakeSchedulerThreadDaemon(sched.makeSchedulerThreadDaemon());
-            rsrcs.setThreadsInheritInitializersClassLoadContext(threadsInheritInitializersClassLoader);
-            rsrcs.setBatchTimeWindow(sched.batchTriggerAcquisitionFireAheadTimeWindow());
-            rsrcs.setMaxBatchSize(sched.batchTriggerAcquisitionMaxCount());
-            rsrcs.setInterruptJobsOnShutdown(sched.interruptJobsOnShutdown());
-            rsrcs.setInterruptJobsOnShutdownWithWait(sched.interruptJobsOnShutdownWithWait());
-            rsrcs.setClock(clock);
-
-            SchedulerDetailsSetter.setDetails(tp, schedName, schedInstId);
-
-            rsrcs.setThreadExecutor(executor);
-            executor.initialize();
-
-            rsrcs.setThreadPool(tp);
-            if (tp instanceof SimpleThreadPool && threadsInheritInitializersClassLoader) {
-                ((SimpleThreadPool) tp).setThreadsInheritContextClassLoaderOfInitializingThread(true);
-            }
-            tp.initialize();
-            tpInited = true;
-
-            rsrcs.setJobStore(js);
-
-            // add plugins
-            for (SchedulerPlugin plugin : plugins.values()) {
-                rsrcs.addSchedulerPlugin(plugin);
-            }
-
-            qs = new QuartzScheduler(rsrcs, sched.idleWaitTime());
-            qsInited = true;
-
-            // Create Scheduler ref...
-            Scheduler scheduler = instantiate(rsrcs, qs);
-
-            // set job factory if specified
-            if (jobFactory != null) {
-                qs.setJobFactory(jobFactory);
-            }
-
-            // Initialize plugins now that we have a Scheduler instance.
-            for (Map.Entry<String, SchedulerPlugin> plugin : plugins.entrySet()) {
-                plugin.getValue().initialize(plugin.getKey(), scheduler, loadHelper);
-            }
-
-            // add listeners
-            for (JobListener jobListener : jobListeners) {
-                qs.getListenerManager().addJobListener(jobListener, EverythingMatcher.allJobs());
-            }
-            for (TriggerListener triggerListener : triggerListeners) {
-                qs.getListenerManager().addTriggerListener(triggerListener, EverythingMatcher.allTriggers());
-            }
-
-            // set scheduler context data...
-            scheduler.getContext().putAll(sched.context());
-
-            // fire up job store, and runshell factory
-
-            js.setInstanceId(schedInstId);
-            js.setInstanceName(schedName);
-            js.setThreadPoolSize(tp.getPoolSize());
-            js.initialize(loadHelper, qs.getSchedulerSignaler());
-
-            jrsf.initialize(scheduler);
-
-            qs.initialize();
-
-            getLog().info("Quartz scheduler '{}' initialized", scheduler.getSchedulerName());
-
-            getLog().info("Quartz scheduler version: {}", qs.getVersion());
-
-            // prevents the repository from being garbage collected
-            qs.addNoGCObject(schedRep);
-
-            schedRep.bind(scheduler);
-            return scheduler;
-        }
-        catch(SchedulerException | Error | RuntimeException e) {
-            shutdownFromInstantiateException(tp, qs, tpInited, qsInited);
-            throw e;
-        }
-    }
-
-    private static ThreadPool createThreadPool(ThreadPoolSettings tps) {
-        SimpleThreadPool tp = new SimpleThreadPool(tps.threadCount(), tps.threadPriority());
-        if (tps.threadNamePrefix() != null) {
-            tp.setThreadNamePrefix(tps.threadNamePrefix());
-        }
-        tp.setMakeThreadsDaemons(tps.daemon());
-        tp.setThreadsInheritContextClassLoaderOfInitializingThread(
-                tps.threadsInheritContextClassLoaderOfInitializingThread());
-        tp.setThreadsInheritGroupOfInitializingThread(tps.threadsInheritGroupOfInitializingThread());
-        return tp;
-    }
-
-    private void shutdownFromInstantiateException(ThreadPool tp, QuartzScheduler qs, boolean tpInited, boolean qsInited) {
-        try {
-            if(qsInited)
-                qs.shutdown(false);
-            else if(tpInited)
-                tp.shutdown(false);
+          schedInstId = SchedulerSettings.DEFAULT_INSTANCE_ID;
+          if (js.isClustered()) {
+            InstanceIdGenerator generator =
+                instanceIdGenerator != null ? instanceIdGenerator : new SimpleInstanceIdGenerator();
+            schedInstId = generator.generateInstanceId();
+          }
         } catch (Exception e) {
-            getLog().error("Got another exception while shutting down after instantiation exception", e);
+          getLog().error("Couldn't generate instance Id!", e);
+          throw new IllegalStateException("Cannot run without an instance id.");
         }
+      }
+
+      QuartzSchedulerResources rsrcs = new QuartzSchedulerResources();
+      rsrcs.setName(schedName);
+      rsrcs.setThreadName(sched.effectiveThreadName());
+      rsrcs.setInstanceId(schedInstId);
+      rsrcs.setJobRunShellFactory(jrsf);
+      rsrcs.setMakeSchedulerThreadDaemon(sched.makeSchedulerThreadDaemon());
+      rsrcs.setThreadsInheritInitializersClassLoadContext(threadsInheritInitializersClassLoader);
+      rsrcs.setBatchTimeWindow(sched.batchTriggerAcquisitionFireAheadTimeWindow());
+      rsrcs.setMaxBatchSize(sched.batchTriggerAcquisitionMaxCount());
+      rsrcs.setInterruptJobsOnShutdown(sched.interruptJobsOnShutdown());
+      rsrcs.setInterruptJobsOnShutdownWithWait(sched.interruptJobsOnShutdownWithWait());
+      rsrcs.setClock(clock);
+
+      SchedulerDetailsSetter.setDetails(tp, schedName, schedInstId);
+
+      rsrcs.setThreadExecutor(executor);
+      executor.initialize();
+
+      rsrcs.setThreadPool(tp);
+      if (tp instanceof SimpleThreadPool && threadsInheritInitializersClassLoader) {
+        ((SimpleThreadPool) tp).setThreadsInheritContextClassLoaderOfInitializingThread(true);
+      }
+      tp.initialize();
+      tpInited = true;
+
+      rsrcs.setJobStore(js);
+
+      // add plugins
+      for (SchedulerPlugin plugin : plugins.values()) {
+        rsrcs.addSchedulerPlugin(plugin);
+      }
+
+      qs = new QuartzScheduler(rsrcs, sched.idleWaitTime());
+      qsInited = true;
+
+      // Create Scheduler ref...
+      Scheduler scheduler = instantiate(rsrcs, qs);
+
+      // set job factory if specified
+      if (jobFactory != null) {
+        qs.setJobFactory(jobFactory);
+      }
+
+      // Initialize plugins now that we have a Scheduler instance.
+      for (Map.Entry<String, SchedulerPlugin> plugin : plugins.entrySet()) {
+        plugin.getValue().initialize(plugin.getKey(), scheduler, loadHelper);
+      }
+
+      // add listeners
+      for (JobListener jobListener : jobListeners) {
+        qs.getListenerManager().addJobListener(jobListener, EverythingMatcher.allJobs());
+      }
+      for (TriggerListener triggerListener : triggerListeners) {
+        qs.getListenerManager()
+            .addTriggerListener(triggerListener, EverythingMatcher.allTriggers());
+      }
+
+      // set scheduler context data...
+      scheduler.getContext().putAll(sched.context());
+
+      // fire up job store, and runshell factory
+
+      js.setInstanceId(schedInstId);
+      js.setInstanceName(schedName);
+      js.setThreadPoolSize(tp.getPoolSize());
+      js.initialize(loadHelper, qs.getSchedulerSignaler());
+
+      jrsf.initialize(scheduler);
+
+      qs.initialize();
+
+      getLog().info("Quartz scheduler '{}' initialized", scheduler.getSchedulerName());
+
+      getLog().info("Quartz scheduler version: {}", qs.getVersion());
+
+      // prevents the repository from being garbage collected
+      qs.addNoGCObject(schedRep);
+
+      schedRep.bind(scheduler);
+      return scheduler;
+    } catch (SchedulerException | Error | RuntimeException e) {
+      shutdownFromInstantiateException(tp, qs, tpInited, qsInited);
+      throw e;
+    }
+  }
+
+  private static ThreadPool createThreadPool(ThreadPoolSettings tps) {
+    SimpleThreadPool tp = new SimpleThreadPool(tps.threadCount(), tps.threadPriority());
+    if (tps.threadNamePrefix() != null) {
+      tp.setThreadNamePrefix(tps.threadNamePrefix());
+    }
+    tp.setMakeThreadsDaemons(tps.daemon());
+    tp.setThreadsInheritContextClassLoaderOfInitializingThread(
+        tps.threadsInheritContextClassLoaderOfInitializingThread());
+    tp.setThreadsInheritGroupOfInitializingThread(tps.threadsInheritGroupOfInitializingThread());
+    return tp;
+  }
+
+  private void shutdownFromInstantiateException(
+      ThreadPool tp, QuartzScheduler qs, boolean tpInited, boolean qsInited) {
+    try {
+      if (qsInited) qs.shutdown(false);
+      else if (tpInited) tp.shutdown(false);
+    } catch (Exception e) {
+      getLog().error("Got another exception while shutting down after instantiation exception", e);
+    }
+  }
+
+  protected Scheduler instantiate(QuartzSchedulerResources rsrcs, QuartzScheduler qs) {
+
+    return new StdScheduler(qs);
+  }
+
+  /**
+   * Returns a handle to the Scheduler produced by this factory, creating it if no scheduler with
+   * the configured name is bound, or the bound one has been shut down.
+   */
+  public Scheduler getScheduler() throws SchedulerException {
+    SchedulerRepository schedRep = SchedulerRepository.getInstance();
+    String schedName = settings.scheduler().name();
+
+    Scheduler sched = schedRep.lookup(schedName);
+
+    if (sched != null) {
+      if (sched.isShutdown()) {
+        schedRep.remove(schedName);
+      } else {
+        return sched;
+      }
     }
 
-    protected Scheduler instantiate(QuartzSchedulerResources rsrcs, QuartzScheduler qs) {
+    return instantiate();
+  }
 
-        return new StdScheduler(qs);
+  /**
+   * Returns a handle to the Scheduler with the given name, if it exists (if it has already been
+   * instantiated).
+   */
+  public Scheduler getScheduler(String schedName) throws SchedulerException {
+    return SchedulerRepository.getInstance().lookup(schedName);
+  }
+
+  /** Returns a handle to all known Schedulers (made by any StdSchedulerFactory instance.). */
+  public Collection<Scheduler> getAllSchedulers() throws SchedulerException {
+    return SchedulerRepository.getInstance().lookupAll();
+  }
+
+  /**
+   * Builds a {@link StdSchedulerFactory}. Everything not set falls back to its default: {@link
+   * QuartzSettings#defaults()}, a {@link SimpleThreadPool} and in-memory job store configured from
+   * the settings, {@link CascadingClassLoadHelper}, {@link SimpleInstanceIdGenerator}, {@link
+   * DefaultThreadExecutor}, the scheduler's default job factory, {@link StdJobRunShellFactory} and
+   * {@link Clock#systemUTC()}.
+   */
+  public static final class Builder {
+    private SchedulerSettings scheduler = SchedulerSettings.defaults();
+    private ThreadPoolSettings threadPoolSettings = ThreadPoolSettings.defaults();
+    private ThreadPool threadPool;
+    private JobStore jobStore;
+    private JobFactory jobFactory;
+    private InstanceIdGenerator instanceIdGenerator;
+    private ClassLoadHelper classLoadHelper;
+    private ThreadExecutor threadExecutor;
+    private final Map<String, SchedulerPlugin> plugins = new LinkedHashMap<>();
+    private final List<JobListener> jobListeners = new ArrayList<>();
+    private final List<TriggerListener> triggerListeners = new ArrayList<>();
+    private Clock clock = Clock.systemUTC();
+    private JobRunShellFactory jobRunShellFactory;
+
+    private Builder() {}
+
+    public Builder settings(QuartzSettings settings) {
+      Objects.requireNonNull(settings, "settings");
+      this.scheduler = settings.scheduler();
+      this.threadPoolSettings = settings.threadPool();
+      return this;
+    }
+
+    public Builder scheduler(SchedulerSettings scheduler) {
+      this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
+      return this;
+    }
+
+    public Builder threadPool(ThreadPoolSettings threadPool) {
+      this.threadPoolSettings = Objects.requireNonNull(threadPool, "threadPool");
+      return this;
     }
 
     /**
-     * <p>
-     * Returns a handle to the Scheduler produced by this factory, creating it
-     * if no scheduler with the configured name is bound, or the bound one has
-     * been shut down.
-     * </p>
+     * Use this thread pool instead of creating a {@link SimpleThreadPool} from the {@link
+     * ThreadPoolSettings}.
      */
-    public Scheduler getScheduler() throws SchedulerException {
-        SchedulerRepository schedRep = SchedulerRepository.getInstance();
-        String schedName = settings.scheduler().name();
-
-        Scheduler sched = schedRep.lookup(schedName);
-
-        if (sched != null) {
-            if (sched.isShutdown()) {
-                schedRep.remove(schedName);
-            } else {
-                return sched;
-            }
-        }
-
-        return instantiate();
+    public Builder threadPool(ThreadPool threadPool) {
+      this.threadPool = threadPool;
+      return this;
     }
 
     /**
-     * <p>
-     * Returns a handle to the Scheduler with the given name, if it exists (if
-     * it has already been instantiated).
-     * </p>
+     * The job store (required: there is no default store). It is configured by its own constructor,
+     * with its own {@link JobStoreSettings}.
      */
-    public Scheduler getScheduler(String schedName) throws SchedulerException {
-        return SchedulerRepository.getInstance().lookup(schedName);
+    public Builder jobStore(JobStore jobStore) {
+      this.jobStore = jobStore;
+      return this;
+    }
+
+    public Builder jobFactory(JobFactory jobFactory) {
+      this.jobFactory = jobFactory;
+      return this;
     }
 
     /**
-     * <p>
-     * Returns a handle to all known Schedulers (made by any
-     * StdSchedulerFactory instance.).
-     * </p>
+     * The generator used when {@link SchedulerSettings#instanceIdAuto()} is set and the job store
+     * is clustered.
      */
-    public Collection<Scheduler> getAllSchedulers() throws SchedulerException {
-        return SchedulerRepository.getInstance().lookupAll();
+    public Builder instanceIdGenerator(InstanceIdGenerator instanceIdGenerator) {
+      this.instanceIdGenerator = instanceIdGenerator;
+      return this;
+    }
+
+    public Builder classLoadHelper(ClassLoadHelper classLoadHelper) {
+      this.classLoadHelper = classLoadHelper;
+      return this;
+    }
+
+    public Builder threadExecutor(ThreadExecutor threadExecutor) {
+      this.threadExecutor = threadExecutor;
+      return this;
     }
 
     /**
-     * Builds a {@link StdSchedulerFactory}. Everything not set falls back to
-     * its default: {@link QuartzSettings#defaults()}, a {@link SimpleThreadPool}
-     * and in-memory job store configured from the settings,
-     * {@link CascadingClassLoadHelper}, {@link SimpleInstanceIdGenerator},
-     * {@link DefaultThreadExecutor}, the scheduler's default job factory, {@link StdJobRunShellFactory} and
-     * {@link Clock#systemUTC()}.
+     * Adds a plugin; {@code name} is passed to {@link SchedulerPlugin#initialize(String, Scheduler,
+     * ClassLoadHelper)}. Plugins are initialized in the order they were added.
      */
-    public static final class Builder {
-        private SchedulerSettings scheduler = SchedulerSettings.defaults();
-        private ThreadPoolSettings threadPoolSettings = ThreadPoolSettings.defaults();
-        private ThreadPool threadPool;
-        private JobStore jobStore;
-        private JobFactory jobFactory;
-        private InstanceIdGenerator instanceIdGenerator;
-        private ClassLoadHelper classLoadHelper;
-        private ThreadExecutor threadExecutor;
-        private final Map<String, SchedulerPlugin> plugins = new LinkedHashMap<>();
-        private final List<JobListener> jobListeners = new ArrayList<>();
-        private final List<TriggerListener> triggerListeners = new ArrayList<>();
-        private Clock clock = Clock.systemUTC();
-        private JobRunShellFactory jobRunShellFactory;
-
-        private Builder() {
-        }
-
-        public Builder settings(QuartzSettings settings) {
-            Objects.requireNonNull(settings, "settings");
-            this.scheduler = settings.scheduler();
-            this.threadPoolSettings = settings.threadPool();
-            return this;
-        }
-
-        public Builder scheduler(SchedulerSettings scheduler) {
-            this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
-            return this;
-        }
-
-        public Builder threadPool(ThreadPoolSettings threadPool) {
-            this.threadPoolSettings = Objects.requireNonNull(threadPool, "threadPool");
-            return this;
-        }
-
-        /**
-         * Use this thread pool instead of creating a {@link SimpleThreadPool}
-         * from the {@link ThreadPoolSettings}.
-         */
-        public Builder threadPool(ThreadPool threadPool) {
-            this.threadPool = threadPool;
-            return this;
-        }
-
-        /**
-         * The job store (required: there is no default store). It is configured
-         * by its own constructor, with its own {@link JobStoreSettings}.
-         */
-        public Builder jobStore(JobStore jobStore) {
-            this.jobStore = jobStore;
-            return this;
-        }
-
-        public Builder jobFactory(JobFactory jobFactory) {
-            this.jobFactory = jobFactory;
-            return this;
-        }
-
-        /**
-         * The generator used when {@link SchedulerSettings#instanceIdAuto()} is set
-         * and the job store is clustered.
-         */
-        public Builder instanceIdGenerator(InstanceIdGenerator instanceIdGenerator) {
-            this.instanceIdGenerator = instanceIdGenerator;
-            return this;
-        }
-
-        public Builder classLoadHelper(ClassLoadHelper classLoadHelper) {
-            this.classLoadHelper = classLoadHelper;
-            return this;
-        }
-
-        public Builder threadExecutor(ThreadExecutor threadExecutor) {
-            this.threadExecutor = threadExecutor;
-            return this;
-        }
-
-        /**
-         * Adds a plugin; {@code name} is passed to
-         * {@link SchedulerPlugin#initialize(String, Scheduler, ClassLoadHelper)}.
-         * Plugins are initialized in the order they were added.
-         */
-        public Builder plugin(String name, SchedulerPlugin plugin) {
-            Objects.requireNonNull(name, "name");
-            Objects.requireNonNull(plugin, "plugin");
-            if (plugins.putIfAbsent(name, plugin) != null) {
-                throw new IllegalArgumentException("Duplicate plugin name: " + name);
-            }
-            return this;
-        }
-
-        /**
-         * Adds a job listener for all jobs.
-         */
-        public Builder jobListener(JobListener listener) {
-            jobListeners.add(Objects.requireNonNull(listener, "listener"));
-            return this;
-        }
-
-        /**
-         * Adds a trigger listener for all triggers.
-         */
-        public Builder triggerListener(TriggerListener listener) {
-            triggerListeners.add(Objects.requireNonNull(listener, "listener"));
-            return this;
-        }
-
-        /**
-         * The source of "now" for the scheduler; defaults to {@link Clock#systemUTC()}.
-         */
-        public Builder clock(Clock clock) {
-            this.clock = Objects.requireNonNull(clock, "clock");
-            return this;
-        }
-
-        /**
-         * The factory of the shells that run each job; defaults to
-         * {@link StdJobRunShellFactory}. A factory instance belongs to one scheduler.
-         */
-        public Builder jobRunShellFactory(JobRunShellFactory jobRunShellFactory) {
-            this.jobRunShellFactory = jobRunShellFactory;
-            return this;
-        }
-
-        public StdSchedulerFactory build() {
-            return new StdSchedulerFactory(this);
-        }
+    public Builder plugin(String name, SchedulerPlugin plugin) {
+      Objects.requireNonNull(name, "name");
+      Objects.requireNonNull(plugin, "plugin");
+      if (plugins.putIfAbsent(name, plugin) != null) {
+        throw new IllegalArgumentException("Duplicate plugin name: " + name);
+      }
+      return this;
     }
+
+    /** Adds a job listener for all jobs. */
+    public Builder jobListener(JobListener listener) {
+      jobListeners.add(Objects.requireNonNull(listener, "listener"));
+      return this;
+    }
+
+    /** Adds a trigger listener for all triggers. */
+    public Builder triggerListener(TriggerListener listener) {
+      triggerListeners.add(Objects.requireNonNull(listener, "listener"));
+      return this;
+    }
+
+    /** The source of "now" for the scheduler; defaults to {@link Clock#systemUTC()}. */
+    public Builder clock(Clock clock) {
+      this.clock = Objects.requireNonNull(clock, "clock");
+      return this;
+    }
+
+    /**
+     * The factory of the shells that run each job; defaults to {@link StdJobRunShellFactory}. A
+     * factory instance belongs to one scheduler.
+     */
+    public Builder jobRunShellFactory(JobRunShellFactory jobRunShellFactory) {
+      this.jobRunShellFactory = jobRunShellFactory;
+      return this;
+    }
+
+    public StdSchedulerFactory build() {
+      return new StdSchedulerFactory(this);
+    }
+  }
 }

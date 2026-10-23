@@ -15,47 +15,46 @@ package org.quartz.support;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.AbstractPlatformTransactionManager;
 import org.springframework.transaction.support.DefaultTransactionStatus;
 
 /**
- * Resource-less transaction manager that records what happened, as
- * {@code "begin <name>"}, {@code "commit <name>"} and {@code "rollback <name>"} events.
+ * Resource-less transaction manager that records what happened, as {@code "begin <name>"}, {@code
+ * "commit <name>"} and {@code "rollback <name>"} events.
  */
 public class RecordingTransactionManager extends AbstractPlatformTransactionManager {
 
-    private final List<String> events = new CopyOnWriteArrayList<>();
+  private final List<String> events = new CopyOnWriteArrayList<>();
 
-    private final List<TransactionDefinition> definitions = new CopyOnWriteArrayList<>();
+  private final List<TransactionDefinition> definitions = new CopyOnWriteArrayList<>();
 
-    public List<String> events() {
-        return events;
-    }
+  public List<String> events() {
+    return events;
+  }
 
-    public List<TransactionDefinition> definitions() {
-        return definitions;
-    }
+  public List<TransactionDefinition> definitions() {
+    return definitions;
+  }
 
-    @Override
-    protected Object doGetTransaction() {
-        return new Object();
-    }
+  @Override
+  protected Object doGetTransaction() {
+    return new Object();
+  }
 
-    @Override
-    protected void doBegin(Object transaction, TransactionDefinition definition) {
-        definitions.add(definition);
-        events.add("begin " + definition.getName());
-    }
+  @Override
+  protected void doBegin(Object transaction, TransactionDefinition definition) {
+    definitions.add(definition);
+    events.add("begin " + definition.getName());
+  }
 
-    @Override
-    protected void doCommit(DefaultTransactionStatus status) {
-        events.add("commit " + status.getTransactionName());
-    }
+  @Override
+  protected void doCommit(DefaultTransactionStatus status) {
+    events.add("commit " + status.getTransactionName());
+  }
 
-    @Override
-    protected void doRollback(DefaultTransactionStatus status) {
-        events.add("rollback " + status.getTransactionName());
-    }
+  @Override
+  protected void doRollback(DefaultTransactionStatus status) {
+    events.add("rollback " + status.getTransactionName());
+  }
 }

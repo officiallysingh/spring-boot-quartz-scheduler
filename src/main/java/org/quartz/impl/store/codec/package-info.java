@@ -12,9 +12,7 @@
  * under the License.
  */
 
-/**
- * Encoding of jobs, triggers and job data into the field maps the store delegates persist.
- */
+/** Encoding of jobs, triggers and job data into the field maps the store delegates persist. */
 @NullMarked
 package org.quartz.impl.store.codec;
 

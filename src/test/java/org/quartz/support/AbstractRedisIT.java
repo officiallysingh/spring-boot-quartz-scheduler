@@ -17,66 +17,67 @@ import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
 import org.junit.jupiter.api.AfterEach;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.testcontainers.containers.GenericContainer;
 
 /**
  * Base class for integration tests against the JVM-wide Redis container.
- * <p>
- * Spring tests get the connection through {@link ServiceConnection @ServiceConnection};
- * plain store tests use {@link #redisUri()} / {@link #redisConnection()}. After each test
- * the default database is cleared with {@code FLUSHDB}; the container itself is never
- * restarted.
+ *
+ * <p>Spring tests get the connection through {@link ServiceConnection @ServiceConnection}; plain
+ * store tests use {@link #redisUri()} / {@link #redisConnection()}. After each test the default
+ * database is cleared with {@code FLUSHDB}; the container itself is never restarted.
  */
 public abstract class AbstractRedisIT {
 
-    @ServiceConnection(name = "redis")
-    protected static final GenericContainer<?> REDIS = SharedContainers.redis();
+  @ServiceConnection(name = "redis")
+  protected static final GenericContainer<?> REDIS = SharedContainers.redis();
 
-    public static RedisURI redisUri() {
-        return RedisURI.create(REDIS.getHost(), REDIS.getMappedPort(SharedContainers.REDIS_PORT));
+  public static RedisURI redisUri() {
+    return RedisURI.create(REDIS.getHost(), REDIS.getMappedPort(SharedContainers.REDIS_PORT));
+  }
+
+  /** A connection shared by all tests in the JVM; do not close it. */
+  public static StatefulRedisConnection<String, String> redisConnection() {
+    return ConnectionHolder.CONNECTION;
+  }
+
+  @AfterEach
+  void flushDb() {
+    flushDatabase();
+  }
+
+  /**
+   * Clears the default database. Also usable by tests that cannot extend this class (for example
+   * store tests extending a contract kit).
+   */
+  public static void flushDatabase() {
+    redisConnection().sync().flushdb();
+  }
+
+  /** A Spring Data template on the shared container, shared by all tests in the JVM. */
+  public static StringRedisTemplate redisTemplate() {
+    return TemplateHolder.TEMPLATE;
+  }
+
+  private static final class TemplateHolder {
+    static final StringRedisTemplate TEMPLATE;
+
+    static {
+      LettuceConnectionFactory factory =
+          new LettuceConnectionFactory(
+              new RedisStandaloneConfiguration(
+                  REDIS.getHost(), REDIS.getMappedPort(SharedContainers.REDIS_PORT)));
+      factory.afterPropertiesSet();
+      factory.start();
+      TEMPLATE = new StringRedisTemplate(factory);
     }
+  }
 
-    /** A connection shared by all tests in the JVM; do not close it. */
-    public static StatefulRedisConnection<String, String> redisConnection() {
-        return ConnectionHolder.CONNECTION;
-    }
-
-    @AfterEach
-    void flushDb() {
-        flushDatabase();
-    }
-
-    /**
-     * Clears the default database. Also usable by tests that cannot extend this class (for
-     * example store tests extending a contract kit).
-     */
-    public static void flushDatabase() {
-        redisConnection().sync().flushdb();
-    }
-
-    /** A Spring Data template on the shared container, shared by all tests in the JVM. */
-    public static StringRedisTemplate redisTemplate() {
-        return TemplateHolder.TEMPLATE;
-    }
-
-    private static final class TemplateHolder {
-        static final StringRedisTemplate TEMPLATE;
-
-        static {
-            LettuceConnectionFactory factory = new LettuceConnectionFactory(
-                    new RedisStandaloneConfiguration(REDIS.getHost(), REDIS.getMappedPort(SharedContainers.REDIS_PORT)));
-            factory.afterPropertiesSet();
-            factory.start();
-            TEMPLATE = new StringRedisTemplate(factory);
-        }
-    }
-
-    private static final class ConnectionHolder {
-        static final RedisClient CLIENT = RedisClient.create(redisUri());
-        static final StatefulRedisConnection<String, String> CONNECTION = CLIENT.connect();
-    }
+  private static final class ConnectionHolder {
+    static final RedisClient CLIENT = RedisClient.create(redisUri());
+    static final StatefulRedisConnection<String, String> CONNECTION = CLIENT.connect();
+  }
 }

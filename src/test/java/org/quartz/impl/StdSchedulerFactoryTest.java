@@ -26,34 +26,32 @@ import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.SchedulerPlugin;
 
 /**
- * {@link StdSchedulerFactory} checks that need no job store; the rest is in
- * {@link StdSchedulerFactoryIT}.
+ * {@link StdSchedulerFactory} checks that need no job store; the rest is in {@link
+ * StdSchedulerFactoryIT}.
  */
 class StdSchedulerFactoryTest {
 
-    @Test
-    void aJobStoreIsRequired() {
-        assertThatThrownBy(() -> StdSchedulerFactory.builder().build().getScheduler())
-                .isInstanceOf(SchedulerConfigException.class)
-                .hasMessageContaining("No JobStore configured")
-                .hasMessageContaining("Builder.jobStore(JobStore)");
-    }
+  @Test
+  void aJobStoreIsRequired() {
+    assertThatThrownBy(() -> StdSchedulerFactory.builder().build().getScheduler())
+        .isInstanceOf(SchedulerConfigException.class)
+        .hasMessageContaining("No JobStore configured")
+        .hasMessageContaining("Builder.jobStore(JobStore)");
+  }
 
-    @Test
-    void duplicatePluginNamesAreRejected() {
-        SchedulerPlugin plugin = new SchedulerPlugin() {
-            public void initialize(String name, Scheduler scheduler, ClassLoadHelper loadHelper) {
-            }
+  @Test
+  void duplicatePluginNamesAreRejected() {
+    SchedulerPlugin plugin =
+        new SchedulerPlugin() {
+          public void initialize(String name, Scheduler scheduler, ClassLoadHelper loadHelper) {}
 
-            public void start() {
-            }
+          public void start() {}
 
-            public void shutdown() {
-            }
+          public void shutdown() {}
         };
 
-        assertThatThrownBy(() -> StdSchedulerFactory.builder().plugin("p", plugin).plugin("p", plugin))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Duplicate plugin name");
-    }
+    assertThatThrownBy(() -> StdSchedulerFactory.builder().plugin("p", plugin).plugin("p", plugin))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Duplicate plugin name");
+  }
 }

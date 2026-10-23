@@ -24,15 +24,15 @@ import java.util.Objects;
  */
 public record RedisJobStoreSettings(String keyPrefix, Duration lockTimeout) {
 
-    public RedisJobStoreSettings {
-        Objects.requireNonNull(keyPrefix, "keyPrefix");
-        Objects.requireNonNull(lockTimeout, "lockTimeout");
-        if (lockTimeout.toMillis() < 1) {
-            throw new IllegalArgumentException("lockTimeout must be at least 1ms, was " + lockTimeout);
-        }
+  public RedisJobStoreSettings {
+    Objects.requireNonNull(keyPrefix, "keyPrefix");
+    Objects.requireNonNull(lockTimeout, "lockTimeout");
+    if (lockTimeout.toMillis() < 1) {
+      throw new IllegalArgumentException("lockTimeout must be at least 1ms, was " + lockTimeout);
     }
+  }
 
-    public static RedisJobStoreSettings defaults() {
-        return new RedisJobStoreSettings("quartz:", Duration.ofSeconds(30));
-    }
+  public static RedisJobStoreSettings defaults() {
+    return new RedisJobStoreSettings("quartz:", Duration.ofSeconds(30));
+  }
 }

@@ -15,9 +15,9 @@
  */
 
 /**
- * Spring Boot auto-configuration for the scheduler, ported from Spring Boot's
- * {@code org.springframework.boot.quartz.autoconfigure} and bound to the typed
- * {@code spring.quartz.*} properties of this library.
+ * Spring Boot auto-configuration for the scheduler, ported from Spring Boot's {@code
+ * org.springframework.boot.quartz.autoconfigure} and bound to the typed {@code spring.quartz.*}
+ * properties of this library.
  */
 @NullMarked
 package org.quartz.spring.boot.autoconfigure;

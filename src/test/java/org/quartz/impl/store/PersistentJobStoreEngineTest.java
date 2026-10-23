@@ -18,24 +18,24 @@ import org.quartz.spi.JobStore;
 import org.quartz.store.AbstractJobStoreContractTest;
 
 /**
- * Runs the standalone contract kit against the persistent store engine over an in-memory
- * delegate (no containers): validates the engine independently of MongoDB and Redis.
+ * Runs the standalone contract kit against the persistent store engine over an in-memory delegate
+ * (no containers): validates the engine independently of MongoDB and Redis.
  */
 class PersistentJobStoreEngineTest extends AbstractJobStoreContractTest {
 
-    private final InMemoryStoreDelegate.Data data = new InMemoryStoreDelegate.Data();
+  private final InMemoryStoreDelegate.Data data = new InMemoryStoreDelegate.Data();
 
-    @Override
-    protected JobStore createJobStore(String instanceId) {
-        return new InMemoryPersistentJobStore(data, JobStoreSettings.defaults());
-    }
+  @Override
+  protected JobStore createJobStore(String instanceId) {
+    return new InMemoryPersistentJobStore(data, JobStoreSettings.defaults());
+  }
 
-    @Override
-    protected void cleanStore() {
-        synchronized (data) {
-            new InMemoryStoreDelegate(data, null).clearAllSchedulingData();
-            data.schedulers.clear();
-            data.locks.clear();
-        }
+  @Override
+  protected void cleanStore() {
+    synchronized (data) {
+      new InMemoryStoreDelegate(data, null).clearAllSchedulingData();
+      data.schedulers.clear();
+      data.locks.clear();
     }
+  }
 }

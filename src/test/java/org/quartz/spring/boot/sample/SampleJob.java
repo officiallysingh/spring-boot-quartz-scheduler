@@ -23,30 +23,30 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
- * Records each execution in the business database. Created by {@code SpringBeanJobFactory}, so
- * it can be autowired; the write joins the job's transaction when there is one.
+ * Records each execution in the business database. Created by {@code SpringBeanJobFactory}, so it
+ * can be autowired; the write joins the job's transaction when there is one.
  */
 public class SampleJob implements Job {
 
-    static final String EXECUTIONS = "sample_executions";
+  static final String EXECUTIONS = "sample_executions";
 
-    @Autowired
-    private MongoTemplate mongoTemplate;
+  @Autowired private MongoTemplate mongoTemplate;
 
-    @Value("${sample.run-id}")
-    private String runId;
+  @Value("${sample.run-id}")
+  private String runId;
 
-    @Override
-    public void execute(JobExecutionContext context) {
-        try {
-            mongoTemplate.insert(new Document("runId", runId)
-                .append("instanceId", context.getScheduler().getSchedulerInstanceId())
-                .append("scheduledFireTime", context.getScheduledFireTime())
-                .append("inTransaction", TransactionSynchronizationManager.isActualTransactionActive()),
-                    EXECUTIONS);
-        }
-        catch (SchedulerException ex) {
-            throw new IllegalStateException(ex);
-        }
+  @Override
+  public void execute(JobExecutionContext context) {
+    try {
+      mongoTemplate.insert(
+          new Document("runId", runId)
+              .append("instanceId", context.getScheduler().getSchedulerInstanceId())
+              .append("scheduledFireTime", context.getScheduledFireTime())
+              .append(
+                  "inTransaction", TransactionSynchronizationManager.isActualTransactionActive()),
+          EXECUTIONS);
+    } catch (SchedulerException ex) {
+      throw new IllegalStateException(ex);
     }
+  }
 }

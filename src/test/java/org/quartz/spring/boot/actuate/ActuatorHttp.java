@@ -20,49 +20,52 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Minimal JSON-over-HTTP client for the actuator ITs (JDK {@link HttpClient}, no extra dependency). */
+/**
+ * Minimal JSON-over-HTTP client for the actuator ITs (JDK {@link HttpClient}, no extra dependency).
+ */
 public final class ActuatorHttp {
 
-    private static final JsonMapper JSON = JsonMapper.builder().build();
+  private static final JsonMapper JSON = JsonMapper.builder().build();
 
-    private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+  private final HttpClient client =
+      HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 
-    private final String baseUrl;
+  private final String baseUrl;
 
-    public ActuatorHttp(int port) {
-        this.baseUrl = "http://localhost:" + port + "/actuator";
-    }
+  public ActuatorHttp(int port) {
+    this.baseUrl = "http://localhost:" + port + "/actuator";
+  }
 
-    public record Response(int status, JsonNode body) {
-    }
+  public record Response(int status, JsonNode body) {}
 
-    public Response get(String path) {
-        return send(HttpRequest.newBuilder(URI.create(baseUrl + path)).GET());
-    }
+  public Response get(String path) {
+    return send(HttpRequest.newBuilder(URI.create(baseUrl + path)).GET());
+  }
 
-    public Response post(String path, String json) {
-        return send(HttpRequest.newBuilder(URI.create(baseUrl + path))
+  public Response post(String path, String json) {
+    return send(
+        HttpRequest.newBuilder(URI.create(baseUrl + path))
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(json)));
-    }
+  }
 
-    private Response send(HttpRequest.Builder request) {
-        try {
-            HttpResponse<String> response = client.send(request.timeout(Duration.ofSeconds(30)).build(),
-                    HttpResponse.BodyHandlers.ofString());
-            String body = response.body();
-            return new Response(response.statusCode(), (body == null || body.isBlank()) ? null : JSON.readTree(body));
-        }
-        catch (IOException ex) {
-            throw new UncheckedIOException(ex);
-        }
-        catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException(ex);
-        }
+  private Response send(HttpRequest.Builder request) {
+    try {
+      HttpResponse<String> response =
+          client.send(
+              request.timeout(Duration.ofSeconds(30)).build(),
+              HttpResponse.BodyHandlers.ofString());
+      String body = response.body();
+      return new Response(
+          response.statusCode(), (body == null || body.isBlank()) ? null : JSON.readTree(body));
+    } catch (IOException ex) {
+      throw new UncheckedIOException(ex);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException(ex);
     }
+  }
 }

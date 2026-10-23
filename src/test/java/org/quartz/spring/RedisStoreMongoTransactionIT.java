@@ -18,7 +18,6 @@ import static org.awaitility.Awaitility.await;
 import static org.quartz.spring.TransactionTestJobs.COUNTS;
 
 import java.time.Duration;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,68 +47,85 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.mongodb.MongoDBContainer;
 
 /**
- * The scheduler stores its state in Redis while jobs run in MongoDB business
- * transactions: rolling back the business transaction does not touch the store, so the job
- * data change of a failed {@code @PersistJobDataAfterExecution} execution is kept (as
- * Quartz always did) while its business document is rolled back.
- * <p>
- * Needs both shared containers, so it cannot extend {@link AbstractMongoIT} or
- * {@link AbstractRedisIT}; it uses their static cleanup helpers instead.
+ * The scheduler stores its state in Redis while jobs run in MongoDB business transactions: rolling
+ * back the business transaction does not touch the store, so the job data change of a failed
+ * {@code @PersistJobDataAfterExecution} execution is kept (as Quartz always did) while its business
+ * document is rolled back.
+ *
+ * <p>Needs both shared containers, so it cannot extend {@link AbstractMongoIT} or {@link
+ * AbstractRedisIT}; it uses their static cleanup helpers instead.
  */
-@SpringBootTest(classes = RedisStoreMongoTransactionIT.Config.class,
-        properties = { "spring.quartz.job-store.type=redis", "spring.quartz.scheduler.name=redisTxApp" })
+@SpringBootTest(
+    classes = RedisStoreMongoTransactionIT.Config.class,
+    properties = {"spring.quartz.job-store.type=redis", "spring.quartz.scheduler.name=redisTxApp"})
 class RedisStoreMongoTransactionIT {
 
-    @ServiceConnection
-    static final MongoDBContainer MONGO = SharedContainers.mongo();
+  @ServiceConnection static final MongoDBContainer MONGO = SharedContainers.mongo();
 
-    @ServiceConnection(name = "redis")
-    static final GenericContainer<?> REDIS = SharedContainers.redis();
+  @ServiceConnection(name = "redis")
+  static final GenericContainer<?> REDIS = SharedContainers.redis();
 
-    @Autowired
-    private Scheduler scheduler;
+  @Autowired private Scheduler scheduler;
 
-    @Autowired
-    private RecordingMongoTransactionManager transactionManager;
+  @Autowired private RecordingMongoTransactionManager transactionManager;
 
-    @BeforeEach
-    void reset() {
-        TransactionTestJobs.reset();
-    }
+  @BeforeEach
+  void reset() {
+    TransactionTestJobs.reset();
+  }
 
-    @AfterEach
-    void cleanUp() {
-        AbstractMongoIT.dropAllCollections();
-        AbstractRedisIT.flushDatabase();
-    }
+  @AfterEach
+  void cleanUp() {
+    AbstractMongoIT.dropAllCollections();
+    AbstractRedisIT.flushDatabase();
+  }
 
-    @Test
-    void storeStateIsIndependentOfTheBusinessTransaction() throws Exception {
-        assertThat(scheduler.getMetaData().getJobStoreClass()).isEqualTo(RedisJobStore.class);
-        JobDetail job = JobBuilder.newJob(CountingJob.class).withIdentity("redisCounting").usingJobData("count", 0)
-            .storeDurably().build();
-        scheduler.scheduleJob(job, TriggerBuilder.newTrigger().withIdentity("redisCounting").startNow()
-            .withSchedule(SimpleScheduleBuilder.simpleSchedule().withIntervalInMilliseconds(100).withRepeatCount(1))
+  @Test
+  void storeStateIsIndependentOfTheBusinessTransaction() throws Exception {
+    assertThat(scheduler.getMetaData().getJobStoreClass()).isEqualTo(RedisJobStore.class);
+    JobDetail job =
+        JobBuilder.newJob(CountingJob.class)
+            .withIdentity("redisCounting")
+            .usingJobData("count", 0)
+            .storeDurably()
+            .build();
+    scheduler.scheduleJob(
+        job,
+        TriggerBuilder.newTrigger()
+            .withIdentity("redisCounting")
+            .startNow()
+            .withSchedule(
+                SimpleScheduleBuilder.simpleSchedule()
+                    .withIntervalInMilliseconds(100)
+                    .withRepeatCount(1))
             .build());
 
-        // the failed first execution's business document is rolled back, its job data is stored anyway
-        await().atMost(Duration.ofSeconds(30)).until(() -> COUNTS.size() == 2);
-        assertThat(COUNTS).containsExactly(1, 2);
-        await().atMost(Duration.ofSeconds(30))
-            .untilAsserted(() -> assertThat(scheduler.getJobDetail(job.getKey()).getJobDataMap().getInt("count"))
-                .isEqualTo(2));
-        assertThat(SpringTransactionJobExecutionIT.businessDocuments("redisCounting")).isEqualTo(1);
-        assertThat(transactionManager.begunNames()).containsExactly("DEFAULT.redisCounting", "DEFAULT.redisCounting");
-    }
+    // the failed first execution's business document is rolled back, its job data is stored anyway
+    await().atMost(Duration.ofSeconds(30)).until(() -> COUNTS.size() == 2);
+    assertThat(COUNTS).containsExactly(1, 2);
+    await()
+        .atMost(Duration.ofSeconds(30))
+        .untilAsserted(
+            () ->
+                assertThat(scheduler.getJobDetail(job.getKey()).getJobDataMap().getInt("count"))
+                    .isEqualTo(2));
+    assertThat(SpringTransactionJobExecutionIT.businessDocuments("redisCounting")).isEqualTo(1);
+    assertThat(transactionManager.begunNames())
+        .containsExactly("DEFAULT.redisCounting", "DEFAULT.redisCounting");
+  }
 
-    @Configuration(proxyBeanMethods = false)
-    @ImportAutoConfiguration({ MongoAutoConfiguration.class, DataMongoAutoConfiguration.class,
-            DataRedisAutoConfiguration.class, QuartzAutoConfiguration.class })
-    static class Config {
+  @Configuration(proxyBeanMethods = false)
+  @ImportAutoConfiguration({
+    MongoAutoConfiguration.class,
+    DataMongoAutoConfiguration.class,
+    DataRedisAutoConfiguration.class,
+    QuartzAutoConfiguration.class
+  })
+  static class Config {
 
-        @Bean
-        RecordingMongoTransactionManager transactionManager(MongoDatabaseFactory databaseFactory) {
-            return new RecordingMongoTransactionManager(databaseFactory);
-        }
+    @Bean
+    RecordingMongoTransactionManager transactionManager(MongoDatabaseFactory databaseFactory) {
+      return new RecordingMongoTransactionManager(databaseFactory);
     }
+  }
 }

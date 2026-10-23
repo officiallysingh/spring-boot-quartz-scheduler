@@ -19,35 +19,44 @@ import org.springframework.boot.diagnostics.AbstractFailureAnalyzer;
 import org.springframework.boot.diagnostics.FailureAnalysis;
 
 /**
- * Explains a {@link JobStoreUnavailableException} at startup: what is missing and how to
- * configure a MongoDB or Redis job store.
+ * Explains a {@link JobStoreUnavailableException} at startup: what is missing and how to configure
+ * a MongoDB or Redis job store.
  */
-class JobStoreUnavailableFailureAnalyzer extends AbstractFailureAnalyzer<JobStoreUnavailableException> {
+class JobStoreUnavailableFailureAnalyzer
+    extends AbstractFailureAnalyzer<JobStoreUnavailableException> {
 
-	private static final String MONGODB_ACTION = "add spring-boot-starter-data-mongodb and configure "
-			+ "spring.mongodb.* (a replica set, if job transactions are used)";
+  private static final String MONGODB_ACTION =
+      "add spring-boot-starter-data-mongodb and configure "
+          + "spring.mongodb.* (a replica set, if job transactions are used)";
 
-	private static final String REDIS_ACTION = "add spring-boot-starter-data-redis and configure spring.data.redis.*";
+  private static final String REDIS_ACTION =
+      "add spring-boot-starter-data-redis and configure spring.data.redis.*";
 
-	@Override
-	protected FailureAnalysis analyze(Throwable rootFailure, JobStoreUnavailableException cause) {
-		return new FailureAnalysis(cause.getMessage(), action(cause), cause);
-	}
+  @Override
+  protected FailureAnalysis analyze(Throwable rootFailure, JobStoreUnavailableException cause) {
+    return new FailureAnalysis(cause.getMessage(), action(cause), cause);
+  }
 
-	private static String action(JobStoreUnavailableException cause) {
-		JobStoreType type = cause.getConfiguredType();
-		if (type != null) {
-			return "Make a " + JobStoreConfigurations.requirement(type) + " available: "
-					+ ((type == JobStoreType.MONGODB) ? MONGODB_ACTION : REDIS_ACTION)
-					+ ". Or set 'spring.quartz.job-store.type' to a store whose connection is configured.";
-		}
-		if (cause.getAvailableTypes().isEmpty()) {
-			return "Quartz needs a persistent job store. Either " + MONGODB_ACTION
-					+ " and set 'spring.quartz.job-store.type=mongodb', or " + REDIS_ACTION
-					+ " and set 'spring.quartz.job-store.type=redis'.";
-		}
-		return "Set 'spring.quartz.job-store.type' to one of: " + String.join(", ",
-				cause.getAvailableTypes().stream().map(JobStoreUnavailableException::name).toList()) + ".";
-	}
-
+  private static String action(JobStoreUnavailableException cause) {
+    JobStoreType type = cause.getConfiguredType();
+    if (type != null) {
+      return "Make a "
+          + JobStoreConfigurations.requirement(type)
+          + " available: "
+          + ((type == JobStoreType.MONGODB) ? MONGODB_ACTION : REDIS_ACTION)
+          + ". Or set 'spring.quartz.job-store.type' to a store whose connection is configured.";
+    }
+    if (cause.getAvailableTypes().isEmpty()) {
+      return "Quartz needs a persistent job store. Either "
+          + MONGODB_ACTION
+          + " and set 'spring.quartz.job-store.type=mongodb', or "
+          + REDIS_ACTION
+          + " and set 'spring.quartz.job-store.type=redis'.";
+    }
+    return "Set 'spring.quartz.job-store.type' to one of: "
+        + String.join(
+            ", ",
+            cause.getAvailableTypes().stream().map(JobStoreUnavailableException::name).toList())
+        + ".";
+  }
 }

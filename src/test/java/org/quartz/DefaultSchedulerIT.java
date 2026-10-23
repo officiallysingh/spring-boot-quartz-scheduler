@@ -18,40 +18,34 @@ package org.quartz;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-
 import org.junit.jupiter.api.Test;
 import org.quartz.impl.JobDetailImpl;
 import org.quartz.support.AbstractMongoIT;
 import org.quartz.support.TestSchedulers;
 
-
-
-/**
- * DefaultSchedulerIT
- */
+/** DefaultSchedulerIT */
 class DefaultSchedulerIT extends AbstractMongoIT {
 
-    @Test
-    void testAddJobNoTrigger() throws Exception {
-        Scheduler scheduler = TestSchedulers.create(TestSchedulers.scheduler(), 1);
-        JobDetailImpl jobDetail = new JobDetailImpl();
-        jobDetail.setName("testjob");
-        jobDetail.setJobClass(NoOpJob.class); // persistent stores need the job class
+  @Test
+  void testAddJobNoTrigger() throws Exception {
+    Scheduler scheduler = TestSchedulers.create(TestSchedulers.scheduler(), 1);
+    JobDetailImpl jobDetail = new JobDetailImpl();
+    jobDetail.setName("testjob");
+    jobDetail.setJobClass(NoOpJob.class); // persistent stores need the job class
 
-        try {
-            scheduler.addJob(jobDetail, false);
-        } catch (SchedulerException e) {
-            assertThat(e.getMessage()).contains("durable");
-        }
-
-        jobDetail.setDurability(true);
-        scheduler.addJob(jobDetail, false);
-        scheduler.shutdown();
+    try {
+      scheduler.addJob(jobDetail, false);
+    } catch (SchedulerException e) {
+      assertThat(e.getMessage()).contains("durable");
     }
 
-    public static class NoOpJob implements Job {
-        @Override
-        public void execute(JobExecutionContext context) {
-        }
-    }
+    jobDetail.setDurability(true);
+    scheduler.addJob(jobDetail, false);
+    scheduler.shutdown();
+  }
+
+  public static class NoOpJob implements Job {
+    @Override
+    public void execute(JobExecutionContext context) {}
+  }
 }

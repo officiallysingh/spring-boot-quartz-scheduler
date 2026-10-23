@@ -24,14 +24,9 @@ package org.quartz.spring.boot.autoconfigure;
  */
 public enum JobStoreType {
 
-	/**
-	 * Store jobs in MongoDB (requires a {@code MongoClient} bean).
-	 */
-	MONGODB,
+  /** Store jobs in MongoDB (requires a {@code MongoClient} bean). */
+  MONGODB,
 
-	/**
-	 * Store jobs in Redis (requires a {@code RedisConnectionFactory} bean).
-	 */
-	REDIS
-
+  /** Store jobs in Redis (requires a {@code RedisConnectionFactory} bean). */
+  REDIS
 }

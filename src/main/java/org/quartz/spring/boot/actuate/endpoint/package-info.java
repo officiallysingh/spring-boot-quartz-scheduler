@@ -14,11 +14,8 @@
  * limitations under the License.
  */
 
-/**
- * Actuator endpoint for Quartz Scheduler.
- */
+/** Actuator endpoint for Quartz Scheduler. */
 @NullMarked
 package org.quartz.spring.boot.actuate.endpoint;
 
 import org.jspecify.annotations.NullMarked;
-

@@ -14,7 +14,6 @@
 package org.quartz.support;
 
 import java.time.Duration;
-
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.impl.StdSchedulerFactory;
@@ -25,52 +24,53 @@ import org.quartz.impl.mongodb.MongoJobStore;
 import org.quartz.impl.mongodb.MongoJobStoreSettings;
 
 /**
- * Builds schedulers for integration tests, stored in the shared MongoDB container (database
- * {@value #DATABASE}), with the values a {@code Properties}-configured
- * {@code StdSchedulerFactory} used for absent keys before Phase 5 (DECISIONS.md D-012):
- * scheduler name {@code QuartzScheduler}, a 5 s misfire threshold (the former in-memory
- * store's default) and worker threads that do not inherit the context class loader. Callers
- * clean the store with {@link AbstractMongoIT} (D-016).
+ * Builds schedulers for integration tests, stored in the shared MongoDB container (database {@value
+ * #DATABASE}), with the values a {@code Properties}-configured {@code StdSchedulerFactory} used for
+ * absent keys before Phase 5 (DECISIONS.md D-012): scheduler name {@code QuartzScheduler}, a 5 s
+ * misfire threshold (the former in-memory store's default) and worker threads that do not inherit
+ * the context class loader. Callers clean the store with {@link AbstractMongoIT} (D-016).
  */
 public final class TestSchedulers {
 
-    private TestSchedulers() {
-    }
+  private TestSchedulers() {}
 
-    public static SchedulerSettings.Builder scheduler() {
-        return SchedulerSettings.builder().name("QuartzScheduler");
-    }
+  public static SchedulerSettings.Builder scheduler() {
+    return SchedulerSettings.builder().name("QuartzScheduler");
+  }
 
-    public static ThreadPoolSettings threadPool(int threadCount) {
-        return ThreadPoolSettings.builder()
-                .threadCount(threadCount)
-                .threadsInheritContextClassLoaderOfInitializingThread(false)
-                .build();
-    }
+  public static ThreadPoolSettings threadPool(int threadCount) {
+    return ThreadPoolSettings.builder()
+        .threadCount(threadCount)
+        .threadsInheritContextClassLoaderOfInitializingThread(false)
+        .build();
+  }
 
-    public static final String DATABASE = "test";
+  public static final String DATABASE = "test";
 
-    public static JobStoreSettings storeSettings() {
-        return JobStoreSettings.builder().misfireThreshold(Duration.ofSeconds(5)).build();
-    }
+  public static JobStoreSettings storeSettings() {
+    return JobStoreSettings.builder().misfireThreshold(Duration.ofSeconds(5)).build();
+  }
 
-    /** A new MongoDB store on the shared container. */
-    public static MongoJobStore mongoStore(JobStoreSettings settings) {
-        return new MongoJobStore(AbstractMongoIT.mongoClient(), DATABASE, settings, MongoJobStoreSettings.defaults());
-    }
+  /** A new MongoDB store on the shared container. */
+  public static MongoJobStore mongoStore(JobStoreSettings settings) {
+    return new MongoJobStore(
+        AbstractMongoIT.mongoClient(), DATABASE, settings, MongoJobStoreSettings.defaults());
+  }
 
-    public static MongoJobStore mongoStore() {
-        return mongoStore(storeSettings());
-    }
+  public static MongoJobStore mongoStore() {
+    return mongoStore(storeSettings());
+  }
 
-    public static StdSchedulerFactory.Builder factory(SchedulerSettings.Builder scheduler, int threadCount) {
-        return StdSchedulerFactory.builder()
-                .scheduler(scheduler.build())
-                .threadPool(threadPool(threadCount))
-                .jobStore(mongoStore());
-    }
+  public static StdSchedulerFactory.Builder factory(
+      SchedulerSettings.Builder scheduler, int threadCount) {
+    return StdSchedulerFactory.builder()
+        .scheduler(scheduler.build())
+        .threadPool(threadPool(threadCount))
+        .jobStore(mongoStore());
+  }
 
-    public static Scheduler create(SchedulerSettings.Builder scheduler, int threadCount) throws SchedulerException {
-        return factory(scheduler, threadCount).build().getScheduler();
-    }
+  public static Scheduler create(SchedulerSettings.Builder scheduler, int threadCount)
+      throws SchedulerException {
+    return factory(scheduler, threadCount).build().getScheduler();
+  }
 }

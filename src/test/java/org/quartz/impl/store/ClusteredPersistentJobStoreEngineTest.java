@@ -17,24 +17,24 @@ import org.quartz.spi.JobStore;
 import org.quartz.store.AbstractClusteredJobStoreContractTest;
 
 /**
- * Runs the clustered contract kit against the persistent store engine over an in-memory
- * delegate shared by the instances (no containers).
+ * Runs the clustered contract kit against the persistent store engine over an in-memory delegate
+ * shared by the instances (no containers).
  */
 class ClusteredPersistentJobStoreEngineTest extends AbstractClusteredJobStoreContractTest {
 
-    private final InMemoryStoreDelegate.Data data = new InMemoryStoreDelegate.Data();
+  private final InMemoryStoreDelegate.Data data = new InMemoryStoreDelegate.Data();
 
-    @Override
-    protected JobStore createJobStore(String instanceId) {
-        return new InMemoryPersistentJobStore(data, clusteredSettings());
-    }
+  @Override
+  protected JobStore createJobStore(String instanceId) {
+    return new InMemoryPersistentJobStore(data, clusteredSettings());
+  }
 
-    @Override
-    protected void cleanStore() {
-        synchronized (data) {
-            new InMemoryStoreDelegate(data, null).clearAllSchedulingData();
-            data.schedulers.clear();
-            data.locks.clear();
-        }
+  @Override
+  protected void cleanStore() {
+    synchronized (data) {
+      new InMemoryStoreDelegate(data, null).clearAllSchedulingData();
+      data.schedulers.clear();
+      data.locks.clear();
     }
+  }
 }

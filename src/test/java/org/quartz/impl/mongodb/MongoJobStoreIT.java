@@ -19,21 +19,24 @@ import org.quartz.store.AbstractJobStoreContractTest;
 import org.quartz.support.AbstractMongoIT;
 
 /**
- * The standalone job store contract against MongoDB (shared {@code mongo:8.0} replica set,
- * so store operations run in transactions).
+ * The standalone job store contract against MongoDB (shared {@code mongo:8.0} replica set, so store
+ * operations run in transactions).
  */
 class MongoJobStoreIT extends AbstractJobStoreContractTest {
 
-    static final String DATABASE = "quartz_it";
+  static final String DATABASE = "quartz_it";
 
-    @Override
-    protected JobStore createJobStore(String instanceId) {
-        return new MongoJobStore(AbstractMongoIT.mongoClient(), DATABASE, JobStoreSettings.defaults(),
-                MongoJobStoreSettings.defaults());
-    }
+  @Override
+  protected JobStore createJobStore(String instanceId) {
+    return new MongoJobStore(
+        AbstractMongoIT.mongoClient(),
+        DATABASE,
+        JobStoreSettings.defaults(),
+        MongoJobStoreSettings.defaults());
+  }
 
-    @Override
-    protected void cleanStore() {
-        AbstractMongoIT.dropAllCollections();
-    }
+  @Override
+  protected void cleanStore() {
+    AbstractMongoIT.dropAllCollections();
+  }
 }

@@ -26,48 +26,49 @@ import java.util.Locale;
 /**
  * {@link MessageFormat} for templates whose date arguments are {@code java.time} values.
  *
- * <p>Templates keep the familiar {@code {n, date, HH:mm:ss MM/dd/yyyy}} / {@code {n, time}} syntax: each date or
- * time element is formatted with a {@link DateTimeFormatter} built from the same pattern, in the system default
- * time zone, so {@link java.time.Instant} (or any other temporal) arguments can be passed (DECISIONS.md D-010).</p>
+ * <p>Templates keep the familiar {@code {n, date, HH:mm:ss MM/dd/yyyy}} / {@code {n, time}} syntax:
+ * each date or time element is formatted with a {@link DateTimeFormatter} built from the same
+ * pattern, in the system default time zone, so {@link java.time.Instant} (or any other temporal)
+ * arguments can be passed (DECISIONS.md D-010).
  */
 public final class InstantMessageFormat {
 
-    private InstantMessageFormat() {
+  private InstantMessageFormat() {}
+
+  public static String format(String pattern, Object... arguments) {
+    MessageFormat messageFormat = new MessageFormat(pattern);
+    Format[] formats = messageFormat.getFormats();
+    for (int i = 0; i < formats.length; i++) {
+      if (formats[i] instanceof SimpleDateFormat) {
+        String datePattern = ((SimpleDateFormat) formats[i]).toPattern();
+        messageFormat.setFormat(i, new TemporalFormat(datePattern, messageFormat.getLocale()));
+      }
+    }
+    return messageFormat.format(arguments);
+  }
+
+  private static final class TemporalFormat extends Format {
+
+    private static final long serialVersionUID = 1L;
+
+    private final transient DateTimeFormatter formatter;
+
+    TemporalFormat(String pattern, Locale locale) {
+      this.formatter =
+          DateTimeFormatter.ofPattern(pattern, locale).withZone(ZoneId.systemDefault());
     }
 
-    public static String format(String pattern, Object... arguments) {
-        MessageFormat messageFormat = new MessageFormat(pattern);
-        Format[] formats = messageFormat.getFormats();
-        for (int i = 0; i < formats.length; i++) {
-            if (formats[i] instanceof SimpleDateFormat) {
-                String datePattern = ((SimpleDateFormat) formats[i]).toPattern();
-                messageFormat.setFormat(i, new TemporalFormat(datePattern, messageFormat.getLocale()));
-            }
-        }
-        return messageFormat.format(arguments);
+    @Override
+    public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+      if (obj instanceof TemporalAccessor) {
+        return toAppendTo.append(formatter.format((TemporalAccessor) obj));
+      }
+      throw new IllegalArgumentException("Cannot format given Object as a date/time: " + obj);
     }
 
-    private static final class TemporalFormat extends Format {
-
-        private static final long serialVersionUID = 1L;
-
-        private final transient DateTimeFormatter formatter;
-
-        TemporalFormat(String pattern, Locale locale) {
-            this.formatter = DateTimeFormatter.ofPattern(pattern, locale).withZone(ZoneId.systemDefault());
-        }
-
-        @Override
-        public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
-            if (obj instanceof TemporalAccessor) {
-                return toAppendTo.append(formatter.format((TemporalAccessor) obj));
-            }
-            throw new IllegalArgumentException("Cannot format given Object as a date/time: " + obj);
-        }
-
-        @Override
-        public Object parseObject(String source, ParsePosition pos) {
-            throw new UnsupportedOperationException("parsing is not supported");
-        }
+    @Override
+    public Object parseObject(String source, ParsePosition pos) {
+      throw new UnsupportedOperationException("parsing is not supported");
     }
+  }
 }

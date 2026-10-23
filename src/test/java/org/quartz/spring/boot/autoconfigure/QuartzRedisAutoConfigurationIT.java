@@ -19,7 +19,6 @@ import static org.awaitility.Awaitility.await;
 import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
 import org.junit.jupiter.api.Test;
 import org.quartz.Job;
 import org.quartz.JobBuilder;
@@ -39,48 +38,56 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * {@code spring.quartz.job-store.type=redis} end to end: the auto-configured scheduler
- * stores its jobs in the {@code @ServiceConnection} Redis and runs them.
+ * {@code spring.quartz.job-store.type=redis} end to end: the auto-configured scheduler stores its
+ * jobs in the {@code @ServiceConnection} Redis and runs them.
  */
-@SpringBootTest(classes = QuartzRedisAutoConfigurationIT.Config.class,
-        properties = { "spring.quartz.job-store.type=redis", "spring.quartz.scheduler.name=redisApp",
-                "spring.quartz.job-store.redis.key-prefix=app:" })
+@SpringBootTest(
+    classes = QuartzRedisAutoConfigurationIT.Config.class,
+    properties = {
+      "spring.quartz.job-store.type=redis",
+      "spring.quartz.scheduler.name=redisApp",
+      "spring.quartz.job-store.redis.key-prefix=app:"
+    })
 class QuartzRedisAutoConfigurationIT extends AbstractRedisIT {
 
-    static final Set<String> EXECUTED = ConcurrentHashMap.newKeySet();
+  static final Set<String> EXECUTED = ConcurrentHashMap.newKeySet();
 
-    @Autowired
-    private Scheduler scheduler;
+  @Autowired private Scheduler scheduler;
 
-    public static class RecordingJob implements Job {
-        @Override
-        public void execute(JobExecutionContext context) {
-            EXECUTED.add(context.getJobDetail().getKey().getName());
-        }
+  public static class RecordingJob implements Job {
+    @Override
+    public void execute(JobExecutionContext context) {
+      EXECUTED.add(context.getJobDetail().getKey().getName());
+    }
+  }
+
+  @Test
+  void jobsAreStoredInRedisAndRun() throws Exception {
+    assertThat(scheduler.getMetaData().getJobStoreClass()).isEqualTo(RedisJobStore.class);
+    assertThat(scheduler.getSchedulerName()).isEqualTo("redisApp");
+
+    await().atMost(Duration.ofSeconds(30)).until(() -> EXECUTED.contains("redisJob"));
+    assertThat(redisConnection().sync().exists("app:{redisApp}:job:DEFAULT:redisJob"))
+        .isEqualTo(1L);
+  }
+
+  @Configuration(proxyBeanMethods = false)
+  @ImportAutoConfiguration({DataRedisAutoConfiguration.class, QuartzAutoConfiguration.class})
+  static class Config {
+
+    @Bean
+    JobDetail redisJob() {
+      return JobBuilder.newJob(RecordingJob.class).withIdentity("redisJob").storeDurably().build();
     }
 
-    @Test
-    void jobsAreStoredInRedisAndRun() throws Exception {
-        assertThat(scheduler.getMetaData().getJobStoreClass()).isEqualTo(RedisJobStore.class);
-        assertThat(scheduler.getSchedulerName()).isEqualTo("redisApp");
-
-        await().atMost(Duration.ofSeconds(30)).until(() -> EXECUTED.contains("redisJob"));
-        assertThat(redisConnection().sync().exists("app:{redisApp}:job:DEFAULT:redisJob")).isEqualTo(1L);
+    @Bean
+    Trigger redisTrigger(JobDetail redisJob) {
+      return TriggerBuilder.newTrigger()
+          .forJob(redisJob)
+          .withIdentity("redisTrigger")
+          .withSchedule(SimpleScheduleBuilder.repeatSecondlyForever())
+          .startNow()
+          .build();
     }
-
-    @Configuration(proxyBeanMethods = false)
-    @ImportAutoConfiguration({ DataRedisAutoConfiguration.class, QuartzAutoConfiguration.class })
-    static class Config {
-
-        @Bean
-        JobDetail redisJob() {
-            return JobBuilder.newJob(RecordingJob.class).withIdentity("redisJob").storeDurably().build();
-        }
-
-        @Bean
-        Trigger redisTrigger(JobDetail redisJob) {
-            return TriggerBuilder.newTrigger().forJob(redisJob).withIdentity("redisTrigger")
-                .withSchedule(SimpleScheduleBuilder.repeatSecondlyForever()).startNow().build();
-        }
-    }
+  }
 }

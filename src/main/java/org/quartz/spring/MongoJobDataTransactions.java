@@ -17,7 +17,6 @@ import org.quartz.JobDetail;
 import org.quartz.JobPersistenceException;
 import org.quartz.impl.mongodb.MongoJobStore;
 import org.quartz.spi.JobStore;
-
 import org.springframework.data.mongodb.MongoClusterCapable;
 import org.springframework.data.mongodb.MongoDatabaseFactory;
 import org.springframework.data.mongodb.MongoDatabaseUtils;
@@ -27,44 +26,49 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.util.Assert;
 
 /**
- * Lets the job data of a {@link org.quartz.PersistJobDataAfterExecution} job be written in
- * the job's {@link MongoTransactionManager} transaction when the job store is a
- * {@link MongoJobStore} on the same {@code MongoClient}. Only loaded when Spring Data
- * MongoDB is on the classpath.
+ * Lets the job data of a {@link org.quartz.PersistJobDataAfterExecution} job be written in the
+ * job's {@link MongoTransactionManager} transaction when the job store is a {@link MongoJobStore}
+ * on the same {@code MongoClient}. Only loaded when Spring Data MongoDB is on the classpath.
  */
 final class MongoJobDataTransactions {
 
-	private MongoJobDataTransactions() {
-	}
+  private MongoJobDataTransactions() {}
 
-	/**
-	 * Whether {@code transactionManager} is a {@link MongoTransactionManager} whose
-	 * transactions run on the client of {@code jobStore}, a {@link MongoJobStore}.
-	 */
-	static boolean canJoin(PlatformTransactionManager transactionManager, JobStore jobStore) {
-		return transactionManager instanceof MongoTransactionManager mongoTransactionManager
-				&& jobStore instanceof MongoJobStore mongoJobStore
-				&& mongoTransactionManager.getDatabaseFactory() instanceof MongoClusterCapable clusterCapable
-				&& mongoJobStore.usesClient(clusterCapable.getMongoCluster());
-	}
+  /**
+   * Whether {@code transactionManager} is a {@link MongoTransactionManager} whose transactions run
+   * on the client of {@code jobStore}, a {@link MongoJobStore}.
+   */
+  static boolean canJoin(PlatformTransactionManager transactionManager, JobStore jobStore) {
+    return transactionManager instanceof MongoTransactionManager mongoTransactionManager
+        && jobStore instanceof MongoJobStore mongoJobStore
+        && mongoTransactionManager.getDatabaseFactory()
+            instanceof MongoClusterCapable clusterCapable
+        && mongoJobStore.usesClient(clusterCapable.getMongoCluster());
+  }
 
-	/** Whether a MongoDB transaction of the manager is active on the current thread. */
-	static boolean isTransactionActive(PlatformTransactionManager transactionManager) {
-		return MongoDatabaseUtils.isTransactionActive(databaseFactory(transactionManager));
-	}
+  /** Whether a MongoDB transaction of the manager is active on the current thread. */
+  static boolean isTransactionActive(PlatformTransactionManager transactionManager) {
+    return MongoDatabaseUtils.isTransactionActive(databaseFactory(transactionManager));
+  }
 
-	/** Writes the job's data through the session of the current transaction. */
-	static void updateJobData(PlatformTransactionManager transactionManager, JobStore jobStore, JobDetail jobDetail)
-			throws JobPersistenceException {
-		MongoJobStore mongoJobStore = (MongoJobStore) jobStore;
-		mongoJobStore.updateJobData(MongoDatabaseUtils.getDatabase(mongoJobStore.getDatabaseName(),
-				databaseFactory(transactionManager), SessionSynchronization.ON_ACTUAL_TRANSACTION), jobDetail);
-	}
+  /** Writes the job's data through the session of the current transaction. */
+  static void updateJobData(
+      PlatformTransactionManager transactionManager, JobStore jobStore, JobDetail jobDetail)
+      throws JobPersistenceException {
+    MongoJobStore mongoJobStore = (MongoJobStore) jobStore;
+    mongoJobStore.updateJobData(
+        MongoDatabaseUtils.getDatabase(
+            mongoJobStore.getDatabaseName(),
+            databaseFactory(transactionManager),
+            SessionSynchronization.ON_ACTUAL_TRANSACTION),
+        jobDetail);
+  }
 
-	private static MongoDatabaseFactory databaseFactory(PlatformTransactionManager transactionManager) {
-		MongoDatabaseFactory databaseFactory = ((MongoTransactionManager) transactionManager).getDatabaseFactory();
-		Assert.state(databaseFactory != null, "MongoTransactionManager has no MongoDatabaseFactory");
-		return databaseFactory;
-	}
-
+  private static MongoDatabaseFactory databaseFactory(
+      PlatformTransactionManager transactionManager) {
+    MongoDatabaseFactory databaseFactory =
+        ((MongoTransactionManager) transactionManager).getDatabaseFactory();
+    Assert.state(databaseFactory != null, "MongoTransactionManager has no MongoDatabaseFactory");
+    return databaseFactory;
+  }
 }

@@ -19,14 +19,12 @@ package org.quartz.spring.boot.autoconfigure;
 import org.quartz.spi.JobStore;
 
 /**
- * Creates the {@link JobStore} for one {@link JobStoreType} from the bound properties.
- * Registered by the store-specific configurations when their client library and connection
- * bean are present.
+ * Creates the {@link JobStore} for one {@link JobStoreType} from the bound properties. Registered
+ * by the store-specific configurations when their client library and connection bean are present.
  */
 interface JobStoreFactory {
 
-	JobStoreType type();
+  JobStoreType type();
 
-	JobStore create(QuartzProperties properties);
-
+  JobStore create(QuartzProperties properties);
 }

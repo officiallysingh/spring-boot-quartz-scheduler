@@ -14,25 +14,26 @@
 package org.quartz.impl.redis;
 
 import java.time.Duration;
-
 import org.quartz.spi.JobStore;
 import org.quartz.store.AbstractClusteredJobStoreContractTest;
 import org.quartz.support.AbstractRedisIT;
 
 /**
- * The clustered job store contract against Redis: two scheduler instances on the same
- * {@code redis:7.4} container.
+ * The clustered job store contract against Redis: two scheduler instances on the same {@code
+ * redis:7.4} container.
  */
 class RedisClusteredJobStoreIT extends AbstractClusteredJobStoreContractTest {
 
-    @Override
-    protected JobStore createJobStore(String instanceId) {
-        return new RedisJobStore(AbstractRedisIT.redisTemplate(), clusteredSettings(),
-                new RedisJobStoreSettings("quartz:", Duration.ofSeconds(2)));
-    }
+  @Override
+  protected JobStore createJobStore(String instanceId) {
+    return new RedisJobStore(
+        AbstractRedisIT.redisTemplate(),
+        clusteredSettings(),
+        new RedisJobStoreSettings("quartz:", Duration.ofSeconds(2)));
+  }
 
-    @Override
-    protected void cleanStore() {
-        AbstractRedisIT.flushDatabase();
-    }
+  @Override
+  protected void cleanStore() {
+    AbstractRedisIT.flushDatabase();
+  }
 }

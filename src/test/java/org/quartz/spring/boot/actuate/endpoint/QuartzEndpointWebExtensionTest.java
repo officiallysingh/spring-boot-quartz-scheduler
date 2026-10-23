@@ -16,28 +16,26 @@
 
 package org.quartz.spring.boot.actuate.endpoint;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.mock;
+
 import java.security.Principal;
 import java.util.Collections;
 import java.util.Set;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import org.springframework.aot.hint.MemberCategory;
-import org.springframework.aot.hint.RuntimeHints;
-import org.springframework.aot.hint.predicate.RuntimeHintsPredicates;
-import org.springframework.boot.actuate.endpoint.SecurityContext;
-import org.springframework.boot.actuate.endpoint.Show;
 import org.quartz.spring.boot.actuate.endpoint.QuartzEndpoint.QuartzGroupsDescriptor;
 import org.quartz.spring.boot.actuate.endpoint.QuartzEndpoint.QuartzJobDetailsDescriptor;
 import org.quartz.spring.boot.actuate.endpoint.QuartzEndpoint.QuartzJobGroupSummaryDescriptor;
 import org.quartz.spring.boot.actuate.endpoint.QuartzEndpoint.QuartzTriggerGroupSummaryDescriptor;
 import org.quartz.spring.boot.actuate.endpoint.QuartzEndpointWebExtension.QuartzEndpointWebExtensionRuntimeHints;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.mock;
+import org.springframework.aot.hint.MemberCategory;
+import org.springframework.aot.hint.RuntimeHints;
+import org.springframework.aot.hint.predicate.RuntimeHintsPredicates;
+import org.springframework.boot.actuate.endpoint.SecurityContext;
+import org.springframework.boot.actuate.endpoint.Show;
 
 /**
  * Tests for {@link QuartzEndpointWebExtension}.
@@ -47,68 +45,74 @@ import static org.mockito.Mockito.mock;
  */
 class QuartzEndpointWebExtensionTest {
 
-	private QuartzEndpoint delegate;
+  private QuartzEndpoint delegate;
 
-	@BeforeEach
-	void setup() {
-		this.delegate = mock(QuartzEndpoint.class);
-	}
+  @BeforeEach
+  void setup() {
+    this.delegate = mock(QuartzEndpoint.class);
+  }
 
-	@Test
-	void whenShowValuesIsNever() throws Exception {
-		QuartzEndpointWebExtension webExtension = new QuartzEndpointWebExtension(this.delegate, Show.NEVER,
-				Collections.emptySet());
-		webExtension.quartzJobOrTrigger(SecurityContext.NONE, "jobs", "a", "b");
-		webExtension.quartzJobOrTrigger(SecurityContext.NONE, "triggers", "a", "b");
-		then(this.delegate).should().quartzJob("a", "b", false);
-		then(this.delegate).should().quartzTrigger("a", "b", false);
-	}
+  @Test
+  void whenShowValuesIsNever() throws Exception {
+    QuartzEndpointWebExtension webExtension =
+        new QuartzEndpointWebExtension(this.delegate, Show.NEVER, Collections.emptySet());
+    webExtension.quartzJobOrTrigger(SecurityContext.NONE, "jobs", "a", "b");
+    webExtension.quartzJobOrTrigger(SecurityContext.NONE, "triggers", "a", "b");
+    then(this.delegate).should().quartzJob("a", "b", false);
+    then(this.delegate).should().quartzTrigger("a", "b", false);
+  }
 
-	@Test
-	void whenShowValuesIsAlways() throws Exception {
-		QuartzEndpointWebExtension webExtension = new QuartzEndpointWebExtension(this.delegate, Show.ALWAYS,
-				Collections.emptySet());
-		webExtension.quartzJobOrTrigger(SecurityContext.NONE, "a", "b", "c");
-		webExtension.quartzJobOrTrigger(SecurityContext.NONE, "jobs", "a", "b");
-		webExtension.quartzJobOrTrigger(SecurityContext.NONE, "triggers", "a", "b");
-		then(this.delegate).should().quartzJob("a", "b", true);
-		then(this.delegate).should().quartzTrigger("a", "b", true);
-	}
+  @Test
+  void whenShowValuesIsAlways() throws Exception {
+    QuartzEndpointWebExtension webExtension =
+        new QuartzEndpointWebExtension(this.delegate, Show.ALWAYS, Collections.emptySet());
+    webExtension.quartzJobOrTrigger(SecurityContext.NONE, "a", "b", "c");
+    webExtension.quartzJobOrTrigger(SecurityContext.NONE, "jobs", "a", "b");
+    webExtension.quartzJobOrTrigger(SecurityContext.NONE, "triggers", "a", "b");
+    then(this.delegate).should().quartzJob("a", "b", true);
+    then(this.delegate).should().quartzTrigger("a", "b", true);
+  }
 
-	@Test
-	void whenShowValuesIsWhenAuthorizedAndSecurityContextIsAuthorized() throws Exception {
-		SecurityContext securityContext = mock(SecurityContext.class);
-		given(securityContext.getPrincipal()).willReturn(mock(Principal.class));
-		QuartzEndpointWebExtension webExtension = new QuartzEndpointWebExtension(this.delegate, Show.WHEN_AUTHORIZED,
-				Collections.emptySet());
-		webExtension.quartzJobOrTrigger(securityContext, "jobs", "a", "b");
-		webExtension.quartzJobOrTrigger(securityContext, "triggers", "a", "b");
-		then(this.delegate).should().quartzJob("a", "b", true);
-		then(this.delegate).should().quartzTrigger("a", "b", true);
-	}
+  @Test
+  void whenShowValuesIsWhenAuthorizedAndSecurityContextIsAuthorized() throws Exception {
+    SecurityContext securityContext = mock(SecurityContext.class);
+    given(securityContext.getPrincipal()).willReturn(mock(Principal.class));
+    QuartzEndpointWebExtension webExtension =
+        new QuartzEndpointWebExtension(this.delegate, Show.WHEN_AUTHORIZED, Collections.emptySet());
+    webExtension.quartzJobOrTrigger(securityContext, "jobs", "a", "b");
+    webExtension.quartzJobOrTrigger(securityContext, "triggers", "a", "b");
+    then(this.delegate).should().quartzJob("a", "b", true);
+    then(this.delegate).should().quartzTrigger("a", "b", true);
+  }
 
-	@Test
-	void whenShowValuesIsWhenAuthorizedAndSecurityContextIsNotAuthorized() throws Exception {
-		SecurityContext securityContext = mock(SecurityContext.class);
-		QuartzEndpointWebExtension webExtension = new QuartzEndpointWebExtension(this.delegate, Show.WHEN_AUTHORIZED,
-				Collections.emptySet());
-		webExtension.quartzJobOrTrigger(securityContext, "jobs", "a", "b");
-		webExtension.quartzJobOrTrigger(securityContext, "triggers", "a", "b");
-		then(this.delegate).should().quartzJob("a", "b", false);
-		then(this.delegate).should().quartzTrigger("a", "b", false);
-	}
+  @Test
+  void whenShowValuesIsWhenAuthorizedAndSecurityContextIsNotAuthorized() throws Exception {
+    SecurityContext securityContext = mock(SecurityContext.class);
+    QuartzEndpointWebExtension webExtension =
+        new QuartzEndpointWebExtension(this.delegate, Show.WHEN_AUTHORIZED, Collections.emptySet());
+    webExtension.quartzJobOrTrigger(securityContext, "jobs", "a", "b");
+    webExtension.quartzJobOrTrigger(securityContext, "triggers", "a", "b");
+    then(this.delegate).should().quartzJob("a", "b", false);
+    then(this.delegate).should().quartzTrigger("a", "b", false);
+  }
 
-	@Test
-	void shouldRegisterHints() {
-		RuntimeHints runtimeHints = new RuntimeHints();
-		new QuartzEndpointWebExtensionRuntimeHints().registerHints(runtimeHints, getClass().getClassLoader());
-		Set<Class<?>> bindingTypes = Set.of(QuartzGroupsDescriptor.class, QuartzJobDetailsDescriptor.class,
-				QuartzJobGroupSummaryDescriptor.class, QuartzTriggerGroupSummaryDescriptor.class);
-		for (Class<?> bindingType : bindingTypes) {
-			assertThat(RuntimeHintsPredicates.reflection()
-				.onType(bindingType)
-				.withMemberCategories(MemberCategory.INVOKE_DECLARED_CONSTRUCTORS)).accepts(runtimeHints);
-		}
-	}
-
+  @Test
+  void shouldRegisterHints() {
+    RuntimeHints runtimeHints = new RuntimeHints();
+    new QuartzEndpointWebExtensionRuntimeHints()
+        .registerHints(runtimeHints, getClass().getClassLoader());
+    Set<Class<?>> bindingTypes =
+        Set.of(
+            QuartzGroupsDescriptor.class,
+            QuartzJobDetailsDescriptor.class,
+            QuartzJobGroupSummaryDescriptor.class,
+            QuartzTriggerGroupSummaryDescriptor.class);
+    for (Class<?> bindingType : bindingTypes) {
+      assertThat(
+              RuntimeHintsPredicates.reflection()
+                  .onType(bindingType)
+                  .withMemberCategories(MemberCategory.INVOKE_DECLARED_CONSTRUCTORS))
+          .accepts(runtimeHints);
+    }
+  }
 }

@@ -17,21 +17,20 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 /**
- * Scheduling instants are kept at millisecond precision, the precision of the original
- * Date-based API, so fire-time arithmetic and equality are unchanged (DECISIONS.md D-010).
+ * Scheduling instants are kept at millisecond precision, the precision of the original Date-based
+ * API, so fire-time arithmetic and equality are unchanged (DECISIONS.md D-010).
  */
 public final class Instants {
 
-    private Instants() {
-    }
+  private Instants() {}
 
-    /** The current instant, truncated to milliseconds. */
-    public static Instant now() {
-        return Instant.ofEpochMilli(System.currentTimeMillis());
-    }
+  /** The current instant, truncated to milliseconds. */
+  public static Instant now() {
+    return Instant.ofEpochMilli(System.currentTimeMillis());
+  }
 
-    /** The given instant truncated to milliseconds, or {@code null} if it is {@code null}. */
-    public static Instant toMillis(Instant instant) {
-        return instant == null ? null : instant.truncatedTo(ChronoUnit.MILLIS);
-    }
+  /** The given instant truncated to milliseconds, or {@code null} if it is {@code null}. */
+  public static Instant toMillis(Instant instant) {
+    return instant == null ? null : instant.truncatedTo(ChronoUnit.MILLIS);
+  }
 }

@@ -24,15 +24,15 @@ import java.util.Objects;
  */
 public record MongoJobStoreSettings(String collectionPrefix, Duration lockTimeout) {
 
-    public MongoJobStoreSettings {
-        Objects.requireNonNull(collectionPrefix, "collectionPrefix");
-        Objects.requireNonNull(lockTimeout, "lockTimeout");
-        if (lockTimeout.toMillis() < 1) {
-            throw new IllegalArgumentException("lockTimeout must be at least 1ms, was " + lockTimeout);
-        }
+  public MongoJobStoreSettings {
+    Objects.requireNonNull(collectionPrefix, "collectionPrefix");
+    Objects.requireNonNull(lockTimeout, "lockTimeout");
+    if (lockTimeout.toMillis() < 1) {
+      throw new IllegalArgumentException("lockTimeout must be at least 1ms, was " + lockTimeout);
     }
+  }
 
-    public static MongoJobStoreSettings defaults() {
-        return new MongoJobStoreSettings("qrtz_", Duration.ofMinutes(10));
-    }
+  public static MongoJobStoreSettings defaults() {
+    return new MongoJobStoreSettings("qrtz_", Duration.ofMinutes(10));
+  }
 }

@@ -14,7 +14,6 @@
 package org.quartz.spring.boot.sample;
 
 import java.time.Duration;
-
 import org.quartz.JobBuilder;
 import org.quartz.JobDetail;
 import org.quartz.SimpleScheduleBuilder;
@@ -26,28 +25,30 @@ import org.springframework.data.mongodb.MongoDatabaseFactory;
 import org.springframework.data.mongodb.MongoTransactionManager;
 
 /**
- * A typical application using the library: a job and its trigger declared as beans, the job
- * store chosen in {@code application.yml}, and the business data in MongoDB.
+ * A typical application using the library: a job and its trigger declared as beans, the job store
+ * chosen in {@code application.yml}, and the business data in MongoDB.
  */
 @SpringBootApplication
 public class SampleApplication {
 
-    static final Duration INTERVAL = Duration.ofMillis(250);
+  static final Duration INTERVAL = Duration.ofMillis(250);
 
-    @Bean
-    JobDetail sampleJobDetail() {
-        return JobBuilder.newJob(SampleJob.class).withIdentity("sampleJob").storeDurably().build();
-    }
+  @Bean
+  JobDetail sampleJobDetail() {
+    return JobBuilder.newJob(SampleJob.class).withIdentity("sampleJob").storeDurably().build();
+  }
 
-    @Bean
-    Trigger sampleTrigger(JobDetail sampleJobDetail) {
-        return TriggerBuilder.newTrigger().forJob(sampleJobDetail).withIdentity("sampleTrigger")
-            .withSchedule(SimpleScheduleBuilder.simpleSchedule().withInterval(INTERVAL).repeatForever())
-            .build();
-    }
+  @Bean
+  Trigger sampleTrigger(JobDetail sampleJobDetail) {
+    return TriggerBuilder.newTrigger()
+        .forJob(sampleJobDetail)
+        .withIdentity("sampleTrigger")
+        .withSchedule(SimpleScheduleBuilder.simpleSchedule().withInterval(INTERVAL).repeatForever())
+        .build();
+  }
 
-    @Bean
-    MongoTransactionManager transactionManager(MongoDatabaseFactory databaseFactory) {
-        return new MongoTransactionManager(databaseFactory);
-    }
+  @Bean
+  MongoTransactionManager transactionManager(MongoDatabaseFactory databaseFactory) {
+    return new MongoTransactionManager(databaseFactory);
+  }
 }

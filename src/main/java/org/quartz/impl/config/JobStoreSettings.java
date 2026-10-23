@@ -19,173 +19,181 @@ import java.util.Objects;
 /**
  * Store-independent job store settings (the former {@code org.quartz.jobStore.*} keys, minus the
  * JDBC-only ones). Persistent stores take these in their constructors; the scheduler factory
- * applies them to the store it creates itself when no {@link org.quartz.spi.JobStore} instance
- * is supplied.
+ * applies them to the store it creates itself when no {@link org.quartz.spi.JobStore} instance is
+ * supplied.
  *
  * @param misfireThreshold how late a trigger may fire before it counts as misfired
  * @param clustered whether several scheduler instances share the store
  * @param clusterCheckinInterval how often a clustered instance checks in with the others
- * @param clusterCheckinMisfireThreshold grace period after a missed check-in before an instance
- *        is considered failed and its work is recovered
+ * @param clusterCheckinMisfireThreshold grace period after a missed check-in before an instance is
+ *     considered failed and its work is recovered
  * @param maxMisfiresToHandleAtATime the maximum number of misfired triggers handled per pass
  * @param acquireTriggersWithinLock acquire triggers while holding the store's trigger lock
- * @param acquireTriggersWithinLockRetry pause between attempts to take a store lock held by another instance
+ * @param acquireTriggersWithinLockRetry pause between attempts to take a store lock held by another
+ *     instance
  * @param retryInterval delay before retrying after the store could not be reached
  * @param useProperties restrict {@link org.quartz.JobDataMap} values to strings
  * @param doubleCheckLockMisfireHandler check for misfires before taking the lock to handle them
  * @param makeThreadsDaemons run the store's maintenance threads as daemon threads
- * @param threadsInheritInitializersClassLoadContext the store's maintenance threads use the
- *        context class loader of the initializing thread
+ * @param threadsInheritInitializersClassLoadContext the store's maintenance threads use the context
+ *     class loader of the initializing thread
  */
 public record JobStoreSettings(
-        Duration misfireThreshold,
-        boolean clustered,
-        Duration clusterCheckinInterval,
-        Duration clusterCheckinMisfireThreshold,
-        int maxMisfiresToHandleAtATime,
-        boolean acquireTriggersWithinLock,
-        Duration acquireTriggersWithinLockRetry,
-        Duration retryInterval,
-        boolean useProperties,
-        boolean doubleCheckLockMisfireHandler,
-        boolean makeThreadsDaemons,
-        boolean threadsInheritInitializersClassLoadContext) {
+    Duration misfireThreshold,
+    boolean clustered,
+    Duration clusterCheckinInterval,
+    Duration clusterCheckinMisfireThreshold,
+    int maxMisfiresToHandleAtATime,
+    boolean acquireTriggersWithinLock,
+    Duration acquireTriggersWithinLockRetry,
+    Duration retryInterval,
+    boolean useProperties,
+    boolean doubleCheckLockMisfireHandler,
+    boolean makeThreadsDaemons,
+    boolean threadsInheritInitializersClassLoadContext) {
 
-    public static final Duration DEFAULT_MISFIRE_THRESHOLD = Duration.ofSeconds(60);
+  public static final Duration DEFAULT_MISFIRE_THRESHOLD = Duration.ofSeconds(60);
 
-    public JobStoreSettings {
-        requirePositive(misfireThreshold, "misfireThreshold");
-        requirePositive(clusterCheckinInterval, "clusterCheckinInterval");
-        requireNotNegative(clusterCheckinMisfireThreshold, "clusterCheckinMisfireThreshold");
-        if (maxMisfiresToHandleAtATime < 1) {
-            throw new IllegalArgumentException("maxMisfiresToHandleAtATime must be at least 1, was "
-                    + maxMisfiresToHandleAtATime);
-        }
-        requireNotNegative(acquireTriggersWithinLockRetry, "acquireTriggersWithinLockRetry");
-        requireNotNegative(retryInterval, "retryInterval");
+  public JobStoreSettings {
+    requirePositive(misfireThreshold, "misfireThreshold");
+    requirePositive(clusterCheckinInterval, "clusterCheckinInterval");
+    requireNotNegative(clusterCheckinMisfireThreshold, "clusterCheckinMisfireThreshold");
+    if (maxMisfiresToHandleAtATime < 1) {
+      throw new IllegalArgumentException(
+          "maxMisfiresToHandleAtATime must be at least 1, was " + maxMisfiresToHandleAtATime);
+    }
+    requireNotNegative(acquireTriggersWithinLockRetry, "acquireTriggersWithinLockRetry");
+    requireNotNegative(retryInterval, "retryInterval");
+  }
+
+  public static JobStoreSettings defaults() {
+    return builder().build();
+  }
+
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  public Builder toBuilder() {
+    return new Builder()
+        .misfireThreshold(misfireThreshold)
+        .clustered(clustered)
+        .clusterCheckinInterval(clusterCheckinInterval)
+        .clusterCheckinMisfireThreshold(clusterCheckinMisfireThreshold)
+        .maxMisfiresToHandleAtATime(maxMisfiresToHandleAtATime)
+        .acquireTriggersWithinLock(acquireTriggersWithinLock)
+        .acquireTriggersWithinLockRetry(acquireTriggersWithinLockRetry)
+        .retryInterval(retryInterval)
+        .useProperties(useProperties)
+        .doubleCheckLockMisfireHandler(doubleCheckLockMisfireHandler)
+        .makeThreadsDaemons(makeThreadsDaemons)
+        .threadsInheritInitializersClassLoadContext(threadsInheritInitializersClassLoadContext);
+  }
+
+  private static void requirePositive(Duration value, String what) {
+    Objects.requireNonNull(value, what);
+    if (value.toMillis() < 1) {
+      throw new IllegalArgumentException(what + " must be at least 1ms, was " + value);
+    }
+  }
+
+  private static void requireNotNegative(Duration value, String what) {
+    Objects.requireNonNull(value, what);
+    if (value.isNegative()) {
+      throw new IllegalArgumentException(what + " must not be negative, was " + value);
+    }
+  }
+
+  public static final class Builder {
+    private Duration misfireThreshold = DEFAULT_MISFIRE_THRESHOLD;
+    private boolean clustered;
+    private Duration clusterCheckinInterval = Duration.ofMillis(7500);
+    private Duration clusterCheckinMisfireThreshold = Duration.ofMillis(7500);
+    private int maxMisfiresToHandleAtATime = 20;
+    private boolean acquireTriggersWithinLock;
+    private Duration acquireTriggersWithinLockRetry = Duration.ofMillis(50);
+    private Duration retryInterval = Duration.ofSeconds(15);
+    private boolean useProperties;
+    private boolean doubleCheckLockMisfireHandler = true;
+    private boolean makeThreadsDaemons;
+    private boolean threadsInheritInitializersClassLoadContext;
+
+    private Builder() {}
+
+    public Builder misfireThreshold(Duration misfireThreshold) {
+      this.misfireThreshold = misfireThreshold;
+      return this;
     }
 
-    public static JobStoreSettings defaults() {
-        return builder().build();
+    public Builder clustered(boolean clustered) {
+      this.clustered = clustered;
+      return this;
     }
 
-    public static Builder builder() {
-        return new Builder();
+    public Builder clusterCheckinInterval(Duration clusterCheckinInterval) {
+      this.clusterCheckinInterval = clusterCheckinInterval;
+      return this;
     }
 
-    public Builder toBuilder() {
-        return new Builder()
-                .misfireThreshold(misfireThreshold)
-                .clustered(clustered)
-                .clusterCheckinInterval(clusterCheckinInterval)
-                .clusterCheckinMisfireThreshold(clusterCheckinMisfireThreshold)
-                .maxMisfiresToHandleAtATime(maxMisfiresToHandleAtATime)
-                .acquireTriggersWithinLock(acquireTriggersWithinLock)
-                .acquireTriggersWithinLockRetry(acquireTriggersWithinLockRetry)
-                .retryInterval(retryInterval)
-                .useProperties(useProperties)
-                .doubleCheckLockMisfireHandler(doubleCheckLockMisfireHandler)
-                .makeThreadsDaemons(makeThreadsDaemons)
-                .threadsInheritInitializersClassLoadContext(threadsInheritInitializersClassLoadContext);
+    public Builder clusterCheckinMisfireThreshold(Duration clusterCheckinMisfireThreshold) {
+      this.clusterCheckinMisfireThreshold = clusterCheckinMisfireThreshold;
+      return this;
     }
 
-    private static void requirePositive(Duration value, String what) {
-        Objects.requireNonNull(value, what);
-        if (value.toMillis() < 1) {
-            throw new IllegalArgumentException(what + " must be at least 1ms, was " + value);
-        }
+    public Builder maxMisfiresToHandleAtATime(int maxMisfiresToHandleAtATime) {
+      this.maxMisfiresToHandleAtATime = maxMisfiresToHandleAtATime;
+      return this;
     }
 
-    private static void requireNotNegative(Duration value, String what) {
-        Objects.requireNonNull(value, what);
-        if (value.isNegative()) {
-            throw new IllegalArgumentException(what + " must not be negative, was " + value);
-        }
+    public Builder acquireTriggersWithinLock(boolean acquireTriggersWithinLock) {
+      this.acquireTriggersWithinLock = acquireTriggersWithinLock;
+      return this;
     }
 
-    public static final class Builder {
-        private Duration misfireThreshold = DEFAULT_MISFIRE_THRESHOLD;
-        private boolean clustered;
-        private Duration clusterCheckinInterval = Duration.ofMillis(7500);
-        private Duration clusterCheckinMisfireThreshold = Duration.ofMillis(7500);
-        private int maxMisfiresToHandleAtATime = 20;
-        private boolean acquireTriggersWithinLock;
-        private Duration acquireTriggersWithinLockRetry = Duration.ofMillis(50);
-        private Duration retryInterval = Duration.ofSeconds(15);
-        private boolean useProperties;
-        private boolean doubleCheckLockMisfireHandler = true;
-        private boolean makeThreadsDaemons;
-        private boolean threadsInheritInitializersClassLoadContext;
-
-        private Builder() {
-        }
-
-        public Builder misfireThreshold(Duration misfireThreshold) {
-            this.misfireThreshold = misfireThreshold;
-            return this;
-        }
-
-        public Builder clustered(boolean clustered) {
-            this.clustered = clustered;
-            return this;
-        }
-
-        public Builder clusterCheckinInterval(Duration clusterCheckinInterval) {
-            this.clusterCheckinInterval = clusterCheckinInterval;
-            return this;
-        }
-
-        public Builder clusterCheckinMisfireThreshold(Duration clusterCheckinMisfireThreshold) {
-            this.clusterCheckinMisfireThreshold = clusterCheckinMisfireThreshold;
-            return this;
-        }
-
-        public Builder maxMisfiresToHandleAtATime(int maxMisfiresToHandleAtATime) {
-            this.maxMisfiresToHandleAtATime = maxMisfiresToHandleAtATime;
-            return this;
-        }
-
-        public Builder acquireTriggersWithinLock(boolean acquireTriggersWithinLock) {
-            this.acquireTriggersWithinLock = acquireTriggersWithinLock;
-            return this;
-        }
-
-        public Builder acquireTriggersWithinLockRetry(Duration acquireTriggersWithinLockRetry) {
-            this.acquireTriggersWithinLockRetry = acquireTriggersWithinLockRetry;
-            return this;
-        }
-
-        public Builder retryInterval(Duration retryInterval) {
-            this.retryInterval = retryInterval;
-            return this;
-        }
-
-        public Builder useProperties(boolean useProperties) {
-            this.useProperties = useProperties;
-            return this;
-        }
-
-        public Builder doubleCheckLockMisfireHandler(boolean doubleCheckLockMisfireHandler) {
-            this.doubleCheckLockMisfireHandler = doubleCheckLockMisfireHandler;
-            return this;
-        }
-
-        public Builder makeThreadsDaemons(boolean makeThreadsDaemons) {
-            this.makeThreadsDaemons = makeThreadsDaemons;
-            return this;
-        }
-
-        public Builder threadsInheritInitializersClassLoadContext(boolean inherit) {
-            this.threadsInheritInitializersClassLoadContext = inherit;
-            return this;
-        }
-
-        public JobStoreSettings build() {
-            return new JobStoreSettings(misfireThreshold, clustered, clusterCheckinInterval,
-                    clusterCheckinMisfireThreshold, maxMisfiresToHandleAtATime,
-                    acquireTriggersWithinLock, acquireTriggersWithinLockRetry, retryInterval,
-                    useProperties, doubleCheckLockMisfireHandler, makeThreadsDaemons,
-                    threadsInheritInitializersClassLoadContext);
-        }
+    public Builder acquireTriggersWithinLockRetry(Duration acquireTriggersWithinLockRetry) {
+      this.acquireTriggersWithinLockRetry = acquireTriggersWithinLockRetry;
+      return this;
     }
+
+    public Builder retryInterval(Duration retryInterval) {
+      this.retryInterval = retryInterval;
+      return this;
+    }
+
+    public Builder useProperties(boolean useProperties) {
+      this.useProperties = useProperties;
+      return this;
+    }
+
+    public Builder doubleCheckLockMisfireHandler(boolean doubleCheckLockMisfireHandler) {
+      this.doubleCheckLockMisfireHandler = doubleCheckLockMisfireHandler;
+      return this;
+    }
+
+    public Builder makeThreadsDaemons(boolean makeThreadsDaemons) {
+      this.makeThreadsDaemons = makeThreadsDaemons;
+      return this;
+    }
+
+    public Builder threadsInheritInitializersClassLoadContext(boolean inherit) {
+      this.threadsInheritInitializersClassLoadContext = inherit;
+      return this;
+    }
+
+    public JobStoreSettings build() {
+      return new JobStoreSettings(
+          misfireThreshold,
+          clustered,
+          clusterCheckinInterval,
+          clusterCheckinMisfireThreshold,
+          maxMisfiresToHandleAtATime,
+          acquireTriggersWithinLock,
+          acquireTriggersWithinLockRetry,
+          retryInterval,
+          useProperties,
+          doubleCheckLockMisfireHandler,
+          makeThreadsDaemons,
+          threadsInheritInitializersClassLoadContext);
+    }
+  }
 }

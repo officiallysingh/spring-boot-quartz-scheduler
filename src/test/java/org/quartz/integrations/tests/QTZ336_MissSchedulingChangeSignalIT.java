@@ -1,38 +1,35 @@
 /*
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
  * Copyright IBM Corp. 2024, 2025
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 package org.quartz.integrations.tests;
 
-import java.time.Duration;
-
-import java.time.Instant;
-
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.quartz.JobBuilder.newJob;
 import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
-import static org.awaitility.Awaitility.await;
 import static org.quartz.TriggerBuilder.newTrigger;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.quartz.DisallowConcurrentExecution;
@@ -48,9 +45,9 @@ import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.impl.config.JobStoreSettings;
 import org.quartz.impl.mongodb.MongoJobStore;
 import org.quartz.impl.mongodb.MongoJobStoreSettings;
+import org.quartz.spi.OperableTrigger;
 import org.quartz.support.AbstractMongoIT;
 import org.quartz.support.TestSchedulers;
-import org.quartz.spi.OperableTrigger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,106 +56,117 @@ import org.slf4j.LoggerFactory;
  */
 @Disabled /* ignoring now since the bug is years ago fixed, and the test takes a full minute! */
 class QTZ336_MissSchedulingChangeSignalIT extends AbstractMongoIT {
-    private static final Logger LOG = LoggerFactory.getLogger(QTZ336_MissSchedulingChangeSignalIT.class);
-	
-    @Test
-    void simpleScheduleAlwaysFiredUnder20s() throws Exception {
-        // Use a custom job store to produce context switches leading to the race condition
-        SlowMongoJobStore jobStore = new SlowMongoJobStore();
-        SchedulerFactory sf = StdSchedulerFactory.builder().jobStore(jobStore).build();
-        Scheduler sched = sf.getScheduler();
-		LOG.info("------- Initialization Complete -----------");
+  private static final Logger LOG =
+      LoggerFactory.getLogger(QTZ336_MissSchedulingChangeSignalIT.class);
 
-		LOG.info("------- Scheduling Job  -------------------");
+  @Test
+  void simpleScheduleAlwaysFiredUnder20s() throws Exception {
+    // Use a custom job store to produce context switches leading to the race condition
+    SlowMongoJobStore jobStore = new SlowMongoJobStore();
+    SchedulerFactory sf = StdSchedulerFactory.builder().jobStore(jobStore).build();
+    Scheduler sched = sf.getScheduler();
+    LOG.info("------- Initialization Complete -----------");
 
-        JobDetail job = newJob(CollectDurationBetweenFireTimesJob.class).withIdentity("job", "group").build();
+    LOG.info("------- Scheduling Job  -------------------");
 
-        SimpleTrigger trigger = newTrigger()
-	            .withIdentity("trigger1", "group1")
-                .startAt(Instant.ofEpochMilli(System.currentTimeMillis() + 1000))
-	            .withSchedule(simpleSchedule()
-                .withIntervalInSeconds(1)
-	            .repeatForever()
-	            .withMisfireHandlingInstructionIgnoreMisfires())
-	            .build();
+    JobDetail job =
+        newJob(CollectDurationBetweenFireTimesJob.class).withIdentity("job", "group").build();
 
-        sched.scheduleJob(job, trigger);
-	        
-		// Start up the scheduler (nothing can actually run until the
-		// scheduler has been started)
-		sched.start();
+    SimpleTrigger trigger =
+        newTrigger()
+            .withIdentity("trigger1", "group1")
+            .startAt(Instant.ofEpochMilli(System.currentTimeMillis() + 1000))
+            .withSchedule(
+                simpleSchedule()
+                    .withIntervalInSeconds(1)
+                    .repeatForever()
+                    .withMisfireHandlingInstructionIgnoreMisfires())
+            .build();
 
-		LOG.info("------- Scheduler Started -----------------");
-		
+    sched.scheduleJob(job, trigger);
 
-        // wait long enough so that the scheduler has an opportunity to
-        // run the job in theory around 50 times
-        await().pollDelay(Duration.ofSeconds(50)).atMost(Duration.ofSeconds(51)).until(() -> true);
-        sched.shutdown(true);
-		
-        List<Long> durationBetweenFireTimesInMillis = CollectDurationBetweenFireTimesJob.getDurations();
-        
-        assertFalse(durationBetweenFireTimesInMillis.isEmpty(), "Job was not executed once!");
-        
-        // Let's check that every call for around 1 second and not between 23 and 30 seconds
-        // which would be the case if the scheduling change signal were not checked
-        for (long durationInMillis : durationBetweenFireTimesInMillis) {
-            assertTrue(durationInMillis < 20000, "Missed an execution with one duration being between two fires: " + durationInMillis + " (all: "
-                                + durationBetweenFireTimesInMillis + ")");
-        }
-	}
+    // Start up the scheduler (nothing can actually run until the
+    // scheduler has been started)
+    sched.start();
 
-    /**
-     * A simple job for collecting fire times in order to check that we did not miss one call, for having the race
-     * condition the job must be real quick and not allowing concurrent executions.
-     */
-    @DisallowConcurrentExecution
-    public static class CollectDurationBetweenFireTimesJob implements Job {
-        private static final Logger log = LoggerFactory.getLogger(CollectDurationBetweenFireTimesJob.class);
-        private static final List<Long> durationBetweenFireTimes = Collections.synchronizedList(new ArrayList<Long>());
-        private static Long lastFireTime = null;
+    LOG.info("------- Scheduler Started -----------------");
 
-        public void execute(JobExecutionContext context) throws JobExecutionException {
-            Instant now = Instant.now();
-            log.info("Fire time: " + now);
-            if (lastFireTime != null) {
-                durationBetweenFireTimes.add(now.toEpochMilli() - lastFireTime);
-            }
-            lastFireTime = now.toEpochMilli();
-        }
+    // wait long enough so that the scheduler has an opportunity to
+    // run the job in theory around 50 times
+    await().pollDelay(Duration.ofSeconds(50)).atMost(Duration.ofSeconds(51)).until(() -> true);
+    sched.shutdown(true);
 
-        /**
-         * Retrieves the durations between fire times.
-         * 
-         * @return the durations in millis as an immutable list.
-         */
-        public static List<Long> getDurations() {
-            synchronized (durationBetweenFireTimes) {
-              return Collections.unmodifiableList(new ArrayList<Long>(durationBetweenFireTimes));
-            }
-        }
+    List<Long> durationBetweenFireTimesInMillis = CollectDurationBetweenFireTimesJob.getDurations();
 
+    assertFalse(durationBetweenFireTimesInMillis.isEmpty(), "Job was not executed once!");
+
+    // Let's check that every call for around 1 second and not between 23 and 30 seconds
+    // which would be the case if the scheduling change signal were not checked
+    for (long durationInMillis : durationBetweenFireTimesInMillis) {
+      assertTrue(
+          durationInMillis < 20000,
+          "Missed an execution with one duration being between two fires: "
+              + durationInMillis
+              + " (all: "
+              + durationBetweenFireTimesInMillis
+              + ")");
+    }
+  }
+
+  /**
+   * A simple job for collecting fire times in order to check that we did not miss one call, for
+   * having the race condition the job must be real quick and not allowing concurrent executions.
+   */
+  @DisallowConcurrentExecution
+  public static class CollectDurationBetweenFireTimesJob implements Job {
+    private static final Logger log =
+        LoggerFactory.getLogger(CollectDurationBetweenFireTimesJob.class);
+    private static final List<Long> durationBetweenFireTimes =
+        Collections.synchronizedList(new ArrayList<Long>());
+    private static Long lastFireTime = null;
+
+    public void execute(JobExecutionContext context) throws JobExecutionException {
+      Instant now = Instant.now();
+      log.info("Fire time: " + now);
+      if (lastFireTime != null) {
+        durationBetweenFireTimes.add(now.toEpochMilli() - lastFireTime);
+      }
+      lastFireTime = now.toEpochMilli();
     }
 
     /**
-     * Custom job store for producing context switches.
+     * Retrieves the durations between fire times.
+     *
+     * @return the durations in millis as an immutable list.
      */
-    public static class SlowMongoJobStore extends MongoJobStore {
-        SlowMongoJobStore() {
-            super(AbstractMongoIT.mongoClient(), TestSchedulers.DATABASE, JobStoreSettings.defaults(),
-                    MongoJobStoreSettings.defaults());
-        }
-
-        @Override
-        public List<OperableTrigger> acquireNextTriggers(Instant noLaterThan, int maxCount, Duration timeWindow)
-                throws JobPersistenceException {
-            List<OperableTrigger> nextTriggers = super.acquireNextTriggers(noLaterThan, maxCount, timeWindow);
-            try {
-                // Wait just a bit for hopefully having a context switch leading to the race condition
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-            }
-            return nextTriggers;
-        }
+    public static List<Long> getDurations() {
+      synchronized (durationBetweenFireTimes) {
+        return Collections.unmodifiableList(new ArrayList<Long>(durationBetweenFireTimes));
+      }
     }
+  }
+
+  /** Custom job store for producing context switches. */
+  public static class SlowMongoJobStore extends MongoJobStore {
+    SlowMongoJobStore() {
+      super(
+          AbstractMongoIT.mongoClient(),
+          TestSchedulers.DATABASE,
+          JobStoreSettings.defaults(),
+          MongoJobStoreSettings.defaults());
+    }
+
+    @Override
+    public List<OperableTrigger> acquireNextTriggers(
+        Instant noLaterThan, int maxCount, Duration timeWindow) throws JobPersistenceException {
+      List<OperableTrigger> nextTriggers =
+          super.acquireNextTriggers(noLaterThan, maxCount, timeWindow);
+      try {
+        // Wait just a bit for hopefully having a context switch leading to the race condition
+        Thread.sleep(10);
+      } catch (InterruptedException e) {
+      }
+      return nextTriggers;
+    }
+  }
 }

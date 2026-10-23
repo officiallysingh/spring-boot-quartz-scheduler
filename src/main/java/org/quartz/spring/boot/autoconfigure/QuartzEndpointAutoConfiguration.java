@@ -17,7 +17,8 @@
 package org.quartz.spring.boot.autoconfigure;
 
 import org.quartz.Scheduler;
-
+import org.quartz.spring.boot.actuate.endpoint.QuartzEndpoint;
+import org.quartz.spring.boot.actuate.endpoint.QuartzEndpointWebExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.actuate.autoconfigure.endpoint.condition.ConditionalOnAvailableEndpoint;
 import org.springframework.boot.actuate.autoconfigure.endpoint.expose.EndpointExposure;
@@ -28,8 +29,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.quartz.spring.boot.actuate.endpoint.QuartzEndpoint;
-import org.quartz.spring.boot.actuate.endpoint.QuartzEndpointWebExtension;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -41,32 +40,32 @@ import org.springframework.context.annotation.Configuration;
  * @since 4.0.0
  */
 @AutoConfiguration(after = QuartzAutoConfiguration.class)
-@ConditionalOnClass({ Scheduler.class, QuartzEndpoint.class, ConditionalOnAvailableEndpoint.class })
+@ConditionalOnClass({Scheduler.class, QuartzEndpoint.class, ConditionalOnAvailableEndpoint.class})
 public final class QuartzEndpointAutoConfiguration {
 
-	// actuator conditions live on a nested class: they are only loaded once the class
-	// condition above has passed (no auto-configuration metadata filters this class)
-	@Configuration(proxyBeanMethods = false)
-	@ConditionalOnAvailableEndpoint(QuartzEndpoint.class)
-	@EnableConfigurationProperties(QuartzEndpointProperties.class)
-	static class QuartzEndpointConfiguration {
+  // actuator conditions live on a nested class: they are only loaded once the class
+  // condition above has passed (no auto-configuration metadata filters this class)
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnAvailableEndpoint(QuartzEndpoint.class)
+  @EnableConfigurationProperties(QuartzEndpointProperties.class)
+  static class QuartzEndpointConfiguration {
 
-		@Bean
-		@ConditionalOnBean(Scheduler.class)
-		@ConditionalOnMissingBean
-		QuartzEndpoint quartzEndpoint(Scheduler scheduler, ObjectProvider<SanitizingFunction> sanitizingFunctions) {
-			return new QuartzEndpoint(scheduler, sanitizingFunctions.orderedStream().toList());
-		}
+    @Bean
+    @ConditionalOnBean(Scheduler.class)
+    @ConditionalOnMissingBean
+    QuartzEndpoint quartzEndpoint(
+        Scheduler scheduler, ObjectProvider<SanitizingFunction> sanitizingFunctions) {
+      return new QuartzEndpoint(scheduler, sanitizingFunctions.orderedStream().toList());
+    }
 
-		@Bean
-		@ConditionalOnBean(QuartzEndpoint.class)
-		@ConditionalOnMissingBean
-		@ConditionalOnAvailableEndpoint(exposure = EndpointExposure.WEB)
-		QuartzEndpointWebExtension quartzEndpointWebExtension(QuartzEndpoint endpoint,
-				QuartzEndpointProperties properties) {
-			return new QuartzEndpointWebExtension(endpoint, properties.getShowValues(), properties.getRoles());
-		}
-
-	}
-
+    @Bean
+    @ConditionalOnBean(QuartzEndpoint.class)
+    @ConditionalOnMissingBean
+    @ConditionalOnAvailableEndpoint(exposure = EndpointExposure.WEB)
+    QuartzEndpointWebExtension quartzEndpointWebExtension(
+        QuartzEndpoint endpoint, QuartzEndpointProperties properties) {
+      return new QuartzEndpointWebExtension(
+          endpoint, properties.getShowValues(), properties.getRoles());
+    }
+  }
 }

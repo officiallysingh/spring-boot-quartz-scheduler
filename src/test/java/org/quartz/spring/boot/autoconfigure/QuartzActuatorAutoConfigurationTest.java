@@ -29,59 +29,77 @@ import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 /**
- * Conditions of the health and metrics auto-configurations (the endpoint's are in
- * {@link QuartzEndpointAutoConfigurationTest}).
+ * Conditions of the health and metrics auto-configurations (the endpoint's are in {@link
+ * QuartzEndpointAutoConfigurationTest}).
  */
 class QuartzActuatorAutoConfigurationTest {
 
-    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(QuartzEndpointAutoConfiguration.class,
-                    QuartzHealthContributorAutoConfiguration.class, QuartzMetricsAutoConfiguration.class))
-            .withBean(Scheduler.class, () -> mock(Scheduler.class));
+  private final ApplicationContextRunner contextRunner =
+      new ApplicationContextRunner()
+          .withConfiguration(
+              AutoConfigurations.of(
+                  QuartzEndpointAutoConfiguration.class,
+                  QuartzHealthContributorAutoConfiguration.class,
+                  QuartzMetricsAutoConfiguration.class))
+          .withBean(Scheduler.class, () -> mock(Scheduler.class));
 
-    @Test
-    void healthIndicatorIsRegisteredAsQuartz() {
-        contextRunner.run(context -> assertThat(context).hasSingleBean(QuartzHealthIndicator.class)
-            .hasBean("quartzHealthIndicator"));
-    }
+  @Test
+  void healthIndicatorIsRegisteredAsQuartz() {
+    contextRunner.run(
+        context ->
+            assertThat(context)
+                .hasSingleBean(QuartzHealthIndicator.class)
+                .hasBean("quartzHealthIndicator"));
+  }
 
-    @Test
-    void healthIndicatorCanBeDisabled() {
-        contextRunner.withPropertyValues("management.health.quartz.enabled=false")
-            .run(context -> assertThat(context).doesNotHaveBean(QuartzHealthIndicator.class));
-    }
+  @Test
+  void healthIndicatorCanBeDisabled() {
+    contextRunner
+        .withPropertyValues("management.health.quartz.enabled=false")
+        .run(context -> assertThat(context).doesNotHaveBean(QuartzHealthIndicator.class));
+  }
 
-    @Test
-    void healthIndicatorNeedsAScheduler() {
-        new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(QuartzHealthContributorAutoConfiguration.class))
-            .run(context -> assertThat(context).doesNotHaveBean(QuartzHealthIndicator.class));
-    }
+  @Test
+  void healthIndicatorNeedsAScheduler() {
+    new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(QuartzHealthContributorAutoConfiguration.class))
+        .run(context -> assertThat(context).doesNotHaveBean(QuartzHealthIndicator.class));
+  }
 
-    @Test
-    void metricsNeedAMeterRegistry() {
-        contextRunner.run(context -> assertThat(context).doesNotHaveBean(QuartzMetrics.class));
-        contextRunner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
-            .run(context -> assertThat(context).hasSingleBean(QuartzMetrics.class).hasBean("quartzMetrics"));
-    }
+  @Test
+  void metricsNeedAMeterRegistry() {
+    contextRunner.run(context -> assertThat(context).doesNotHaveBean(QuartzMetrics.class));
+    contextRunner
+        .withBean(MeterRegistry.class, SimpleMeterRegistry::new)
+        .run(
+            context ->
+                assertThat(context).hasSingleBean(QuartzMetrics.class).hasBean("quartzMetrics"));
+  }
 
-    @Test
-    void metricsCanBeDisabled() {
-        contextRunner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
-            .withPropertyValues("management.metrics.quartz.enabled=false")
-            .run(context -> assertThat(context).doesNotHaveBean(QuartzMetrics.class));
-    }
+  @Test
+  void metricsCanBeDisabled() {
+    contextRunner
+        .withBean(MeterRegistry.class, SimpleMeterRegistry::new)
+        .withPropertyValues("management.metrics.quartz.enabled=false")
+        .run(context -> assertThat(context).doesNotHaveBean(QuartzMetrics.class));
+  }
 
-    @Test
-    void everythingBacksOffWithoutActuatorAndMicrometer() {
-        contextRunner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
-            .withPropertyValues("management.endpoints.web.exposure.include=quartz")
-            .withClassLoader(new FilteredClassLoader("org.springframework.boot.actuate",
-                    "org.springframework.boot.health", "io.micrometer"))
-            .run(context -> assertThat(context).hasNotFailed()
-                .doesNotHaveBean(QuartzEndpoint.class)
-                .doesNotHaveBean(HealthIndicator.class)
-                .doesNotHaveBean(QuartzMetrics.class));
-    }
-
+  @Test
+  void everythingBacksOffWithoutActuatorAndMicrometer() {
+    contextRunner
+        .withBean(MeterRegistry.class, SimpleMeterRegistry::new)
+        .withPropertyValues("management.endpoints.web.exposure.include=quartz")
+        .withClassLoader(
+            new FilteredClassLoader(
+                "org.springframework.boot.actuate",
+                "org.springframework.boot.health",
+                "io.micrometer"))
+        .run(
+            context ->
+                assertThat(context)
+                    .hasNotFailed()
+                    .doesNotHaveBean(QuartzEndpoint.class)
+                    .doesNotHaveBean(HealthIndicator.class)
+                    .doesNotHaveBean(QuartzMetrics.class));
+  }
 }

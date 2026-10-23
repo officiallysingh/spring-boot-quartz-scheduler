@@ -16,16 +16,16 @@ package org.quartz.impl.store;
 import org.quartz.JobPersistenceException;
 
 /**
- * Mutual exclusion for compound store operations, by lock name
- * ({@link PersistentJobStore#LOCK_TRIGGER_ACCESS}, {@link PersistentJobStore#LOCK_STATE_ACCESS}).
- * Re-entrancy is handled by {@link PersistentJobStore}; implementations see each
- * obtain/release pair once per thread.
+ * Mutual exclusion for compound store operations, by lock name ({@link
+ * PersistentJobStore#LOCK_TRIGGER_ACCESS}, {@link PersistentJobStore#LOCK_STATE_ACCESS}).
+ * Re-entrancy is handled by {@link PersistentJobStore}; implementations see each obtain/release
+ * pair once per thread.
  */
 public interface StoreLock {
 
-    /** Blocks until the calling thread holds the named lock. */
-    void obtain(String lockName) throws JobPersistenceException;
+  /** Blocks until the calling thread holds the named lock. */
+  void obtain(String lockName) throws JobPersistenceException;
 
-    /** Releases a lock the calling thread holds. */
-    void release(String lockName);
+  /** Releases a lock the calling thread holds. */
+  void release(String lockName);
 }

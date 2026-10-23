@@ -18,203 +18,214 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-
 import org.jspecify.annotations.Nullable;
 
 /**
- * Scheduler-level settings (the former {@code org.quartz.scheduler.*} and
- * {@code org.quartz.context.key.*} keys).
+ * Scheduler-level settings (the former {@code org.quartz.scheduler.*} and {@code
+ * org.quartz.context.key.*} keys).
  *
  * @param name the scheduler name, shared by all nodes of a cluster
  * @param instanceId the instance id used when {@code instanceIdAuto} is {@code false}
- * @param instanceIdAuto generate the instance id with the factory's
- *        {@link org.quartz.spi.InstanceIdGenerator} when the job store is clustered
- *        (the former {@code AUTO} / {@code SYS_PROP} values)
- * @param threadName the scheduler thread name; {@code null} means {@code <name>_QuartzSchedulerThread}
+ * @param instanceIdAuto generate the instance id with the factory's {@link
+ *     org.quartz.spi.InstanceIdGenerator} when the job store is clustered (the former {@code AUTO}
+ *     / {@code SYS_PROP} values)
+ * @param threadName the scheduler thread name; {@code null} means {@code
+ *     <name>_QuartzSchedulerThread}
  * @param makeSchedulerThreadDaemon run the scheduler thread as a daemon thread
  * @param threadsInheritContextClassLoaderOfInitializer the scheduler thread (and the
- *        factory-created thread pool) use the context class loader of the creating thread
- * @param idleWaitTime how long the scheduler thread waits for new triggers when idle; at least one second
- * @param batchTriggerAcquisitionFireAheadTimeWindow how far ahead of their fire time triggers may be acquired
+ *     factory-created thread pool) use the context class loader of the creating thread
+ * @param idleWaitTime how long the scheduler thread waits for new triggers when idle; at least one
+ *     second
+ * @param batchTriggerAcquisitionFireAheadTimeWindow how far ahead of their fire time triggers may
+ *     be acquired
  * @param batchTriggerAcquisitionMaxCount the maximum number of triggers acquired at once
  * @param interruptJobsOnShutdown interrupt running interruptable jobs on {@code shutdown(false)}
- * @param interruptJobsOnShutdownWithWait interrupt running interruptable jobs on {@code shutdown(true)}
+ * @param interruptJobsOnShutdownWithWait interrupt running interruptable jobs on {@code
+ *     shutdown(true)}
  * @param context initial entries of the {@link org.quartz.SchedulerContext}
  */
 public record SchedulerSettings(
-        String name,
-        String instanceId,
-        boolean instanceIdAuto,
-        @Nullable String threadName,
-        boolean makeSchedulerThreadDaemon,
-        boolean threadsInheritContextClassLoaderOfInitializer,
-        Duration idleWaitTime,
-        Duration batchTriggerAcquisitionFireAheadTimeWindow,
-        int batchTriggerAcquisitionMaxCount,
-        boolean interruptJobsOnShutdown,
-        boolean interruptJobsOnShutdownWithWait,
-        Map<String, String> context) {
+    String name,
+    String instanceId,
+    boolean instanceIdAuto,
+    @Nullable String threadName,
+    boolean makeSchedulerThreadDaemon,
+    boolean threadsInheritContextClassLoaderOfInitializer,
+    Duration idleWaitTime,
+    Duration batchTriggerAcquisitionFireAheadTimeWindow,
+    int batchTriggerAcquisitionMaxCount,
+    boolean interruptJobsOnShutdown,
+    boolean interruptJobsOnShutdownWithWait,
+    Map<String, String> context) {
 
-    public static final String DEFAULT_NAME = "DefaultQuartzScheduler";
+  public static final String DEFAULT_NAME = "DefaultQuartzScheduler";
 
-    public static final String DEFAULT_INSTANCE_ID = "NON_CLUSTERED";
+  public static final String DEFAULT_INSTANCE_ID = "NON_CLUSTERED";
 
-    public static final Duration DEFAULT_IDLE_WAIT_TIME = Duration.ofSeconds(30);
+  public static final Duration DEFAULT_IDLE_WAIT_TIME = Duration.ofSeconds(30);
 
-    public static final Duration MIN_IDLE_WAIT_TIME = Duration.ofSeconds(1);
+  public static final Duration MIN_IDLE_WAIT_TIME = Duration.ofSeconds(1);
 
-    public SchedulerSettings {
-        requireText(name, "name");
-        requireText(instanceId, "instanceId");
-        if (threadName != null && threadName.isBlank()) {
-            throw new IllegalArgumentException("threadName must not be blank");
-        }
-        Objects.requireNonNull(idleWaitTime, "idleWaitTime");
-        if (idleWaitTime.compareTo(MIN_IDLE_WAIT_TIME) < 0) {
-            throw new IllegalArgumentException("idleWaitTime must be at least 1s, was " + idleWaitTime);
-        }
-        Objects.requireNonNull(batchTriggerAcquisitionFireAheadTimeWindow, "batchTriggerAcquisitionFireAheadTimeWindow");
-        if (batchTriggerAcquisitionFireAheadTimeWindow.isNegative()) {
-            throw new IllegalArgumentException("batchTriggerAcquisitionFireAheadTimeWindow must not be negative");
-        }
-        if (batchTriggerAcquisitionMaxCount < 1) {
-            throw new IllegalArgumentException("batchTriggerAcquisitionMaxCount must be at least 1, was "
-                    + batchTriggerAcquisitionMaxCount);
-        }
-        context = context == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(context));
+  public SchedulerSettings {
+    requireText(name, "name");
+    requireText(instanceId, "instanceId");
+    if (threadName != null && threadName.isBlank()) {
+      throw new IllegalArgumentException("threadName must not be blank");
+    }
+    Objects.requireNonNull(idleWaitTime, "idleWaitTime");
+    if (idleWaitTime.compareTo(MIN_IDLE_WAIT_TIME) < 0) {
+      throw new IllegalArgumentException("idleWaitTime must be at least 1s, was " + idleWaitTime);
+    }
+    Objects.requireNonNull(
+        batchTriggerAcquisitionFireAheadTimeWindow, "batchTriggerAcquisitionFireAheadTimeWindow");
+    if (batchTriggerAcquisitionFireAheadTimeWindow.isNegative()) {
+      throw new IllegalArgumentException(
+          "batchTriggerAcquisitionFireAheadTimeWindow must not be negative");
+    }
+    if (batchTriggerAcquisitionMaxCount < 1) {
+      throw new IllegalArgumentException(
+          "batchTriggerAcquisitionMaxCount must be at least 1, was "
+              + batchTriggerAcquisitionMaxCount);
+    }
+    context =
+        context == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(context));
+  }
+
+  /** The effective scheduler thread name. */
+  public String effectiveThreadName() {
+    return threadName != null ? threadName : name + "_QuartzSchedulerThread";
+  }
+
+  public static SchedulerSettings defaults() {
+    return builder().build();
+  }
+
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  public Builder toBuilder() {
+    return new Builder()
+        .name(name)
+        .instanceId(instanceId)
+        .instanceIdAuto(instanceIdAuto)
+        .threadName(threadName)
+        .makeSchedulerThreadDaemon(makeSchedulerThreadDaemon)
+        .threadsInheritContextClassLoaderOfInitializer(
+            threadsInheritContextClassLoaderOfInitializer)
+        .idleWaitTime(idleWaitTime)
+        .batchTriggerAcquisitionFireAheadTimeWindow(batchTriggerAcquisitionFireAheadTimeWindow)
+        .batchTriggerAcquisitionMaxCount(batchTriggerAcquisitionMaxCount)
+        .interruptJobsOnShutdown(interruptJobsOnShutdown)
+        .interruptJobsOnShutdownWithWait(interruptJobsOnShutdownWithWait)
+        .context(context);
+  }
+
+  static void requireText(String value, String what) {
+    if (value == null || value.isBlank()) {
+      throw new IllegalArgumentException(what + " must not be empty");
+    }
+  }
+
+  public static final class Builder {
+    private String name = DEFAULT_NAME;
+    private String instanceId = DEFAULT_INSTANCE_ID;
+    private boolean instanceIdAuto;
+    private @Nullable String threadName;
+    private boolean makeSchedulerThreadDaemon;
+    private boolean threadsInheritContextClassLoaderOfInitializer;
+    private Duration idleWaitTime = DEFAULT_IDLE_WAIT_TIME;
+    private Duration batchTriggerAcquisitionFireAheadTimeWindow = Duration.ZERO;
+    private int batchTriggerAcquisitionMaxCount = 1;
+    private boolean interruptJobsOnShutdown;
+    private boolean interruptJobsOnShutdownWithWait;
+    private final Map<String, String> context = new LinkedHashMap<>();
+
+    private Builder() {}
+
+    public Builder name(String name) {
+      this.name = name;
+      return this;
     }
 
-    /**
-     * The effective scheduler thread name.
-     */
-    public String effectiveThreadName() {
-        return threadName != null ? threadName : name + "_QuartzSchedulerThread";
+    public Builder instanceId(String instanceId) {
+      this.instanceId = instanceId;
+      return this;
     }
 
-    public static SchedulerSettings defaults() {
-        return builder().build();
+    public Builder instanceIdAuto(boolean instanceIdAuto) {
+      this.instanceIdAuto = instanceIdAuto;
+      return this;
     }
 
-    public static Builder builder() {
-        return new Builder();
+    public Builder threadName(@Nullable String threadName) {
+      this.threadName = threadName;
+      return this;
     }
 
-    public Builder toBuilder() {
-        return new Builder()
-                .name(name)
-                .instanceId(instanceId)
-                .instanceIdAuto(instanceIdAuto)
-                .threadName(threadName)
-                .makeSchedulerThreadDaemon(makeSchedulerThreadDaemon)
-                .threadsInheritContextClassLoaderOfInitializer(threadsInheritContextClassLoaderOfInitializer)
-                .idleWaitTime(idleWaitTime)
-                .batchTriggerAcquisitionFireAheadTimeWindow(batchTriggerAcquisitionFireAheadTimeWindow)
-                .batchTriggerAcquisitionMaxCount(batchTriggerAcquisitionMaxCount)
-                .interruptJobsOnShutdown(interruptJobsOnShutdown)
-                .interruptJobsOnShutdownWithWait(interruptJobsOnShutdownWithWait)
-                .context(context);
+    public Builder makeSchedulerThreadDaemon(boolean makeSchedulerThreadDaemon) {
+      this.makeSchedulerThreadDaemon = makeSchedulerThreadDaemon;
+      return this;
     }
 
-    static void requireText(String value, String what) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(what + " must not be empty");
-        }
+    public Builder threadsInheritContextClassLoaderOfInitializer(boolean inherit) {
+      this.threadsInheritContextClassLoaderOfInitializer = inherit;
+      return this;
     }
 
-    public static final class Builder {
-        private String name = DEFAULT_NAME;
-        private String instanceId = DEFAULT_INSTANCE_ID;
-        private boolean instanceIdAuto;
-        private @Nullable String threadName;
-        private boolean makeSchedulerThreadDaemon;
-        private boolean threadsInheritContextClassLoaderOfInitializer;
-        private Duration idleWaitTime = DEFAULT_IDLE_WAIT_TIME;
-        private Duration batchTriggerAcquisitionFireAheadTimeWindow = Duration.ZERO;
-        private int batchTriggerAcquisitionMaxCount = 1;
-        private boolean interruptJobsOnShutdown;
-        private boolean interruptJobsOnShutdownWithWait;
-        private final Map<String, String> context = new LinkedHashMap<>();
-
-        private Builder() {
-        }
-
-        public Builder name(String name) {
-            this.name = name;
-            return this;
-        }
-
-        public Builder instanceId(String instanceId) {
-            this.instanceId = instanceId;
-            return this;
-        }
-
-        public Builder instanceIdAuto(boolean instanceIdAuto) {
-            this.instanceIdAuto = instanceIdAuto;
-            return this;
-        }
-
-        public Builder threadName(@Nullable String threadName) {
-            this.threadName = threadName;
-            return this;
-        }
-
-        public Builder makeSchedulerThreadDaemon(boolean makeSchedulerThreadDaemon) {
-            this.makeSchedulerThreadDaemon = makeSchedulerThreadDaemon;
-            return this;
-        }
-
-        public Builder threadsInheritContextClassLoaderOfInitializer(boolean inherit) {
-            this.threadsInheritContextClassLoaderOfInitializer = inherit;
-            return this;
-        }
-
-        public Builder idleWaitTime(Duration idleWaitTime) {
-            this.idleWaitTime = idleWaitTime;
-            return this;
-        }
-
-        public Builder batchTriggerAcquisitionFireAheadTimeWindow(Duration window) {
-            this.batchTriggerAcquisitionFireAheadTimeWindow = window;
-            return this;
-        }
-
-        public Builder batchTriggerAcquisitionMaxCount(int maxCount) {
-            this.batchTriggerAcquisitionMaxCount = maxCount;
-            return this;
-        }
-
-        public Builder interruptJobsOnShutdown(boolean interruptJobsOnShutdown) {
-            this.interruptJobsOnShutdown = interruptJobsOnShutdown;
-            return this;
-        }
-
-        public Builder interruptJobsOnShutdownWithWait(boolean interruptJobsOnShutdownWithWait) {
-            this.interruptJobsOnShutdownWithWait = interruptJobsOnShutdownWithWait;
-            return this;
-        }
-
-        /**
-         * Replaces the scheduler context entries.
-         */
-        public Builder context(@Nullable Map<String, String> context) {
-            this.context.clear();
-            if (context != null) {
-                this.context.putAll(context);
-            }
-            return this;
-        }
-
-        public Builder contextEntry(String key, String value) {
-            this.context.put(key, value);
-            return this;
-        }
-
-        public SchedulerSettings build() {
-            return new SchedulerSettings(name, instanceId, instanceIdAuto, threadName,
-                    makeSchedulerThreadDaemon, threadsInheritContextClassLoaderOfInitializer,
-                    idleWaitTime, batchTriggerAcquisitionFireAheadTimeWindow,
-                    batchTriggerAcquisitionMaxCount, interruptJobsOnShutdown,
-                    interruptJobsOnShutdownWithWait, context);
-        }
+    public Builder idleWaitTime(Duration idleWaitTime) {
+      this.idleWaitTime = idleWaitTime;
+      return this;
     }
+
+    public Builder batchTriggerAcquisitionFireAheadTimeWindow(Duration window) {
+      this.batchTriggerAcquisitionFireAheadTimeWindow = window;
+      return this;
+    }
+
+    public Builder batchTriggerAcquisitionMaxCount(int maxCount) {
+      this.batchTriggerAcquisitionMaxCount = maxCount;
+      return this;
+    }
+
+    public Builder interruptJobsOnShutdown(boolean interruptJobsOnShutdown) {
+      this.interruptJobsOnShutdown = interruptJobsOnShutdown;
+      return this;
+    }
+
+    public Builder interruptJobsOnShutdownWithWait(boolean interruptJobsOnShutdownWithWait) {
+      this.interruptJobsOnShutdownWithWait = interruptJobsOnShutdownWithWait;
+      return this;
+    }
+
+    /** Replaces the scheduler context entries. */
+    public Builder context(@Nullable Map<String, String> context) {
+      this.context.clear();
+      if (context != null) {
+        this.context.putAll(context);
+      }
+      return this;
+    }
+
+    public Builder contextEntry(String key, String value) {
+      this.context.put(key, value);
+      return this;
+    }
+
+    public SchedulerSettings build() {
+      return new SchedulerSettings(
+          name,
+          instanceId,
+          instanceIdAuto,
+          threadName,
+          makeSchedulerThreadDaemon,
+          threadsInheritContextClassLoaderOfInitializer,
+          idleWaitTime,
+          batchTriggerAcquisitionFireAheadTimeWindow,
+          batchTriggerAcquisitionMaxCount,
+          interruptJobsOnShutdown,
+          interruptJobsOnShutdownWithWait,
+          context);
+    }
+  }
 }

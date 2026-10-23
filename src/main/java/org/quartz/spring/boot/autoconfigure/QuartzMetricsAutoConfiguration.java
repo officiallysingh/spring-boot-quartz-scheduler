@@ -18,7 +18,6 @@ package org.quartz.spring.boot.autoconfigure;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.quartz.Scheduler;
 import org.quartz.spring.boot.actuate.metrics.QuartzMetrics;
-
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -28,23 +27,25 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 
 /**
- * {@link EnableAutoConfiguration Auto-configuration} for {@link QuartzMetrics}: registered as
- * the {@code quartzMetrics} scheduler plugin when a {@link MeterRegistry} bean exists;
- * {@code management.metrics.quartz.enabled=false} switches it off.
+ * {@link EnableAutoConfiguration Auto-configuration} for {@link QuartzMetrics}: registered as the
+ * {@code quartzMetrics} scheduler plugin when a {@link MeterRegistry} bean exists; {@code
+ * management.metrics.quartz.enabled=false} switches it off.
  */
-@AutoConfiguration(before = QuartzAutoConfiguration.class,
-		afterName = { "org.springframework.boot.micrometer.metrics.autoconfigure.MetricsAutoConfiguration",
-				"org.springframework.boot.micrometer.metrics.autoconfigure.CompositeMeterRegistryAutoConfiguration",
-				"org.springframework.boot.micrometer.metrics.autoconfigure.export.simple.SimpleMetricsExportAutoConfiguration" })
-@ConditionalOnClass({ Scheduler.class, MeterRegistry.class })
+@AutoConfiguration(
+    before = QuartzAutoConfiguration.class,
+    afterName = {
+      "org.springframework.boot.micrometer.metrics.autoconfigure.MetricsAutoConfiguration",
+      "org.springframework.boot.micrometer.metrics.autoconfigure.CompositeMeterRegistryAutoConfiguration",
+      "org.springframework.boot.micrometer.metrics.autoconfigure.export.simple.SimpleMetricsExportAutoConfiguration"
+    })
+@ConditionalOnClass({Scheduler.class, MeterRegistry.class})
 @ConditionalOnBean(MeterRegistry.class)
 @ConditionalOnProperty(name = "management.metrics.quartz.enabled", matchIfMissing = true)
 public final class QuartzMetricsAutoConfiguration {
 
-	@Bean
-	@ConditionalOnMissingBean
-	QuartzMetrics quartzMetrics(MeterRegistry registry) {
-		return new QuartzMetrics(registry);
-	}
-
+  @Bean
+  @ConditionalOnMissingBean
+  QuartzMetrics quartzMetrics(MeterRegistry registry) {
+    return new QuartzMetrics(registry);
+  }
 }

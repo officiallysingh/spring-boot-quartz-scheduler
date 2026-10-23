@@ -26,12 +26,11 @@ import static org.quartz.spring.TransactionTestJobs.OUTCOME;
 import static org.quartz.spring.TransactionTestJobs.RUNTIME_EXCEPTION;
 import static org.quartz.spring.TransactionTestJobs.SUCCEED;
 
+import com.mongodb.client.MongoClient;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-
-import com.mongodb.client.MongoClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.quartz.Job;
@@ -79,243 +78,283 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionTimedOutException;
 
 /**
- * Jobs in Spring-managed {@code MongoTransactionManager} transactions on a scheduler with
- * the MongoDB job store. A fresh context per test, so the store re-creates its indexes
- * after the collections were dropped.
+ * Jobs in Spring-managed {@code MongoTransactionManager} transactions on a scheduler with the
+ * MongoDB job store. A fresh context per test, so the store re-creates its indexes after the
+ * collections were dropped.
  */
-@SpringBootTest(classes = SpringTransactionJobExecutionIT.Config.class,
-        properties = { "spring.quartz.job-store.type=mongodb", "spring.quartz.scheduler.name=txApp" })
+@SpringBootTest(
+    classes = SpringTransactionJobExecutionIT.Config.class,
+    properties = {"spring.quartz.job-store.type=mongodb", "spring.quartz.scheduler.name=txApp"})
 @DirtiesContext(classMode = ClassMode.AFTER_EACH_TEST_METHOD)
 class SpringTransactionJobExecutionIT extends AbstractMongoIT {
 
-    private static final Duration TIMEOUT = Duration.ofSeconds(30);
+  private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
-    @Autowired
-    private Scheduler scheduler;
+  @Autowired private Scheduler scheduler;
 
-    @Autowired
-    private CompletionRecorder recorder;
+  @Autowired private CompletionRecorder recorder;
 
-    @Autowired
-    @Qualifier("transactionManager")
-    private RecordingMongoTransactionManager transactionManager;
+  @Autowired
+  @Qualifier("transactionManager")
+  private RecordingMongoTransactionManager transactionManager;
 
-    @Autowired
-    @Qualifier("auditTransactionManager")
-    private RecordingMongoTransactionManager auditTransactionManager;
+  @Autowired
+  @Qualifier("auditTransactionManager")
+  private RecordingMongoTransactionManager auditTransactionManager;
 
-    @Autowired
-    private RecordingMongoJobStore jobStore;
+  @Autowired private RecordingMongoJobStore jobStore;
 
-    @BeforeEach
-    void reset() {
-        TransactionTestJobs.reset();
-    }
+  @BeforeEach
+  void reset() {
+    TransactionTestJobs.reset();
+  }
 
-    @Test
-    void successfulJobIsCommitted() throws Exception {
-        Optional<JobExecutionException> result = run(TransactionalJob.class, "commit", SUCCEED);
+  @Test
+  void successfulJobIsCommitted() throws Exception {
+    Optional<JobExecutionException> result = run(TransactionalJob.class, "commit", SUCCEED);
 
-        assertThat(result).isEmpty();
-        assertThat(IN_TRANSACTION).containsEntry("commit", true);
-        assertThat(businessDocuments("commit")).isEqualTo(1);
-        assertThat(transactionManager.begunNames()).containsExactly("DEFAULT.commit");
-    }
+    assertThat(result).isEmpty();
+    assertThat(IN_TRANSACTION).containsEntry("commit", true);
+    assertThat(businessDocuments("commit")).isEqualTo(1);
+    assertThat(transactionManager.begunNames()).containsExactly("DEFAULT.commit");
+  }
 
-    @Test
-    void jobExecutionExceptionRollsBack() throws Exception {
-        Optional<JobExecutionException> result = run(TransactionalJob.class, "failing", JOB_EXCEPTION);
+  @Test
+  void jobExecutionExceptionRollsBack() throws Exception {
+    Optional<JobExecutionException> result = run(TransactionalJob.class, "failing", JOB_EXCEPTION);
 
-        assertThat(result).get().extracting(Throwable::getMessage).isEqualTo("job failed");
-        assertThat(IN_TRANSACTION).containsEntry("failing", true);
-        assertThat(businessDocuments("failing")).isZero();
-    }
+    assertThat(result).get().extracting(Throwable::getMessage).isEqualTo("job failed");
+    assertThat(IN_TRANSACTION).containsEntry("failing", true);
+    assertThat(businessDocuments("failing")).isZero();
+  }
 
-    @Test
-    void runtimeExceptionRollsBack() throws Exception {
-        Optional<JobExecutionException> result = run(TransactionalJob.class, "throwing", RUNTIME_EXCEPTION);
+  @Test
+  void runtimeExceptionRollsBack() throws Exception {
+    Optional<JobExecutionException> result =
+        run(TransactionalJob.class, "throwing", RUNTIME_EXCEPTION);
 
-        assertThat(result).get().satisfies((ex) -> assertThat(ex).hasRootCauseInstanceOf(IllegalStateException.class));
-        assertThat(businessDocuments("throwing")).isZero();
-    }
+    assertThat(result)
+        .get()
+        .satisfies((ex) -> assertThat(ex).hasRootCauseInstanceOf(IllegalStateException.class));
+    assertThat(businessDocuments("throwing")).isZero();
+  }
 
-    @Test
-    void checkedExceptionOutsideRollbackForCommitsAsWithTransactional() throws Exception {
-        Optional<JobExecutionException> result = run(TransactionalJob.class, "checked", CHECKED_EXCEPTION);
+  @Test
+  void checkedExceptionOutsideRollbackForCommitsAsWithTransactional() throws Exception {
+    Optional<JobExecutionException> result =
+        run(TransactionalJob.class, "checked", CHECKED_EXCEPTION);
 
-        assertThat(result).isPresent();
-        assertThat(businessDocuments("checked")).isEqualTo(1);
-    }
+    assertThat(result).isPresent();
+    assertThat(businessDocuments("checked")).isEqualTo(1);
+  }
 
-    @Test
-    void transactionManagerIsSelectedByBeanName() throws Exception {
-        run(AuditJob.class, "audited", JOB_EXCEPTION);
+  @Test
+  void transactionManagerIsSelectedByBeanName() throws Exception {
+    run(AuditJob.class, "audited", JOB_EXCEPTION);
 
-        assertThat(auditTransactionManager.begunNames()).containsExactly("DEFAULT.audited");
-        assertThat(transactionManager.begun).isEmpty();
-        assertThat(businessDocuments("audited")).isZero();
-    }
+    assertThat(auditTransactionManager.begunNames()).containsExactly("DEFAULT.audited");
+    assertThat(transactionManager.begun).isEmpty();
+    assertThat(businessDocuments("audited")).isZero();
+  }
 
-    @Test
-    void propagationAndTimeoutReachTheTransactionManager() throws Exception {
-        run(RequiresNewJob.class, "requiresNew", SUCCEED);
+  @Test
+  void propagationAndTimeoutReachTheTransactionManager() throws Exception {
+    run(RequiresNewJob.class, "requiresNew", SUCCEED);
 
-        assertThat(transactionManager.begun).singleElement().satisfies((definition) -> {
-            assertThat(definition.getPropagationBehavior()).isEqualTo(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-            assertThat(definition.getTimeout()).isEqualTo(30);
-        });
-        assertThat(IN_TRANSACTION).containsEntry("requiresNew", true);
-        assertThat(businessDocuments("requiresNew")).isEqualTo(1);
-    }
+    assertThat(transactionManager.begun)
+        .singleElement()
+        .satisfies(
+            (definition) -> {
+              assertThat(definition.getPropagationBehavior())
+                  .isEqualTo(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+              assertThat(definition.getTimeout()).isEqualTo(30);
+            });
+    assertThat(IN_TRANSACTION).containsEntry("requiresNew", true);
+    assertThat(businessDocuments("requiresNew")).isEqualTo(1);
+  }
 
-    @Test
-    void notSupportedRunsWithoutTransactionSoWritesSurviveAFailure() throws Exception {
-        run(NotSupportedJob.class, "notSupported", JOB_EXCEPTION);
+  @Test
+  void notSupportedRunsWithoutTransactionSoWritesSurviveAFailure() throws Exception {
+    run(NotSupportedJob.class, "notSupported", JOB_EXCEPTION);
 
-        assertThat(IN_TRANSACTION).containsEntry("notSupported", false);
-        assertThat(transactionManager.begun).isEmpty();
-        assertThat(businessDocuments("notSupported")).isEqualTo(1);
-    }
+    assertThat(IN_TRANSACTION).containsEntry("notSupported", false);
+    assertThat(transactionManager.begun).isEmpty();
+    assertThat(businessDocuments("notSupported")).isEqualTo(1);
+  }
 
-    @Test
-    void mandatoryWithoutOuterTransactionFailsTheJobBeforeItRuns() throws Exception {
-        Optional<JobExecutionException> result = run(MandatoryJob.class, "mandatory", SUCCEED);
+  @Test
+  void mandatoryWithoutOuterTransactionFailsTheJobBeforeItRuns() throws Exception {
+    Optional<JobExecutionException> result = run(MandatoryJob.class, "mandatory", SUCCEED);
 
-        assertThat(result).get()
-            .satisfies((ex) -> assertThat(ex).hasRootCauseInstanceOf(IllegalTransactionStateException.class));
-        assertThat(IN_TRANSACTION).doesNotContainKey("mandatory");
-    }
+    assertThat(result)
+        .get()
+        .satisfies(
+            (ex) -> assertThat(ex).hasRootCauseInstanceOf(IllegalTransactionStateException.class));
+    assertThat(IN_TRANSACTION).doesNotContainKey("mandatory");
+  }
 
-    @Test
-    void timeoutRollsBackAndFailsTheJob() throws Exception {
-        Optional<JobExecutionException> result = run(TimeoutJob.class, "slow", EXCEED_TIMEOUT);
+  @Test
+  void timeoutRollsBackAndFailsTheJob() throws Exception {
+    Optional<JobExecutionException> result = run(TimeoutJob.class, "slow", EXCEED_TIMEOUT);
 
-        assertThat(result).get()
-            .satisfies((ex) -> assertThat(ex).hasRootCauseInstanceOf(TransactionTimedOutException.class));
-        assertThat(businessDocuments("slow")).isZero();
-    }
+    assertThat(result)
+        .get()
+        .satisfies(
+            (ex) -> assertThat(ex).hasRootCauseInstanceOf(TransactionTimedOutException.class));
+    assertThat(businessDocuments("slow")).isZero();
+  }
 
-    @Test
-    void jobWithoutAnnotationRunsWithoutTransactionWhenTheSwitchIsOff() throws Exception {
-        run(PlainJob.class, "plain", RUNTIME_EXCEPTION);
+  @Test
+  void jobWithoutAnnotationRunsWithoutTransactionWhenTheSwitchIsOff() throws Exception {
+    run(PlainJob.class, "plain", RUNTIME_EXCEPTION);
 
-        assertThat(IN_TRANSACTION).containsEntry("plain", false);
-        assertThat(transactionManager.begun).isEmpty();
-        assertThat(businessDocuments("plain")).isEqualTo(1);
-    }
+    assertThat(IN_TRANSACTION).containsEntry("plain", false);
+    assertThat(transactionManager.begun).isEmpty();
+    assertThat(businessDocuments("plain")).isEqualTo(1);
+  }
 
-    @Test
-    void vetoedExecutionOpensNoTransaction() throws Exception {
-        scheduler.scheduleJob(job(TransactionalJob.class, "vetoedJob", SUCCEED), now("vetoedJob"));
+  @Test
+  void vetoedExecutionOpensNoTransaction() throws Exception {
+    scheduler.scheduleJob(job(TransactionalJob.class, "vetoedJob", SUCCEED), now("vetoedJob"));
 
-        await().atMost(TIMEOUT).until(() -> recorder.vetoed.contains("vetoedJob"));
-        assertThat(transactionManager.begun).isEmpty();
-        assertThat(IN_TRANSACTION).doesNotContainKey("vetoedJob");
-    }
+    await().atMost(TIMEOUT).until(() -> recorder.vetoed.contains("vetoedJob"));
+    assertThat(transactionManager.begun).isEmpty();
+    assertThat(IN_TRANSACTION).doesNotContainKey("vetoedJob");
+  }
 
-    @Test
-    void transactionIsCompleteBeforeTheStoreHearsOfTheCompletion() throws Exception {
-        run(TransactionalJob.class, "ordered", SUCCEED);
+  @Test
+  void transactionIsCompleteBeforeTheStoreHearsOfTheCompletion() throws Exception {
+    run(TransactionalJob.class, "ordered", SUCCEED);
 
-        await().atMost(TIMEOUT).until(() -> jobStore.businessDocumentsAtCompletion.containsKey("ordered"));
-        assertThat(jobStore.businessDocumentsAtCompletion).containsEntry("ordered", 1L);
-    }
+    await()
+        .atMost(TIMEOUT)
+        .until(() -> jobStore.businessDocumentsAtCompletion.containsKey("ordered"));
+    assertThat(jobStore.businessDocumentsAtCompletion).containsEntry("ordered", 1L);
+  }
 
-    @Test
-    void persistedJobDataJoinsTheMongoTransaction() throws Exception {
-        JobDetail job = JobBuilder.newJob(CountingJob.class).withIdentity("counting").usingJobData("count", 0)
-            .storeDurably().build();
-        scheduler.scheduleJob(job, TriggerBuilder.newTrigger().withIdentity("counting").startNow()
-            .withSchedule(SimpleScheduleBuilder.simpleSchedule().withIntervalInMilliseconds(100).withRepeatCount(1))
+  @Test
+  void persistedJobDataJoinsTheMongoTransaction() throws Exception {
+    JobDetail job =
+        JobBuilder.newJob(CountingJob.class)
+            .withIdentity("counting")
+            .usingJobData("count", 0)
+            .storeDurably()
+            .build();
+    scheduler.scheduleJob(
+        job,
+        TriggerBuilder.newTrigger()
+            .withIdentity("counting")
+            .startNow()
+            .withSchedule(
+                SimpleScheduleBuilder.simpleSchedule()
+                    .withIntervalInMilliseconds(100)
+                    .withRepeatCount(1))
             .build());
 
-        // the first execution fails: its document and its job-data change are rolled back together,
-        // so the second execution starts again from count 0
-        await().atMost(TIMEOUT).until(() -> COUNTS.size() == 2);
-        assertThat(COUNTS).containsExactly(1, 1);
-        await().atMost(TIMEOUT)
-            .untilAsserted(() -> assertThat(scheduler.getJobDetail(job.getKey()).getJobDataMap().getInt("count"))
-                .isEqualTo(1));
-        assertThat(businessDocuments("counting")).isEqualTo(1);
+    // the first execution fails: its document and its job-data change are rolled back together,
+    // so the second execution starts again from count 0
+    await().atMost(TIMEOUT).until(() -> COUNTS.size() == 2);
+    assertThat(COUNTS).containsExactly(1, 1);
+    await()
+        .atMost(TIMEOUT)
+        .untilAsserted(
+            () ->
+                assertThat(scheduler.getJobDetail(job.getKey()).getJobDataMap().getInt("count"))
+                    .isEqualTo(1));
+    assertThat(businessDocuments("counting")).isEqualTo(1);
+  }
+
+  private Optional<JobExecutionException> run(
+      Class<? extends Job> jobClass, String name, String outcome) throws Exception {
+    scheduler.scheduleJob(job(jobClass, name, outcome), now(name));
+    await().atMost(TIMEOUT).until(() -> recorder.executed.containsKey(name));
+    return recorder.executed.get(name);
+  }
+
+  private static JobDetail job(Class<? extends Job> jobClass, String name, String outcome) {
+    return JobBuilder.newJob(jobClass).withIdentity(name).usingJobData(OUTCOME, outcome).build();
+  }
+
+  private static org.quartz.Trigger now(String name) {
+    return TriggerBuilder.newTrigger().withIdentity(name).startNow().build();
+  }
+
+  static long businessDocuments(String job) {
+    return mongoClient().getDatabase("test").getCollection(BUSINESS).countDocuments(eq("job", job));
+  }
+
+  /**
+   * Records how many business documents of a job were visible when the store heard of its
+   * completion.
+   */
+  static class RecordingMongoJobStore extends MongoJobStore {
+
+    final Map<String, Long> businessDocumentsAtCompletion = new ConcurrentHashMap<>();
+
+    RecordingMongoJobStore(MongoClient client, QuartzProperties properties) {
+      super(
+          client,
+          "test",
+          properties.jobStore().toSettings(),
+          new MongoJobStoreSettings(
+              properties.jobStore().mongodb().collectionPrefix(),
+              properties.jobStore().mongodb().lockTimeout()));
     }
 
-    private Optional<JobExecutionException> run(Class<? extends Job> jobClass, String name, String outcome)
-            throws Exception {
-        scheduler.scheduleJob(job(jobClass, name, outcome), now(name));
-        await().atMost(TIMEOUT).until(() -> recorder.executed.containsKey(name));
-        return recorder.executed.get(name);
+    @Override
+    public void triggeredJobComplete(
+        OperableTrigger trigger,
+        JobDetail jobDetail,
+        CompletedExecutionInstruction triggerInstCode) {
+      JobKey key = jobDetail.getKey();
+      businessDocumentsAtCompletion.put(key.getName(), businessDocuments(key.getName()));
+      super.triggeredJobComplete(trigger, jobDetail, triggerInstCode);
+    }
+  }
+
+  @Configuration(proxyBeanMethods = false)
+  @ImportAutoConfiguration({
+    MongoAutoConfiguration.class,
+    DataMongoAutoConfiguration.class,
+    QuartzAutoConfiguration.class
+  })
+  static class Config {
+
+    @Bean
+    @Primary
+    RecordingMongoTransactionManager transactionManager(MongoDatabaseFactory databaseFactory) {
+      return new RecordingMongoTransactionManager(databaseFactory);
     }
 
-    private static JobDetail job(Class<? extends Job> jobClass, String name, String outcome) {
-        return JobBuilder.newJob(jobClass).withIdentity(name).usingJobData(OUTCOME, outcome).build();
+    @Bean
+    RecordingMongoTransactionManager auditTransactionManager(MongoDatabaseFactory databaseFactory) {
+      return new RecordingMongoTransactionManager(databaseFactory);
     }
 
-    private static org.quartz.Trigger now(String name) {
-        return TriggerBuilder.newTrigger().withIdentity(name).startNow().build();
+    @Bean
+    CompletionRecorder completionRecorder() {
+      return new CompletionRecorder();
     }
 
-    static long businessDocuments(String job) {
-        return mongoClient().getDatabase("test").getCollection(BUSINESS).countDocuments(eq("job", job));
+    @Bean
+    VetoingTriggerListener vetoingTriggerListener() {
+      return new VetoingTriggerListener();
     }
 
-    /** Records how many business documents of a job were visible when the store heard of its completion. */
-    static class RecordingMongoJobStore extends MongoJobStore {
-
-        final Map<String, Long> businessDocumentsAtCompletion = new ConcurrentHashMap<>();
-
-        RecordingMongoJobStore(MongoClient client, QuartzProperties properties) {
-            super(client, "test", properties.jobStore().toSettings(), new MongoJobStoreSettings(
-                    properties.jobStore().mongodb().collectionPrefix(), properties.jobStore().mongodb().lockTimeout()));
-        }
-
-        @Override
-        public void triggeredJobComplete(OperableTrigger trigger, JobDetail jobDetail,
-                CompletedExecutionInstruction triggerInstCode) {
-            JobKey key = jobDetail.getKey();
-            businessDocumentsAtCompletion.put(key.getName(), businessDocuments(key.getName()));
-            super.triggeredJobComplete(trigger, jobDetail, triggerInstCode);
-        }
+    @Bean
+    OffsetClock clock() {
+      return new OffsetClock();
     }
 
-    @Configuration(proxyBeanMethods = false)
-    @ImportAutoConfiguration({ MongoAutoConfiguration.class, DataMongoAutoConfiguration.class,
-            QuartzAutoConfiguration.class })
-    static class Config {
-
-        @Bean
-        @Primary
-        RecordingMongoTransactionManager transactionManager(MongoDatabaseFactory databaseFactory) {
-            return new RecordingMongoTransactionManager(databaseFactory);
-        }
-
-        @Bean
-        RecordingMongoTransactionManager auditTransactionManager(MongoDatabaseFactory databaseFactory) {
-            return new RecordingMongoTransactionManager(databaseFactory);
-        }
-
-        @Bean
-        CompletionRecorder completionRecorder() {
-            return new CompletionRecorder();
-        }
-
-        @Bean
-        VetoingTriggerListener vetoingTriggerListener() {
-            return new VetoingTriggerListener();
-        }
-
-        @Bean
-        OffsetClock clock() {
-            return new OffsetClock();
-        }
-
-        @Bean
-        RecordingMongoJobStore recordingMongoJobStore(MongoClient mongoClient, QuartzProperties properties) {
-            return new RecordingMongoJobStore(mongoClient, properties);
-        }
-
-        @Bean
-        SchedulerFactoryBeanCustomizer recordingStore(RecordingMongoJobStore recordingMongoJobStore) {
-            return (schedulerFactoryBean) -> schedulerFactoryBean.setJobStore(recordingMongoJobStore);
-        }
+    @Bean
+    RecordingMongoJobStore recordingMongoJobStore(
+        MongoClient mongoClient, QuartzProperties properties) {
+      return new RecordingMongoJobStore(mongoClient, properties);
     }
+
+    @Bean
+    SchedulerFactoryBeanCustomizer recordingStore(RecordingMongoJobStore recordingMongoJobStore) {
+      return (schedulerFactoryBean) -> schedulerFactoryBean.setJobStore(recordingMongoJobStore);
+    }
+  }
 }

@@ -24,44 +24,44 @@ import java.time.ZoneOffset;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Test {@link Clock} whose time only moves when the test says so, used to verify that Quartz
- * takes "now" from the configured clock instead of the system time.
- * (Replaces the former {@code FakeTimeBroker} by Thanos Tsiamis, https://github.com/ThanosTsiamis.)
+ * Test {@link Clock} whose time only moves when the test says so, used to verify that Quartz takes
+ * "now" from the configured clock instead of the system time. (Replaces the former {@code
+ * FakeTimeBroker} by Thanos Tsiamis, https://github.com/ThanosTsiamis.)
  */
 public final class MutableClock extends Clock {
 
-    private final AtomicReference<Instant> now;
-    private final ZoneId zone;
+  private final AtomicReference<Instant> now;
+  private final ZoneId zone;
 
-    public MutableClock(Instant start) {
-        this(new AtomicReference<>(start), ZoneOffset.UTC);
-    }
+  public MutableClock(Instant start) {
+    this(new AtomicReference<>(start), ZoneOffset.UTC);
+  }
 
-    private MutableClock(AtomicReference<Instant> now, ZoneId zone) {
-        this.now = now;
-        this.zone = zone;
-    }
+  private MutableClock(AtomicReference<Instant> now, ZoneId zone) {
+    this.now = now;
+    this.zone = zone;
+  }
 
-    public void setInstant(Instant instant) {
-        now.set(instant);
-    }
+  public void setInstant(Instant instant) {
+    now.set(instant);
+  }
 
-    public void advance(Duration amount) {
-        now.updateAndGet(i -> i.plus(amount));
-    }
+  public void advance(Duration amount) {
+    now.updateAndGet(i -> i.plus(amount));
+  }
 
-    @Override
-    public ZoneId getZone() {
-        return zone;
-    }
+  @Override
+  public ZoneId getZone() {
+    return zone;
+  }
 
-    @Override
-    public Clock withZone(ZoneId zone) {
-        return new MutableClock(now, zone);
-    }
+  @Override
+  public Clock withZone(ZoneId zone) {
+    return new MutableClock(now, zone);
+  }
 
-    @Override
-    public Instant instant() {
-        return now.get();
-    }
+  @Override
+  public Instant instant() {
+    return now.get();
+  }
 }

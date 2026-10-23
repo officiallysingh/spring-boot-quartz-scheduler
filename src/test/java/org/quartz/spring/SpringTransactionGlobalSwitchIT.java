@@ -21,7 +21,6 @@ import static org.quartz.spring.TransactionTestJobs.RUNTIME_EXCEPTION;
 import static org.quartz.spring.TransactionTestJobs.SUCCEED;
 
 import java.time.Duration;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.quartz.JobBuilder;
@@ -44,64 +43,66 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.annotation.DirtiesContext.ClassMode;
 
 /**
- * {@code spring.quartz.transaction.enabled=true}: jobs without {@code @ExecuteInTransaction}
- * run in a transaction of the unique transaction manager.
+ * {@code spring.quartz.transaction.enabled=true}: jobs without {@code @ExecuteInTransaction} run in
+ * a transaction of the unique transaction manager.
  */
-@SpringBootTest(classes = SpringTransactionGlobalSwitchIT.Config.class,
-        properties = { "spring.quartz.job-store.type=mongodb", "spring.quartz.transaction.enabled=true" })
+@SpringBootTest(
+    classes = SpringTransactionGlobalSwitchIT.Config.class,
+    properties = {"spring.quartz.job-store.type=mongodb", "spring.quartz.transaction.enabled=true"})
 @DirtiesContext(classMode = ClassMode.AFTER_EACH_TEST_METHOD)
 class SpringTransactionGlobalSwitchIT extends AbstractMongoIT {
 
-    @Autowired
-    private Scheduler scheduler;
+  @Autowired private Scheduler scheduler;
 
-    @Autowired
-    private CompletionRecorder recorder;
+  @Autowired private CompletionRecorder recorder;
 
-    @Autowired
-    private RecordingMongoTransactionManager transactionManager;
+  @Autowired private RecordingMongoTransactionManager transactionManager;
 
-    @BeforeEach
-    void reset() {
-        TransactionTestJobs.reset();
+  @BeforeEach
+  void reset() {
+    TransactionTestJobs.reset();
+  }
+
+  @Test
+  void jobWithoutAnnotationIsRolledBack() throws Exception {
+    run("failingPlain", RUNTIME_EXCEPTION);
+
+    assertThat(IN_TRANSACTION).containsEntry("failingPlain", true);
+    assertThat(transactionManager.begunNames()).containsExactly("DEFAULT.failingPlain");
+    assertThat(SpringTransactionJobExecutionIT.businessDocuments("failingPlain")).isZero();
+  }
+
+  @Test
+  void jobWithoutAnnotationIsCommitted() throws Exception {
+    run("succeedingPlain", SUCCEED);
+
+    assertThat(IN_TRANSACTION).containsEntry("succeedingPlain", true);
+    assertThat(SpringTransactionJobExecutionIT.businessDocuments("succeedingPlain")).isEqualTo(1);
+  }
+
+  private void run(String name, String outcome) throws Exception {
+    scheduler.scheduleJob(
+        JobBuilder.newJob(PlainJob.class).withIdentity(name).usingJobData(OUTCOME, outcome).build(),
+        TriggerBuilder.newTrigger().withIdentity(name).startNow().build());
+    await().atMost(Duration.ofSeconds(30)).until(() -> recorder.executed.containsKey(name));
+  }
+
+  @Configuration(proxyBeanMethods = false)
+  @ImportAutoConfiguration({
+    MongoAutoConfiguration.class,
+    DataMongoAutoConfiguration.class,
+    QuartzAutoConfiguration.class
+  })
+  static class Config {
+
+    @Bean
+    RecordingMongoTransactionManager transactionManager(MongoDatabaseFactory databaseFactory) {
+      return new RecordingMongoTransactionManager(databaseFactory);
     }
 
-    @Test
-    void jobWithoutAnnotationIsRolledBack() throws Exception {
-        run("failingPlain", RUNTIME_EXCEPTION);
-
-        assertThat(IN_TRANSACTION).containsEntry("failingPlain", true);
-        assertThat(transactionManager.begunNames()).containsExactly("DEFAULT.failingPlain");
-        assertThat(SpringTransactionJobExecutionIT.businessDocuments("failingPlain")).isZero();
+    @Bean
+    CompletionRecorder completionRecorder() {
+      return new CompletionRecorder();
     }
-
-    @Test
-    void jobWithoutAnnotationIsCommitted() throws Exception {
-        run("succeedingPlain", SUCCEED);
-
-        assertThat(IN_TRANSACTION).containsEntry("succeedingPlain", true);
-        assertThat(SpringTransactionJobExecutionIT.businessDocuments("succeedingPlain")).isEqualTo(1);
-    }
-
-    private void run(String name, String outcome) throws Exception {
-        scheduler.scheduleJob(JobBuilder.newJob(PlainJob.class).withIdentity(name).usingJobData(OUTCOME, outcome).build(),
-                TriggerBuilder.newTrigger().withIdentity(name).startNow().build());
-        await().atMost(Duration.ofSeconds(30)).until(() -> recorder.executed.containsKey(name));
-    }
-
-    @Configuration(proxyBeanMethods = false)
-    @ImportAutoConfiguration({ MongoAutoConfiguration.class, DataMongoAutoConfiguration.class,
-            QuartzAutoConfiguration.class })
-    static class Config {
-
-        @Bean
-        RecordingMongoTransactionManager transactionManager(MongoDatabaseFactory databaseFactory) {
-            return new RecordingMongoTransactionManager(databaseFactory);
-        }
-
-        @Bean
-        CompletionRecorder completionRecorder() {
-            return new CompletionRecorder();
-        }
-    }
+  }
 }

@@ -18,28 +18,28 @@ import org.springframework.data.redis.core.script.RedisScript;
 
 /**
  * The Lua scripts that make every multi-key change of the Redis job store atomic.
- * <p>
- * {@code ARGV[1]} is always the store's key prefix ({@code keyPrefix{schedName}:}); the
- * other keys a script touches are derived from it. Every key of a scheduler contains the
- * {@code {schedName}} hash tag, so a script only touches one hash slot (Redis Cluster
- * safe); {@code KEYS[1]} names a key of that slot for routing. Key parts ({@code k}) are
- * escaped by {@link RedisKeys}.
- * <p>
- * Layout: {@code job:<k>} / {@code trigger:<k>} / {@code fired:<id>} hashes;
- * {@code job_groups}, {@code trigger_groups} sets of group names; {@code jobs:<group>},
- * {@code triggers:<group>}, {@code job_triggers:<job k>}, {@code calendar_triggers:<calendar>},
- * {@code state:<STATE>} sets of keys; {@code waiting} (and {@code waiting_ignore_misfire})
- * sorted sets of {@code WAITING} triggers scored by next fire time; {@code fired_ids},
- * {@code fired_by_instance:<id>}, {@code fired_by_job:<k>}, {@code fired_by_trigger:<k>},
- * {@code fired_instances} for fired triggers.
+ *
+ * <p>{@code ARGV[1]} is always the store's key prefix ({@code keyPrefix{schedName}:}); the other
+ * keys a script touches are derived from it. Every key of a scheduler contains the {@code
+ * {schedName}} hash tag, so a script only touches one hash slot (Redis Cluster safe); {@code
+ * KEYS[1]} names a key of that slot for routing. Key parts ({@code k}) are escaped by {@link
+ * RedisKeys}.
+ *
+ * <p>Layout: {@code job:<k>} / {@code trigger:<k>} / {@code fired:<id>} hashes; {@code job_groups},
+ * {@code trigger_groups} sets of group names; {@code jobs:<group>}, {@code triggers:<group>},
+ * {@code job_triggers:<job k>}, {@code calendar_triggers:<calendar>}, {@code state:<STATE>} sets of
+ * keys; {@code waiting} (and {@code waiting_ignore_misfire}) sorted sets of {@code WAITING}
+ * triggers scored by next fire time; {@code fired_ids}, {@code fired_by_instance:<id>}, {@code
+ * fired_by_job:<k>}, {@code fired_by_trigger:<k>}, {@code fired_instances} for fired triggers.
  */
 final class RedisScripts {
 
-    private RedisScripts() {
-    }
+  private RedisScripts() {}
 
-    /** ARGV: prefix, job k, escaped group, raw group, field/value pairs... Returns 1. */
-    static final RedisScript<Long> STORE_JOB = script("""
+  /** ARGV: prefix, job k, escaped group, raw group, field/value pairs... Returns 1. */
+  static final RedisScript<Long> STORE_JOB =
+      script(
+          """
             local P = ARGV[1]
             local h = P .. 'job:' .. ARGV[2]
             redis.call('DEL', h)
@@ -49,8 +49,10 @@ final class RedisScripts {
             return 1
             """);
 
-    /** ARGV: prefix, job k, raw group. Returns 1 if the job existed. */
-    static final RedisScript<Long> DELETE_JOB = script("""
+  /** ARGV: prefix, job k, raw group. Returns 1 if the job existed. */
+  static final RedisScript<Long> DELETE_JOB =
+      script(
+          """
             local P = ARGV[1]
             local h = P .. 'job:' .. ARGV[2]
             local group = redis.call('HGET', h, '_group')
@@ -63,8 +65,10 @@ final class RedisScripts {
             return 1
             """);
 
-    /** ARGV: prefix, job k, field/value pairs of the new job data (replaces all data fields). */
-    static final RedisScript<Long> UPDATE_JOB_DATA = script("""
+  /** ARGV: prefix, job k, field/value pairs of the new job data (replaces all data fields). */
+  static final RedisScript<Long> UPDATE_JOB_DATA =
+      script(
+          """
             local P = ARGV[1]
             local h = P .. 'job:' .. ARGV[2]
             if redis.call('EXISTS', h) == 0 then return 0 end
@@ -76,7 +80,8 @@ final class RedisScripts {
             return 1
             """);
 
-    private static final String REMOVE_TRIGGER_INDEXES = """
+  private static final String REMOVE_TRIGGER_INDEXES =
+      """
             local function removeTriggerIndexes(P, tk, h)
               local old = redis.call('HMGET', h, '_jobKey', '_group', '_calKey', 'state', 'group')
               if not old[1] then return false end
@@ -93,7 +98,8 @@ final class RedisScripts {
             end
             """;
 
-    private static final String INDEX_WAITING = """
+  private static final String INDEX_WAITING =
+      """
             local function indexWaiting(P, tk, state, nft, misfire)
               if state == 'WAITING' and nft and nft ~= '' then
                 redis.call('ZADD', P .. 'waiting', nft, tk)
@@ -105,11 +111,15 @@ final class RedisScripts {
             end
             """;
 
-    /**
-     * ARGV: prefix, trigger k, job k, escaped group, escaped calendar ('' for none), state,
-     * raw group, field/value pairs... Replaces the trigger and all its index entries.
-     */
-    static final RedisScript<Long> STORE_TRIGGER = script(REMOVE_TRIGGER_INDEXES + INDEX_WAITING + """
+  /**
+   * ARGV: prefix, trigger k, job k, escaped group, escaped calendar ('' for none), state, raw
+   * group, field/value pairs... Replaces the trigger and all its index entries.
+   */
+  static final RedisScript<Long> STORE_TRIGGER =
+      script(
+          REMOVE_TRIGGER_INDEXES
+              + INDEX_WAITING
+              + """
             local P = ARGV[1]
             local tk = ARGV[2]
             local h = P .. 'trigger:' .. tk
@@ -127,8 +137,11 @@ final class RedisScripts {
             return 1
             """);
 
-    /** ARGV: prefix, trigger k. Returns 1 if the trigger existed. */
-    static final RedisScript<Long> DELETE_TRIGGER = script(REMOVE_TRIGGER_INDEXES + """
+  /** ARGV: prefix, trigger k. Returns 1 if the trigger existed. */
+  static final RedisScript<Long> DELETE_TRIGGER =
+      script(
+          REMOVE_TRIGGER_INDEXES
+              + """
             local P = ARGV[1]
             local h = P .. 'trigger:' .. ARGV[2]
             if not removeTriggerIndexes(P, ARGV[2], h) then return 0 end
@@ -136,12 +149,15 @@ final class RedisScripts {
             return 1
             """);
 
-    /**
-     * Changes trigger states. ARGV: prefix, source set key ('' for a single trigger), single
-     * trigger k, new state, then the old states the change applies to (none = any).
-     * Returns the number of triggers changed.
-     */
-    static final RedisScript<Long> SET_STATE = script(INDEX_WAITING + """
+  /**
+   * Changes trigger states. ARGV: prefix, source set key ('' for a single trigger), single trigger
+   * k, new state, then the old states the change applies to (none = any). Returns the number of
+   * triggers changed.
+   */
+  static final RedisScript<Long> SET_STATE =
+      script(
+          INDEX_WAITING
+              + """
             local P = ARGV[1]
             local newState = ARGV[4]
             local olds = {}
@@ -164,8 +180,10 @@ final class RedisScripts {
             return count
             """);
 
-    /** ARGV: prefix, id, escaped instance, job k, trigger k, raw instance, field/value pairs. */
-    static final RedisScript<Long> INSERT_FIRED = script("""
+  /** ARGV: prefix, id, escaped instance, job k, trigger k, raw instance, field/value pairs. */
+  static final RedisScript<Long> INSERT_FIRED =
+      script(
+          """
             local P = ARGV[1]
             local h = P .. 'fired:' .. ARGV[2]
             redis.call('HSET', h, '_inst', ARGV[3], '_jobKey', ARGV[4], '_trigKey', ARGV[5], unpack(ARGV, 7))
@@ -177,15 +195,18 @@ final class RedisScripts {
             return 1
             """);
 
-    /** ARGV: prefix, id, field/value pairs. Updates an existing entry only. */
-    static final RedisScript<Long> UPDATE_FIRED = script("""
+  /** ARGV: prefix, id, field/value pairs. Updates an existing entry only. */
+  static final RedisScript<Long> UPDATE_FIRED =
+      script(
+          """
             local h = ARGV[1] .. 'fired:' .. ARGV[2]
             if redis.call('EXISTS', h) == 0 then return 0 end
             redis.call('HSET', h, unpack(ARGV, 3))
             return 1
             """);
 
-    private static final String DELETE_FIRED_FUNCTION = """
+  private static final String DELETE_FIRED_FUNCTION =
+      """
             local function deleteFired(P, id)
               local h = P .. 'fired:' .. id
               local f = redis.call('HMGET', h, '_inst', '_jobKey', '_trigKey', 'instanceId')
@@ -202,13 +223,19 @@ final class RedisScripts {
             end
             """;
 
-    /** ARGV: prefix, id. Returns 1 if the entry existed. */
-    static final RedisScript<Long> DELETE_FIRED = script(DELETE_FIRED_FUNCTION + """
+  /** ARGV: prefix, id. Returns 1 if the entry existed. */
+  static final RedisScript<Long> DELETE_FIRED =
+      script(
+          DELETE_FIRED_FUNCTION
+              + """
             return deleteFired(ARGV[1], ARGV[2])
             """);
 
-    /** ARGV: prefix, source set key (all ids, or one instance's). Returns the number deleted. */
-    static final RedisScript<Long> DELETE_FIRED_SET = script(DELETE_FIRED_FUNCTION + """
+  /** ARGV: prefix, source set key (all ids, or one instance's). Returns the number deleted. */
+  static final RedisScript<Long> DELETE_FIRED_SET =
+      script(
+          DELETE_FIRED_FUNCTION
+              + """
             local count = 0
             for _, id in ipairs(redis.call('SMEMBERS', ARGV[2])) do
               count = count + deleteFired(ARGV[1], id)
@@ -216,11 +243,13 @@ final class RedisScripts {
             return count
             """);
 
-    /**
-     * Deletes all scheduling data of the scheduler (not check-ins or locks).
-     * ARGV: prefix, glob pattern of the scheduler's keys. O(number of keys).
-     */
-    static final RedisScript<Long> CLEAR_ALL = script("""
+  /**
+   * Deletes all scheduling data of the scheduler (not check-ins or locks). ARGV: prefix, glob
+   * pattern of the scheduler's keys. O(number of keys).
+   */
+  static final RedisScript<Long> CLEAR_ALL =
+      script(
+          """
             local P = ARGV[1]
             local keep = { [P .. 'schedulers'] = true }
             local count = 0
@@ -233,8 +262,10 @@ final class RedisScripts {
             return count
             """);
 
-    /** KEYS: lock key. ARGV: owner, lease ms. Returns 1 if the owner now holds the lock. */
-    static final RedisScript<Long> ACQUIRE_LOCK = script("""
+  /** KEYS: lock key. ARGV: owner, lease ms. Returns 1 if the owner now holds the lock. */
+  static final RedisScript<Long> ACQUIRE_LOCK =
+      script(
+          """
             if redis.call('GET', KEYS[1]) == ARGV[1] then
               redis.call('PEXPIRE', KEYS[1], ARGV[2])
               return 1
@@ -243,13 +274,15 @@ final class RedisScripts {
             return 0
             """);
 
-    /** KEYS: lock key. ARGV: owner. Deletes the lock only if the owner holds it. */
-    static final RedisScript<Long> RELEASE_LOCK = script("""
+  /** KEYS: lock key. ARGV: owner. Deletes the lock only if the owner holds it. */
+  static final RedisScript<Long> RELEASE_LOCK =
+      script(
+          """
             if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) end
             return 0
             """);
 
-    private static RedisScript<Long> script(String source) {
-        return new DefaultRedisScript<>(source, Long.class);
-    }
+  private static RedisScript<Long> script(String source) {
+    return new DefaultRedisScript<>(source, Long.class);
+  }
 }

@@ -13,62 +13,60 @@
  */
 package org.quartz.support;
 
-import java.util.Set;
-
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.testcontainers.mongodb.MongoDBContainer;
 
 /**
- * Base class for integration tests against the JVM-wide MongoDB container
- * (single-node replica set, so transactions work).
- * <p>
- * Spring tests get the connection through {@link ServiceConnection @ServiceConnection};
- * plain store tests use {@link #mongoClient()} / {@link #connectionString()}. After each
- * test every collection outside the {@code admin}, {@code config} and {@code local}
- * databases is dropped; the container itself is never restarted.
+ * Base class for integration tests against the JVM-wide MongoDB container (single-node replica set,
+ * so transactions work).
+ *
+ * <p>Spring tests get the connection through {@link ServiceConnection @ServiceConnection}; plain
+ * store tests use {@link #mongoClient()} / {@link #connectionString()}. After each test every
+ * collection outside the {@code admin}, {@code config} and {@code local} databases is dropped; the
+ * container itself is never restarted.
  */
 public abstract class AbstractMongoIT {
 
-    private static final Set<String> SYSTEM_DATABASES = Set.of("admin", "config", "local");
+  private static final Set<String> SYSTEM_DATABASES = Set.of("admin", "config", "local");
 
-    @ServiceConnection
-    protected static final MongoDBContainer MONGO = SharedContainers.mongo();
+  @ServiceConnection protected static final MongoDBContainer MONGO = SharedContainers.mongo();
 
-    /** Connection string for the replica set, database {@code test}. */
-    public static String connectionString() {
-        return MONGO.getReplicaSetUrl();
-    }
+  /** Connection string for the replica set, database {@code test}. */
+  public static String connectionString() {
+    return MONGO.getReplicaSetUrl();
+  }
 
-    /** A client shared by all tests in the JVM; do not close it. */
-    public static MongoClient mongoClient() {
-        return ClientHolder.CLIENT;
-    }
+  /** A client shared by all tests in the JVM; do not close it. */
+  public static MongoClient mongoClient() {
+    return ClientHolder.CLIENT;
+  }
 
-    @AfterEach
-    void dropCollections() {
-        dropAllCollections();
-    }
+  @AfterEach
+  void dropCollections() {
+    dropAllCollections();
+  }
 
-    /**
-     * Drops every collection outside the system databases. Also usable by tests that cannot
-     * extend this class (for example store tests extending a contract kit).
-     */
-    public static void dropAllCollections() {
-        for (String databaseName : mongoClient().listDatabaseNames()) {
-            if (!SYSTEM_DATABASES.contains(databaseName)) {
-                MongoDatabase database = mongoClient().getDatabase(databaseName);
-                for (String collection : database.listCollectionNames()) {
-                    database.getCollection(collection).drop();
-                }
-            }
+  /**
+   * Drops every collection outside the system databases. Also usable by tests that cannot extend
+   * this class (for example store tests extending a contract kit).
+   */
+  public static void dropAllCollections() {
+    for (String databaseName : mongoClient().listDatabaseNames()) {
+      if (!SYSTEM_DATABASES.contains(databaseName)) {
+        MongoDatabase database = mongoClient().getDatabase(databaseName);
+        for (String collection : database.listCollectionNames()) {
+          database.getCollection(collection).drop();
         }
+      }
     }
+  }
 
-    private static final class ClientHolder {
-        static final MongoClient CLIENT = MongoClients.create(connectionString());
-    }
+  private static final class ClientHolder {
+    static final MongoClient CLIENT = MongoClients.create(connectionString());
+  }
 }

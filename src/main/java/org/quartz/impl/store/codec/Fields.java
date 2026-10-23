@@ -14,50 +14,54 @@
 package org.quartz.impl.store.codec;
 
 import java.util.Map;
-
 import org.jspecify.annotations.Nullable;
 
 /**
- * Typed reads from a store-neutral field map, whose values are either typed
- * ({@code String}, {@code Long}, {@code Integer}, {@code Boolean}, {@code byte[]}, as written
- * by MongoDB) or strings (as written to a Redis hash).
+ * Typed reads from a store-neutral field map, whose values are either typed ({@code String}, {@code
+ * Long}, {@code Integer}, {@code Boolean}, {@code byte[]}, as written by MongoDB) or strings (as
+ * written to a Redis hash).
  */
 final class Fields {
 
-    private Fields() {
-    }
+  private Fields() {}
 
-    static @Nullable String string(Map<String, ?> fields, String name) {
-        Object value = fields.get(name);
-        return (value != null) ? value.toString() : null;
-    }
+  static @Nullable String string(Map<String, ?> fields, String name) {
+    Object value = fields.get(name);
+    return (value != null) ? value.toString() : null;
+  }
 
-    static @Nullable Long longValue(Map<String, ?> fields, String name) {
-        Object value = fields.get(name);
-        if (value == null) {
-            return null;
-        }
-        return (value instanceof Number number) ? number.longValue() : Long.valueOf(value.toString());
+  static @Nullable Long longValue(Map<String, ?> fields, String name) {
+    Object value = fields.get(name);
+    if (value == null) {
+      return null;
     }
+    return (value instanceof Number number) ? number.longValue() : Long.valueOf(value.toString());
+  }
 
-    static int intValue(Map<String, ?> fields, String name, int defaultValue) {
-        Object value = fields.get(name);
-        if (value == null) {
-            return defaultValue;
-        }
-        return (value instanceof Number number) ? number.intValue() : Integer.parseInt(value.toString());
+  static int intValue(Map<String, ?> fields, String name, int defaultValue) {
+    Object value = fields.get(name);
+    if (value == null) {
+      return defaultValue;
     }
+    return (value instanceof Number number)
+        ? number.intValue()
+        : Integer.parseInt(value.toString());
+  }
 
-    static boolean booleanValue(Map<String, ?> fields, String name) {
-        Object value = fields.get(name);
-        return (value instanceof Boolean bool) ? bool : value != null && Boolean.parseBoolean(value.toString());
-    }
+  static boolean booleanValue(Map<String, ?> fields, String name) {
+    Object value = fields.get(name);
+    return (value instanceof Boolean bool)
+        ? bool
+        : value != null && Boolean.parseBoolean(value.toString());
+  }
 
-    static byte @Nullable [] bytes(Map<String, ?> fields, String name) {
-        Object value = fields.get(name);
-        if (value == null) {
-            return null;
-        }
-        return (value instanceof byte[] bytes) ? bytes : SerializationCodec.fromBase64(value.toString());
+  static byte @Nullable [] bytes(Map<String, ?> fields, String name) {
+    Object value = fields.get(name);
+    if (value == null) {
+      return null;
     }
+    return (value instanceof byte[] bytes)
+        ? bytes
+        : SerializationCodec.fromBase64(value.toString());
+  }
 }

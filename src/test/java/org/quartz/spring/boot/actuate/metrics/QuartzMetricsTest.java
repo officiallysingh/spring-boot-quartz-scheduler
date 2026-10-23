@@ -18,9 +18,8 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import java.time.Duration;
-
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -37,68 +36,90 @@ import org.quartz.TriggerListener;
 
 class QuartzMetricsTest {
 
-    private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
+  private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
 
-    private JobListener jobListener;
+  private JobListener jobListener;
 
-    private TriggerListener triggerListener;
+  private TriggerListener triggerListener;
 
-    @BeforeEach
-    void initialize() throws Exception {
-        Scheduler scheduler = mock(Scheduler.class);
-        ListenerManager listenerManager = mock(ListenerManager.class);
-        given(scheduler.getSchedulerName()).willReturn("app");
-        given(scheduler.getListenerManager()).willReturn(listenerManager);
+  @BeforeEach
+  void initialize() throws Exception {
+    Scheduler scheduler = mock(Scheduler.class);
+    ListenerManager listenerManager = mock(ListenerManager.class);
+    given(scheduler.getSchedulerName()).willReturn("app");
+    given(scheduler.getListenerManager()).willReturn(listenerManager);
 
-        new QuartzMetrics(registry).initialize("quartzMetrics", scheduler, null);
+    new QuartzMetrics(registry).initialize("quartzMetrics", scheduler, null);
 
-        ArgumentCaptor<JobListener> jobListeners = ArgumentCaptor.forClass(JobListener.class);
-        ArgumentCaptor<TriggerListener> triggerListeners = ArgumentCaptor.forClass(TriggerListener.class);
-        verify(listenerManager).addJobListener(jobListeners.capture());
-        verify(listenerManager).addTriggerListener(triggerListeners.capture());
-        jobListener = jobListeners.getValue();
-        triggerListener = triggerListeners.getValue();
-    }
+    ArgumentCaptor<JobListener> jobListeners = ArgumentCaptor.forClass(JobListener.class);
+    ArgumentCaptor<TriggerListener> triggerListeners =
+        ArgumentCaptor.forClass(TriggerListener.class);
+    verify(listenerManager).addJobListener(jobListeners.capture());
+    verify(listenerManager).addTriggerListener(triggerListeners.capture());
+    jobListener = jobListeners.getValue();
+    triggerListener = triggerListeners.getValue();
+  }
 
-    @Test
-    void listenersAreNamed() {
-        assertThat(jobListener.getName()).isEqualTo("quartzMetrics");
-        assertThat(triggerListener.getName()).isEqualTo("quartzMetrics");
-    }
+  @Test
+  void listenersAreNamed() {
+    assertThat(jobListener.getName()).isEqualTo("quartzMetrics");
+    assertThat(triggerListener.getName()).isEqualTo("quartzMetrics");
+  }
 
-    @Test
-    void successfulAndFailedExecutionsAreCountedAndTimed() {
-        jobListener.jobWasExecuted(execution("reports", Duration.ofMillis(200)), null);
-        jobListener.jobWasExecuted(execution("reports", Duration.ofMillis(300)), new JobExecutionException("boom"));
+  @Test
+  void successfulAndFailedExecutionsAreCountedAndTimed() {
+    jobListener.jobWasExecuted(execution("reports", Duration.ofMillis(200)), null);
+    jobListener.jobWasExecuted(
+        execution("reports", Duration.ofMillis(300)), new JobExecutionException("boom"));
 
-        assertThat(registry.get("quartz.jobs.executed").tags("scheduler", "app", "job.group", "reports").counter()
-            .count()).isEqualTo(2);
-        assertThat(registry.get("quartz.jobs.failed").tags("scheduler", "app", "job.group", "reports").counter()
-            .count()).isEqualTo(1);
-        assertThat(registry.get("quartz.jobs.duration").tags("result", "success").timer().totalTime(
-                java.util.concurrent.TimeUnit.MILLISECONDS)).isEqualTo(200);
-        assertThat(registry.get("quartz.jobs.duration").tags("result", "failure").timer().count()).isEqualTo(1);
-    }
+    assertThat(
+            registry
+                .get("quartz.jobs.executed")
+                .tags("scheduler", "app", "job.group", "reports")
+                .counter()
+                .count())
+        .isEqualTo(2);
+    assertThat(
+            registry
+                .get("quartz.jobs.failed")
+                .tags("scheduler", "app", "job.group", "reports")
+                .counter()
+                .count())
+        .isEqualTo(1);
+    assertThat(
+            registry
+                .get("quartz.jobs.duration")
+                .tags("result", "success")
+                .timer()
+                .totalTime(java.util.concurrent.TimeUnit.MILLISECONDS))
+        .isEqualTo(200);
+    assertThat(registry.get("quartz.jobs.duration").tags("result", "failure").timer().count())
+        .isEqualTo(1);
+  }
 
-    @Test
-    void misfiresAreCounted() {
-        Trigger trigger = mock(Trigger.class);
-        given(trigger.getKey()).willReturn(TriggerKey.triggerKey("nightly", "batch"));
+  @Test
+  void misfiresAreCounted() {
+    Trigger trigger = mock(Trigger.class);
+    given(trigger.getKey()).willReturn(TriggerKey.triggerKey("nightly", "batch"));
 
-        triggerListener.triggerMisfired(trigger);
-        triggerListener.triggerMisfired(trigger);
+    triggerListener.triggerMisfired(trigger);
+    triggerListener.triggerMisfired(trigger);
 
-        assertThat(registry.get("quartz.triggers.misfired").tags("scheduler", "app", "trigger.group", "batch")
-            .counter().count()).isEqualTo(2);
-    }
+    assertThat(
+            registry
+                .get("quartz.triggers.misfired")
+                .tags("scheduler", "app", "trigger.group", "batch")
+                .counter()
+                .count())
+        .isEqualTo(2);
+  }
 
-    private static JobExecutionContext execution(String group, Duration runTime) {
-        JobExecutionContext context = mock(JobExecutionContext.class);
-        JobDetail detail = mock(JobDetail.class);
-        given(detail.getKey()).willReturn(JobKey.jobKey("job", group));
-        given(context.getJobDetail()).willReturn(detail);
-        given(context.getJobRunTime()).willReturn(runTime);
-        return context;
-    }
-
+  private static JobExecutionContext execution(String group, Duration runTime) {
+    JobExecutionContext context = mock(JobExecutionContext.class);
+    JobDetail detail = mock(JobDetail.class);
+    given(detail.getKey()).willReturn(JobKey.jobKey("job", group));
+    given(context.getJobDetail()).willReturn(detail);
+    given(context.getJobRunTime()).willReturn(runTime);
+    return context;
+  }
 }

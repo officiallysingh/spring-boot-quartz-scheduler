@@ -12,9 +12,7 @@
  * under the License.
  */
 
-/**
- * The {@code quartz} health indicator.
- */
+/** The {@code quartz} health indicator. */
 @NullMarked
 package org.quartz.spring.boot.actuate.health;
 

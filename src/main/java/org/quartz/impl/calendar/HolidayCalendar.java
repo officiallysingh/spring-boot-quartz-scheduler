@@ -1,19 +1,19 @@
-/* 
+/*
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
  * Copyright IBM Corp. 2024, 2025
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 package org.quartz.impl.calendar;
@@ -24,131 +24,109 @@ import java.time.ZoneId;
 import java.util.Collections;
 import java.util.SortedSet;
 import java.util.TreeSet;
-
 import org.quartz.Calendar;
 import org.quartz.utils.LenientDateTime;
 
 /**
- * <p>
- * This implementation of the Calendar stores a list of holidays (full days
- * that are excluded from scheduling).
- * </p>
- * 
- * <p>
- * The implementation DOES take the year into consideration, so if you want to
- * exclude July 4th for the next 10 years, you need to add 10 entries to the
- * exclude list.
- * </p>
- * 
+ * This implementation of the Calendar stores a list of holidays (full days that are excluded from
+ * scheduling).
+ *
+ * <p>The implementation DOES take the year into consideration, so if you want to exclude July 4th
+ * for the next 10 years, you need to add 10 entries to the exclude list.
+ *
  * @author Sharada Jambula
  * @author Juergen Donnerstag
  */
-public class HolidayCalendar extends BaseCalendar implements Calendar,
-        Serializable {
-    private static final long serialVersionUID = -7590908752291814693L;
-    
-    // A sorted set to store the holidays
-    private TreeSet<Instant> dates = new TreeSet<>();
+public class HolidayCalendar extends BaseCalendar implements Calendar, Serializable {
+  private static final long serialVersionUID = -7590908752291814693L;
 
-    public HolidayCalendar() {
+  // A sorted set to store the holidays
+  private TreeSet<Instant> dates = new TreeSet<>();
+
+  public HolidayCalendar() {}
+
+  public HolidayCalendar(Calendar baseCalendar) {
+    super(baseCalendar);
+  }
+
+  public HolidayCalendar(ZoneId timeZone) {
+    super(timeZone);
+  }
+
+  public HolidayCalendar(Calendar baseCalendar, ZoneId timeZone) {
+    super(baseCalendar, timeZone);
+  }
+
+  @Override
+  public Object clone() {
+    HolidayCalendar clone = (HolidayCalendar) super.clone();
+    clone.dates = new TreeSet<>(dates);
+    return clone;
+  }
+
+  /**
+   * Determine whether the given time (in milliseconds) is 'included' by the Calendar.
+   *
+   * <p>Note that this Calendar is only has full-day precision.
+   */
+  @Override
+  public boolean isTimeIncluded(Instant timeStamp) {
+    if (!super.isTimeIncluded(timeStamp)) {
+      return false;
     }
 
-    public HolidayCalendar(Calendar baseCalendar) {
-        super(baseCalendar);
+    Instant lookFor = getStartOfDay(timeStamp).toInstant();
+
+    return !(dates.contains(lookFor));
+  }
+
+  /**
+   * Determine the next time (in milliseconds) that is 'included' by the Calendar after the given
+   * time.
+   *
+   * <p>Note that this Calendar is only has full-day precision.
+   */
+  @Override
+  public Instant getNextIncludedTime(Instant timeStamp) {
+
+    // Call base calendar implementation first
+    Instant baseTime = super.getNextIncludedTime(timeStamp);
+    if (baseTime.isAfter(Instant.EPOCH) && baseTime.isAfter(timeStamp)) {
+      timeStamp = baseTime;
     }
 
-    public HolidayCalendar(ZoneId timeZone) {
-        super(timeZone);
+    // Get timestamp for 00:00:00
+    LenientDateTime day = getStartOfDay(timeStamp);
+    while (!isTimeIncluded(day.toInstant())) {
+      day.add(LenientDateTime.DAY_OF_MONTH, 1);
     }
 
-    public HolidayCalendar(Calendar baseCalendar, ZoneId timeZone) {
-        super(baseCalendar, timeZone);
-    }
+    return day.toInstant();
+  }
 
-    @Override
-    public Object clone() {
-        HolidayCalendar clone = (HolidayCalendar) super.clone();
-        clone.dates = new TreeSet<>(dates);
-        return clone;
-    }
-    
-    /**
-     * <p>
-     * Determine whether the given time (in milliseconds) is 'included' by the
-     * Calendar.
-     * </p>
-     * 
-     * <p>
-     * Note that this Calendar is only has full-day precision.
-     * </p>
+  /**
+   * Add the given Date to the list of excluded days. Only the month, day and year of the returned
+   * dates are significant.
+   */
+  public void addExcludedDate(Instant excludedDate) {
+    Instant date = getStartOfDay(excludedDate).toInstant();
+    /*
+     * System.err.println( "HolidayCalendar.add(): date=" +
+     * excludedDate.toLocaleString());
      */
-    @Override
-    public boolean isTimeIncluded(Instant timeStamp) {
-        if (!super.isTimeIncluded(timeStamp)) {
-            return false;
-        }
+    this.dates.add(date);
+  }
 
-        Instant lookFor = getStartOfDay(timeStamp).toInstant();
+  public void removeExcludedDate(Instant dateToRemove) {
+    Instant date = getStartOfDay(dateToRemove).toInstant();
+    dates.remove(date);
+  }
 
-        return !(dates.contains(lookFor));
-    }
-
-    /**
-     * <p>
-     * Determine the next time (in milliseconds) that is 'included' by the
-     * Calendar after the given time.
-     * </p>
-     * 
-     * <p>
-     * Note that this Calendar is only has full-day precision.
-     * </p>
-     */
-    @Override
-    public Instant getNextIncludedTime(Instant timeStamp) {
-
-        // Call base calendar implementation first
-        Instant baseTime = super.getNextIncludedTime(timeStamp);
-        if (baseTime.isAfter(Instant.EPOCH) && baseTime.isAfter(timeStamp)) {
-            timeStamp = baseTime;
-        }
-
-        // Get timestamp for 00:00:00
-        LenientDateTime day = getStartOfDay(timeStamp);
-        while (!isTimeIncluded(day.toInstant())) {
-            day.add(LenientDateTime.DAY_OF_MONTH, 1);
-        }
-
-        return day.toInstant();
-    }
-
-    /**
-     * <p>
-     * Add the given Date to the list of excluded days. Only the month, day and
-     * year of the returned dates are significant.
-     * </p>
-     */
-    public void addExcludedDate(Instant excludedDate) {
-        Instant date = getStartOfDay(excludedDate).toInstant();
-        /*
-         * System.err.println( "HolidayCalendar.add(): date=" +
-         * excludedDate.toLocaleString());
-         */
-        this.dates.add(date);
-    }
-
-    public void removeExcludedDate(Instant dateToRemove) {
-        Instant date = getStartOfDay(dateToRemove).toInstant();
-        dates.remove(date);
-    }
-
-    /**
-     * <p>
-     * Returns a <code>SortedSet</code> of Dates representing the excluded
-     * days. Only the month, day and year of the returned dates are
-     * significant.
-     * </p>
-     */
-    public SortedSet<Instant> getExcludedDates() {
-        return Collections.unmodifiableSortedSet(dates);
-    }
+  /**
+   * Returns a <code>SortedSet</code> of Dates representing the excluded days. Only the month, day
+   * and year of the returned dates are significant.
+   */
+  public SortedSet<Instant> getExcludedDates() {
+    return Collections.unmodifiableSortedSet(dates);
+  }
 }

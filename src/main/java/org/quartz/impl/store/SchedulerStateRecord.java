@@ -15,17 +15,15 @@ package org.quartz.impl.store;
 
 import java.time.Duration;
 import java.time.Instant;
-
 import org.jspecify.annotations.Nullable;
 
 /**
  * The check-in record of a clustered scheduler instance.
  *
  * @param instanceId the scheduler instance
- * @param lastCheckin when it last checked in; {@code null} for an instance only known
- *        from orphaned fired triggers
+ * @param lastCheckin when it last checked in; {@code null} for an instance only known from orphaned
+ *     fired triggers
  * @param checkinInterval how often it checks in
  */
-public record SchedulerStateRecord(String instanceId, @Nullable Instant lastCheckin,
-        @Nullable Duration checkinInterval) {
-}
+public record SchedulerStateRecord(
+    String instanceId, @Nullable Instant lastCheckin, @Nullable Duration checkinInterval) {}

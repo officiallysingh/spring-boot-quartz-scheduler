@@ -17,24 +17,21 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
-/**
- * In-JVM locks, for a store that is not clustered (only one scheduler instance uses
- * the data).
- */
+/** In-JVM locks, for a store that is not clustered (only one scheduler instance uses the data). */
 public class JvmStoreLock implements StoreLock {
 
-    private final Map<String, ReentrantLock> locks = new ConcurrentHashMap<>();
+  private final Map<String, ReentrantLock> locks = new ConcurrentHashMap<>();
 
-    @Override
-    public void obtain(String lockName) {
-        locks.computeIfAbsent(lockName, name -> new ReentrantLock()).lock();
-    }
+  @Override
+  public void obtain(String lockName) {
+    locks.computeIfAbsent(lockName, name -> new ReentrantLock()).lock();
+  }
 
-    @Override
-    public void release(String lockName) {
-        ReentrantLock lock = locks.get(lockName);
-        if (lock != null && lock.isHeldByCurrentThread()) {
-            lock.unlock();
-        }
+  @Override
+  public void release(String lockName) {
+    ReentrantLock lock = locks.get(lockName);
+    if (lock != null && lock.isHeldByCurrentThread()) {
+      lock.unlock();
     }
+  }
 }

@@ -19,19 +19,21 @@ import org.quartz.store.AbstractJobStoreContractTest;
 import org.quartz.support.AbstractRedisIT;
 
 /**
- * The standalone job store contract against Redis (shared {@code redis:7.4} container with
- * AOF persistence).
+ * The standalone job store contract against Redis (shared {@code redis:7.4} container with AOF
+ * persistence).
  */
 class RedisJobStoreIT extends AbstractJobStoreContractTest {
 
-    @Override
-    protected JobStore createJobStore(String instanceId) {
-        return new RedisJobStore(AbstractRedisIT.redisTemplate(), JobStoreSettings.defaults(),
-                RedisJobStoreSettings.defaults());
-    }
+  @Override
+  protected JobStore createJobStore(String instanceId) {
+    return new RedisJobStore(
+        AbstractRedisIT.redisTemplate(),
+        JobStoreSettings.defaults(),
+        RedisJobStoreSettings.defaults());
+  }
 
-    @Override
-    protected void cleanStore() {
-        AbstractRedisIT.flushDatabase();
-    }
+  @Override
+  protected void cleanStore() {
+    AbstractRedisIT.flushDatabase();
+  }
 }

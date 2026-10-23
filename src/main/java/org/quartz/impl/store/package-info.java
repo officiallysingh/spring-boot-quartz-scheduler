@@ -13,7 +13,8 @@
  */
 
 /**
- * The persistent job store engine shared by the MongoDB and Redis stores, and its store delegate SPI.
+ * The persistent job store engine shared by the MongoDB and Redis stores, and its store delegate
+ * SPI.
  */
 @NullMarked
 package org.quartz.impl.store;

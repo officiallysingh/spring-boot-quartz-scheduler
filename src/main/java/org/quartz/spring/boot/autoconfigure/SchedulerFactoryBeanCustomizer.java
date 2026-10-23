@@ -19,8 +19,8 @@ package org.quartz.spring.boot.autoconfigure;
 import org.quartz.spring.SchedulerFactoryBean;
 
 /**
- * Callback interface that can be implemented by beans wishing to customize the Quartz
- * {@link SchedulerFactoryBean} to fine-tune its auto-configuration.
+ * Callback interface that can be implemented by beans wishing to customize the Quartz {@link
+ * SchedulerFactoryBean} to fine-tune its auto-configuration.
  *
  * @author Vedran Pavic
  * @since 4.0.0
@@ -28,10 +28,10 @@ import org.quartz.spring.SchedulerFactoryBean;
 @FunctionalInterface
 public interface SchedulerFactoryBeanCustomizer {
 
-	/**
-	 * Customize the {@link SchedulerFactoryBean}.
-	 * @param schedulerFactoryBean the scheduler to customize
-	 */
-	void customize(SchedulerFactoryBean schedulerFactoryBean);
-
+  /**
+   * Customize the {@link SchedulerFactoryBean}.
+   *
+   * @param schedulerFactoryBean the scheduler to customize
+   */
+  void customize(SchedulerFactoryBean schedulerFactoryBean);
 }

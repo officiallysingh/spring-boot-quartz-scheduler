@@ -32,90 +32,95 @@ import org.quartz.spi.SchedulerPlugin;
 /**
  * Micrometer metrics for a Quartz {@link Scheduler}, as a {@link SchedulerPlugin} that adds a
  * global job and trigger listener. Every meter is tagged with {@code scheduler}:
+ *
  * <ul>
- * <li>{@code quartz.jobs.executed} (counter, tag {@code job.group}): finished executions;</li>
- * <li>{@code quartz.jobs.failed} (counter, tag {@code job.group}): executions that threw;</li>
- * <li>{@code quartz.jobs.duration} (timer, tags {@code job.group}, {@code result}
- * {@code success|failure}): execution time;</li>
- * <li>{@code quartz.triggers.misfired} (counter, tag {@code trigger.group}): misfires.</li>
+ *   <li>{@code quartz.jobs.executed} (counter, tag {@code job.group}): finished executions;
+ *   <li>{@code quartz.jobs.failed} (counter, tag {@code job.group}): executions that threw;
+ *   <li>{@code quartz.jobs.duration} (timer, tags {@code job.group}, {@code result} {@code
+ *       success|failure}): execution time;
+ *   <li>{@code quartz.triggers.misfired} (counter, tag {@code trigger.group}): misfires.
  * </ul>
+ *
  * Job and trigger names are not tags, to keep the number of time series bounded.
  */
 public class QuartzMetrics implements SchedulerPlugin {
 
-	static final String LISTENER_NAME = "quartzMetrics";
+  static final String LISTENER_NAME = "quartzMetrics";
 
-	private final MeterRegistry registry;
+  private final MeterRegistry registry;
 
-	@SuppressWarnings("NullAway.Init")
-	private String schedulerName;
+  @SuppressWarnings("NullAway.Init")
+  private String schedulerName;
 
-	public QuartzMetrics(MeterRegistry registry) {
-		this.registry = registry;
-	}
+  public QuartzMetrics(MeterRegistry registry) {
+    this.registry = registry;
+  }
 
-	@Override
-	public void initialize(String name, Scheduler scheduler, ClassLoadHelper loadHelper) throws SchedulerException {
-		this.schedulerName = scheduler.getSchedulerName();
-		scheduler.getListenerManager().addJobListener(new JobMetrics());
-		scheduler.getListenerManager().addTriggerListener(new TriggerMetrics());
-	}
+  @Override
+  public void initialize(String name, Scheduler scheduler, ClassLoadHelper loadHelper)
+      throws SchedulerException {
+    this.schedulerName = scheduler.getSchedulerName();
+    scheduler.getListenerManager().addJobListener(new JobMetrics());
+    scheduler.getListenerManager().addTriggerListener(new TriggerMetrics());
+  }
 
-	@Override
-	public void start() {
-	}
+  @Override
+  public void start() {}
 
-	@Override
-	public void shutdown() {
-	}
+  @Override
+  public void shutdown() {}
 
-	private final class JobMetrics extends JobListenerSupport {
+  private final class JobMetrics extends JobListenerSupport {
 
-		@Override
-		public String getName() {
-			return LISTENER_NAME;
-		}
+    @Override
+    public String getName() {
+      return LISTENER_NAME;
+    }
 
-		@Override
-		public void jobWasExecuted(JobExecutionContext context, @Nullable JobExecutionException jobException) {
-			String group = context.getJobDetail().getKey().getGroup();
-			boolean failed = jobException != null;
-			counter("quartz.jobs.executed", "Finished Quartz job executions", group).increment();
-			if (failed) {
-				counter("quartz.jobs.failed", "Quartz job executions that failed", group).increment();
-			}
-			Timer.builder("quartz.jobs.duration")
-				.description("Quartz job execution time")
-				.tags("scheduler", schedulerName, "job.group", group, "result", failed ? "failure" : "success")
-				.register(registry)
-				.record(context.getJobRunTime());
-		}
+    @Override
+    public void jobWasExecuted(
+        JobExecutionContext context, @Nullable JobExecutionException jobException) {
+      String group = context.getJobDetail().getKey().getGroup();
+      boolean failed = jobException != null;
+      counter("quartz.jobs.executed", "Finished Quartz job executions", group).increment();
+      if (failed) {
+        counter("quartz.jobs.failed", "Quartz job executions that failed", group).increment();
+      }
+      Timer.builder("quartz.jobs.duration")
+          .description("Quartz job execution time")
+          .tags(
+              "scheduler",
+              schedulerName,
+              "job.group",
+              group,
+              "result",
+              failed ? "failure" : "success")
+          .register(registry)
+          .record(context.getJobRunTime());
+    }
 
-		private Counter counter(String name, String description, String group) {
-			return Counter.builder(name)
-				.description(description)
-				.tags("scheduler", schedulerName, "job.group", group)
-				.register(registry);
-		}
+    private Counter counter(String name, String description, String group) {
+      return Counter.builder(name)
+          .description(description)
+          .tags("scheduler", schedulerName, "job.group", group)
+          .register(registry);
+    }
+  }
 
-	}
+  private final class TriggerMetrics extends TriggerListenerSupport {
 
-	private final class TriggerMetrics extends TriggerListenerSupport {
+    @Override
+    public String getName() {
+      return LISTENER_NAME;
+    }
 
-		@Override
-		public String getName() {
-			return LISTENER_NAME;
-		}
-
-		@Override
-		public void triggerMisfired(Trigger trigger) {
-			Counter.builder("quartz.triggers.misfired")
-				.description("Quartz trigger misfires")
-				.tags("scheduler", schedulerName, "trigger.group", trigger.getKey().getGroup())
-				.register(registry)
-				.increment();
-		}
-
-	}
-
+    @Override
+    public void triggerMisfired(Trigger trigger) {
+      Counter.builder("quartz.triggers.misfired")
+          .description("Quartz trigger misfires")
+          .tags("scheduler", schedulerName, "trigger.group", trigger.getKey().getGroup())
+          .register(registry)
+          .increment();
+    }
+  }
 }

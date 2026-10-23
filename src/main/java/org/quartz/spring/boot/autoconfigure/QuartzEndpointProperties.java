@@ -18,10 +18,9 @@ package org.quartz.spring.boot.autoconfigure;
 
 import java.util.HashSet;
 import java.util.Set;
-
+import org.quartz.spring.boot.actuate.endpoint.QuartzEndpoint;
 import org.springframework.boot.actuate.endpoint.Show;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.quartz.spring.boot.actuate.endpoint.QuartzEndpoint;
 
 /**
  * Configuration properties for {@link QuartzEndpoint}.
@@ -32,27 +31,24 @@ import org.quartz.spring.boot.actuate.endpoint.QuartzEndpoint;
 @ConfigurationProperties("management.endpoint.quartz")
 public class QuartzEndpointProperties {
 
-	/**
-	 * When to show unsanitized job or trigger values.
-	 */
-	private Show showValues = Show.NEVER;
+  /** When to show unsanitized job or trigger values. */
+  private Show showValues = Show.NEVER;
 
-	/**
-	 * Roles used to determine whether a user is authorized to be shown unsanitized job or
-	 * trigger values. When empty, all authenticated users are authorized.
-	 */
-	private final Set<String> roles = new HashSet<>();
+  /**
+   * Roles used to determine whether a user is authorized to be shown unsanitized job or trigger
+   * values. When empty, all authenticated users are authorized.
+   */
+  private final Set<String> roles = new HashSet<>();
 
-	public Show getShowValues() {
-		return this.showValues;
-	}
+  public Show getShowValues() {
+    return this.showValues;
+  }
 
-	public void setShowValues(Show showValues) {
-		this.showValues = showValues;
-	}
+  public void setShowValues(Show showValues) {
+    this.showValues = showValues;
+  }
 
-	public Set<String> getRoles() {
-		return this.roles;
-	}
-
+  public Set<String> getRoles() {
+    return this.roles;
+  }
 }

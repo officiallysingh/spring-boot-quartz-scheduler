@@ -12,9 +12,7 @@
  * under the License.
  */
 
-/**
- * The MongoDB job store.
- */
+/** The MongoDB job store. */
 @NullMarked
 package org.quartz.impl.mongodb;
 

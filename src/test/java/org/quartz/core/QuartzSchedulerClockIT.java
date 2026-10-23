@@ -28,7 +28,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.junit.jupiter.api.Test;
 import org.quartz.Job;
 import org.quartz.JobBuilder;
@@ -45,182 +44,187 @@ import org.quartz.support.MutableClock;
 import org.quartz.support.TestSchedulers;
 
 /**
- * Verifies that Quartz uses the configured {@link Clock} as its time source,
- * rather than System.currentTimeMillis().
- * (Ported from QuartzSchedulerTimeBrokerTest by Thanos Tsiamis https://github.com/ThanosTsiamis.)
+ * Verifies that Quartz uses the configured {@link Clock} as its time source, rather than
+ * System.currentTimeMillis(). (Ported from QuartzSchedulerTimeBrokerTest by Thanos Tsiamis
+ * https://github.com/ThanosTsiamis.)
  */
 public class QuartzSchedulerClockIT extends AbstractMongoIT {
 
-    /** Fails once {@link #failing} is set: a persistent store reads the clock when the scheduler starts. */
-    static final class FailingClock extends Clock {
-        volatile boolean failing;
+  /**
+   * Fails once {@link #failing} is set: a persistent store reads the clock when the scheduler
+   * starts.
+   */
+  static final class FailingClock extends Clock {
+    volatile boolean failing;
 
-        @Override
-        public ZoneId getZone() {
-            return ZoneOffset.UTC;
-        }
-
-        @Override
-        public Clock withZone(ZoneId zone) {
-            return this;
-        }
-
-        @Override
-        public Instant instant() {
-            if (failing) {
-                throw new IllegalStateException("Test scheduling-time failure");
-            }
-            return Instant.now();
-        }
+    @Override
+    public ZoneId getZone() {
+      return ZoneOffset.UTC;
     }
 
-    /**
-     * Simple job that increments a static counter every time it runs.
-     */
-    public static class CountingJob implements Job {
-
-        private static final AtomicInteger RUN_COUNT = new AtomicInteger(0);
-
-        public static void reset() {
-            RUN_COUNT.set(0);
-        }
-
-        public static int runCount() {
-            return RUN_COUNT.get();
-        }
-
-        @Override
-        public void execute(JobExecutionContext context) {
-            RUN_COUNT.incrementAndGet();
-        }
+    @Override
+    public Clock withZone(ZoneId zone) {
+      return this;
     }
 
-    private static Scheduler createScheduler(Clock clock) throws SchedulerException {
-        return TestSchedulers.factory(SchedulerSettings.builder().name("ClockTest"), 1)
-                .clock(clock)
-                .build()
-                .getScheduler();
+    @Override
+    public Instant instant() {
+      if (failing) {
+        throw new IllegalStateException("Test scheduling-time failure");
+      }
+      return Instant.now();
+    }
+  }
+
+  /** Simple job that increments a static counter every time it runs. */
+  public static class CountingJob implements Job {
+
+    private static final AtomicInteger RUN_COUNT = new AtomicInteger(0);
+
+    public static void reset() {
+      RUN_COUNT.set(0);
     }
 
-    @Test
-    void clockCannotBeNull() {
-        QuartzSchedulerResources resources = new QuartzSchedulerResources();
-
-        assertThatThrownBy(() -> resources.setClock(null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Clock cannot be null.");
-        assertThatThrownBy(() -> StdSchedulerFactory.builder().clock(null))
-                .isInstanceOf(NullPointerException.class);
+    public static int runCount() {
+      return RUN_COUNT.get();
     }
 
-    @Test
-    void repeatedClockFailuresNotifyListenersOnlyOnce() throws Exception {
-        FailingClock clock = new FailingClock();
-        Scheduler scheduler = createScheduler(clock);
-        AtomicInteger errorCount = new AtomicInteger();
-        scheduler.getListenerManager().addSchedulerListener(new SchedulerListenerSupport() {
-            @Override
-            public void schedulerError(String msg, SchedulerException cause) {
+    @Override
+    public void execute(JobExecutionContext context) {
+      RUN_COUNT.incrementAndGet();
+    }
+  }
+
+  private static Scheduler createScheduler(Clock clock) throws SchedulerException {
+    return TestSchedulers.factory(SchedulerSettings.builder().name("ClockTest"), 1)
+        .clock(clock)
+        .build()
+        .getScheduler();
+  }
+
+  @Test
+  void clockCannotBeNull() {
+    QuartzSchedulerResources resources = new QuartzSchedulerResources();
+
+    assertThatThrownBy(() -> resources.setClock(null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Clock cannot be null.");
+    assertThatThrownBy(() -> StdSchedulerFactory.builder().clock(null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
+  void repeatedClockFailuresNotifyListenersOnlyOnce() throws Exception {
+    FailingClock clock = new FailingClock();
+    Scheduler scheduler = createScheduler(clock);
+    AtomicInteger errorCount = new AtomicInteger();
+    scheduler
+        .getListenerManager()
+        .addSchedulerListener(
+            new SchedulerListenerSupport() {
+              @Override
+              public void schedulerError(String msg, SchedulerException cause) {
                 if ("Unable to obtain the current scheduling time".equals(msg)) {
-                    errorCount.incrementAndGet();
+                  errorCount.incrementAndGet();
                 }
-            }
-        });
+              }
+            });
 
-        try {
-            scheduler.start();
-            clock.failing = true;
-            await().atMost(Duration.ofSeconds(5)).until(() -> errorCount.get() == 1);
+    try {
+      scheduler.start();
+      clock.failing = true;
+      await().atMost(Duration.ofSeconds(5)).until(() -> errorCount.get() == 1);
 
-            // the scheduler thread retries once per second; consecutive failures must not re-notify
-            await().during(Duration.ofMillis(2_200)).atMost(Duration.ofSeconds(4))
-                    .until(() -> errorCount.get() == 1);
-        } finally {
-            clock.failing = false;
-            scheduler.shutdown(true);
-        }
+      // the scheduler thread retries once per second; consecutive failures must not re-notify
+      await()
+          .during(Duration.ofMillis(2_200))
+          .atMost(Duration.ofSeconds(4))
+          .until(() -> errorCount.get() == 1);
+    } finally {
+      clock.failing = false;
+      scheduler.shutdown(true);
+    }
+  }
+
+  /**
+   * If clock time is frozen before the trigger's startAt(), the job should not fire, even if real
+   * time moves forward.
+   */
+  @Test
+  void jobDoesNotFireWhileClockIsFrozen() throws Exception {
+    CountingJob.reset();
+
+    Instant start = Instant.now();
+    MutableClock clock = new MutableClock(start); // clock == system at start
+
+    Scheduler scheduler = createScheduler(clock);
+    try {
+      scheduler.start();
+
+      JobDetail job = JobBuilder.newJob(CountingJob.class).withIdentity("job1", "group1").build();
+
+      // Fire 2 seconds after "clock start"
+      Trigger trigger =
+          newTrigger()
+              .withIdentity("trigger1", "group1")
+              .startAt(Instant.from(start.plusSeconds(2)))
+              .build();
+
+      scheduler.scheduleJob(job, trigger);
+
+      // Wait longer than 2 seconds in REAL time, but do NOT move the clock
+      await()
+          .during(Duration.ofSeconds(5))
+          .atMost(Duration.ofSeconds(7))
+          .until(() -> CountingJob.runCount() == 0);
+    } finally {
+      scheduler.shutdown(true);
+    }
+  }
+
+  /**
+   * When clock time is advanced while the scheduler is in standby, the job should fire after the
+   * scheduler is resumed, even if real time has not reached the trigger's start time.
+   */
+  @Test
+  void jobFiresWhenClockAdvancesWhileInStandby() throws Exception {
+    CountingJob.reset();
+
+    Instant start = Instant.now();
+    MutableClock clock = new MutableClock(start);
+
+    Scheduler scheduler = createScheduler(clock);
+    try {
+      scheduler.start();
+      scheduler.standby();
+
+      JobDetail job = JobBuilder.newJob(CountingJob.class).withIdentity("job2", "group1").build();
+
+      // Fire 2 seconds after "clock start"
+      Trigger trigger =
+          newTrigger()
+              .withIdentity("trigger2", "group1")
+              .startAt(Instant.from(start.plusSeconds(2)))
+              .build();
+
+      scheduler.scheduleJob(job, trigger);
+
+      assertThat(CountingJob.runCount()).as("Job should not have fired yet").isZero();
+
+      // Move clock time past the fire time
+      clock.advance(Duration.ofSeconds(5));
+
+      // Resuming wakes the scheduler thread and causes it to re-evaluate
+      // triggers using the updated clock time.
+      scheduler.start();
+
+      await().atMost(Duration.ofSeconds(5)).until(() -> CountingJob.runCount() == 1);
+    } finally {
+      scheduler.shutdown(true);
     }
 
-    /**
-     * If clock time is frozen before the trigger's startAt(), the job
-     * should not fire, even if real time moves forward.
-     */
-    @Test
-    void jobDoesNotFireWhileClockIsFrozen() throws Exception {
-        CountingJob.reset();
-
-        Instant start = Instant.now();
-        MutableClock clock = new MutableClock(start); // clock == system at start
-
-        Scheduler scheduler = createScheduler(clock);
-        try {
-            scheduler.start();
-
-            JobDetail job = JobBuilder.newJob(CountingJob.class)
-                    .withIdentity("job1", "group1")
-                    .build();
-
-            // Fire 2 seconds after "clock start"
-            Trigger trigger = newTrigger()
-                    .withIdentity("trigger1", "group1")
-                    .startAt(Instant.from(start.plusSeconds(2)))
-                    .build();
-
-            scheduler.scheduleJob(job, trigger);
-
-            // Wait longer than 2 seconds in REAL time, but do NOT move the clock
-            await().during(Duration.ofSeconds(5)).atMost(Duration.ofSeconds(7))
-                    .until(() -> CountingJob.runCount() == 0);
-        } finally {
-            scheduler.shutdown(true);
-        }
-    }
-
-    /**
-     * When clock time is advanced while the scheduler is in standby, the job
-     * should fire after the scheduler is resumed, even if real time has not
-     * reached the trigger's start time.
-     */
-    @Test
-    void jobFiresWhenClockAdvancesWhileInStandby() throws Exception {
-        CountingJob.reset();
-
-        Instant start = Instant.now();
-        MutableClock clock = new MutableClock(start);
-
-        Scheduler scheduler = createScheduler(clock);
-        try {
-            scheduler.start();
-            scheduler.standby();
-
-            JobDetail job = JobBuilder.newJob(CountingJob.class)
-                    .withIdentity("job2", "group1")
-                    .build();
-
-            // Fire 2 seconds after "clock start"
-            Trigger trigger = newTrigger()
-                    .withIdentity("trigger2", "group1")
-                    .startAt(Instant.from(start.plusSeconds(2)))
-                    .build();
-
-            scheduler.scheduleJob(job, trigger);
-
-            assertThat(CountingJob.runCount()).as("Job should not have fired yet").isZero();
-
-            // Move clock time past the fire time
-            clock.advance(Duration.ofSeconds(5));
-
-            // Resuming wakes the scheduler thread and causes it to re-evaluate
-            // triggers using the updated clock time.
-            scheduler.start();
-
-            await().atMost(Duration.ofSeconds(5)).until(() -> CountingJob.runCount() == 1);
-        } finally {
-            scheduler.shutdown(true);
-        }
-
-        assertThat(CountingJob.runCount())
-                .as("Job should fire when clock time has passed startAt and the scheduler resumes")
-                .isEqualTo(1);
-    }
+    assertThat(CountingJob.runCount())
+        .as("Job should fire when clock time has passed startAt and the scheduler resumes")
+        .isEqualTo(1);
+  }
 }

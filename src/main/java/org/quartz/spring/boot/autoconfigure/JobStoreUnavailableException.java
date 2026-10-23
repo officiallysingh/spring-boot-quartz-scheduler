@@ -17,53 +17,57 @@ package org.quartz.spring.boot.autoconfigure;
 
 import java.util.List;
 import java.util.Locale;
-
 import org.jspecify.annotations.Nullable;
 
 /**
- * Thrown at startup when the auto-configuration cannot create a Quartz job store: no
- * {@code spring.quartz.job-store.type} and no MongoDB / Redis connection bean, both
- * available without a type, or a type whose connection bean is missing. Reported by
- * {@link JobStoreUnavailableFailureAnalyzer}.
+ * Thrown at startup when the auto-configuration cannot create a Quartz job store: no {@code
+ * spring.quartz.job-store.type} and no MongoDB / Redis connection bean, both available without a
+ * type, or a type whose connection bean is missing. Reported by {@link
+ * JobStoreUnavailableFailureAnalyzer}.
  */
 public class JobStoreUnavailableException extends IllegalStateException {
 
-	private final @Nullable JobStoreType configuredType;
+  private final @Nullable JobStoreType configuredType;
 
-	private final List<JobStoreType> availableTypes;
+  private final List<JobStoreType> availableTypes;
 
-	JobStoreUnavailableException(@Nullable JobStoreType configuredType, List<JobStoreType> availableTypes) {
-		super(message(configuredType, availableTypes));
-		this.configuredType = configuredType;
-		this.availableTypes = List.copyOf(availableTypes);
-	}
+  JobStoreUnavailableException(
+      @Nullable JobStoreType configuredType, List<JobStoreType> availableTypes) {
+    super(message(configuredType, availableTypes));
+    this.configuredType = configuredType;
+    this.availableTypes = List.copyOf(availableTypes);
+  }
 
-	/** The configured {@code spring.quartz.job-store.type}, or {@code null} if unset. */
-	public @Nullable JobStoreType getConfiguredType() {
-		return this.configuredType;
-	}
+  /** The configured {@code spring.quartz.job-store.type}, or {@code null} if unset. */
+  public @Nullable JobStoreType getConfiguredType() {
+    return this.configuredType;
+  }
 
-	/** The store types whose connection bean is present. */
-	public List<JobStoreType> getAvailableTypes() {
-		return this.availableTypes;
-	}
+  /** The store types whose connection bean is present. */
+  public List<JobStoreType> getAvailableTypes() {
+    return this.availableTypes;
+  }
 
-	private static String message(@Nullable JobStoreType configuredType, List<JobStoreType> availableTypes) {
-		if (configuredType != null) {
-			return "'spring.quartz.job-store.type' is " + name(configuredType) + " but no "
-					+ JobStoreConfigurations.requirement(configuredType) + " is available";
-		}
-		if (availableTypes.isEmpty()) {
-			return "No Quartz job store configured: set 'spring.quartz.job-store.type' (mongodb or redis) "
-					+ "and provide a MongoClient or RedisConnectionFactory bean";
-		}
-		return "Several Quartz job stores are available (" + String.join(", ",
-				availableTypes.stream().map(JobStoreUnavailableException::name).toList())
-				+ "): set 'spring.quartz.job-store.type' to choose one";
-	}
+  private static String message(
+      @Nullable JobStoreType configuredType, List<JobStoreType> availableTypes) {
+    if (configuredType != null) {
+      return "'spring.quartz.job-store.type' is "
+          + name(configuredType)
+          + " but no "
+          + JobStoreConfigurations.requirement(configuredType)
+          + " is available";
+    }
+    if (availableTypes.isEmpty()) {
+      return "No Quartz job store configured: set 'spring.quartz.job-store.type' (mongodb or redis) "
+          + "and provide a MongoClient or RedisConnectionFactory bean";
+    }
+    return "Several Quartz job stores are available ("
+        + String.join(
+            ", ", availableTypes.stream().map(JobStoreUnavailableException::name).toList())
+        + "): set 'spring.quartz.job-store.type' to choose one";
+  }
 
-	static String name(JobStoreType type) {
-		return type.name().toLowerCase(Locale.ROOT);
-	}
-
+  static String name(JobStoreType type) {
+    return type.name().toLowerCase(Locale.ROOT);
+  }
 }

@@ -15,9 +15,9 @@
  */
 
 /**
- * Spring integration for the scheduler, ported from Spring Framework's
- * {@code org.springframework.scheduling.quartz} and adapted to the
- * {@code java.time} API and typed configuration of this library.
+ * Spring integration for the scheduler, ported from Spring Framework's {@code
+ * org.springframework.scheduling.quartz} and adapted to the {@code java.time} API and typed
+ * configuration of this library.
  */
 @NullMarked
 package org.quartz.spring;

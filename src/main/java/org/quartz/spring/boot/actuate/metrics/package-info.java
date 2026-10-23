@@ -12,9 +12,7 @@
  * under the License.
  */
 
-/**
- * Micrometer metrics for scheduler jobs and triggers.
- */
+/** Micrometer metrics for scheduler jobs and triggers. */
 @NullMarked
 package org.quartz.spring.boot.actuate.metrics;
 

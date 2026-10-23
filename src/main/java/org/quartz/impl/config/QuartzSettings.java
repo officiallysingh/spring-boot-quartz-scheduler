@@ -15,19 +15,15 @@ package org.quartz.impl.config;
 
 import java.util.Objects;
 
-/**
- * The complete typed configuration of a scheduler, replacing {@code quartz.properties}.
- */
-public record QuartzSettings(
-        SchedulerSettings scheduler,
-        ThreadPoolSettings threadPool) {
+/** The complete typed configuration of a scheduler, replacing {@code quartz.properties}. */
+public record QuartzSettings(SchedulerSettings scheduler, ThreadPoolSettings threadPool) {
 
-    public QuartzSettings {
-        Objects.requireNonNull(scheduler, "scheduler");
-        Objects.requireNonNull(threadPool, "threadPool");
-    }
+  public QuartzSettings {
+    Objects.requireNonNull(scheduler, "scheduler");
+    Objects.requireNonNull(threadPool, "threadPool");
+  }
 
-    public static QuartzSettings defaults() {
-        return new QuartzSettings(SchedulerSettings.defaults(), ThreadPoolSettings.defaults());
-    }
+  public static QuartzSettings defaults() {
+    return new QuartzSettings(SchedulerSettings.defaults(), ThreadPoolSettings.defaults());
+  }
 }

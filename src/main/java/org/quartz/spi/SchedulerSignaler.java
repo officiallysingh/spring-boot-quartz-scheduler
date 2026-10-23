@@ -1,70 +1,67 @@
-/* 
+/*
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
  * Copyright IBM Corp. 2024, 2025
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 package org.quartz.spi;
 
 import java.time.Instant;
-
-
 import org.quartz.JobKey;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 
 /**
- * An interface to be used by <code>JobStore</code> instances in order to
- * communicate signals back to the <code>QuartzScheduler</code>.
- * 
+ * An interface to be used by <code>JobStore</code> instances in order to communicate signals back
+ * to the <code>QuartzScheduler</code>.
+ *
  * @author jhouse
  */
 public interface SchedulerSignaler {
 
-    /*
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
-     * Interface.
-     * 
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     */
+  /*
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   *
+   * Interface.
+   *
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   */
 
-    void notifyTriggerListenersMisfired(Trigger trigger);
+  void notifyTriggerListenersMisfired(Trigger trigger);
 
-    void notifySchedulerListenersFinalized(Trigger trigger);
+  void notifySchedulerListenersFinalized(Trigger trigger);
 
-    void notifySchedulerListenersJobDeleted(JobKey jobKey);
+  void notifySchedulerListenersJobDeleted(JobKey jobKey);
 
-    /**
-     * Signals that the schedule changed.
-     *
-     * @param candidateNewNextFireTime when the newly scheduled trigger will fire, or {@code null}
-     * if the change is not about a particular fire time
-     */
-    void signalSchedulingChange(Instant candidateNewNextFireTime);
+  /**
+   * Signals that the schedule changed.
+   *
+   * @param candidateNewNextFireTime when the newly scheduled trigger will fire, or {@code null} if
+   *     the change is not about a particular fire time
+   */
+  void signalSchedulingChange(Instant candidateNewNextFireTime);
 
-    /**
-     * Returns the current scheduling time.
-     *
-     * <p>The default preserves compatibility for third-party signaler
-     * implementations. Quartz's own implementation delegates to the configured
-     * {@link java.time.Clock}.</p>
-     */
-    default Instant getCurrentTime() throws SchedulerException {
-        return Instant.now();
-    }
+  /**
+   * Returns the current scheduling time.
+   *
+   * <p>The default preserves compatibility for third-party signaler implementations. Quartz's own
+   * implementation delegates to the configured {@link java.time.Clock}.
+   */
+  default Instant getCurrentTime() throws SchedulerException {
+    return Instant.now();
+  }
 
-    void notifySchedulerListenersError(String string, SchedulerException jpe);
+  void notifySchedulerListenersError(String string, SchedulerException jpe);
 }

@@ -12,9 +12,7 @@
  * under the License.
  */
 
-/**
- * The Redis job store.
- */
+/** The Redis job store. */
 @NullMarked
 package org.quartz.impl.redis;
 

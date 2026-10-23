@@ -17,14 +17,12 @@
 package org.quartz.plugins.interrupt;
 
 import java.time.Duration;
-
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
 import org.quartz.JobExecutionContext;
 import org.quartz.JobKey;
 import org.quartz.Scheduler;
@@ -38,148 +36,156 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This plugin catches the event of job running for a long time (more than the
- * configured max time) and tells the scheduler to "try" interrupting it if
- * enabled.
- * 
+ * This plugin catches the event of job running for a long time (more than the configured max time)
+ * and tells the scheduler to "try" interrupting it if enabled.
+ *
  * @see org.quartz.Scheduler#interrupt(JobKey)
- * 
  * @author Rama Chavali
  */
-
 public class JobInterruptMonitorPlugin extends TriggerListenerSupport implements SchedulerPlugin {
 
-    private static final String JOB_INTERRUPT_MONITOR_KEY = "JOB_INTERRUPT_MONITOR_KEY";
+  private static final String JOB_INTERRUPT_MONITOR_KEY = "JOB_INTERRUPT_MONITOR_KEY";
 
-    private Duration defaultMaxRunTime = Duration.ofMinutes(5);
-    
-    private String name;
+  private Duration defaultMaxRunTime = Duration.ofMinutes(5);
 
-    private ScheduledExecutorService executor;
+  private String name;
 
-    @SuppressWarnings("rawtypes")
-    private final ConcurrentMap<String, ScheduledFuture> futures = new ConcurrentHashMap<>();
+  private ScheduledExecutorService executor;
 
-    private Scheduler scheduler;
+  @SuppressWarnings("rawtypes")
+  private final ConcurrentMap<String, ScheduledFuture> futures = new ConcurrentHashMap<>();
+
+  private Scheduler scheduler;
+
+  private final Logger log = LoggerFactory.getLogger(getClass());
+
+  // Constants
+
+  public static final String AUTO_INTERRUPTIBLE = "AutoInterruptable";
+
+  public static final String MAX_RUN_TIME = "MaxRunTime";
+
+  public JobInterruptMonitorPlugin() {}
+
+  @Override
+  public void start() {}
+
+  @Override
+  public void shutdown() {
+    this.executor.shutdown();
+  }
+
+  protected Logger getLog() {
+    return log;
+  }
+
+  @SuppressWarnings("rawtypes")
+  public ScheduledFuture scheduleJobInterruptMonitor(JobKey jobkey, Duration delay) {
+    return this.executor.schedule(
+        new InterruptMonitor(jobkey, scheduler), delay.toMillis(), TimeUnit.MILLISECONDS);
+  }
+
+  // Bean Property Methods
+
+  public Duration getDefaultMaxRunTime() {
+    return this.defaultMaxRunTime;
+  }
+
+  public void setDefaultMaxRunTime(Duration defaultMaxRunTime) {
+    this.defaultMaxRunTime = defaultMaxRunTime;
+  }
+
+  // Trigger Listener Methods
+  public String getName() {
+    return name;
+  }
+
+  public void triggerFired(Trigger trigger, JobExecutionContext context) {
+    // Call the scheduleJobInterruptMonitor and capture the ScheduledFuture in context
+    try {
+      // Schedule Monitor only if the job wants AutoInterruptable functionality
+      if (context.getMergedJobDataMap().getBoolean(AUTO_INTERRUPTIBLE)) {
+        JobInterruptMonitorPlugin monitorPlugin =
+            (JobInterruptMonitorPlugin)
+                context.getScheduler().getContext().get(JOB_INTERRUPT_MONITOR_KEY);
+        // Get the MaxRuntime (milliseconds) from Job Data if NOT available use defaultMaxRunTime
+        // from Plugin Configuration
+        Duration jobDataDelay = defaultMaxRunTime;
+
+        if (context.getMergedJobDataMap().get(MAX_RUN_TIME) != null) {
+          jobDataDelay = Duration.ofMillis(context.getMergedJobDataMap().getLong(MAX_RUN_TIME));
+        }
+        ScheduledFuture<?> future =
+            monitorPlugin.scheduleJobInterruptMonitor(
+                context.getJobDetail().getKey(), jobDataDelay);
+        futures.put(context.getFireInstanceId(), future);
+        getLog()
+            .debug(
+                "Job's Interrupt Monitor has been scheduled to interrupt with the delay :{}",
+                jobDataDelay);
+      }
+    } catch (SchedulerException e) {
+      getLog().info("Error scheduling interrupt monitor {}", e.getMessage(), e);
+    }
+  }
+
+  @SuppressWarnings("rawtypes")
+  public void triggerComplete(
+      Trigger trigger,
+      JobExecutionContext context,
+      CompletedExecutionInstruction triggerInstructionCode) {
+    // cancel the Future if job is complete
+    ScheduledFuture future = futures.remove(context.getFireInstanceId());
+    if (future != null) {
+      future.cancel(true);
+    }
+  }
+
+  @Override
+  public void initialize(String name, Scheduler scheduler, ClassLoadHelper helper)
+      throws SchedulerException {
+
+    getLog().info("Registering Job Interrupt Monitor Plugin");
+    this.name = name;
+    ScheduledThreadPoolExecutor threadPoolExecutor = new ScheduledThreadPoolExecutor(1);
+    threadPoolExecutor.setRemoveOnCancelPolicy(true);
+    this.executor = threadPoolExecutor;
+    scheduler.getContext().put(JOB_INTERRUPT_MONITOR_KEY, this);
+    this.scheduler = scheduler;
+    // Set the trigger Listener as this class to the ListenerManager here
+    this.scheduler.getListenerManager().addTriggerListener(this);
+  }
+
+  static class InterruptMonitor implements Runnable {
+
+    private final JobKey jobKey;
+    private final Scheduler scheduler;
 
     private final Logger log = LoggerFactory.getLogger(getClass());
-    
-    //Constants
 
-    public static final String AUTO_INTERRUPTIBLE = "AutoInterruptable";
-
-    public static final String MAX_RUN_TIME = "MaxRunTime";
-
-    public JobInterruptMonitorPlugin() {
-    }
-
-    @Override
-    public void start() {
-    }
-
-    @Override
-
-    public void shutdown() {
-        this.executor.shutdown();
+    InterruptMonitor(JobKey jobKey, Scheduler scheduler) {
+      this.jobKey = jobKey;
+      this.scheduler = scheduler;
     }
 
     protected Logger getLog() {
-        return log;
-    }
-
-    @SuppressWarnings("rawtypes")
-    public ScheduledFuture scheduleJobInterruptMonitor(JobKey jobkey, Duration delay) {
-        return this.executor.schedule(new InterruptMonitor(jobkey, scheduler), delay.toMillis(), TimeUnit.MILLISECONDS);
-    }
-
-    // Bean Property Methods
-
-    public Duration getDefaultMaxRunTime() {
-        return this.defaultMaxRunTime;
-    }
-
-    public void setDefaultMaxRunTime(Duration defaultMaxRunTime) {
-        this.defaultMaxRunTime = defaultMaxRunTime;
-    }
-
-    // Trigger Listener Methods
-    public String getName() {
-        return name;
-    }
-
-    public void triggerFired(Trigger trigger, JobExecutionContext context) {
-        // Call the scheduleJobInterruptMonitor and capture the ScheduledFuture in context
-        try {
-            // Schedule Monitor only if the job wants AutoInterruptable functionality
-            if (context.getMergedJobDataMap().getBoolean(AUTO_INTERRUPTIBLE)) {
-                JobInterruptMonitorPlugin monitorPlugin = (JobInterruptMonitorPlugin) context.getScheduler()
-                        .getContext().get(JOB_INTERRUPT_MONITOR_KEY);
-                // Get the MaxRuntime (milliseconds) from Job Data if NOT available use defaultMaxRunTime from Plugin Configuration
-                Duration jobDataDelay = defaultMaxRunTime;
-
-                if (context.getMergedJobDataMap().get(MAX_RUN_TIME) != null){
-                     jobDataDelay = Duration.ofMillis(context.getMergedJobDataMap().getLong(MAX_RUN_TIME));
-                }
-                ScheduledFuture<?> future = monitorPlugin.scheduleJobInterruptMonitor(context.getJobDetail().getKey(), jobDataDelay);
-                futures.put(context.getFireInstanceId(), future);
-                getLog().debug("Job's Interrupt Monitor has been scheduled to interrupt with the delay :{}", jobDataDelay);
-            }
-        } catch (SchedulerException e) {
-            getLog().info("Error scheduling interrupt monitor {}", e.getMessage(), e);
-        }
-    }
-
-    @SuppressWarnings("rawtypes")
-    public void triggerComplete(Trigger trigger, JobExecutionContext context,
-            CompletedExecutionInstruction triggerInstructionCode) {
-        // cancel the Future if job is complete
-        ScheduledFuture future = futures.remove(context.getFireInstanceId());
-        if (future != null) {
-            future.cancel(true);
-        }
+      return log;
     }
 
     @Override
-    public void initialize(String name, Scheduler scheduler, ClassLoadHelper helper) throws SchedulerException {
+    public void run() {
+      try {
 
-        getLog().info("Registering Job Interrupt Monitor Plugin");
-        this.name = name;
-        ScheduledThreadPoolExecutor threadPoolExecutor = new ScheduledThreadPoolExecutor(1);
-        threadPoolExecutor.setRemoveOnCancelPolicy(true);
-        this.executor = threadPoolExecutor;
-        scheduler.getContext().put(JOB_INTERRUPT_MONITOR_KEY, this);
-        this.scheduler = scheduler;
-        // Set the trigger Listener as this class to the ListenerManager here
-        this.scheduler.getListenerManager().addTriggerListener(this);
-
+        // Interrupt the job here - using Scheduler API that gets propagated to Job's interrupt
+        getLog()
+            .info(
+                "Interrupting Job as it ran more than the configured max time. Job Details [{}:{}]",
+                jobKey.getName(),
+                jobKey.getGroup());
+        scheduler.interrupt(jobKey);
+      } catch (SchedulerException x) {
+        getLog().info("Error interrupting Job: {}", x.getMessage(), x);
+      }
     }
-
-    static class InterruptMonitor implements Runnable {
-
-        private final JobKey jobKey;
-        private final Scheduler scheduler;
-
-        private final Logger log = LoggerFactory.getLogger(getClass());
-
-        InterruptMonitor(JobKey jobKey, Scheduler scheduler) {
-            this.jobKey = jobKey;
-            this.scheduler = scheduler;
-        }
-
-        protected Logger getLog() {
-            return log;
-        }
-
-        @Override
-        public void run() {
-            try {
-
-                // Interrupt the job here - using Scheduler API that gets propagated to Job's interrupt
-                getLog().info("Interrupting Job as it ran more than the configured max time. Job Details [{}:{}]", jobKey.getName(), jobKey.getGroup());
-                scheduler.interrupt(jobKey);
-            } catch (SchedulerException x) {
-                getLog().info("Error interrupting Job: {}", x.getMessage(), x);
-            }
-        }
-    }
+  }
 }

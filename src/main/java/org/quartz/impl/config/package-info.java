@@ -12,9 +12,7 @@
  * under the License.
  */
 
-/**
- * Typed scheduler, thread pool and job store settings, replacing {@code quartz.properties}.
- */
+/** Typed scheduler, thread pool and job store settings, replacing {@code quartz.properties}. */
 @NullMarked
 package org.quartz.impl.config;
 

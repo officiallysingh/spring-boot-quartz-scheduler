@@ -17,6 +17,7 @@
  */
 package org.quartz.integrations.tests;
 
+import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.quartz.Scheduler;
@@ -28,44 +29,45 @@ import org.quartz.support.TestSchedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
-
 /**
- * A base class to support scheduler integration testing on the shared MongoDB container. Each test will have a fresh
- * scheduler created and started, and it will auto shutdown upon each test run.
+ * A base class to support scheduler integration testing on the shared MongoDB container. Each test
+ * will have a fresh scheduler created and started, and it will auto shutdown upon each test run.
  *
  * @author Zemian Deng
  */
 public class QuartzMongoTestSupport extends AbstractMongoIT {
-    protected static final Logger LOG = LoggerFactory.getLogger(QuartzMongoTestSupport.class);
-    protected Scheduler scheduler;
+  protected static final Logger LOG = LoggerFactory.getLogger(QuartzMongoTestSupport.class);
+  protected Scheduler scheduler;
 
-    @BeforeEach
-    public void initSchedulerBeforeTest() throws Exception {
-        SchedulerFactory sf = createSchedulerFactory();
-        scheduler = sf.getScheduler();
-        afterSchedulerInit();
-    }
+  @BeforeEach
+  public void initSchedulerBeforeTest() throws Exception {
+    SchedulerFactory sf = createSchedulerFactory();
+    scheduler = sf.getScheduler();
+    afterSchedulerInit();
+  }
 
-    protected void afterSchedulerInit() throws Exception {
-        LOG.info("Scheduler starting.");
-        scheduler.start();
-        LOG.info("Scheduler started.");
-    }
+  protected void afterSchedulerInit() throws Exception {
+    LOG.info("Scheduler starting.");
+    scheduler.start();
+    LOG.info("Scheduler started.");
+  }
 
-    protected SchedulerFactory createSchedulerFactory() {
-        return StdSchedulerFactory.builder()
-                .scheduler(SchedulerSettings.builder().name("TestScheduler").instanceIdAuto(true).build())
-                .threadPool(TestSchedulers.threadPool(12))
-                .jobStore(TestSchedulers.mongoStore(
-                        TestSchedulers.storeSettings().toBuilder().misfireThreshold(Duration.ofSeconds(10)).build()))
-                .build();
-    }
+  protected SchedulerFactory createSchedulerFactory() {
+    return StdSchedulerFactory.builder()
+        .scheduler(SchedulerSettings.builder().name("TestScheduler").instanceIdAuto(true).build())
+        .threadPool(TestSchedulers.threadPool(12))
+        .jobStore(
+            TestSchedulers.mongoStore(
+                TestSchedulers.storeSettings().toBuilder()
+                    .misfireThreshold(Duration.ofSeconds(10))
+                    .build()))
+        .build();
+  }
 
-    @AfterEach
-    public void initSchedulerAfterTest() throws Exception {
-        LOG.info("Scheduler shutting down.");
-        scheduler.shutdown(true);
-        LOG.info("Scheduler shutdown complete.");
-    }
+  @AfterEach
+  public void initSchedulerAfterTest() throws Exception {
+    LOG.info("Scheduler shutting down.");
+    scheduler.shutdown(true);
+    LOG.info("Scheduler shutdown complete.");
+  }
 }

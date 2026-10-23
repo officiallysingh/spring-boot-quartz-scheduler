@@ -14,25 +14,27 @@
 package org.quartz.impl.mongodb;
 
 import java.time.Duration;
-
 import org.quartz.spi.JobStore;
 import org.quartz.store.AbstractClusteredJobStoreContractTest;
 import org.quartz.support.AbstractMongoIT;
 
 /**
- * The clustered job store contract against MongoDB: two scheduler instances on the same
- * {@code mongo:8.0} container.
+ * The clustered job store contract against MongoDB: two scheduler instances on the same {@code
+ * mongo:8.0} container.
  */
 class MongoClusteredJobStoreIT extends AbstractClusteredJobStoreContractTest {
 
-    @Override
-    protected JobStore createJobStore(String instanceId) {
-        return new MongoJobStore(AbstractMongoIT.mongoClient(), MongoJobStoreIT.DATABASE, clusteredSettings(),
-                new MongoJobStoreSettings("qrtz_", Duration.ofSeconds(2)));
-    }
+  @Override
+  protected JobStore createJobStore(String instanceId) {
+    return new MongoJobStore(
+        AbstractMongoIT.mongoClient(),
+        MongoJobStoreIT.DATABASE,
+        clusteredSettings(),
+        new MongoJobStoreSettings("qrtz_", Duration.ofSeconds(2)));
+  }
 
-    @Override
-    protected void cleanStore() {
-        AbstractMongoIT.dropAllCollections();
-    }
+  @Override
+  protected void cleanStore() {
+    AbstractMongoIT.dropAllCollections();
+  }
 }
