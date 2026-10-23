@@ -239,17 +239,27 @@ public class MongoJobStore extends PersistentJobStore {
   }
 
   /**
-   * Aborts with the thread's interrupt flag cleared (and restored afterwards): an interrupted
-   * thread (e.g. a store thread stopped at shutdown) cannot talk to the server, and an unaborted
-   * transaction keeps its locks on the server until its lifetime expires.
+   * Ends the failed transaction, with the thread's interrupt flag cleared (and restored
+   * afterwards): an interrupted thread (e.g. a store thread stopped at shutdown) cannot talk to the
+   * server, and a transaction left open keeps its locks on the server until its lifetime expires
+   * (60s by default), blocking every other instance and any collection drop meanwhile.
+   *
+   * <p>The driver ignores errors of {@code abortTransaction}, so an abort that did not reach the
+   * server goes unnoticed; the server session is therefore also killed ({@code killSessions}, which
+   * aborts its transactions) and marked dirty so the driver does not reuse it.
    */
-  private static void abort(ClientSession clientSession, Throwable failure) {
-    if (!clientSession.hasActiveTransaction()) {
-      return;
-    }
+  private void abort(ClientSession clientSession, Throwable failure) {
     boolean interrupted = Thread.interrupted();
     try {
-      clientSession.abortTransaction();
+      if (clientSession.hasActiveTransaction()) {
+        clientSession.abortTransaction();
+      }
+      clientSession.getServerSession().markDirty();
+      client
+          .getDatabase("admin")
+          .runCommand(
+              new Document(
+                  "killSessions", List.of(clientSession.getServerSession().getIdentifier())));
     } catch (RuntimeException ex) {
       failure.addSuppressed(ex);
     } finally {
