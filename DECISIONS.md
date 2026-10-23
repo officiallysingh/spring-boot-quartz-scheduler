@@ -355,3 +355,9 @@ It now counts the jobs it has handed over that have not ended, against a capacit
 `blockForAvailableThreads()` waits until there is room (like `SimpleThreadPool`) and returns how much; it returns `0` when interrupted (the scheduler thread is interrupted when it halts) without keeping the interrupt flag, or when the pool shuts down. `shutdown(true)` waits for the handed-over jobs to end; the executor is the application's and is not shut down. `getPoolSize()` reports the capacity (`-1` if unknown).
 
 The virtual-thread executor built by the auto-configuration no longer has its own concurrency limit; it runs in a `LocalTaskExecutorThreadPool` with capacity `thread-count`, so the limit is applied before triggers are acquired instead of by blocking the scheduler thread in `execute`. Virtual threads stay off by default (to be revisited separately).
+
+## D-024 — Publishing profile and google-java-format (user's build changes)
+
+The user edited `pom.xml` by hand: `<scm>` for `officiallysingh/spring-boot-quartz-scheduler`, a `publish-artefacts` profile (release, sources, javadoc, gpg, `central-publishing-maven-plugin`; off by default), `com.spotify.fmt:fmt-maven-plugin` running `format` on every build, `maven.compiler.source/target` next to `release`, and reordered plugin versions. These plugins are beyond CLAUDE.md's list; they are the user's explicit choice.
+
+`fmt` applies google-java-format to `src/main` and `src/test`. The first run reformatted the whole tree (2-space indent, import order, Javadoc re-wrapped), committed on its own so it can be reviewed or reverted apart from behaviour changes. Two files needed help: `HelloJob`'s licence header sat between its imports (the formatter refuses non-contiguous imports), and in `JobDataMap` re-wrapping moved `@PersistJobDataAfterExecution` to the start of a Javadoc line, where Javadoc took it for a block tag; it is now `{@code ...}`.
