@@ -31,6 +31,7 @@ import org.quartz.JobExecutionContext;
 import org.quartz.JobKey;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerListener;
+import org.quartz.SchedulerMetaData;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
 import org.quartz.TriggerKey;
@@ -40,6 +41,8 @@ import org.quartz.impl.redis.RedisJobStore;
 import org.quartz.listeners.JobListenerSupport;
 import org.quartz.listeners.SchedulerListenerSupport;
 import org.quartz.listeners.TriggerListenerSupport;
+import org.quartz.simpl.SimpleThreadPool;
+import org.quartz.simpl.VirtualThreadPool;
 import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.InstanceIdGenerator;
 import org.quartz.spi.SchedulerPlugin;
@@ -253,13 +256,34 @@ class QuartzAutoConfigurationIT extends AbstractMongoIT {
             "spring.quartz.thread-pool.thread-count=3")
         .run(
             context -> {
-              assertThat(context.getBean(Scheduler.class).getMetaData().getThreadPoolSize())
-                  .isEqualTo(3);
+              SchedulerMetaData metaData = context.getBean(Scheduler.class).getMetaData();
+              assertThat(metaData.getThreadPoolClass()).isEqualTo(VirtualThreadPool.class);
+              assertThat(metaData.getThreadPoolSize()).isEqualTo(3);
               await()
                   .atMost(Duration.ofSeconds(10))
                   .until(() -> RESULTS.stream().anyMatch(r -> r.startsWith("hello quartz")));
               assertThat(RESULTS).contains("hello quartz on virtual thread");
             });
+  }
+
+  @Test
+  void platformThreadPoolIsTheDefault() {
+    contextRunner.run(
+        context -> {
+          SchedulerMetaData metaData = context.getBean(Scheduler.class).getMetaData();
+          assertThat(metaData.getThreadPoolClass()).isEqualTo(SimpleThreadPool.class);
+          assertThat(metaData.getThreadPoolSize()).isEqualTo(10);
+        });
+  }
+
+  @Test
+  void springVirtualThreadsSettingDoesNotSwitchTheJobThreads() {
+    contextRunner
+        .withPropertyValues("spring.threads.virtual.enabled=true")
+        .run(
+            context ->
+                assertThat(context.getBean(Scheduler.class).getMetaData().getThreadPoolClass())
+                    .isEqualTo(SimpleThreadPool.class));
   }
 
   @Test

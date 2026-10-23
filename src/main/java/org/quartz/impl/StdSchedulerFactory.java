@@ -43,6 +43,7 @@ import org.quartz.impl.matchers.EverythingMatcher;
 import org.quartz.simpl.CascadingClassLoadHelper;
 import org.quartz.simpl.SimpleInstanceIdGenerator;
 import org.quartz.simpl.SimpleThreadPool;
+import org.quartz.simpl.VirtualThreadPool;
 import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.InstanceIdGenerator;
 import org.quartz.spi.JobFactory;
@@ -270,6 +271,13 @@ public class StdSchedulerFactory implements SchedulerFactory {
   }
 
   private static ThreadPool createThreadPool(ThreadPoolSettings tps) {
+    if (tps.virtualThreads()) {
+      VirtualThreadPool vtp = new VirtualThreadPool(tps.threadCount());
+      vtp.setThreadNamePrefix(tps.threadNamePrefix());
+      vtp.setThreadsInheritContextClassLoaderOfInitializingThread(
+          tps.threadsInheritContextClassLoaderOfInitializingThread());
+      return vtp;
+    }
     SimpleThreadPool tp = new SimpleThreadPool(tps.threadCount(), tps.threadPriority());
     if (tps.threadNamePrefix() != null) {
       tp.setThreadNamePrefix(tps.threadNamePrefix());

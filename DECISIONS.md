@@ -394,3 +394,11 @@ Requested by the user after D-020, which had left the Quartz packages unannotate
 - `CronExpression.getSet` throws `IllegalArgumentException` for an unknown field type instead of returning `null` (unreachable).
 - `JobBuilder.build()` without a job class throws the same `IllegalArgumentException` as before, now from the builder.
 - `Objects.requireNonNull` where an invariant guarantees a value: an acquired trigger's next fire time and fire-instance id, a fired trigger's previous fire time, the interrupt-monitor plugin in the scheduler context, a recovering job's original trigger name.
+
+## D-027 — `VirtualThreadPool`
+
+Requested by the user: virtual threads as a thread pool of the scheduler's own, switched on only by `spring.quartz.thread-pool.virtual-threads` (default `false`, platform `SimpleThreadPool` otherwise) and not tied to `spring.threads.virtual.enabled` (a test pins that).
+
+`org.quartz.simpl.VirtualThreadPool` implements `ThreadPool` directly: a new virtual thread per job, named `<prefix>-<n>` (prefix `thread-name-prefix`, default `<scheduler name>_Worker`), with at most `thread-count` jobs running. It reports the free capacity from `blockForAvailableThreads()` (waiting while full, `0` when interrupted or shut down while full, as `LocalTaskExecutorThreadPool` does since D-023), `getPoolSize()` is the limit, and `shutdown(true)` waits for running jobs. `threads-inherit-context-class-loader-of-initializing-thread` applies (default `true`): the jobs use the initializing thread's context class loader, as with `SimpleThreadPool`. Thread priority, daemon status and the thread-group option do not apply to virtual threads and are ignored. Should a job be handed over while the limit is reached (the scheduler does not do this), `runInThread` waits rather than returning `false`, since the scheduler would put the triggers into `ERROR`; this is what `SimpleThreadPool` does too.
+
+The switch moved into the core settings: `ThreadPoolSettings.virtualThreads`, so `StdSchedulerFactory` creates the pool itself and plain (non-Spring) use gets it too. The auto-configuration no longer builds a `SimpleAsyncTaskExecutor` wrapped in a `LocalTaskExecutorThreadPool`; that adapter stays for application-supplied executors.

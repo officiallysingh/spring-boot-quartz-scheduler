@@ -35,7 +35,6 @@ import org.quartz.simpl.SystemPropertyInstanceIdGenerator;
 import org.quartz.spi.InstanceIdGenerator;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.SchedulerPlugin;
-import org.quartz.spring.LocalTaskExecutorThreadPool;
 import org.quartz.spring.SchedulerFactoryBean;
 import org.quartz.spring.SpringBeanJobFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -47,7 +46,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.core.task.SimpleAsyncTaskExecutor;
 
 /**
  * {@link EnableAutoConfiguration Auto-configuration} for Quartz Scheduler.
@@ -121,11 +119,7 @@ public final class QuartzAutoConfiguration {
     schedulerFactoryBean.setTransactionalJobs(properties.transaction().enabled());
     schedulerFactoryBean.setDefaultJobTransactionPropagation(
         properties.transaction().defaultPropagation());
-    if (properties.threadPool().virtualThreads()) {
-      schedulerFactoryBean.setThreadPool(
-          new LocalTaskExecutorThreadPool(
-              virtualThreadExecutor(settings), properties.threadPool().threadCount()));
-    }
+
     if (properties.scheduler().isSystemPropertyInstanceId()) {
       schedulerFactoryBean.setInstanceIdGenerator(new SystemPropertyInstanceIdGenerator());
     } else {
@@ -165,19 +159,6 @@ public final class QuartzAutoConfiguration {
           type, available.stream().map(JobStoreFactory::type).sorted().toList());
     }
     return candidates.get(0).create(properties);
-  }
-
-  /**
-   * A virtual thread per job. The {@link LocalTaskExecutorThreadPool} it runs in limits it to
-   * {@code thread-count} jobs at a time: the scheduler acquires no triggers while that many run.
-   */
-  private static SimpleAsyncTaskExecutor virtualThreadExecutor(QuartzSettings settings) {
-    String prefix = settings.threadPool().threadNamePrefix();
-    SimpleAsyncTaskExecutor executor =
-        new SimpleAsyncTaskExecutor(
-            ((prefix != null) ? prefix : settings.scheduler().name() + "_Worker") + "-");
-    executor.setVirtualThreads(true);
-    return executor;
   }
 
   private static Map<String, SchedulerPlugin> plugins(

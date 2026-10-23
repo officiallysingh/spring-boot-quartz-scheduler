@@ -17,10 +17,12 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Settings of the worker thread pool (the former {@code org.quartz.threadPool.*} keys). They apply
- * to the {@link org.quartz.simpl.SimpleThreadPool} the scheduler factory creates when no {@link
- * org.quartz.spi.ThreadPool} instance is supplied.
+ * to the pool the scheduler factory creates when no {@link org.quartz.spi.ThreadPool} instance is
+ * supplied: a {@link org.quartz.simpl.SimpleThreadPool} of platform threads, or, with {@code
+ * virtualThreads}, a {@link org.quartz.simpl.VirtualThreadPool}.
  *
- * @param threadCount the number of worker threads; at least 1
+ * @param threadCount the number of worker threads, or, with virtual threads, the maximum number of
+ *     concurrently running jobs; at least 1
  * @param threadPriority the worker thread priority, {@link Thread#MIN_PRIORITY} to {@link
  *     Thread#MAX_PRIORITY}
  * @param threadNamePrefix the worker thread name prefix; {@code null} means {@code <scheduler
@@ -30,6 +32,9 @@ import org.jspecify.annotations.Nullable;
  *     of the thread that initializes the pool
  * @param threadsInheritGroupOfInitializingThread workers join the thread group of the thread that
  *     initializes the pool
+ * @param virtualThreads run each job on a new virtual thread instead of a pool of platform threads;
+ *     {@code threadPriority}, {@code daemon} and {@code threadsInheritGroupOfInitializingThread}
+ *     then do not apply
  */
 public record ThreadPoolSettings(
     int threadCount,
@@ -37,7 +42,8 @@ public record ThreadPoolSettings(
     @Nullable String threadNamePrefix,
     boolean daemon,
     boolean threadsInheritContextClassLoaderOfInitializingThread,
-    boolean threadsInheritGroupOfInitializingThread) {
+    boolean threadsInheritGroupOfInitializingThread,
+    boolean virtualThreads) {
 
   public static final int DEFAULT_THREAD_COUNT = 10;
 
@@ -75,7 +81,8 @@ public record ThreadPoolSettings(
         .daemon(daemon)
         .threadsInheritContextClassLoaderOfInitializingThread(
             threadsInheritContextClassLoaderOfInitializingThread)
-        .threadsInheritGroupOfInitializingThread(threadsInheritGroupOfInitializingThread);
+        .threadsInheritGroupOfInitializingThread(threadsInheritGroupOfInitializingThread)
+        .virtualThreads(virtualThreads);
   }
 
   public static final class Builder {
@@ -85,6 +92,7 @@ public record ThreadPoolSettings(
     private boolean daemon;
     private boolean threadsInheritContextClassLoaderOfInitializingThread = true;
     private boolean threadsInheritGroupOfInitializingThread = true;
+    private boolean virtualThreads;
 
     private Builder() {}
 
@@ -118,6 +126,11 @@ public record ThreadPoolSettings(
       return this;
     }
 
+    public Builder virtualThreads(boolean virtualThreads) {
+      this.virtualThreads = virtualThreads;
+      return this;
+    }
+
     public ThreadPoolSettings build() {
       return new ThreadPoolSettings(
           threadCount,
@@ -125,7 +138,8 @@ public record ThreadPoolSettings(
           threadNamePrefix,
           daemon,
           threadsInheritContextClassLoaderOfInitializingThread,
-          threadsInheritGroupOfInitializingThread);
+          threadsInheritGroupOfInitializingThread,
+          virtualThreads);
     }
   }
 }

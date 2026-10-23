@@ -107,6 +107,7 @@ class QuartzPropertiesTest {
 
     assertThat(properties.threadPool().toSettings().threadCount()).isEqualTo(3);
     assertThat(properties.threadPool().virtualThreads()).isTrue();
+    assertThat(properties.threadPool().toSettings().virtualThreads()).isTrue();
 
     JobStoreSettings store = properties.jobStore().toSettings();
     assertThat(properties.jobStore().type()).isEqualTo(JobStoreType.MONGODB);

@@ -72,9 +72,23 @@ spring:
 `SchedulerPlugin` beans are registered with the scheduler; inject `Scheduler` to schedule jobs at run time.
 `SchedulerFactoryBeanCustomizer` beans can adjust the `SchedulerFactoryBean` before the scheduler is created.
 
-Jobs run on a pool of `thread-count` platform threads, or, with `spring.quartz.thread-pool.virtual-threads: true`,
-on a virtual thread each with at most `thread-count` running at once. To run them on an executor of your own, set
-it with a customizer:
+Jobs run on a pool of `thread-count` platform threads (`SimpleThreadPool`) unless virtual threads are switched on
+for the scheduler:
+
+```yaml
+spring.quartz.thread-pool:
+  virtual-threads: true
+  thread-count: 50        # the maximum number of jobs running at once
+  thread-name-prefix: jobs
+```
+
+Each job then runs on a new virtual thread (`VirtualThreadPool`), and the scheduler acquires no more triggers than
+`thread-count` allows. Size it to what the systems your jobs call accept (database connection pool, mail server,
+API rate limits) rather than to CPU cores. Thread priority, daemon status and thread groups do not apply to virtual
+threads. The switch is independent of Spring Boot's `spring.threads.virtual.enabled`: that one does not change the
+job threads.
+
+To run jobs on an executor of your own, set it with a customizer:
 
 ```java
 @Bean
@@ -191,7 +205,7 @@ ISO-8601 (`PT30S`).
 | `spring.quartz.thread-pool.thread-priority` | Integer | `5` | Priority of the worker threads (1 to 9) |
 | `spring.quartz.thread-pool.threads-inherit-context-class-loader-of-initializing-thread` | Boolean | `true` | Whether the worker threads use the context class loader of the thread that initializes the pool |
 | `spring.quartz.thread-pool.threads-inherit-group-of-initializing-thread` | Boolean | `true` | Whether the worker threads join the thread group of the thread that initializes the pool |
-| `spring.quartz.thread-pool.virtual-threads` | Boolean | `false` | Whether to run jobs on virtual threads instead of a pool of platform threads |
+| `spring.quartz.thread-pool.virtual-threads` | Boolean | `false` | Whether to run each job on a new virtual thread (at most `thread-count` at a time) instead of a pool of platform threads; independent of `spring.threads.virtual.enabled` |
 | `spring.quartz.transaction.default-propagation` | Propagation | `REQUIRED` | Propagation of the transactions of jobs that are not annotated, when enabled |
 | `spring.quartz.transaction.enabled` | Boolean | `false` | Whether every job runs in a transaction of the unique or primary transaction manager, not only annotated jobs |
 | `spring.quartz.wait-for-jobs-to-complete-on-shutdown` | Boolean | `false` | Whether to wait for running jobs to complete on shutdown |

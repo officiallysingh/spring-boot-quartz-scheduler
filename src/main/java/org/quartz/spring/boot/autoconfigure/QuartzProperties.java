@@ -141,8 +141,10 @@ public record QuartzProperties(
    *     context class loader of the thread that initializes the pool
    * @param threadsInheritGroupOfInitializingThread whether the worker threads join the thread group
    *     of the thread that initializes the pool
-   * @param virtualThreads whether to run jobs on virtual threads instead of a pool of platform
-   *     threads
+   * @param virtualThreads whether to run each job on a new virtual thread ({@link
+   *     org.quartz.simpl.VirtualThreadPool}, at most {@code thread-count} at a time) instead of a
+   *     pool of platform threads; independent of {@code spring.threads.virtual.enabled}. Thread
+   *     priority, daemon status and thread groups do not apply to virtual threads.
    */
   public record ThreadPool(
       @DefaultValue("10") int threadCount,
@@ -162,6 +164,7 @@ public record QuartzProperties(
           .threadsInheritContextClassLoaderOfInitializingThread(
               this.threadsInheritContextClassLoaderOfInitializingThread)
           .threadsInheritGroupOfInitializingThread(this.threadsInheritGroupOfInitializingThread)
+          .virtualThreads(this.virtualThreads)
           .build();
     }
   }

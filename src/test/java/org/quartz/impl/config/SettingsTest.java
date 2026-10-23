@@ -50,6 +50,7 @@ class SettingsTest {
     assertThat(s.daemon()).isFalse();
     assertThat(s.threadsInheritContextClassLoaderOfInitializingThread()).isTrue();
     assertThat(s.threadsInheritGroupOfInitializingThread()).isTrue();
+    assertThat(s.virtualThreads()).isFalse();
   }
 
   @Test
@@ -73,7 +74,8 @@ class SettingsTest {
             .idleWaitTime(Duration.ofSeconds(2))
             .contextEntry("k", "v")
             .build();
-    ThreadPoolSettings pool = ThreadPoolSettings.builder().threadCount(3).daemon(true).build();
+    ThreadPoolSettings pool =
+        ThreadPoolSettings.builder().threadCount(3).daemon(true).virtualThreads(true).build();
     JobStoreSettings store =
         JobStoreSettings.builder().clustered(true).misfireThreshold(Duration.ofSeconds(5)).build();
 
