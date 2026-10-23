@@ -33,6 +33,17 @@
             <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
         </license>
     </licenses>
+    <organization>
+        <name>Neolama Technologies</name>
+    </organization>
+    <developers>
+        <developer>
+            <name>Rajveer Singh</name>
+            <email>raj14.1984@gmail.com</email>
+            <organization>Neolama Technologies</organization>
+            <organizationUrl>http://www.neolama.com</organizationUrl>
+        </developer>
+    </developers>
 
     <properties>
         <java.version>25</java.version>
