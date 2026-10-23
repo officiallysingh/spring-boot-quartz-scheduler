@@ -4,6 +4,7 @@ A Spring Boot 4 (Java 25) library derived from the core of the [Quartz Scheduler
 It keeps the familiar `org.quartz` API (`JobBuilder`, `TriggerBuilder`, `Scheduler`, `Job`, …) with `java.time`
 types, is configured entirely through `application.yml`, and persists jobs in MongoDB or Redis.
 The history of the refactor is in [`REFACTOR_PLAN.md`](REFACTOR_PLAN.md) and [`DECISIONS.md`](DECISIONS.md).
+How the library is built inside, for contributors: [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md).
 
 ## Maven coordinates
 
