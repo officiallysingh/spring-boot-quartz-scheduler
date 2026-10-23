@@ -128,8 +128,10 @@ SchedulerFactoryBeanCustomizer quartzExecutor(ThreadPoolTaskExecutor quartzJobsE
 The scheduler only takes triggers when the executor has room to run them, so they never wait in its queue (where
 no other cluster node could run them) or get rejected. Its capacity is the core pool size of a
 `ThreadPoolTaskExecutor` / `ThreadPoolExecutor` (the maximum pool size if it has no queue) or the concurrency limit
-of a `SimpleAsyncTaskExecutor`; for any other executor pass it explicitly with
-`setThreadPool(new LocalTaskExecutorThreadPool(executor, capacity))`, or triggers are taken one at a time.
+of a `SimpleAsyncTaskExecutor`. An executor that sets no limit (an unlimited `SimpleAsyncTaskExecutor`,
+`Executors.newCachedThreadPool()`, a virtual-thread-per-task executor, any other `Executor`) runs at most
+`thread-count` jobs at a time, as the startup log says; an explicit capacity, set with
+`setThreadPool(new LocalTaskExecutorThreadPool(executor, capacity))`, is used as given.
 `wait-for-jobs-to-complete-on-shutdown` waits for the jobs handed to the executor; the executor itself is not shut
 down.
 

@@ -461,7 +461,10 @@ public class SchedulerFactoryBean extends SchedulerAccessor
       builder.classLoadHelper(new ResourceLoaderClassLoadHelper(this.resourceLoader));
     }
     if (this.taskExecutor != null) {
-      builder.threadPool(new LocalTaskExecutorThreadPool(this.taskExecutor));
+      LocalTaskExecutorThreadPool pool = new LocalTaskExecutorThreadPool(this.taskExecutor);
+      // an executor without a limit runs at most thread-count jobs at a time
+      pool.setDefaultCapacity(base.threadPool().threadCount());
+      builder.threadPool(pool);
     } else if (this.threadPool != null) {
       builder.threadPool(this.threadPool);
     }

@@ -34,6 +34,7 @@ import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
+import org.quartz.SchedulerMetaData;
 import org.quartz.SimpleTrigger;
 import org.quartz.impl.calendar.WeeklyCalendar;
 import org.quartz.impl.config.QuartzSettings;
@@ -240,6 +241,23 @@ class SchedulerFactoryBeanIT extends AbstractMongoIT {
 
       await().atMost(Duration.ofSeconds(10)).until(() -> !RESULTS.isEmpty());
       assertThat(RESULTS.get(0)).isEqualTo("hello pool on spring-executor");
+    } finally {
+      executor.shutdownNow();
+    }
+  }
+
+  @Test
+  void anExecutorWithoutALimitRunsAtMostThreadCountJobs() throws Exception {
+    ExecutorService executor = Executors.newCachedThreadPool();
+    try {
+      factoryBean = newFactoryBean("unlimitedExecutor"); // thread-count 2
+      factoryBean.setTaskExecutor(executor);
+      factoryBean.afterPropertiesSet();
+
+      SchedulerMetaData metaData = factoryBean.getScheduler().getMetaData();
+      assertThat(metaData.getThreadPoolSize()).isEqualTo(2);
+      assertThat(metaData.getThreadPoolDescription())
+          .endsWith("at most 2 concurrent jobs (the executor sets no limit)");
     } finally {
       executor.shutdownNow();
     }

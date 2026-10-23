@@ -21,6 +21,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import org.quartz.impl.config.ThreadPoolSettings;
 import org.quartz.spi.ThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,8 +47,13 @@ import org.springframework.util.Assert;
  *       it has one.
  * </ul>
  *
- * Otherwise the capacity is unknown and the scheduler acquires one trigger at a time, whether or
- * not the executor has room for it.
+ * An executor that sets no limit (an unlimited {@code SimpleAsyncTaskExecutor}, a cached thread
+ * pool, a virtual-thread-per-task executor, or any other executor) is limited to the {@linkplain
+ * #setDefaultCapacity default capacity}: {@code spring.quartz.thread-pool.thread-count} when the
+ * adapter comes from {@link SchedulerFactoryBean#setTaskExecutor}, otherwise {@value
+ * ThreadPoolSettings#DEFAULT_THREAD_COUNT}. Unbounded concurrency would start every due job at
+ * once, overwhelming the systems the jobs use, and in a cluster let one node take all due triggers.
+ * An explicit capacity is used as given.
  *
  * <p>{@link #shutdown(boolean) shutdown(true)} waits for the jobs it has handed over to complete.
  * The executor itself is not shut down: it belongs to the application.
@@ -70,6 +76,10 @@ public class LocalTaskExecutorThreadPool implements ThreadPool {
   private final Condition jobEnded = this.lock.newCondition();
 
   private int capacity;
+
+  private int defaultCapacity = ThreadPoolSettings.DEFAULT_THREAD_COUNT;
+
+  private boolean capacityIsDefault;
 
   private int running;
 
@@ -108,14 +118,31 @@ public class LocalTaskExecutorThreadPool implements ThreadPool {
   @Override
   public void setInstanceName(String schedName) {}
 
+  /**
+   * The capacity used when the capacity is derived and the executor sets no limit; default {@value
+   * ThreadPoolSettings#DEFAULT_THREAD_COUNT}.
+   *
+   * @param defaultCapacity the number of jobs to run at the same time; at least 1
+   */
+  public void setDefaultCapacity(int defaultCapacity) {
+    Assert.isTrue(defaultCapacity > 0, "Default capacity must be positive");
+    this.defaultCapacity = defaultCapacity;
+  }
+
   @Override
   public void initialize() {
     if (this.capacity == UNKNOWN) {
-      this.capacity = capacityOf(this.taskExecutor);
-    }
-    if (this.capacity == UNKNOWN) {
-      logger.info(
-          "Capacity of {} is unknown: triggers are acquired one at a time", this.taskExecutor);
+      int derived = capacityOf(this.taskExecutor);
+      if (derived == UNKNOWN || derived == Integer.MAX_VALUE) {
+        this.capacity = this.defaultCapacity;
+        this.capacityIsDefault = true;
+        logger.info(
+            "{} sets no limit on concurrent tasks: running at most {} jobs at a time",
+            this.taskExecutor.getClass().getName(),
+            this.capacity);
+      } else {
+        this.capacity = derived;
+      }
     }
   }
 
@@ -161,7 +188,7 @@ public class LocalTaskExecutorThreadPool implements ThreadPool {
     }
   }
 
-  /** The capacity of the executor, or {@code -1} if it is unknown. */
+  /** The maximum number of concurrently running jobs; {@code -1} before {@link #initialize()}. */
   @Override
   public int getPoolSize() {
     return this.capacity;
@@ -169,10 +196,12 @@ public class LocalTaskExecutorThreadPool implements ThreadPool {
 
   @Override
   public String describe() {
-    String executor = this.taskExecutor.getClass().getName();
-    return (this.capacity == UNKNOWN)
-        ? "on " + executor + ", capacity unknown (one job handed over at a time)"
-        : "on " + executor + ", at most " + this.capacity + " concurrent jobs";
+    return "on "
+        + this.taskExecutor.getClass().getName()
+        + ", at most "
+        + this.capacity
+        + " concurrent jobs"
+        + (this.capacityIsDefault ? " (the executor sets no limit)" : "");
   }
 
   @Override
@@ -211,15 +240,11 @@ public class LocalTaskExecutorThreadPool implements ThreadPool {
   }
 
   /**
-   * Wait until the executor has room for a job, and return how many it has room for ({@code 1} if
-   * its capacity is unknown, {@code 0} if the wait was interrupted or the pool shut down while it
-   * was full).
+   * Wait until the executor has room for a job, and return how many it has room for ({@code 0} if
+   * the wait was interrupted or the pool shut down while it was full).
    */
   @Override
   public int blockForAvailableThreads() {
-    if (this.capacity == UNKNOWN) {
-      return 1;
-    }
     this.lock.lock();
     try {
       while (this.running >= this.capacity && !this.shutdown) {

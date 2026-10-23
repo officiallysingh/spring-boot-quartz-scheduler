@@ -84,10 +84,27 @@ class LocalTaskExecutorThreadPoolTest {
     SimpleAsyncTaskExecutor limited = new SimpleAsyncTaskExecutor();
     limited.setConcurrencyLimit(4);
     assertThat(initialized(new LocalTaskExecutorThreadPool(limited)).getPoolSize()).isEqualTo(4);
+  }
+
+  @Test
+  void executorsWithoutALimitRunAtMostTheDefaultCapacity() {
+    // unlimited SimpleAsyncTaskExecutor, cached thread pool (maximum pool size Integer.MAX_VALUE),
+    // and an executor whose capacity cannot be read at all
     assertThat(
             initialized(new LocalTaskExecutorThreadPool(new SimpleAsyncTaskExecutor()))
                 .getPoolSize())
-        .isEqualTo(-1);
+        .isEqualTo(10);
+    assertThat(initialized(new LocalTaskExecutorThreadPool(executor)).getPoolSize()).isEqualTo(10);
+    LocalTaskExecutorThreadPool lambda = new LocalTaskExecutorThreadPool(executor::execute);
+    lambda.setDefaultCapacity(3);
+    assertThat(initialized(lambda).getPoolSize()).isEqualTo(3);
+  }
+
+  @Test
+  void anExplicitCapacityIsNotCapped() {
+    assertThat(
+            initialized(new LocalTaskExecutorThreadPool(executor, Integer.MAX_VALUE)).getPoolSize())
+        .isEqualTo(Integer.MAX_VALUE);
   }
 
   @Test
@@ -103,17 +120,27 @@ class LocalTaskExecutorThreadPoolTest {
     SimpleAsyncTaskExecutor unlimited = new SimpleAsyncTaskExecutor();
     assertThat(initialized(new LocalTaskExecutorThreadPool(unlimited)).describe())
         .isEqualTo(
-            "on org.springframework.core.task.SimpleAsyncTaskExecutor, capacity unknown (one job"
-                + " handed over at a time)");
+            "on org.springframework.core.task.SimpleAsyncTaskExecutor, at most 10 concurrent jobs"
+                + " (the executor sets no limit)");
   }
 
   @Test
-  void unknownCapacityOffersOneJobAtATime() {
-    LocalTaskExecutorThreadPool pool =
-        initialized(new LocalTaskExecutorThreadPool(executor::execute));
-    assertThat(pool.getPoolSize()).isEqualTo(-1);
-    assertThat(pool.runInThread(this::awaitRelease)).isTrue();
+  void aCappedExecutorBlocksOnceTheDefaultCapacityIsReached() {
+    LocalTaskExecutorThreadPool pool = new LocalTaskExecutorThreadPool(executor::execute);
+    pool.setDefaultCapacity(1);
+    initialized(pool);
     assertThat(pool.blockForAvailableThreads()).isEqualTo(1);
+    assertThat(pool.runInThread(this::awaitRelease)).isTrue();
+
+    CompletableFuture<Integer> available =
+        CompletableFuture.supplyAsync(pool::blockForAvailableThreads);
+    await()
+        .during(Duration.ofMillis(200))
+        .atMost(Duration.ofSeconds(1))
+        .until(() -> !available.isDone());
+    release.countDown();
+    await().atMost(Duration.ofSeconds(5)).until(available::isDone);
+    assertThat(available.join()).isEqualTo(1);
   }
 
   @Test
