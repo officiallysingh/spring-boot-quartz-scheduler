@@ -332,3 +332,12 @@ Requested by the user after Phase 12 (CLAUDE.md said Java 21). `java.version` / 
 **Why 25 and not a later release.** 25 is the current LTS; a non-LTS baseline (26, 27) would tie every application to a short-lived JDK. Preview features (structured concurrency, lazy constants) are not used: a published library cannot ship them.
 
 **What it buys.** Virtual threads no longer pin their carrier inside `synchronized` (JEP 491, JDK 24), so `spring.quartz.thread-pool.virtual-threads` has no Java 21 caveat. `ScopedValue` (JEP 506, final in 25) replaces the stores' `ThreadLocal`s (D-022). Virtual threads stay off by default; whether to change that is a separate step.
+
+## D-022 — `ScopedValue` instead of `ThreadLocal` in the stores
+
+With the Java 25 baseline (D-021), the per-thread state of a store operation is a `ScopedValue` bound for the duration of the operation rather than a `ThreadLocal` set and removed by hand.
+
+- `PersistentJobStore`: the held lock names and the pending scheduling signal (two `ThreadLocal`s) are one `Operation`, bound by the outermost `executeInLock`; nested calls see it bound and reuse it, as they used to see the thread-locals set. Order is unchanged: the recorded signal is sent before the outermost lock is released.
+- `MongoJobStore`: the transaction's `ClientSession` is bound around the callback in `inTransaction`; the delegate reads it as `null` when unbound.
+
+Both scoped values are instance fields, not `static`, so two stores in one JVM (clustered tests) keep separate state per thread, as the instance `ThreadLocal`s did. Nothing can now leak to the next operation on a pooled thread when a `remove()` is missed. No behaviour change; covered by the existing store, cluster and transaction ITs.

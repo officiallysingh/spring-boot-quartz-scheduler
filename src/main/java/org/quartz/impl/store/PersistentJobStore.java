@@ -127,9 +127,8 @@ public abstract class PersistentJobStore implements JobStore {
 
     private @Nullable ClassLoader initializersLoader;
 
-    private final ThreadLocal<Set<String>> heldLocks = ThreadLocal.withInitial(HashSet::new);
-
-    private final ThreadLocal<PendingSignal> pendingSignal = new ThreadLocal<>();
+    /** The store operation the current thread is running, bound by the outermost {@link #executeInLock}. */
+    private final ScopedValue<Operation> operation = ScopedValue.newInstance();
 
     private volatile boolean schedulerRunning;
 
@@ -374,17 +373,17 @@ public abstract class PersistentJobStore implements JobStore {
     // locking and execution
     // ------------------------------------------------------------------
 
-    private boolean obtainLock(String lockName) throws JobPersistenceException {
-        if (heldLocks.get().contains(lockName)) {
+    private boolean obtainLock(Operation op, String lockName) throws JobPersistenceException {
+        if (op.heldLocks.contains(lockName)) {
             return false;
         }
         lock.obtain(lockName);
-        heldLocks.get().add(lockName);
+        op.heldLocks.add(lockName);
         return true;
     }
 
-    private void releaseLock(String lockName) {
-        heldLocks.get().remove(lockName);
+    private void releaseLock(Operation op, String lockName) {
+        op.heldLocks.remove(lockName);
         lock.release(lockName);
     }
 
@@ -394,20 +393,23 @@ public abstract class PersistentJobStore implements JobStore {
      */
     protected <T extends @Nullable Object> T executeInLock(@Nullable String lockName, StoreCallback<T> callback)
             throws JobPersistenceException {
-        boolean owner = false;
-        PendingSignal signal = pendingSignal.get();
-        boolean outermost = signal == null;
-        if (outermost) {
-            signal = new PendingSignal();
-            pendingSignal.set(signal);
+        if (operation.isBound()) {
+            return execute(operation.get(), false, lockName, callback);
         }
+        Operation op = new Operation();
+        return ScopedValue.where(operation, op).call(() -> execute(op, true, lockName, callback));
+    }
+
+    private <T extends @Nullable Object> T execute(Operation op, boolean outermost, @Nullable String lockName,
+            StoreCallback<T> callback) throws JobPersistenceException {
+        boolean owner = false;
         try {
             if (lockName != null) {
-                owner = obtainLock(lockName);
+                owner = obtainLock(op, lockName);
             }
             T result = inTransaction(callback);
-            if (outermost && signal.pending) {
-                signaler.signalSchedulingChange(signal.candidate);
+            if (outermost && op.pending) {
+                signaler.signalSchedulingChange(op.candidate);
             }
             return result;
         }
@@ -419,10 +421,7 @@ public abstract class PersistentJobStore implements JobStore {
         }
         finally {
             if (owner && lockName != null) {
-                releaseLock(lockName);
-            }
-            if (outermost) {
-                pendingSignal.remove();
+                releaseLock(op, lockName);
             }
         }
     }
@@ -460,11 +459,11 @@ public abstract class PersistentJobStore implements JobStore {
 
     /** Records that the scheduler thread should be woken once the current operation completes. */
     protected void signalSchedulingChangeOnCompletion(@Nullable Instant candidateNewNextFireTime) {
-        PendingSignal signal = pendingSignal.get();
-        if (signal == null) {
+        if (!operation.isBound()) {
             signaler.signalSchedulingChange(candidateNewNextFireTime);
             return;
         }
+        Operation signal = operation.get();
         if (!signal.pending) {
             signal.pending = true;
             signal.candidate = candidateNewNextFireTime;
@@ -475,7 +474,9 @@ public abstract class PersistentJobStore implements JobStore {
         }
     }
 
-    private static final class PendingSignal {
+    /** Per-thread state of the outermost store operation and the operations nested in it. */
+    private static final class Operation {
+        final Set<String> heldLocks = new HashSet<>();
         boolean pending;
         @Nullable Instant candidate;
     }

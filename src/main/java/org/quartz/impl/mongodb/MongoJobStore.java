@@ -73,7 +73,8 @@ public class MongoJobStore extends PersistentJobStore {
 
     private final MongoJobStoreSettings mongoSettings;
 
-    private final ThreadLocal<ClientSession> session = new ThreadLocal<>();
+    /** The session of the transaction the current thread's store operation runs in. */
+    private final ScopedValue<ClientSession> session = ScopedValue.newInstance();
 
     @SuppressWarnings("NullAway.Init")
     private MongoCollections collections;
@@ -124,7 +125,8 @@ public class MongoJobStore extends PersistentJobStore {
     @Override
     protected StoreDelegate createDelegate(String schedulerName, ClassLoadHelper loadHelper) {
         collections = MongoCollections.of(client.getDatabase(databaseName), mongoSettings.collectionPrefix());
-        return new MongoStoreDelegate(schedulerName, collections, loadHelper, session::get);
+        return new MongoStoreDelegate(schedulerName, collections, loadHelper,
+                () -> session.isBound() ? session.get() : null);
     }
 
     @Override
@@ -182,23 +184,19 @@ public class MongoJobStore extends PersistentJobStore {
 
     @Override
     protected <T> T inTransaction(StoreCallback<T> callback) throws JobPersistenceException {
-        if (!transactional || session.get() != null) {
+        if (!transactional || session.isBound()) {
             return callback.execute();
         }
         try (ClientSession clientSession = client.startSession()) {
             clientSession.startTransaction();
-            session.set(clientSession);
             try {
-                T result = callback.execute();
+                T result = ScopedValue.where(session, clientSession).call(callback::execute);
                 commit(clientSession);
                 return result;
             }
             catch (JobPersistenceException | RuntimeException | Error ex) {
                 abort(clientSession, ex);
                 throw ex;
-            }
-            finally {
-                session.remove();
             }
         }
     }
