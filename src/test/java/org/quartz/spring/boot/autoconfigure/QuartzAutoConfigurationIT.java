@@ -259,6 +259,10 @@ class QuartzAutoConfigurationIT extends AbstractMongoIT {
               SchedulerMetaData metaData = context.getBean(Scheduler.class).getMetaData();
               assertThat(metaData.getThreadPoolClass()).isEqualTo(VirtualThreadPool.class);
               assertThat(metaData.getThreadPoolSize()).isEqualTo(3);
+              assertThat(metaData.getSummary())
+                  .contains(
+                      "Using thread pool 'org.quartz.simpl.VirtualThreadPool' - virtual threads,"
+                          + " at most 3 concurrent jobs.");
               await()
                   .atMost(Duration.ofSeconds(10))
                   .until(() -> RESULTS.stream().anyMatch(r -> r.startsWith("hello quartz")));
@@ -273,6 +277,8 @@ class QuartzAutoConfigurationIT extends AbstractMongoIT {
           SchedulerMetaData metaData = context.getBean(Scheduler.class).getMetaData();
           assertThat(metaData.getThreadPoolClass()).isEqualTo(SimpleThreadPool.class);
           assertThat(metaData.getThreadPoolSize()).isEqualTo(10);
+          assertThat(metaData.getSummary())
+              .contains("Using thread pool 'org.quartz.simpl.SimpleThreadPool' - with 10 threads.");
         });
   }
 

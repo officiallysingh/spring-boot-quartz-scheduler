@@ -231,6 +231,7 @@ public class QuartzScheduler {
                 isClustered(),
                 getThreadPoolClass(),
                 getThreadPoolSize(),
+                resources.getThreadPool().describe(),
                 getVersion()));
   }
 
@@ -399,6 +400,10 @@ public class QuartzScheduler {
 
   public Class<?> getThreadPoolClass() {
     return resources.getThreadPool().getClass();
+  }
+
+  public String getThreadPoolDescription() {
+    return resources.getThreadPool().describe();
   }
 
   public int getThreadPoolSize() {

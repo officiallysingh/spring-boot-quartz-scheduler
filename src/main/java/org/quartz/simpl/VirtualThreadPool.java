@@ -130,6 +130,11 @@ public class VirtualThreadPool implements ThreadPool {
     return maxConcurrency;
   }
 
+  @Override
+  public String describe() {
+    return "virtual threads, at most " + maxConcurrency + " concurrent jobs";
+  }
+
   /**
    * Run the job on a new virtual thread. The scheduler only hands over a job after {@link
    * #blockForAvailableThreads()} reported room for it; should the limit be reached all the same,

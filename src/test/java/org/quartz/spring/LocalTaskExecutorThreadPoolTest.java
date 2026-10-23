@@ -97,6 +97,17 @@ class LocalTaskExecutorThreadPoolTest {
   }
 
   @Test
+  void describesTheExecutorAndItsCapacity() {
+    assertThat(initialized(new LocalTaskExecutorThreadPool(executor, 7)).describe())
+        .isEqualTo("on " + executor.getClass().getName() + ", at most 7 concurrent jobs");
+    SimpleAsyncTaskExecutor unlimited = new SimpleAsyncTaskExecutor();
+    assertThat(initialized(new LocalTaskExecutorThreadPool(unlimited)).describe())
+        .isEqualTo(
+            "on org.springframework.core.task.SimpleAsyncTaskExecutor, capacity unknown (one job"
+                + " handed over at a time)");
+  }
+
+  @Test
   void unknownCapacityOffersOneJobAtATime() {
     LocalTaskExecutorThreadPool pool =
         initialized(new LocalTaskExecutorThreadPool(executor::execute));

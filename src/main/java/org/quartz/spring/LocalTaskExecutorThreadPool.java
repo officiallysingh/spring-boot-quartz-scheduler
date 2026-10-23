@@ -168,6 +168,14 @@ public class LocalTaskExecutorThreadPool implements ThreadPool {
   }
 
   @Override
+  public String describe() {
+    String executor = this.taskExecutor.getClass().getName();
+    return (this.capacity == UNKNOWN)
+        ? "on " + executor + ", capacity unknown (one job handed over at a time)"
+        : "on " + executor + ", at most " + this.capacity + " concurrent jobs";
+  }
+
+  @Override
   public boolean runInThread(Runnable runnable) {
     this.lock.lock();
     try {

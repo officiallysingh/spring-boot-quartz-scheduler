@@ -85,6 +85,15 @@ public interface ThreadPool {
   int getPoolSize();
 
   /**
+   * How the pool runs jobs, for the scheduler's summary ({@code "Using thread pool '<class>' -
+   * <description>."}). The default reports a fixed number of threads: {@code "with <pool size>
+   * threads"}.
+   */
+  default String describe() {
+    return "with " + getPoolSize() + " threads";
+  }
+
+  /**
    * Inform the <code>ThreadPool</code> of the Scheduler instance's Id, prior to initialize being
    * invoked.
    *

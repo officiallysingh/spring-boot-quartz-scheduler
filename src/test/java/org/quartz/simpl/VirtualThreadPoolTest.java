@@ -150,6 +150,13 @@ class VirtualThreadPoolTest {
   }
 
   @Test
+  void describesItselfForTheSchedulerSummary() {
+    assertThat(new VirtualThreadPool(50).describe())
+        .isEqualTo("virtual threads, at most 50 concurrent jobs");
+    assertThat(new SimpleThreadPool(10, 5).describe()).isEqualTo("with 10 threads");
+  }
+
+  @Test
   void maxConcurrencyMustBePositive() {
     assertThatThrownBy(() -> new VirtualThreadPool(0)).isInstanceOf(IllegalArgumentException.class);
   }

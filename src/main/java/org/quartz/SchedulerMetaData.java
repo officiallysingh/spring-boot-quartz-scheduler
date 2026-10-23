@@ -66,6 +66,8 @@ public class SchedulerMetaData implements java.io.Serializable {
 
   private final int tpSize;
 
+  private final String tpDescription;
+
   private final String version;
 
   /*
@@ -92,6 +94,46 @@ public class SchedulerMetaData implements java.io.Serializable {
       Class<?> tpClass,
       int tpSize,
       String version) {
+    this(
+        schedName,
+        schedInst,
+        schedClass,
+        isRemote,
+        started,
+        isInStandbyMode,
+        shutdown,
+        startTime,
+        numJobsExec,
+        jsClass,
+        jsPersistent,
+        jsClustered,
+        tpClass,
+        tpSize,
+        "with " + tpSize + " threads",
+        version);
+  }
+
+  /**
+   * @param tpDescription how the thread pool runs jobs ({@link
+   *     org.quartz.spi.ThreadPool#describe()})
+   */
+  public SchedulerMetaData(
+      String schedName,
+      String schedInst,
+      Class<?> schedClass,
+      boolean isRemote,
+      boolean started,
+      boolean isInStandbyMode,
+      boolean shutdown,
+      @Nullable Instant startTime,
+      int numJobsExec,
+      Class<?> jsClass,
+      boolean jsPersistent,
+      boolean jsClustered,
+      Class<?> tpClass,
+      int tpSize,
+      String tpDescription,
+      String version) {
     this.schedName = schedName;
     this.schedInst = schedInst;
     this.schedClass = schedClass;
@@ -106,6 +148,7 @@ public class SchedulerMetaData implements java.io.Serializable {
     this.jsClustered = jsClustered;
     this.tpClass = tpClass;
     this.tpSize = tpSize;
+    this.tpDescription = tpDescription;
     this.version = version;
   }
 
@@ -212,6 +255,14 @@ public class SchedulerMetaData implements java.io.Serializable {
     return tpSize;
   }
 
+  /**
+   * How the thread pool runs jobs, as in the summary: for example {@code "with 10 threads"} or
+   * {@code "virtual threads, at most 50 concurrent jobs"}.
+   */
+  public String getThreadPoolDescription() {
+    return tpDescription;
+  }
+
   /** Returns the version of Quartz that is running. */
   public String getVersion() {
     return version;
@@ -276,9 +327,9 @@ public class SchedulerMetaData implements java.io.Serializable {
 
     str.append("  Using thread pool '");
     str.append(getThreadPoolClass().getName());
-    str.append("' - with ");
-    str.append(getThreadPoolSize());
-    str.append(" threads.");
+    str.append("' - ");
+    str.append(getThreadPoolDescription());
+    str.append(".");
     str.append("\n");
 
     str.append("  Using job-store '");

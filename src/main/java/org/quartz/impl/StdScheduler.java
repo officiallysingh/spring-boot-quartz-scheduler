@@ -111,6 +111,7 @@ public class StdScheduler implements Scheduler {
         sched.isClustered(),
         sched.getThreadPoolClass(),
         sched.getThreadPoolSize(),
+        sched.getThreadPoolDescription(),
         sched.getVersion());
   }
 
