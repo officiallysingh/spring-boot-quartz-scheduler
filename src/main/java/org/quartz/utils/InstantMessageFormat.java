@@ -35,6 +35,14 @@ public final class InstantMessageFormat {
 
   private InstantMessageFormat() {}
 
+  /**
+   * Format a {@link java.text.MessageFormat} pattern whose date and time elements may take {@code
+   * java.time} arguments.
+   *
+   * @param pattern the pattern, for example {@code "Job {1}.{0} fired at {2, date, HH:mm:ss}"}
+   * @param arguments the arguments
+   * @return the formatted message
+   */
   public static String format(String pattern, Object... arguments) {
     MessageFormat messageFormat = new MessageFormat(pattern);
     Format[] formats = messageFormat.getFormats();

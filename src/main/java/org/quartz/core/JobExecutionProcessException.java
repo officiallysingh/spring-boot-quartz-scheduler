@@ -43,11 +43,24 @@ public class JobExecutionProcessException extends SchedulerException {
   /** The job execution context. */
   private final JobExecutionContext jobExecutionContext;
 
+  /**
+   * An exception thrown by a job.
+   *
+   * @param jobExecutionContext the execution
+   * @param cause what the job threw
+   */
   public JobExecutionProcessException(JobExecutionContext jobExecutionContext, Throwable cause) {
     super(JobExecution.errorMsg, cause);
     this.jobExecutionContext = jobExecutionContext;
   }
 
+  /**
+   * An exception thrown by a job listener.
+   *
+   * @param listener the listener
+   * @param jobExecutionContext the execution
+   * @param cause what the listener threw
+   */
   public JobExecutionProcessException(
       JobListener listener, JobExecutionContext jobExecutionContext, Throwable cause) {
     super(
@@ -56,6 +69,13 @@ public class JobExecutionProcessException extends SchedulerException {
     this.jobExecutionContext = jobExecutionContext;
   }
 
+  /**
+   * An exception thrown by a trigger listener.
+   *
+   * @param listener the listener
+   * @param jobExecutionContext the execution
+   * @param cause what the listener threw
+   */
   public JobExecutionProcessException(
       TriggerListener listener, JobExecutionContext jobExecutionContext, Throwable cause) {
     super(
@@ -65,6 +85,11 @@ public class JobExecutionProcessException extends SchedulerException {
     this.jobExecutionContext = jobExecutionContext;
   }
 
+  /**
+   * The execution during which the exception was thrown.
+   *
+   * @return the execution context
+   */
   public JobExecutionContext getJobExecutionContext() {
     return jobExecutionContext;
   }

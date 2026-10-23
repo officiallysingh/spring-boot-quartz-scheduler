@@ -58,18 +58,42 @@ public final class TriggerKey extends Key<TriggerKey> {
 
   private static final long serialVersionUID = 8070357886703449660L;
 
+  /**
+   * Create a key in the default group ({@value Key#DEFAULT_GROUP}).
+   *
+   * @param name the name; not {@code null}
+   */
   public TriggerKey(String name) {
     super(name, null);
   }
 
+  /**
+   * Create a key.
+   *
+   * @param name the name; not {@code null}
+   * @param group the group, or {@code null} for the default group ({@value Key#DEFAULT_GROUP})
+   */
   public TriggerKey(String name, @Nullable String group) {
     super(name, group);
   }
 
+  /**
+   * A key in the default group ({@value Key#DEFAULT_GROUP}).
+   *
+   * @param name the name; not {@code null}
+   * @return the key
+   */
   public static TriggerKey triggerKey(String name) {
     return new TriggerKey(name, null);
   }
 
+  /**
+   * A key with the given name and group.
+   *
+   * @param name the name; not {@code null}
+   * @param group the group, or {@code null} for the default group ({@value Key#DEFAULT_GROUP})
+   * @return the key
+   */
   public static TriggerKey triggerKey(String name, @Nullable String group) {
     return new TriggerKey(name, group);
   }

@@ -30,6 +30,12 @@ import org.quartz.utils.Key;
  */
 public interface Matcher<T extends Key<?>> extends Serializable {
 
+  /**
+   * Whether the key matches.
+   *
+   * @param key the job or trigger key
+   * @return {@code true} if it matches
+   */
   boolean isMatch(T key);
 
   int hashCode();

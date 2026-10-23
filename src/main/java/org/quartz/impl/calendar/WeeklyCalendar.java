@@ -45,18 +45,39 @@ public class WeeklyCalendar extends BaseCalendar implements Calendar, Serializab
   // Will be set to true, if all week days are excluded
   private boolean excludeAll = false;
 
+  /**
+   * Create a calendar excluding Saturdays and Sundays, without a base calendar, in the system
+   * default time zone.
+   */
   public WeeklyCalendar() {
     this(null, null);
   }
 
+  /**
+   * Create a calendar excluding Saturdays and Sundays on top of another, in the system default time
+   * zone.
+   *
+   * @param baseCalendar the calendar that must also include a time, or {@code null}
+   */
   public WeeklyCalendar(@Nullable Calendar baseCalendar) {
     this(baseCalendar, null);
   }
 
+  /**
+   * Create a calendar excluding Saturdays and Sundays, without a base calendar.
+   *
+   * @param timeZone the time zone, or {@code null} for the system default
+   */
   public WeeklyCalendar(@Nullable ZoneId timeZone) {
     super(null, timeZone);
   }
 
+  /**
+   * Create a calendar excluding Saturdays and Sundays on top of another.
+   *
+   * @param baseCalendar the calendar that must also include a time, or {@code null}
+   * @param timeZone the time zone, or {@code null} for the system default
+   */
   public WeeklyCalendar(@Nullable Calendar baseCalendar, @Nullable ZoneId timeZone) {
     super(baseCalendar, timeZone);
 
@@ -122,7 +143,7 @@ public class WeeklyCalendar extends BaseCalendar implements Calendar, Serializab
   }
 
   /**
-   * Determine whether the given time (in milliseconds) is 'included' by the Calendar.
+   * Determine whether the given instant is 'included' by the Calendar.
    *
    * <p>Note that this Calendar is only has full-day precision.
    */
@@ -145,8 +166,8 @@ public class WeeklyCalendar extends BaseCalendar implements Calendar, Serializab
   }
 
   /**
-   * Determine the next time (in milliseconds) that is 'included' by the Calendar after the given
-   * time. Return the original value if timeStamp is included. Return 0 if all days are excluded.
+   * Determine the next instant that is 'included' by the Calendar after the given instant. Return
+   * the original value if timeStamp is included. Return 0 if all days are excluded.
    *
    * <p>Note that this Calendar is only has full-day precision.
    */

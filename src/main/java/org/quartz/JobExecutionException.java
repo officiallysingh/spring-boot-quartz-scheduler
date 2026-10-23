@@ -121,26 +121,56 @@ public class JobExecutionException extends SchedulerException {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
+  /**
+   * Ask the scheduler to execute the job again immediately.
+   *
+   * @param refire whether to re-execute the job right away
+   */
   public void setRefireImmediately(boolean refire) {
     this.refire = refire;
   }
 
+  /**
+   * Whether the scheduler should execute the job again immediately.
+   *
+   * @return {@code true} to re-execute right away
+   */
   public boolean refireImmediately() {
     return refire;
   }
 
+  /**
+   * Ask the scheduler to unschedule the trigger that fired this execution.
+   *
+   * @param unscheduleTrigg whether to unschedule the firing trigger
+   */
   public void setUnscheduleFiringTrigger(boolean unscheduleTrigg) {
     this.unscheduleTrigg = unscheduleTrigg;
   }
 
+  /**
+   * Whether the scheduler should unschedule the trigger that fired this execution.
+   *
+   * @return {@code true} to unschedule the firing trigger
+   */
   public boolean unscheduleFiringTrigger() {
     return unscheduleTrigg;
   }
 
+  /**
+   * Ask the scheduler to unschedule every trigger of this job.
+   *
+   * @param unscheduleAllTriggs whether to unschedule all of the job's triggers
+   */
   public void setUnscheduleAllTriggers(boolean unscheduleAllTriggs) {
     this.unscheduleAllTriggs = unscheduleAllTriggs;
   }
 
+  /**
+   * Whether the scheduler should unschedule every trigger of this job.
+   *
+   * @return {@code true} to unschedule all of the job's triggers
+   */
   public boolean unscheduleAllTriggers() {
     return unscheduleAllTriggs;
   }

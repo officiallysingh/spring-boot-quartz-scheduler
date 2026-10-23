@@ -43,6 +43,11 @@ import org.jspecify.annotations.Nullable;
  */
 public interface JobDetail extends Serializable, Cloneable {
 
+  /**
+   * The key identifying the job: its name and group.
+   *
+   * @return the job's key
+   */
   JobKey getKey();
 
   /**
@@ -52,7 +57,10 @@ public interface JobDetail extends Serializable, Cloneable {
    */
   @Nullable String getDescription();
 
-  /** Get the instance of <code>Job</code> that will be executed. */
+  /**
+   * Get the class of the <code>Job</code> that will be executed; a new instance is created for each
+   * execution.
+   */
   Class<? extends Job> getJobClass();
 
   /** Get the <code>JobDataMap</code> that is associated with the <code>Job</code>. */
@@ -69,16 +77,22 @@ public interface JobDetail extends Serializable, Cloneable {
   boolean isDurable();
 
   /**
-   * @see PersistJobDataAfterExecution
+   * Whether the job data is stored again after each successful execution, so changes the job made
+   * are kept.
+   *
    * @return whether the associated Job class carries the {@link PersistJobDataAfterExecution}
    *     annotation.
+   * @see PersistJobDataAfterExecution
    */
   boolean isPersistJobDataAfterExecution();
 
   /**
-   * @see DisallowConcurrentExecution
+   * Whether at most one execution of this job may run at a time, across the cluster; triggers that
+   * fire meanwhile wait ({@link Trigger.TriggerState#BLOCKED}).
+   *
    * @return whether the associated Job class carries the {@link DisallowConcurrentExecution}
    *     annotation.
+   * @see DisallowConcurrentExecution
    */
   boolean isConcurrentExecutionDisallowed();
 
@@ -92,6 +106,11 @@ public interface JobDetail extends Serializable, Cloneable {
    */
   boolean requestsRecovery();
 
+  /**
+   * A copy of this job detail; its job data map is copied, its values are shared.
+   *
+   * @return the copy
+   */
   Object clone();
 
   /**

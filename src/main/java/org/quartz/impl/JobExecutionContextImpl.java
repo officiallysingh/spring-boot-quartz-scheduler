@@ -34,6 +34,11 @@ import org.quartz.TriggerKey;
 import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.TriggerFiredBundle;
 
+/**
+ * The {@link JobExecutionContext} the scheduler builds for each job execution, from the fired
+ * trigger's {@link TriggerFiredBundle}: the job data of the job and the trigger merged, the
+ * trigger's times, and a map of values the job and listeners can share during the execution.
+ */
 public class JobExecutionContextImpl implements java.io.Serializable, JobExecutionContext {
 
   private static final long serialVersionUID = -8139417614523942021L;
@@ -141,6 +146,7 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
     }
   }
 
+  /** Count one more re-execution of the job for this firing. */
   public void incrementRefireCount() {
     numRefires++;
   }
@@ -222,7 +228,9 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
   }
 
   /**
-   * @param jobRunTime The jobRunTime to set.
+   * Record how long the job ran; set once its execution has ended.
+   *
+   * @param jobRunTime the run time
    */
   public void setJobRunTime(Duration jobRunTime) {
     this.jobRunTime = jobRunTime;

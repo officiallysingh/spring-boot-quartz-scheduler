@@ -124,14 +124,30 @@ public class StdSchedulerFactory implements SchedulerFactory {
     this.jobRunShellFactory = builder.jobRunShellFactory;
   }
 
+  /**
+   * A builder for a factory. A job store is required: {@code builder().jobStore(new
+   * MongoJobStore(...))}.
+   *
+   * @return a new builder
+   */
   public static Builder builder() {
     return new Builder();
   }
 
+  /**
+   * The factory's logger.
+   *
+   * @return the logger
+   */
   public Logger getLog() {
     return log;
   }
 
+  /**
+   * The settings schedulers are created with.
+   *
+   * @return the settings
+   */
   public QuartzSettings getSettings() {
     return settings;
   }
@@ -299,6 +315,14 @@ public class StdSchedulerFactory implements SchedulerFactory {
     }
   }
 
+  /**
+   * Wrap the created scheduler in the {@link Scheduler} handed to applications; subclasses may
+   * return their own.
+   *
+   * @param rsrcs the scheduler's resources
+   * @param qs the scheduler
+   * @return the application-facing scheduler
+   */
   protected Scheduler instantiate(QuartzSchedulerResources rsrcs, QuartzScheduler qs) {
 
     return new StdScheduler(qs);
@@ -362,6 +386,12 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
     private Builder() {}
 
+    /**
+     * Set the scheduler and thread pool settings.
+     *
+     * @param settings the settings
+     * @return this builder
+     */
     public Builder settings(QuartzSettings settings) {
       Objects.requireNonNull(settings, "settings");
       this.scheduler = settings.scheduler();
@@ -369,11 +399,24 @@ public class StdSchedulerFactory implements SchedulerFactory {
       return this;
     }
 
+    /**
+     * Set the scheduler settings; default {@link SchedulerSettings#defaults()}.
+     *
+     * @param scheduler the settings
+     * @return this builder
+     */
     public Builder scheduler(SchedulerSettings scheduler) {
       this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
       return this;
     }
 
+    /**
+     * Set the settings of the thread pool the factory creates when no {@link ThreadPool} instance
+     * is given; default {@link ThreadPoolSettings#defaults()}.
+     *
+     * @param threadPool the settings
+     * @return this builder
+     */
     public Builder threadPool(ThreadPoolSettings threadPool) {
       this.threadPoolSettings = Objects.requireNonNull(threadPool, "threadPool");
       return this;
@@ -397,6 +440,13 @@ public class StdSchedulerFactory implements SchedulerFactory {
       return this;
     }
 
+    /**
+     * Set the factory creating job instances; default {@link
+     * org.quartz.simpl.PropertySettingJobFactory}.
+     *
+     * @param jobFactory the job factory
+     * @return this builder
+     */
     public Builder jobFactory(JobFactory jobFactory) {
       this.jobFactory = jobFactory;
       return this;
@@ -411,11 +461,23 @@ public class StdSchedulerFactory implements SchedulerFactory {
       return this;
     }
 
+    /**
+     * Set how job classes are loaded; default {@link CascadingClassLoadHelper}.
+     *
+     * @param classLoadHelper the class load helper
+     * @return this builder
+     */
     public Builder classLoadHelper(ClassLoadHelper classLoadHelper) {
       this.classLoadHelper = classLoadHelper;
       return this;
     }
 
+    /**
+     * Set how the scheduler thread is started; default {@link DefaultThreadExecutor}.
+     *
+     * @param threadExecutor the thread executor
+     * @return this builder
+     */
     public Builder threadExecutor(ThreadExecutor threadExecutor) {
       this.threadExecutor = threadExecutor;
       return this;
@@ -461,6 +523,11 @@ public class StdSchedulerFactory implements SchedulerFactory {
       return this;
     }
 
+    /**
+     * The factory.
+     *
+     * @return the factory
+     */
     public StdSchedulerFactory build() {
       return new StdSchedulerFactory(this);
     }

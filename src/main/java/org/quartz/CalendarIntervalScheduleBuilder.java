@@ -66,6 +66,7 @@ public class CalendarIntervalScheduleBuilder extends ScheduleBuilder<CalendarInt
   private boolean preserveHourOfDayAcrossDaylightSavings;
   private boolean skipDayIfHourDoesNotExist;
 
+  /** Use {@link #calendarIntervalSchedule()}. */
   protected CalendarIntervalScheduleBuilder() {}
 
   /**
@@ -261,7 +262,7 @@ public class CalendarIntervalScheduleBuilder extends ScheduleBuilder<CalendarInt
   }
 
   /**
-   * The <code>TimeZone</code> in which to base the schedule.
+   * The time zone in which to base the schedule.
    *
    * @param timezone the time-zone for the schedule.
    * @return the updated CalendarIntervalScheduleBuilder
@@ -288,7 +289,7 @@ public class CalendarIntervalScheduleBuilder extends ScheduleBuilder<CalendarInt
    * skipDayIfHourDoesNotExist.
    *
    * @see #skipDayIfHourDoesNotExist(boolean)
-   * @see #inTimeZone(TimeZone)
+   * @see #inTimeZone(ZoneId)
    * @see TriggerBuilder#startAt(java.time.Instant)
    */
   public CalendarIntervalScheduleBuilder preserveHourOfDayAcrossDaylightSavings(

@@ -71,14 +71,31 @@ public class BroadcastJobListener implements JobListener {
     return name;
   }
 
+  /**
+   * Add a listener to broadcast to.
+   *
+   * @param listener the listener
+   */
   public void addListener(JobListener listener) {
     listeners.add(listener);
   }
 
+  /**
+   * Remove a listener.
+   *
+   * @param listener the listener
+   * @return whether it was registered
+   */
   public boolean removeListener(JobListener listener) {
     return listeners.remove(listener);
   }
 
+  /**
+   * Remove the listener with the given name.
+   *
+   * @param listenerName the listener's name
+   * @return whether such a listener was registered
+   */
   public boolean removeListener(String listenerName) {
     Iterator<JobListener> itr = listeners.iterator();
     while (itr.hasNext()) {
@@ -91,6 +108,11 @@ public class BroadcastJobListener implements JobListener {
     return false;
   }
 
+  /**
+   * The listeners broadcast to, in order.
+   *
+   * @return an unmodifiable view of the listeners
+   */
   public List<JobListener> getListeners() {
     return java.util.Collections.unmodifiableList(listeners);
   }

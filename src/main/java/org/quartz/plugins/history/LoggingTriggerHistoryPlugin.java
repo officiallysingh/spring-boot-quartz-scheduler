@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * Logs a history of all trigger firings via slf4j.
  *
  * <p>The logged message is customizable by setting one of the following message properties to a
- * String that conforms to the syntax of <code>java.util.MessageFormat</code>.
+ * String that conforms to the syntax of <code>java.text.MessageFormat</code>.
  *
  * <p>TriggerFiredMessage - available message data are:
  *
@@ -60,17 +60,17 @@ import org.slf4j.LoggerFactory;
  * </tr>
  * <tr>
  * <td>2</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The scheduled fire time.</td>
  * </tr>
  * <tr>
  * <td>3</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The next scheduled fire time.</td>
  * </tr>
  * <tr>
  * <td>4</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The actual fire time.</td>
  * </tr>
  * <tr>
@@ -114,17 +114,17 @@ import org.slf4j.LoggerFactory;
  * </tr>
  * <tr>
  * <td>2</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The scheduled fire time.</td>
  * </tr>
  * <tr>
  * <td>3</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The next scheduled fire time.</td>
  * </tr>
  * <tr>
  * <td>4</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The actual fire time. (the time the misfire was detected/handled)</td>
  * </tr>
  * <tr>
@@ -163,17 +163,17 @@ import org.slf4j.LoggerFactory;
  * </tr>
  * <tr>
  * <td>2</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The scheduled fire time.</td>
  * </tr>
  * <tr>
  * <td>3</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The next scheduled fire time.</td>
  * </tr>
  * <tr>
  * <td>4</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The job completion time.</td>
  * </tr>
  * <tr>
@@ -241,6 +241,7 @@ public class LoggingTriggerHistoryPlugin implements SchedulerPlugin, TriggerList
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
+  /** Create the plugin with its default messages; define it as a bean to register it. */
   public LoggingTriggerHistoryPlugin() {}
 
   /*
@@ -251,6 +252,11 @@ public class LoggingTriggerHistoryPlugin implements SchedulerPlugin, TriggerList
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
+  /**
+   * The logger the messages are written to (INFO).
+   *
+   * @return the logger
+   */
   protected Logger getLog() {
     return log;
   }
@@ -352,7 +358,7 @@ public class LoggingTriggerHistoryPlugin implements SchedulerPlugin, TriggerList
 
   /*
    * Object[] arguments = { new Integer(7), new
-   * Date(System.currentTimeMillis()), "a disturbance in the Force" };
+   * Instant.now(), "a disturbance in the Force" };
    *
    * String result = InstantMessageFormat.format( "At {1,time} on {1,date}, there
    * was {2} on planet {0,number,integer}.", arguments);

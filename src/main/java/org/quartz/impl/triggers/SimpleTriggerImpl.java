@@ -174,12 +174,12 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger>
    * Create a <code>SimpleTrigger</code> that will occur at the given time, and repeat at the given
    * interval the given number of times, or until the given end time.
    *
-   * @param startTime A <code>Date</code> set to the time for the <code>Trigger</code> to fire.
-   * @param endTime A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat
-   *     firing.
+   * @param startTime the time for the <code>Trigger</code> to fire.
+   * @param endTime the time for the <code>Trigger</code> to quit repeat firing, or {@code null} for
+   *     none.
    * @param repeatCount The number of times for the <code>Trigger</code> to repeat firing, use
    *     {@link #REPEAT_INDEFINITELY} for unlimited times.
-   * @param repeatInterval The number of milliseconds to pause between the repeat firing.
+   * @param repeatInterval the pause between repeat firings.
    * @deprecated use a TriggerBuilder instead
    */
   @Deprecated
@@ -196,12 +196,12 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger>
    * Create a <code>SimpleTrigger</code> that will occur at the given time, and repeat at the given
    * interval the given number of times, or until the given end time.
    *
-   * @param startTime A <code>Date</code> set to the time for the <code>Trigger</code> to fire.
-   * @param endTime A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat
-   *     firing.
+   * @param startTime the time for the <code>Trigger</code> to fire.
+   * @param endTime the time for the <code>Trigger</code> to quit repeat firing, or {@code null} for
+   *     none.
    * @param repeatCount The number of times for the <code>Trigger</code> to repeat firing, use
    *     {@link #REPEAT_INDEFINITELY} for unlimited times.
-   * @param repeatInterval The number of milliseconds to pause between the repeat firing.
+   * @param repeatInterval the pause between repeat firings.
    * @deprecated use a TriggerBuilder instead
    */
   @Deprecated
@@ -225,12 +225,12 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger>
    * <code>Job</code> and repeat at the given interval the given number of times, or until the given
    * end time.
    *
-   * @param startTime A <code>Date</code> set to the time for the <code>Trigger</code> to fire.
-   * @param endTime A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat
-   *     firing.
+   * @param startTime the time for the <code>Trigger</code> to fire.
+   * @param endTime the time for the <code>Trigger</code> to quit repeat firing, or {@code null} for
+   *     none.
    * @param repeatCount The number of times for the <code>Trigger</code> to repeat firing, use
    *     {@link #REPEAT_INDEFINITELY}for unlimited times.
-   * @param repeatInterval The number of milliseconds to pause between the repeat firing.
+   * @param repeatInterval the pause between repeat firings.
    * @deprecated use a TriggerBuilder instead
    */
   @Deprecated
@@ -311,9 +311,6 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger>
     this.endTime = Instants.toMillis(endTime);
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.SimpleTriggerI#getRepeatCount()
-   */
   public int getRepeatCount() {
     return repeatCount;
   }
@@ -334,15 +331,12 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger>
     this.repeatCount = repeatCount;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.SimpleTriggerI#getRepeatInterval()
-   */
   public Duration getRepeatInterval() {
     return repeatInterval;
   }
 
   /**
-   * Set the time interval (in milliseconds) at which the <code>SimpleTrigger</code> should repeat.
+   * Set the time interval at which the <code>SimpleTrigger</code> should repeat.
    *
    * @exception IllegalArgumentException if repeatInterval is &lt; 0
    */
@@ -691,6 +685,13 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger>
         getStartTime().toEpochMilli() + (numFires * repeatInterval.toMillis()));
   }
 
+  /**
+   * How many times the trigger fires between two instants, given its repeat interval.
+   *
+   * @param start the first instant
+   * @param end the last instant
+   * @return the number of firings
+   */
   public int computeNumTimesFiredBetween(Instant start, Instant end) {
 
     if (repeatInterval.toMillis() < 1) {

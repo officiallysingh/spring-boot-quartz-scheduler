@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
  * Logs a history of all job executions (and execution vetoes) via the slf4j.
  *
  * <p>The logged message is customizable by setting one of the following message properties to a
- * String that conforms to the syntax of <code>java.util.MessageFormat</code>.
+ * String that conforms to the syntax of <code>java.text.MessageFormat</code>.
  *
  * <p>JobToBeFiredMessage - available message data are:
  *
@@ -61,7 +61,7 @@ import org.slf4j.LoggerFactory;
  * </tr>
  * <tr>
  * <td>2</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The current time.</td>
  * </tr>
  * <tr>
@@ -76,12 +76,12 @@ import org.slf4j.LoggerFactory;
  * </tr>
  * <tr>
  * <td>5</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The scheduled fire time.</td>
  * </tr>
  * <tr>
  * <td>6</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The next scheduled fire time.</td>
  * </tr>
  * <tr>
@@ -115,7 +115,7 @@ import org.slf4j.LoggerFactory;
  * </tr>
  * <tr>
  * <td>2</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The current time.</td>
  * </tr>
  * <tr>
@@ -130,12 +130,12 @@ import org.slf4j.LoggerFactory;
  * </tr>
  * <tr>
  * <td>5</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The scheduled fire time.</td>
  * </tr>
  * <tr>
  * <td>6</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The next scheduled fire time.</td>
  * </tr>
  * <tr>
@@ -176,7 +176,7 @@ import org.slf4j.LoggerFactory;
  * </tr>
  * <tr>
  * <td>2</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The current time.</td>
  * </tr>
  * <tr>
@@ -191,12 +191,12 @@ import org.slf4j.LoggerFactory;
  * </tr>
  * <tr>
  * <td>5</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The scheduled fire time.</td>
  * </tr>
  * <tr>
  * <td>6</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The next scheduled fire time.</td>
  * </tr>
  * <tr>
@@ -236,7 +236,7 @@ import org.slf4j.LoggerFactory;
  * </tr>
  * <tr>
  * <td>2</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The current time.</td>
  * </tr>
  * <tr>
@@ -251,12 +251,12 @@ import org.slf4j.LoggerFactory;
  * </tr>
  * <tr>
  * <td>5</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The scheduled fire time.</td>
  * </tr>
  * <tr>
  * <td>6</td>
- * <td>Date</td>
+ * <td>Instant</td>
  * <td>The next scheduled fire time.</td>
  * </tr>
  * <tr>
@@ -306,6 +306,7 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
+  /** Create the plugin with its default messages; define it as a bean to register it. */
   public LoggingJobHistoryPlugin() {}
 
   /*
@@ -316,6 +317,11 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
+  /**
+   * The logger the messages are written to (INFO, WARN for failed jobs).
+   *
+   * @return the logger
+   */
   protected Logger getLog() {
     return log;
   }
@@ -418,7 +424,7 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
 
   /*
    * Object[] arguments = { new Integer(7), new
-   * Date(System.currentTimeMillis()), "a disturbance in the Force" };
+   * Instant.now(), "a disturbance in the Force" };
    *
    * String result = InstantMessageFormat.format( "At {1,time} on {1,date}, there
    * was {2} on planet {0,number,integer}.", arguments);

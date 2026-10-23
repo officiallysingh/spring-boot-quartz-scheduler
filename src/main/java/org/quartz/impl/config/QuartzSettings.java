@@ -18,11 +18,21 @@ import java.util.Objects;
 /** The complete typed configuration of a scheduler, replacing {@code quartz.properties}. */
 public record QuartzSettings(SchedulerSettings scheduler, ThreadPoolSettings threadPool) {
 
+  /**
+   * Validates the settings.
+   *
+   * @throws IllegalArgumentException if a value is out of range
+   */
   public QuartzSettings {
     Objects.requireNonNull(scheduler, "scheduler");
     Objects.requireNonNull(threadPool, "threadPool");
   }
 
+  /**
+   * The default settings.
+   *
+   * @return the defaults
+   */
   public static QuartzSettings defaults() {
     return new QuartzSettings(SchedulerSettings.defaults(), ThreadPoolSettings.defaults());
   }

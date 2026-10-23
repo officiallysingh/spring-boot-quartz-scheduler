@@ -25,6 +25,7 @@ import org.quartz.CronExpression;
 public class CronCalendar extends BaseCalendar {
   private static final long serialVersionUID = -8172103999750856831L;
 
+  /** The expression whose matching instants this calendar includes. */
   CronExpression cronExpression;
 
   /**
@@ -51,14 +52,14 @@ public class CronCalendar extends BaseCalendar {
 
   /**
    * Create a <CODE>CronCalendar</CODE> with the given cron expression, <CODE>baseCalendar</CODE>,
-   * and <code>TimeZone</code>.
+   * and <code>ZoneId</code>.
    *
    * @param baseCalendar the base calendar for this calendar instance &ndash; see {@link
    *     BaseCalendar} for more information on base calendar functionality
    * @param expression a String representation of the desired cron expression
    * @param timeZone Specifies for which time zone the <code>expression</code> should be
    *     interpreted, i.e. the expression 0 0 10 * * ?, is resolved to 10:00 am in this time zone.
-   *     If <code>timeZone</code> is <code>null</code> then <code>TimeZone.getDefault()</code> will
+   *     If <code>timeZone</code> is <code>null</code> then <code>ZoneId.systemDefault()</code> will
    *     be used.
    */
   public CronCalendar(@Nullable Calendar baseCalendar, String expression, @Nullable ZoneId timeZone)
@@ -90,7 +91,7 @@ public class CronCalendar extends BaseCalendar {
   /**
    * Sets the time zone for which the <code>CronExpression</code> of this <code>CronCalendar</code>
    * will be resolved. If <code>timeZone</code> is <code>null</code> then <code>
-   * TimeZone.getDefault()</code> will be used.
+   * ZoneId.systemDefault()</code> will be used.
    *
    * <p>Overrides <code>{@link BaseCalendar#setTimeZone(ZoneId)}</code> to defer to its <code>
    * CronExpression</code>.
@@ -101,7 +102,7 @@ public class CronCalendar extends BaseCalendar {
   }
 
   /**
-   * Determines whether the given time (in milliseconds) is 'included' by the <CODE>BaseCalendar
+   * Determines whether the given instant is 'included' by the <CODE>BaseCalendar
    * </CODE>
    *
    * @param timeStamp the date/time to test
@@ -121,7 +122,7 @@ public class CronCalendar extends BaseCalendar {
    * Determines the next time included by the <CODE>CronCalendar</CODE> after the specified time.
    *
    * @param timeStamp the initial date/time after which to find an included time
-   * @return the time in milliseconds representing the next time included after the specified time.
+   * @return the next instant included after the specified one.
    */
   @Override
   public Instant getNextIncludedTime(Instant timeStamp) {

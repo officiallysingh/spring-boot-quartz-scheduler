@@ -30,7 +30,9 @@ public abstract class StringMatcher<T extends Key<?>> implements Matcher<T> {
 
   private static final long serialVersionUID = -2757924162611145836L;
 
+  /** How a {@link StringMatcher} compares a key's name or group with its value. */
   public enum StringOperatorName {
+    /** The name or group equals the value. */
     EQUALS {
       @Override
       public boolean evaluate(final String value, final String compareTo) {
@@ -38,6 +40,7 @@ public abstract class StringMatcher<T extends Key<?>> implements Matcher<T> {
       }
     },
 
+    /** The name or group starts with the value. */
     STARTS_WITH {
       @Override
       public boolean evaluate(final String value, final String compareTo) {
@@ -45,6 +48,7 @@ public abstract class StringMatcher<T extends Key<?>> implements Matcher<T> {
       }
     },
 
+    /** The name or group ends with the value. */
     ENDS_WITH {
       @Override
       public boolean evaluate(final String value, final String compareTo) {
@@ -52,6 +56,7 @@ public abstract class StringMatcher<T extends Key<?>> implements Matcher<T> {
       }
     },
 
+    /** The name or group contains the value. */
     CONTAINS {
       @Override
       public boolean evaluate(final String value, final String compareTo) {
@@ -59,6 +64,7 @@ public abstract class StringMatcher<T extends Key<?>> implements Matcher<T> {
       }
     },
 
+    /** Any name or group matches. */
     ANYTHING {
       @Override
       public boolean evaluate(final String value, final String compareTo) {
@@ -66,12 +72,29 @@ public abstract class StringMatcher<T extends Key<?>> implements Matcher<T> {
       }
     };
 
+    /**
+     * Compare a key's name or group with the matcher's value.
+     *
+     * @param value the key's name or group
+     * @param compareTo the matcher's value
+     * @return whether they match
+     */
     public abstract boolean evaluate(String value, String compareTo);
   }
 
+  /** The value the key's name or group is compared with. */
   protected String compareTo;
+
+  /** How the key's name or group is compared. */
   protected StringOperatorName compareWith;
 
+  /**
+   * Create a matcher.
+   *
+   * @param compareTo the value the key's name or group is compared with
+   * @param compareWith how they are compared
+   * @throws IllegalArgumentException if either is {@code null}
+   */
   protected StringMatcher(String compareTo, StringOperatorName compareWith) {
     if (compareTo == null) throw new IllegalArgumentException("CompareTo value cannot be null!");
     if (compareWith == null)
@@ -81,6 +104,12 @@ public abstract class StringMatcher<T extends Key<?>> implements Matcher<T> {
     this.compareWith = compareWith;
   }
 
+  /**
+   * The part of the key this matcher compares: its name or its group.
+   *
+   * @param key the key
+   * @return the name or group
+   */
   protected abstract String getValue(T key);
 
   public boolean isMatch(T key) {
@@ -111,10 +140,20 @@ public abstract class StringMatcher<T extends Key<?>> implements Matcher<T> {
     } else return compareWith.equals(other.compareWith);
   }
 
+  /**
+   * The value the key's name or group is compared with.
+   *
+   * @return the value
+   */
   public String getCompareToValue() {
     return compareTo;
   }
 
+  /**
+   * How the key's name or group is compared.
+   *
+   * @return the operator
+   */
   public StringOperatorName getCompareWithOperator() {
     return compareWith;
   }

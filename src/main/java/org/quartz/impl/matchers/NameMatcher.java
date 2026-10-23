@@ -30,6 +30,12 @@ public class NameMatcher<T extends Key<?>> extends StringMatcher<T> {
 
   private static final long serialVersionUID = -33104959459613480L;
 
+  /**
+   * Create a matcher on key names; use the static factory methods.
+   *
+   * @param compareTo the value the name is compared with
+   * @param compareWith how the name is compared
+   */
   protected NameMatcher(String compareTo, StringOperatorName compareWith) {
     super(compareTo, compareWith);
   }

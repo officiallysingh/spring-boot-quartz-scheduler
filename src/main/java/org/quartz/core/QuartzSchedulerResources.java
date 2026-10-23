@@ -142,10 +142,22 @@ public class QuartzSchedulerResources {
     this.instanceId = instanceId;
   }
 
+  /**
+   * The identifier of a scheduler instance: {@code <name>_$_<instance id>}.
+   *
+   * @param schedName the scheduler name
+   * @param schedInstId the instance id
+   * @return the identifier
+   */
   public static String getUniqueIdentifier(String schedName, String schedInstId) {
     return schedName + "_$_" + schedInstId;
   }
 
+  /**
+   * The identifier of this scheduler instance: {@code <name>_$_<instance id>}.
+   *
+   * @return the identifier
+   */
   public String getUniqueIdentifier() {
     return getUniqueIdentifier(name, instanceId);
   }
@@ -290,34 +302,75 @@ public class QuartzSchedulerResources {
     this.threadExecutor = threadExecutor;
   }
 
+  /**
+   * How far ahead of their fire time triggers may be acquired together.
+   *
+   * @return the batch time window
+   */
   public Duration getBatchTimeWindow() {
     return batchTimeWindow;
   }
 
+  /**
+   * Set how far ahead of their fire time triggers may be acquired together.
+   *
+   * @param batchTimeWindow the batch time window
+   */
   public void setBatchTimeWindow(Duration batchTimeWindow) {
     this.batchTimeWindow = batchTimeWindow;
   }
 
+  /**
+   * The maximum number of triggers acquired at once.
+   *
+   * @return the batch size
+   */
   public int getMaxBatchSize() {
     return maxBatchSize;
   }
 
+  /**
+   * Set the maximum number of triggers acquired at once.
+   *
+   * @param maxBatchSize the batch size
+   */
   public void setMaxBatchSize(int maxBatchSize) {
     this.maxBatchSize = maxBatchSize;
   }
 
+  /**
+   * Whether running interruptable jobs are interrupted on a shutdown that does not wait for them.
+   *
+   * @return whether to interrupt them
+   */
   public boolean isInterruptJobsOnShutdown() {
     return interruptJobsOnShutdown;
   }
 
+  /**
+   * Set whether running interruptable jobs are interrupted on a shutdown that does not wait for
+   * them.
+   *
+   * @param interruptJobsOnShutdown whether to interrupt them
+   */
   public void setInterruptJobsOnShutdown(boolean interruptJobsOnShutdown) {
     this.interruptJobsOnShutdown = interruptJobsOnShutdown;
   }
 
+  /**
+   * Whether running interruptable jobs are interrupted on a shutdown that waits for them.
+   *
+   * @return whether to interrupt them
+   */
   public boolean isInterruptJobsOnShutdownWithWait() {
     return interruptJobsOnShutdownWithWait;
   }
 
+  /**
+   * Set whether running interruptable jobs are interrupted on a shutdown that waits for them.
+   *
+   * @param interruptJobsOnShutdownWithWait whether to interrupt them
+   */
   public void setInterruptJobsOnShutdownWithWait(boolean interruptJobsOnShutdownWithWait) {
     this.interruptJobsOnShutdownWithWait = interruptJobsOnShutdownWithWait;
   }
@@ -327,6 +380,11 @@ public class QuartzSchedulerResources {
     return clock;
   }
 
+  /**
+   * Set the source of "now" for the scheduler thread, the job store and misfire handling.
+   *
+   * @param clock the clock
+   */
   public void setClock(Clock clock) {
     if (clock == null) {
       throw new IllegalArgumentException("Clock cannot be null.");

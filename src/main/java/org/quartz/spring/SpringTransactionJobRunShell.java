@@ -51,6 +51,14 @@ public class SpringTransactionJobRunShell extends JobRunShell {
 
   private final RuleBasedTransactionAttribute attribute;
 
+  /**
+   * Create a shell running one job execution in a transaction.
+   *
+   * @param scheduler the scheduler
+   * @param bundle the fired trigger and its job
+   * @param factory the factory that resolves the transaction manager
+   * @param attribute the transaction's propagation, isolation, timeout and rollback rules
+   */
   public SpringTransactionJobRunShell(
       Scheduler scheduler,
       TriggerFiredBundle bundle,

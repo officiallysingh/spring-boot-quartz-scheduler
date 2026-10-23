@@ -62,6 +62,7 @@ public class SimpleScheduleBuilder extends ScheduleBuilder<SimpleTrigger> {
   private int repeatCount = 0;
   private int misfireInstruction = SimpleTrigger.MISFIRE_INSTRUCTION_SMART_POLICY;
 
+  /** Use {@link #simpleSchedule()} or one of the other static factory methods. */
   protected SimpleScheduleBuilder() {}
 
   /**
@@ -252,7 +253,7 @@ public class SimpleScheduleBuilder extends ScheduleBuilder<SimpleTrigger> {
   /**
    * Specify a repeat interval in milliseconds.
    *
-   * @param intervalInMillis the number of seconds at which the trigger should repeat.
+   * @param intervalInMillis the number of milliseconds at which the trigger should repeat.
    * @return the updated SimpleScheduleBuilder
    * @see SimpleTrigger#getRepeatInterval()
    * @see #withRepeatCount(int)
@@ -277,8 +278,7 @@ public class SimpleScheduleBuilder extends ScheduleBuilder<SimpleTrigger> {
   }
 
   /**
-   * Specify a repeat interval in seconds - which will then be multiplied by 1000 to produce
-   * milliseconds.
+   * Specify a repeat interval in seconds.
    *
    * @param intervalInSeconds the number of seconds at which the trigger should repeat.
    * @return the updated SimpleScheduleBuilder
@@ -291,10 +291,9 @@ public class SimpleScheduleBuilder extends ScheduleBuilder<SimpleTrigger> {
   }
 
   /**
-   * Specify a repeat interval in minutes - which will then be multiplied by 60 * 1000 to produce
-   * milliseconds.
+   * Specify a repeat interval in minutes.
    *
-   * @param intervalInMinutes the number of seconds at which the trigger should repeat.
+   * @param intervalInMinutes the number of minutes at which the trigger should repeat.
    * @return the updated SimpleScheduleBuilder
    * @see SimpleTrigger#getRepeatInterval()
    * @see #withRepeatCount(int)
@@ -305,10 +304,9 @@ public class SimpleScheduleBuilder extends ScheduleBuilder<SimpleTrigger> {
   }
 
   /**
-   * Specify a repeat interval in minutes - which will then be multiplied by 60 * 60 * 1000 to
-   * produce milliseconds.
+   * Specify a repeat interval in hours.
    *
-   * @param intervalInHours the number of seconds at which the trigger should repeat.
+   * @param intervalInHours the number of hours at which the trigger should repeat.
    * @return the updated SimpleScheduleBuilder
    * @see SimpleTrigger#getRepeatInterval()
    * @see #withRepeatCount(int)

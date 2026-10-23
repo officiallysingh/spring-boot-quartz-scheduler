@@ -30,9 +30,19 @@ public class OrMatcher<T extends Key<?>> implements Matcher<T> {
 
   private static final long serialVersionUID = -2867392824539403712L;
 
+  /** One of the matchers, either of which may match. */
   protected Matcher<T> leftOperand;
+
+  /** The other matcher, either of which may match. */
   protected Matcher<T> rightOperand;
 
+  /**
+   * Create a matcher matching keys that either operand matches; use {@link #or(Matcher, Matcher)}.
+   *
+   * @param leftOperand the first matcher
+   * @param rightOperand the second matcher
+   * @throws IllegalArgumentException if an operand is {@code null}
+   */
   protected OrMatcher(Matcher<T> leftOperand, Matcher<T> rightOperand) {
     if (leftOperand == null || rightOperand == null)
       throw new IllegalArgumentException("Two non-null operands required!");
@@ -52,10 +62,20 @@ public class OrMatcher<T extends Key<?>> implements Matcher<T> {
     return leftOperand.isMatch(key) || rightOperand.isMatch(key);
   }
 
+  /**
+   * The first operand.
+   *
+   * @return the first matcher
+   */
   public Matcher<T> getLeftOperand() {
     return leftOperand;
   }
 
+  /**
+   * The second operand.
+   *
+   * @return the second matcher
+   */
   public Matcher<T> getRightOperand() {
     return rightOperand;
   }

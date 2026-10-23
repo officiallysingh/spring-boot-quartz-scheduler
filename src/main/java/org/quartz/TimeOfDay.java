@@ -204,7 +204,7 @@ public class TimeOfDay implements Serializable {
   }
 
   /**
-   * Create a TimeOfDay from the given date, in the system default TimeZone.
+   * Create a TimeOfDay from the given date, in the system default time zone.
    *
    * @param dateTime The instant from which to extract Hour, Minute and Second.
    */
@@ -214,11 +214,11 @@ public class TimeOfDay implements Serializable {
   }
 
   /**
-   * Create a TimeOfDay from the given date, in the given TimeZone.
+   * Create a TimeOfDay from the given date, in the given time zone.
    *
    * @param dateTime The instant from which to extract Hour, Minute and Second.
    * @param tz The time zone from which relate Hour, Minute and Second for the given date. If null,
-   *     system default TimeZone will be used.
+   *     system default time zone will be used.
    */
   @Contract("null, _ -> null; !null, _ -> !null")
   public static @Nullable TimeOfDay hourAndMinuteAndSecondFromDate(
@@ -230,7 +230,7 @@ public class TimeOfDay implements Serializable {
   }
 
   /**
-   * Create a TimeOfDay from the given date (at the zero-second), in the system default TimeZone.
+   * Create a TimeOfDay from the given date (at the zero-second), in the system default time zone.
    *
    * @param dateTime The instant from which to extract Hour and Minute.
    */
@@ -240,11 +240,11 @@ public class TimeOfDay implements Serializable {
   }
 
   /**
-   * Create a TimeOfDay from the given date (at the zero-second), in the system default TimeZone.
+   * Create a TimeOfDay from the given date (at the zero-second), in the system default time zone.
    *
    * @param dateTime The instant from which to extract Hour and Minute.
    * @param tz The time zone from which relate Hour and Minute for the given date. If null, system
-   *     default TimeZone will be used.
+   *     default time zone will be used.
    */
   @Contract("null, _ -> null; !null, _ -> !null")
   public static @Nullable TimeOfDay hourAndMinuteFromDate(

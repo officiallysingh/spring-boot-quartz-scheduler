@@ -47,6 +47,11 @@ public record ThreadPoolSettings(
 
   public static final int DEFAULT_THREAD_COUNT = 10;
 
+  /**
+   * Validates the settings.
+   *
+   * @throws IllegalArgumentException if a value is out of range
+   */
   public ThreadPoolSettings {
     if (threadCount < 1) {
       throw new IllegalArgumentException("threadCount must be at least 1, was " + threadCount);
@@ -86,14 +91,29 @@ public record ThreadPoolSettings(
         false);
   }
 
+  /**
+   * The default settings.
+   *
+   * @return the defaults
+   */
   public static ThreadPoolSettings defaults() {
     return builder().build();
   }
 
+  /**
+   * A builder starting from the defaults.
+   *
+   * @return a new builder
+   */
   public static Builder builder() {
     return new Builder();
   }
 
+  /**
+   * A builder starting from these settings.
+   *
+   * @return a new builder
+   */
   public Builder toBuilder() {
     return new Builder()
         .threadCount(threadCount)
@@ -106,6 +126,7 @@ public record ThreadPoolSettings(
         .virtualThreads(virtualThreads);
   }
 
+  /** Builds {@link ThreadPoolSettings}; every value not set keeps its default. */
   public static final class Builder {
     private int threadCount = DEFAULT_THREAD_COUNT;
     private int threadPriority = Thread.NORM_PRIORITY;
@@ -117,41 +138,91 @@ public record ThreadPoolSettings(
 
     private Builder() {}
 
+    /**
+     * Set {@link ThreadPoolSettings#threadCount() threadCount}.
+     *
+     * @param threadCount the value
+     * @return this builder
+     */
     public Builder threadCount(int threadCount) {
       this.threadCount = threadCount;
       return this;
     }
 
+    /**
+     * Set {@link ThreadPoolSettings#threadPriority() threadPriority}.
+     *
+     * @param threadPriority the value
+     * @return this builder
+     */
     public Builder threadPriority(int threadPriority) {
       this.threadPriority = threadPriority;
       return this;
     }
 
+    /**
+     * Set {@link ThreadPoolSettings#threadNamePrefix() threadNamePrefix}.
+     *
+     * @param threadNamePrefix the value
+     * @return this builder
+     */
     public Builder threadNamePrefix(@Nullable String threadNamePrefix) {
       this.threadNamePrefix = threadNamePrefix;
       return this;
     }
 
+    /**
+     * Set {@link ThreadPoolSettings#daemon() daemon}.
+     *
+     * @param daemon the value
+     * @return this builder
+     */
     public Builder daemon(boolean daemon) {
       this.daemon = daemon;
       return this;
     }
 
+    /**
+     * Set {@link ThreadPoolSettings#threadsInheritContextClassLoaderOfInitializingThread()
+     * threadsInheritContextClassLoaderOfInitializingThread}.
+     *
+     * @param inherit the value
+     * @return this builder
+     */
     public Builder threadsInheritContextClassLoaderOfInitializingThread(boolean inherit) {
       this.threadsInheritContextClassLoaderOfInitializingThread = inherit;
       return this;
     }
 
+    /**
+     * Set {@link ThreadPoolSettings#threadsInheritGroupOfInitializingThread()
+     * threadsInheritGroupOfInitializingThread}.
+     *
+     * @param inherit the value
+     * @return this builder
+     */
     public Builder threadsInheritGroupOfInitializingThread(boolean inherit) {
       this.threadsInheritGroupOfInitializingThread = inherit;
       return this;
     }
 
+    /**
+     * Set {@link ThreadPoolSettings#virtualThreads() virtualThreads}.
+     *
+     * @param virtualThreads the value
+     * @return this builder
+     */
     public Builder virtualThreads(boolean virtualThreads) {
       this.virtualThreads = virtualThreads;
       return this;
     }
 
+    /**
+     * The settings.
+     *
+     * @return the settings
+     * @throws IllegalArgumentException if a value is out of range
+     */
     public ThreadPoolSettings build() {
       return new ThreadPoolSettings(
           threadCount,

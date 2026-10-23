@@ -22,8 +22,20 @@ import java.util.LinkedList;
 import java.util.Queue;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Annotation lookups that also search superclasses and implemented interfaces, as Quartz needs for
+ * its job annotations ({@code @DisallowConcurrentExecution},
+ * {@code @PersistJobDataAfterExecution}).
+ */
 public class ClassUtils {
 
+  /**
+   * Whether the class, a superclass or an implemented interface carries the annotation.
+   *
+   * @param clazz the class to inspect
+   * @param a the annotation type
+   * @return {@code true} if it is present anywhere in the hierarchy
+   */
   public static boolean isAnnotationPresent(Class<?> clazz, Class<? extends Annotation> a) {
     for (Class<?> c = clazz; c != null; c = c.getSuperclass()) {
       if (c.isAnnotationPresent(a)) return true;
@@ -42,6 +54,14 @@ public class ClassUtils {
     return false;
   }
 
+  /**
+   * The annotation on the class, a superclass or an implemented interface, the nearest first.
+   *
+   * @param clazz the class to inspect
+   * @param aClazz the annotation type
+   * @param <T> the annotation type
+   * @return the annotation, or {@code null} if absent
+   */
   public static <T extends Annotation> @Nullable T getAnnotation(Class<?> clazz, Class<T> aClazz) {
     // Check class hierarchy
     for (Class<?> c = clazz; c != null; c = c.getSuperclass()) {

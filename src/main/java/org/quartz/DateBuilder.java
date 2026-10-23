@@ -63,61 +63,93 @@ import org.jspecify.annotations.Nullable;
  */
 public class DateBuilder {
 
+  /** A unit of time, for {@link #futureDate(int, IntervalUnit)} and the interval-based triggers. */
   public enum IntervalUnit {
+    /** Milliseconds. */
     MILLISECOND,
+    /** Seconds. */
     SECOND,
+    /** Minutes. */
     MINUTE,
+    /** Hours. */
     HOUR,
+    /** Calendar days (which may be 23 or 25 hours long across daylight-saving changes). */
     DAY,
+    /** Calendar weeks. */
     WEEK,
+    /** Calendar months. */
     MONTH,
+    /** Calendar years. */
     YEAR
   }
 
+  /** Sunday, as a day-of-week number (Sunday = 1 … Saturday = 7, as in cron). */
   public static final int SUNDAY = 1;
 
+  /** Monday, as a day-of-week number (Sunday = 1 … Saturday = 7, as in cron). */
   public static final int MONDAY = 2;
 
+  /** Tuesday, as a day-of-week number (Sunday = 1 … Saturday = 7, as in cron). */
   public static final int TUESDAY = 3;
 
+  /** Wednesday, as a day-of-week number (Sunday = 1 … Saturday = 7, as in cron). */
   public static final int WEDNESDAY = 4;
 
+  /** Thursday, as a day-of-week number (Sunday = 1 … Saturday = 7, as in cron). */
   public static final int THURSDAY = 5;
 
+  /** Friday, as a day-of-week number (Sunday = 1 … Saturday = 7, as in cron). */
   public static final int FRIDAY = 6;
 
+  /** Saturday, as a day-of-week number (Sunday = 1 … Saturday = 7, as in cron). */
   public static final int SATURDAY = 7;
 
+  /** January, as a month number (January = 1). */
   public static final int JANUARY = 1;
 
+  /** February, as a month number (January = 1). */
   public static final int FEBRUARY = 2;
 
+  /** March, as a month number (January = 1). */
   public static final int MARCH = 3;
 
+  /** April, as a month number (January = 1). */
   public static final int APRIL = 4;
 
+  /** May, as a month number (January = 1). */
   public static final int MAY = 5;
 
+  /** June, as a month number (January = 1). */
   public static final int JUNE = 6;
 
+  /** July, as a month number (January = 1). */
   public static final int JULY = 7;
 
+  /** August, as a month number (January = 1). */
   public static final int AUGUST = 8;
 
+  /** September, as a month number (January = 1). */
   public static final int SEPTEMBER = 9;
 
+  /** October, as a month number (January = 1). */
   public static final int OCTOBER = 10;
 
+  /** November, as a month number (January = 1). */
   public static final int NOVEMBER = 11;
 
+  /** December, as a month number (January = 1). */
   public static final int DECEMBER = 12;
 
+  /** Milliseconds in a minute. */
   public static final long MILLISECONDS_IN_MINUTE = 60L * 1000L;
 
+  /** Milliseconds in an hour. */
   public static final long MILLISECONDS_IN_HOUR = 60L * 60L * 1000L;
 
+  /** Seconds in a day without a daylight-saving change. */
   public static final long SECONDS_IN_MOST_DAYS = 24L * 60L * 60L;
 
+  /** Milliseconds in a day without a daylight-saving change. */
   public static final long MILLISECONDS_IN_DAY = SECONDS_IN_MOST_DAYS * 1000L;
 
   private int month = -1;
@@ -217,7 +249,7 @@ public class DateBuilder {
     return zdt.toInstant();
   }
 
-  /** Set the hour (0-23) for the Date that will be built by this builder. */
+  /** Set the hour (0-23) for the instant that will be built by this builder. */
   public DateBuilder atHourOfDay(int atHour) {
     validateHour(atHour);
 
@@ -225,7 +257,7 @@ public class DateBuilder {
     return this;
   }
 
-  /** Set the minute (0-59) for the Date that will be built by this builder. */
+  /** Set the minute (0-59) for the instant that will be built by this builder. */
   public DateBuilder atMinute(int atMinute) {
     validateMinute(atMinute);
 
@@ -234,7 +266,7 @@ public class DateBuilder {
   }
 
   /**
-   * Set the second (0-59) for the Date that will be built by this builder, and truncate the
+   * Set the second (0-59) for the instant that will be built by this builder, and truncate the
    * milliseconds to 000.
    */
   public DateBuilder atSecond(int atSecond) {
@@ -244,6 +276,15 @@ public class DateBuilder {
     return this;
   }
 
+  /**
+   * Set the hour (0-23), minute (0-59) and second (0-59) of the instant that will be built.
+   *
+   * @param atHour the hour of the day
+   * @param atMinute the minute of the hour
+   * @param atSecond the second of the minute
+   * @return the updated DateBuilder
+   * @throws IllegalArgumentException if a value is out of range
+   */
   public DateBuilder atHourMinuteAndSecond(int atHour, int atMinute, int atSecond) {
     validateHour(atHour);
     validateMinute(atMinute);
@@ -255,7 +296,7 @@ public class DateBuilder {
     return this;
   }
 
-  /** Set the day of month (1-31) for the Date that will be built by this builder. */
+  /** Set the day of month (1-31) for the instant that will be built by this builder. */
   public DateBuilder onDay(int onDay) {
     validateDayOfMonth(onDay);
 
@@ -263,7 +304,7 @@ public class DateBuilder {
     return this;
   }
 
-  /** Set the month (1-12) for the Date that will be built by this builder. */
+  /** Set the month (1-12) for the instant that will be built by this builder. */
   public DateBuilder inMonth(int inMonth) {
     validateMonth(inMonth);
 
@@ -271,6 +312,14 @@ public class DateBuilder {
     return this;
   }
 
+  /**
+   * Set the month (1-12) and day of the month (1-31) of the instant that will be built.
+   *
+   * @param inMonth the month, for example {@link #MARCH}
+   * @param onDay the day of the month
+   * @return the updated DateBuilder
+   * @throws IllegalArgumentException if a value is out of range
+   */
   public DateBuilder inMonthOnDay(int inMonth, int onDay) {
     validateMonth(inMonth);
     validateDayOfMonth(onDay);
@@ -280,7 +329,7 @@ public class DateBuilder {
     return this;
   }
 
-  /** Set the year for the Date that will be built by this builder. */
+  /** Set the year for the instant that will be built by this builder. */
   public DateBuilder inYear(int inYear) {
     validateYear(inYear);
 
@@ -289,7 +338,7 @@ public class DateBuilder {
   }
 
   /**
-   * Set the TimeZone for the Date that will be built by this builder (if "null", system default
+   * Set the time zone for the instant that will be built by this builder (if "null", system default
    * will be used)
    */
   public DateBuilder inTimeZone(ZoneId timezone) {
@@ -298,14 +347,22 @@ public class DateBuilder {
   }
 
   /**
-   * Set the Locale for the Date that will be built by this builder (if "null", system default will
-   * be used)
+   * Set the Locale for the instant that will be built by this builder (if "null", system default
+   * will be used)
    */
   public DateBuilder inLocale(Locale locale) {
     this.lc = locale;
     return this;
   }
 
+  /**
+   * The instant that is {@code interval} {@code unit}s from now, in the system default time zone
+   * (relevant for days and longer units).
+   *
+   * @param interval how many units ahead
+   * @param unit the unit of {@code interval}
+   * @return the future instant
+   */
   public static Instant futureDate(int interval, IntervalUnit unit) {
     return futureDate(interval, unit, Clock.systemDefaultZone());
   }
@@ -338,7 +395,7 @@ public class DateBuilder {
   }
 
   /**
-   * Get a <code>Date</code> object that represents the given time, on tomorrow's date.
+   * Get an <code>Instant</code> that represents the given time, on tomorrow's date.
    *
    * @param hour The value (0-23) to give the hours field of the date
    * @param minute The value (0-59) to give the minutes field of the date
@@ -358,7 +415,7 @@ public class DateBuilder {
   }
 
   /**
-   * Get a <code>Date</code> object that represents the given time, on today's date (equivalent to
+   * Get an <code>Instant</code> that represents the given time, on today's date (equivalent to
    * {@link #dateOf(int, int, int)}).
    *
    * @param hour The value (0-23) to give the hours field of the date
@@ -375,7 +432,7 @@ public class DateBuilder {
   }
 
   /**
-   * Get a <code>Date</code> object that represents the given time, on today's date (equivalent to
+   * Get an <code>Instant</code> that represents the given time, on today's date (equivalent to
    * {@link #todayAt(int, int, int)}).
    *
    * @param hour The value (0-23) to give the hours field of the date
@@ -392,7 +449,7 @@ public class DateBuilder {
   }
 
   /**
-   * Get a <code>Date</code> object that represents the given time, on the given date.
+   * Get an <code>Instant</code> that represents the given time, on the given date.
    *
    * @param hour The value (0-23) to give the hours field of the date
    * @param minute The value (0-59) to give the minutes field of the date
@@ -412,7 +469,7 @@ public class DateBuilder {
   }
 
   /**
-   * Get a <code>Date</code> object that represents the given time, on the given date.
+   * Get an <code>Instant</code> that represents the given time, on the given date.
    *
    * @param hour The value (0-23) to give the hours field of the date
    * @param minute The value (0-59) to give the minutes field of the date
@@ -458,7 +515,7 @@ public class DateBuilder {
    * 09:00:00. If the date's time is in the 23rd hour, the date's 'day' will be promoted, and the
    * time will be set to 00:00:00.
    *
-   * @param date the Date to round, if <code>null</code> the current time will be used
+   * @param date the instant to round, if <code>null</code> the current time will be used
    * @return the new rounded date
    */
   public static Instant evenHourDate(@Nullable Instant date) {
@@ -479,7 +536,7 @@ public class DateBuilder {
    * <p>For example an input date with a time of 08:13:54 would result in a date with the time of
    * 08:00:00.
    *
-   * @param date the Date to round, if <code>null</code> the current time will be used
+   * @param date the instant to round, if <code>null</code> the current time will be used
    * @return the new rounded date
    */
   public static Instant evenHourDateBefore(@Nullable Instant date) {
@@ -516,13 +573,20 @@ public class DateBuilder {
    * 08:14:00. If the date's time is in the 59th minute, then the hour (and possibly the day) will
    * be promoted.
    *
-   * @param date the Date to round, if <code>null</code> the current time will be used
+   * @param date the instant to round, if <code>null</code> the current time will be used
    * @return the new rounded date
    */
   public static Instant evenMinuteDate(@Nullable Instant date) {
     return evenMinuteDate(date, Clock.systemDefaultZone());
   }
 
+  /**
+   * Like {@link #evenMinuteDate(Instant)}, with the current time taken from {@code clock}.
+   *
+   * @param date the instant to round, if <code>null</code> the current time will be used
+   * @param clock the clock supplying the current time
+   * @return the new rounded date
+   */
   public static Instant evenMinuteDate(@Nullable Instant date, Clock clock) {
     var zdt =
         (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
@@ -537,7 +601,7 @@ public class DateBuilder {
    * <p>For example an input date with a time of 08:13:54 would result in a date with the time of
    * 08:13:00.
    *
-   * @param date the Date to round, if <code>null</code> the current time will be used
+   * @param date the instant to round, if <code>null</code> the current time will be used
    * @return the new rounded date
    */
   public static Instant evenMinuteDateBefore(@Nullable Instant date) {
@@ -567,7 +631,7 @@ public class DateBuilder {
   /**
    * Returns a date that is rounded to the next even second above the given date.
    *
-   * @param date the Date to round, if <code>null</code> the current time will be used
+   * @param date the instant to round, if <code>null</code> the current time will be used
    * @return the new rounded date
    */
   public static Instant evenSecondDate(@Nullable Instant date) {
@@ -588,7 +652,7 @@ public class DateBuilder {
    * <p>For example an input date with a time of 08:13:54.341 would result in a date with the time
    * of 08:13:54.000.
    *
-   * @param date the Date to round, if <code>null</code> the current time will be used
+   * @param date the instant to round, if <code>null</code> the current time will be used
    * @return the new rounded date
    */
   public static Instant evenSecondDateBefore(@Nullable Instant date) {
@@ -682,7 +746,7 @@ public class DateBuilder {
    * </tr>
    * </table>
    *
-   * @param date the Date to round, if <code>null</code> the current time will be used
+   * @param date the instant to round, if <code>null</code> the current time will be used
    * @param minuteBase the base-minute to set the time on
    * @return the new rounded date
    * @see #nextGivenSecondDate(Instant, int)
@@ -722,7 +786,7 @@ public class DateBuilder {
    * <p>The rules for calculating the second are the same as those for calculating the minute in the
    * method <code>getNextGivenMinuteDate(..)</code>.
    *
-   * @param date the Date to round, if <code>null</code> the current time will be used
+   * @param date the instant to round, if <code>null</code> the current time will be used
    * @param secondBase the base-second to set the time on
    * @return the new rounded date
    * @see #nextGivenMinuteDate(Instant, int)
@@ -777,45 +841,88 @@ public class DateBuilder {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+  /**
+   * Check a day of the week.
+   *
+   * @param dayOfWeek the value, {@link #SUNDAY} (1) to {@link #SATURDAY} (7)
+   * @throws IllegalArgumentException if it is out of range
+   */
   public static void validateDayOfWeek(int dayOfWeek) {
     if (dayOfWeek < SUNDAY || dayOfWeek > SATURDAY) {
       throw new IllegalArgumentException("Invalid day of week.");
     }
   }
 
+  /**
+   * Check an hour of the day.
+   *
+   * @param hour the value, 0 to 23
+   * @throws IllegalArgumentException if it is out of range
+   */
   public static void validateHour(int hour) {
     if (hour < 0 || hour > 23) {
       throw new IllegalArgumentException("Invalid hour (must be >= 0 and <= 23).");
     }
   }
 
+  /**
+   * Check a minute.
+   *
+   * @param minute the value, 0 to 59
+   * @throws IllegalArgumentException if it is out of range
+   */
   public static void validateMinute(int minute) {
     if (minute < 0 || minute > 59) {
       throw new IllegalArgumentException("Invalid minute (must be >= 0 and <= 59).");
     }
   }
 
+  /**
+   * Check a second.
+   *
+   * @param second the value, 0 to 59
+   * @throws IllegalArgumentException if it is out of range
+   */
   public static void validateSecond(int second) {
     if (second < 0 || second > 59) {
       throw new IllegalArgumentException("Invalid second (must be >= 0 and <= 59).");
     }
   }
 
+  /**
+   * Check a day of the month.
+   *
+   * @param day the value, 1 to 31
+   * @throws IllegalArgumentException if it is out of range
+   */
   public static void validateDayOfMonth(int day) {
     if (day < 1 || day > 31) {
       throw new IllegalArgumentException("Invalid day of month.");
     }
   }
 
+  /**
+   * Check a month.
+   *
+   * @param month the value, 1 to 12
+   * @throws IllegalArgumentException if it is out of range
+   */
   public static void validateMonth(int month) {
     if (month < 1 || month > 12) {
-      throw new IllegalArgumentException("Invalid month (must be >= 1 and <= 12.");
+      throw new IllegalArgumentException("Invalid month (must be >= 1 and <= 12).");
     }
   }
 
+  /**
+   * Check a year.
+   *
+   * @param year the value, 1970 to {@link Year#MAX_VALUE}
+   * @throws IllegalArgumentException if it is out of range
+   */
   public static void validateYear(int year) {
     if (year < 1970 || year > Year.MAX_VALUE) {
-      throw new IllegalArgumentException("Invalid year (must be >= 0 and <= " + Year.MAX_VALUE);
+      throw new IllegalArgumentException(
+          "Invalid year (must be >= 1970 and <= " + Year.MAX_VALUE + ").");
     }
   }
 }

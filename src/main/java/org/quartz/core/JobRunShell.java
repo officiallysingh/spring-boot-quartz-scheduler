@@ -77,16 +77,21 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
    */
 
   // set by initialize before run, and dropped by passivate once the shell is done
+  /** The context of the execution; created by {@link #initialize}. */
   @SuppressWarnings("NullAway.Init")
   protected JobExecutionContextImpl jec;
 
+  /** The scheduler running the job; set by {@link #initialize}. */
   @SuppressWarnings("NullAway.Init")
   protected QuartzScheduler qs;
 
+  /** The fired trigger and its job. */
   protected TriggerFiredBundle firedTriggerBundle;
 
+  /** The scheduler handed to the job in its context. */
   protected Scheduler scheduler;
 
+  /** Set when the scheduler shuts down while the job runs. */
   protected volatile boolean shutdownRequested = false;
 
   private final Logger log = LoggerFactory.getLogger(getClass());
@@ -128,6 +133,12 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
     return log;
   }
 
+  /**
+   * Create the job instance (through the scheduler's job factory) and its execution context.
+   *
+   * @param sched the scheduler running the job
+   * @throws SchedulerException if the job cannot be instantiated; the scheduler listeners are told
+   */
   public void initialize(QuartzScheduler sched) throws SchedulerException {
     this.qs = sched;
 
@@ -154,6 +165,7 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
     this.jec = new JobExecutionContextImpl(scheduler, firedTriggerBundle, job);
   }
 
+  /** Note that the scheduler is shutting down; the running job is not interrupted. */
   public void requestShutdown() {
     shutdownRequested = true;
   }
@@ -304,11 +316,25 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
     job.execute(context);
   }
 
+  /**
+   * Called before each execution attempt, before the listeners are told; subclasses may start work
+   * here.
+   *
+   * @throws SchedulerException to abort the execution
+   */
   protected void begin() throws SchedulerException {}
 
+  /**
+   * Called after each execution attempt.
+   *
+   * @param successfulExecution whether the attempt completed (a re-execution request counts as not
+   *     successful)
+   * @throws SchedulerException if completing fails; the scheduler listeners are told
+   */
   protected void complete(boolean successfulExecution) throws SchedulerException {}
 
   // drops the references for the garbage collector; the shell is not used again
+  /** Drop the references held for the execution, once it is over. */
   @SuppressWarnings("NullAway")
   public void passivate() {
     jec = null;

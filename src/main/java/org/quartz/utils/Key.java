@@ -125,6 +125,12 @@ public class Key<T> implements Serializable, Comparable<Key<T>> {
     return name.compareTo(o.getName());
   }
 
+  /**
+   * A name that is unique with high probability: a hash of the group followed by a random UUID.
+   *
+   * @param group the group, or {@code null} for the default group
+   * @return the generated name
+   */
   public static String createUniqueName(@Nullable String group) {
     if (group == null) group = DEFAULT_GROUP;
 

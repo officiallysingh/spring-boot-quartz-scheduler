@@ -72,14 +72,31 @@ public class BroadcastTriggerListener implements TriggerListener {
     return name;
   }
 
+  /**
+   * Add a listener to broadcast to.
+   *
+   * @param listener the listener
+   */
   public void addListener(TriggerListener listener) {
     listeners.add(listener);
   }
 
+  /**
+   * Remove a listener.
+   *
+   * @param listener the listener
+   * @return whether it was registered
+   */
   public boolean removeListener(TriggerListener listener) {
     return listeners.remove(listener);
   }
 
+  /**
+   * Remove the listener with the given name.
+   *
+   * @param listenerName the listener's name
+   * @return whether such a listener was registered
+   */
   public boolean removeListener(String listenerName) {
     Iterator<TriggerListener> itr = listeners.iterator();
     while (itr.hasNext()) {
@@ -92,6 +109,11 @@ public class BroadcastTriggerListener implements TriggerListener {
     return false;
   }
 
+  /**
+   * The listeners broadcast to, in order.
+   *
+   * @return an unmodifiable view of the listeners
+   */
   public List<TriggerListener> getListeners() {
     return java.util.Collections.unmodifiableList(listeners);
   }

@@ -79,6 +79,11 @@ import org.slf4j.LoggerFactory;
  * </code> interface, containing methods to schedule <code>{@link org.quartz.Job}</code>s, register
  * <code>{@link org.quartz.JobListener}</code> instances, etc.
  *
+ * <p>Applications do not use it directly: they get the {@link org.quartz.Scheduler} that {@link
+ * org.quartz.impl.StdScheduler} wraps around it. Its public methods have the semantics of the
+ * {@code Scheduler} methods of the same name; the {@code notify*} methods dispatch events to the
+ * registered listeners.
+ *
  * @see org.quartz.Scheduler
  * @see org.quartz.core.QuartzSchedulerThread
  * @see org.quartz.spi.JobStore

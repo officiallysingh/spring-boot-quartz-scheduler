@@ -46,16 +46,36 @@ public class AnnualCalendar extends BaseCalendar implements Calendar, Serializab
   // true, if excludeDays is sorted
   private boolean dataSorted = false;
 
+  /**
+   * Create a calendar that excludes nothing yet, without a base calendar, in the system default
+   * time zone.
+   */
   public AnnualCalendar() {}
 
+  /**
+   * Create a calendar that excludes nothing yet on top of another, in the system default time zone.
+   *
+   * @param baseCalendar the calendar that must also include a time, or {@code null}
+   */
   public AnnualCalendar(@Nullable Calendar baseCalendar) {
     super(baseCalendar);
   }
 
+  /**
+   * Create a calendar that excludes nothing yet without a base calendar.
+   *
+   * @param timeZone the time zone, or {@code null} for the system default
+   */
   public AnnualCalendar(@Nullable ZoneId timeZone) {
     super(timeZone);
   }
 
+  /**
+   * Create a calendar that excludes nothing yet on top of another.
+   *
+   * @param baseCalendar the calendar that must also include a time, or {@code null}
+   * @param timeZone the time zone, or {@code null} for the system default
+   */
   public AnnualCalendar(@Nullable Calendar baseCalendar, @Nullable ZoneId timeZone) {
     super(baseCalendar, timeZone);
   }
@@ -185,7 +205,7 @@ public class AnnualCalendar extends BaseCalendar implements Calendar, Serializab
   }
 
   /**
-   * Determine whether the given time (in milliseconds) is 'included' by the Calendar.
+   * Determine whether the given instant is 'included' by the Calendar.
    *
    * <p>Note that this Calendar is only has full-day precision.
    */
@@ -203,8 +223,8 @@ public class AnnualCalendar extends BaseCalendar implements Calendar, Serializab
   }
 
   /**
-   * Determine the next time (in milliseconds) that is 'included' by the Calendar after the given
-   * time. Return the original value if timeStamp is included. Return 0 if all days are excluded.
+   * Determine the next instant that is 'included' by the Calendar after the given instant. Return
+   * the original value if timeStamp is included. Return 0 if all days are excluded.
    *
    * <p>Note that this Calendar is only has full-day precision.
    */

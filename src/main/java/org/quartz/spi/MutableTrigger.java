@@ -28,10 +28,24 @@ import org.quartz.SimpleTrigger;
 import org.quartz.Trigger;
 import org.quartz.TriggerKey;
 
+/**
+ * A {@link Trigger} whose properties can be set: what trigger builders and job stores use to
+ * assemble a trigger. Applications build triggers with {@link org.quartz.TriggerBuilder}.
+ */
 public interface MutableTrigger extends Trigger {
 
+  /**
+   * Set the key identifying this trigger.
+   *
+   * @param key the key
+   */
   void setKey(TriggerKey key);
 
+  /**
+   * Set the key of the job this trigger fires.
+   *
+   * @param key the job's key
+   */
   void setJobKey(JobKey key);
 
   /**
@@ -97,5 +111,10 @@ public interface MutableTrigger extends Trigger {
    */
   void setMisfireInstruction(int misfireInstruction);
 
+  /**
+   * A copy of this trigger; its job data map is copied, its values are shared.
+   *
+   * @return the copy
+   */
   Object clone();
 }

@@ -54,6 +54,11 @@ public record JobStoreSettings(
 
   public static final Duration DEFAULT_MISFIRE_THRESHOLD = Duration.ofSeconds(60);
 
+  /**
+   * Validates the settings.
+   *
+   * @throws IllegalArgumentException if a value is out of range
+   */
   public JobStoreSettings {
     requirePositive(misfireThreshold, "misfireThreshold");
     requirePositive(clusterCheckinInterval, "clusterCheckinInterval");
@@ -66,14 +71,29 @@ public record JobStoreSettings(
     requireNotNegative(retryInterval, "retryInterval");
   }
 
+  /**
+   * The default settings.
+   *
+   * @return the defaults
+   */
   public static JobStoreSettings defaults() {
     return builder().build();
   }
 
+  /**
+   * A builder starting from the defaults.
+   *
+   * @return a new builder
+   */
   public static Builder builder() {
     return new Builder();
   }
 
+  /**
+   * A builder starting from these settings.
+   *
+   * @return a new builder
+   */
   public Builder toBuilder() {
     return new Builder()
         .misfireThreshold(misfireThreshold)
@@ -104,6 +124,7 @@ public record JobStoreSettings(
     }
   }
 
+  /** Builds {@link JobStoreSettings}; every value not set keeps its default. */
   public static final class Builder {
     private Duration misfireThreshold = DEFAULT_MISFIRE_THRESHOLD;
     private boolean clustered;
@@ -120,66 +141,145 @@ public record JobStoreSettings(
 
     private Builder() {}
 
+    /**
+     * Set {@link JobStoreSettings#misfireThreshold() misfireThreshold}.
+     *
+     * @param misfireThreshold the value
+     * @return this builder
+     */
     public Builder misfireThreshold(Duration misfireThreshold) {
       this.misfireThreshold = misfireThreshold;
       return this;
     }
 
+    /**
+     * Set {@link JobStoreSettings#clustered() clustered}.
+     *
+     * @param clustered the value
+     * @return this builder
+     */
     public Builder clustered(boolean clustered) {
       this.clustered = clustered;
       return this;
     }
 
+    /**
+     * Set {@link JobStoreSettings#clusterCheckinInterval() clusterCheckinInterval}.
+     *
+     * @param clusterCheckinInterval the value
+     * @return this builder
+     */
     public Builder clusterCheckinInterval(Duration clusterCheckinInterval) {
       this.clusterCheckinInterval = clusterCheckinInterval;
       return this;
     }
 
+    /**
+     * Set {@link JobStoreSettings#clusterCheckinMisfireThreshold() clusterCheckinMisfireThreshold}.
+     *
+     * @param clusterCheckinMisfireThreshold the value
+     * @return this builder
+     */
     public Builder clusterCheckinMisfireThreshold(Duration clusterCheckinMisfireThreshold) {
       this.clusterCheckinMisfireThreshold = clusterCheckinMisfireThreshold;
       return this;
     }
 
+    /**
+     * Set {@link JobStoreSettings#maxMisfiresToHandleAtATime() maxMisfiresToHandleAtATime}.
+     *
+     * @param maxMisfiresToHandleAtATime the value
+     * @return this builder
+     */
     public Builder maxMisfiresToHandleAtATime(int maxMisfiresToHandleAtATime) {
       this.maxMisfiresToHandleAtATime = maxMisfiresToHandleAtATime;
       return this;
     }
 
+    /**
+     * Set {@link JobStoreSettings#acquireTriggersWithinLock() acquireTriggersWithinLock}.
+     *
+     * @param acquireTriggersWithinLock the value
+     * @return this builder
+     */
     public Builder acquireTriggersWithinLock(boolean acquireTriggersWithinLock) {
       this.acquireTriggersWithinLock = acquireTriggersWithinLock;
       return this;
     }
 
+    /**
+     * Set {@link JobStoreSettings#acquireTriggersWithinLockRetry() acquireTriggersWithinLockRetry}.
+     *
+     * @param acquireTriggersWithinLockRetry the value
+     * @return this builder
+     */
     public Builder acquireTriggersWithinLockRetry(Duration acquireTriggersWithinLockRetry) {
       this.acquireTriggersWithinLockRetry = acquireTriggersWithinLockRetry;
       return this;
     }
 
+    /**
+     * Set {@link JobStoreSettings#retryInterval() retryInterval}.
+     *
+     * @param retryInterval the value
+     * @return this builder
+     */
     public Builder retryInterval(Duration retryInterval) {
       this.retryInterval = retryInterval;
       return this;
     }
 
+    /**
+     * Set {@link JobStoreSettings#useProperties() useProperties}.
+     *
+     * @param useProperties the value
+     * @return this builder
+     */
     public Builder useProperties(boolean useProperties) {
       this.useProperties = useProperties;
       return this;
     }
 
+    /**
+     * Set {@link JobStoreSettings#doubleCheckLockMisfireHandler() doubleCheckLockMisfireHandler}.
+     *
+     * @param doubleCheckLockMisfireHandler the value
+     * @return this builder
+     */
     public Builder doubleCheckLockMisfireHandler(boolean doubleCheckLockMisfireHandler) {
       this.doubleCheckLockMisfireHandler = doubleCheckLockMisfireHandler;
       return this;
     }
 
+    /**
+     * Set {@link JobStoreSettings#makeThreadsDaemons() makeThreadsDaemons}.
+     *
+     * @param makeThreadsDaemons the value
+     * @return this builder
+     */
     public Builder makeThreadsDaemons(boolean makeThreadsDaemons) {
       this.makeThreadsDaemons = makeThreadsDaemons;
       return this;
     }
 
+    /**
+     * Set {@link JobStoreSettings#threadsInheritInitializersClassLoadContext()
+     * threadsInheritInitializersClassLoadContext}.
+     *
+     * @param inherit the value
+     * @return this builder
+     */
     public Builder threadsInheritInitializersClassLoadContext(boolean inherit) {
       this.threadsInheritInitializersClassLoadContext = inherit;
       return this;
     }
 
+    /**
+     * The settings.
+     *
+     * @return the settings
+     * @throws IllegalArgumentException if a value is out of range
+     */
     public JobStoreSettings build() {
       return new JobStoreSettings(
           misfireThreshold,

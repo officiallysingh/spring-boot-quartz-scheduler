@@ -40,18 +40,35 @@ public class SchedulerException extends Exception {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
+  /** Create an exception without message or cause. */
   public SchedulerException() {
     super();
   }
 
+  /**
+   * Create an exception with a message.
+   *
+   * @param msg the detail message
+   */
   public SchedulerException(String msg) {
     super(msg);
   }
 
+  /**
+   * Create an exception caused by another; its message becomes this one's.
+   *
+   * @param cause the underlying exception
+   */
   public SchedulerException(Throwable cause) {
     super(cause);
   }
 
+  /**
+   * Create an exception with a message and a cause.
+   *
+   * @param msg the detail message
+   * @param cause the underlying exception, or {@code null}
+   */
   public SchedulerException(String msg, @Nullable Throwable cause) {
     super(msg, cause);
   }

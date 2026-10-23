@@ -42,6 +42,8 @@ public class QuartzHealthIndicator extends AbstractHealthIndicator {
   private final Clock clock;
 
   /**
+   * Create a health indicator for the scheduler.
+   *
    * @param scheduler the scheduler
    * @param jobStore its job store, if known: enables the cluster check-in check
    */

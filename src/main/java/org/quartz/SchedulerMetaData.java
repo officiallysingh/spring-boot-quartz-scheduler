@@ -78,6 +78,25 @@ public class SchedulerMetaData implements java.io.Serializable {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
+  /**
+   * Create meta data whose thread pool description is {@code "with <tpSize> threads"}.
+   *
+   * @param schedName the scheduler's name
+   * @param schedInst the scheduler's instance id
+   * @param schedClass the scheduler's class
+   * @param isRemote whether the scheduler is remote (always {@code false} here)
+   * @param started whether the scheduler has been started
+   * @param isInStandbyMode whether the scheduler is in standby mode
+   * @param shutdown whether the scheduler has been shut down
+   * @param startTime when the scheduler started, or {@code null} if it has not
+   * @param numJobsExec the number of jobs executed since the scheduler started
+   * @param jsClass the job store's class
+   * @param jsPersistent whether the job store persists jobs
+   * @param jsClustered whether the job store is clustered
+   * @param tpClass the thread pool's class
+   * @param tpSize the thread pool's size or concurrency limit
+   * @param version the Quartz version
+   */
   public SchedulerMetaData(
       String schedName,
       String schedInst,
@@ -114,8 +133,25 @@ public class SchedulerMetaData implements java.io.Serializable {
   }
 
   /**
+   * Create meta data.
+   *
+   * @param schedName the scheduler's name
+   * @param schedInst the scheduler's instance id
+   * @param schedClass the scheduler's class
+   * @param isRemote whether the scheduler is remote (always {@code false} here)
+   * @param started whether the scheduler has been started
+   * @param isInStandbyMode whether the scheduler is in standby mode
+   * @param shutdown whether the scheduler has been shut down
+   * @param startTime when the scheduler started, or {@code null} if it has not
+   * @param numJobsExec the number of jobs executed since the scheduler started
+   * @param jsClass the job store's class
+   * @param jsPersistent whether the job store persists jobs
+   * @param jsClustered whether the job store is clustered
+   * @param tpClass the thread pool's class
+   * @param tpSize the thread pool's size or concurrency limit
    * @param tpDescription how the thread pool runs jobs ({@link
    *     org.quartz.spi.ThreadPool#describe()})
+   * @param version the Quartz version
    */
   public SchedulerMetaData(
       String schedName,
@@ -176,7 +212,7 @@ public class SchedulerMetaData implements java.io.Serializable {
   }
 
   /**
-   * Returns the <code>Date</code> at which the Scheduler started running.
+   * Returns the instant at which the Scheduler started running.
    *
    * @return null if the scheduler has not been started.
    */

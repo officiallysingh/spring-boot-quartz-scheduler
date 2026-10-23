@@ -97,6 +97,12 @@ public interface JobStore {
    */
   void shutdown();
 
+  /**
+   * Whether the store keeps jobs and triggers across restarts; {@code true} for the MongoDB and
+   * Redis stores.
+   *
+   * @return {@code true} if the store is persistent
+   */
   boolean supportsPersistence();
 
   /**
@@ -138,6 +144,14 @@ public interface JobStore {
   void storeJob(JobDetail newJob, boolean replaceExisting)
       throws ObjectAlreadyExistsException, JobPersistenceException;
 
+  /**
+   * Store several jobs, each with its triggers, in one operation.
+   *
+   * @param triggersAndJobs the jobs, each mapped to the triggers to schedule for it
+   * @param replace whether to replace jobs and triggers that already exist
+   * @throws ObjectAlreadyExistsException if one exists and {@code replace} is {@code false}
+   * @throws JobPersistenceException if the store fails
+   */
   void storeJobsAndTriggers(Map<JobDetail, Set<? extends Trigger>> triggersAndJobs, boolean replace)
       throws ObjectAlreadyExistsException, JobPersistenceException;
 
@@ -153,6 +167,13 @@ public interface JobStore {
    */
   boolean removeJob(JobKey jobKey) throws JobPersistenceException;
 
+  /**
+   * Remove several jobs, and the triggers that reference them.
+   *
+   * @param jobKeys the jobs to remove
+   * @return {@code true} if every job was found and removed
+   * @throws JobPersistenceException if the store fails
+   */
   boolean removeJobs(List<JobKey> jobKeys) throws JobPersistenceException;
 
   /**
@@ -200,6 +221,13 @@ public interface JobStore {
    */
   boolean removeTrigger(TriggerKey triggerKey) throws JobPersistenceException;
 
+  /**
+   * Remove several triggers; jobs left without triggers are removed too unless durable.
+   *
+   * @param triggerKeys the triggers to remove
+   * @return {@code true} if every trigger was found and removed
+   * @throws JobPersistenceException if the store fails
+   */
   boolean removeTriggers(List<TriggerKey> triggerKeys) throws JobPersistenceException;
 
   /**
@@ -609,7 +637,7 @@ public interface JobStore {
   void setThreadPoolSize(int poolSize);
 
   /**
-   * Get the amount of time (in ms) to wait when accessing this job store repeatedly fails.
+   * Get the time to wait when accessing this job store repeatedly fails.
    *
    * <p>Called by the executor thread(s) when calls to {@link #acquireNextTriggers} fail more than
    * once in succession, and the thread thus wants to wait a bit before trying again, to not consume

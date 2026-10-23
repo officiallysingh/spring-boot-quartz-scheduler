@@ -66,6 +66,11 @@ public record SchedulerSettings(
 
   public static final Duration MIN_IDLE_WAIT_TIME = Duration.ofSeconds(1);
 
+  /**
+   * Validates the settings.
+   *
+   * @throws IllegalArgumentException if a value is out of range
+   */
   public SchedulerSettings {
     requireText(name, "name");
     requireText(instanceId, "instanceId");
@@ -96,14 +101,29 @@ public record SchedulerSettings(
     return threadName != null ? threadName : name + "_QuartzSchedulerThread";
   }
 
+  /**
+   * The default settings.
+   *
+   * @return the defaults
+   */
   public static SchedulerSettings defaults() {
     return builder().build();
   }
 
+  /**
+   * A builder starting from the defaults.
+   *
+   * @return a new builder
+   */
   public static Builder builder() {
     return new Builder();
   }
 
+  /**
+   * A builder starting from these settings.
+   *
+   * @return a new builder
+   */
   public Builder toBuilder() {
     return new Builder()
         .name(name)
@@ -127,6 +147,7 @@ public record SchedulerSettings(
     }
   }
 
+  /** Builds {@link SchedulerSettings}; every value not set keeps its default. */
   public static final class Builder {
     private String name = DEFAULT_NAME;
     private String instanceId = DEFAULT_INSTANCE_ID;
@@ -143,56 +164,126 @@ public record SchedulerSettings(
 
     private Builder() {}
 
+    /**
+     * Set {@link SchedulerSettings#name() name}.
+     *
+     * @param name the value
+     * @return this builder
+     */
     public Builder name(String name) {
       this.name = name;
       return this;
     }
 
+    /**
+     * Set {@link SchedulerSettings#instanceId() instanceId}.
+     *
+     * @param instanceId the value
+     * @return this builder
+     */
     public Builder instanceId(String instanceId) {
       this.instanceId = instanceId;
       return this;
     }
 
+    /**
+     * Set {@link SchedulerSettings#instanceIdAuto() instanceIdAuto}.
+     *
+     * @param instanceIdAuto the value
+     * @return this builder
+     */
     public Builder instanceIdAuto(boolean instanceIdAuto) {
       this.instanceIdAuto = instanceIdAuto;
       return this;
     }
 
+    /**
+     * Set {@link SchedulerSettings#threadName() threadName}.
+     *
+     * @param threadName the value
+     * @return this builder
+     */
     public Builder threadName(@Nullable String threadName) {
       this.threadName = threadName;
       return this;
     }
 
+    /**
+     * Set {@link SchedulerSettings#makeSchedulerThreadDaemon() makeSchedulerThreadDaemon}.
+     *
+     * @param makeSchedulerThreadDaemon the value
+     * @return this builder
+     */
     public Builder makeSchedulerThreadDaemon(boolean makeSchedulerThreadDaemon) {
       this.makeSchedulerThreadDaemon = makeSchedulerThreadDaemon;
       return this;
     }
 
+    /**
+     * Set {@link SchedulerSettings#threadsInheritContextClassLoaderOfInitializer()
+     * threadsInheritContextClassLoaderOfInitializer}.
+     *
+     * @param inherit the value
+     * @return this builder
+     */
     public Builder threadsInheritContextClassLoaderOfInitializer(boolean inherit) {
       this.threadsInheritContextClassLoaderOfInitializer = inherit;
       return this;
     }
 
+    /**
+     * Set {@link SchedulerSettings#idleWaitTime() idleWaitTime}.
+     *
+     * @param idleWaitTime the value
+     * @return this builder
+     */
     public Builder idleWaitTime(Duration idleWaitTime) {
       this.idleWaitTime = idleWaitTime;
       return this;
     }
 
+    /**
+     * Set {@link SchedulerSettings#batchTriggerAcquisitionFireAheadTimeWindow()
+     * batchTriggerAcquisitionFireAheadTimeWindow}.
+     *
+     * @param window the value
+     * @return this builder
+     */
     public Builder batchTriggerAcquisitionFireAheadTimeWindow(Duration window) {
       this.batchTriggerAcquisitionFireAheadTimeWindow = window;
       return this;
     }
 
+    /**
+     * Set {@link SchedulerSettings#batchTriggerAcquisitionMaxCount()
+     * batchTriggerAcquisitionMaxCount}.
+     *
+     * @param maxCount the value
+     * @return this builder
+     */
     public Builder batchTriggerAcquisitionMaxCount(int maxCount) {
       this.batchTriggerAcquisitionMaxCount = maxCount;
       return this;
     }
 
+    /**
+     * Set {@link SchedulerSettings#interruptJobsOnShutdown() interruptJobsOnShutdown}.
+     *
+     * @param interruptJobsOnShutdown the value
+     * @return this builder
+     */
     public Builder interruptJobsOnShutdown(boolean interruptJobsOnShutdown) {
       this.interruptJobsOnShutdown = interruptJobsOnShutdown;
       return this;
     }
 
+    /**
+     * Set {@link SchedulerSettings#interruptJobsOnShutdownWithWait()
+     * interruptJobsOnShutdownWithWait}.
+     *
+     * @param interruptJobsOnShutdownWithWait the value
+     * @return this builder
+     */
     public Builder interruptJobsOnShutdownWithWait(boolean interruptJobsOnShutdownWithWait) {
       this.interruptJobsOnShutdownWithWait = interruptJobsOnShutdownWithWait;
       return this;
@@ -207,11 +298,24 @@ public record SchedulerSettings(
       return this;
     }
 
+    /**
+     * Add an entry to the initial scheduler context.
+     *
+     * @param key the entry key
+     * @param value the entry value
+     * @return this builder
+     */
     public Builder contextEntry(String key, String value) {
       this.context.put(key, value);
       return this;
     }
 
+    /**
+     * The settings.
+     *
+     * @return the settings
+     * @throws IllegalArgumentException if a value is out of range
+     */
     public SchedulerSettings build() {
       return new SchedulerSettings(
           name,

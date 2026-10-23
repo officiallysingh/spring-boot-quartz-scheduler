@@ -40,10 +40,26 @@ public interface SchedulerSignaler {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
+  /**
+   * Tell the trigger listeners that a trigger misfired.
+   *
+   * @param trigger the misfired trigger
+   */
   void notifyTriggerListenersMisfired(Trigger trigger);
 
+  /**
+   * Tell the scheduler listeners that a trigger will not fire again.
+   *
+   * @param trigger the finalized trigger
+   */
   void notifySchedulerListenersFinalized(Trigger trigger);
 
+  /**
+   * Tell the scheduler listeners that a job was deleted (for example because its last trigger
+   * completed and it is not durable).
+   *
+   * @param jobKey the deleted job
+   */
   void notifySchedulerListenersJobDeleted(JobKey jobKey);
 
   /**
@@ -64,5 +80,11 @@ public interface SchedulerSignaler {
     return Instant.now();
   }
 
+  /**
+   * Tell the scheduler listeners about an error in the job store.
+   *
+   * @param string a description of what failed
+   * @param jpe the error
+   */
   void notifySchedulerListenersError(String string, SchedulerException jpe);
 }

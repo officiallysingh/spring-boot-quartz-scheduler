@@ -52,6 +52,11 @@ public class QuartzMetrics implements SchedulerPlugin {
   @SuppressWarnings("NullAway.Init")
   private String schedulerName;
 
+  /**
+   * Create the plugin publishing the scheduler's metrics.
+   *
+   * @param registry the registry the meters are registered with
+   */
   public QuartzMetrics(MeterRegistry registry) {
     this.registry = registry;
   }

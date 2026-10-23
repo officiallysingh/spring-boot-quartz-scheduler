@@ -24,6 +24,11 @@ import java.util.Objects;
  */
 public record MongoJobStoreSettings(String collectionPrefix, Duration lockTimeout) {
 
+  /**
+   * Validates the settings.
+   *
+   * @throws IllegalArgumentException if the lock timeout is shorter than 1ms
+   */
   public MongoJobStoreSettings {
     Objects.requireNonNull(collectionPrefix, "collectionPrefix");
     Objects.requireNonNull(lockTimeout, "lockTimeout");
@@ -32,6 +37,11 @@ public record MongoJobStoreSettings(String collectionPrefix, Duration lockTimeou
     }
   }
 
+  /**
+   * The defaults: prefix {@code qrtz_}, lock timeout 10 minutes.
+   *
+   * @return the defaults
+   */
   public static MongoJobStoreSettings defaults() {
     return new MongoJobStoreSettings("qrtz_", Duration.ofMinutes(10));
   }

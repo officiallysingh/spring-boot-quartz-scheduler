@@ -40,6 +40,22 @@ import org.slf4j.LoggerFactory;
  * This plugin catches the event of job running for a long time (more than the configured max time)
  * and tells the scheduler to "try" interrupting it if enabled.
  *
+ * <p>Only jobs that opt in are watched: their job data must set {@value #AUTO_INTERRUPTIBLE} to
+ * {@code true}. A job may override the {@linkplain #setDefaultMaxRunTime default maximum run time}
+ * with {@value #MAX_RUN_TIME} in its job data, in milliseconds. Interrupting calls {@link
+ * org.quartz.InterruptableJob#interrupt()}, so the job has to implement it and stop.
+ *
+ * <p>Define it as a bean; the bean name is the plugin name:
+ *
+ * <pre>{@code
+ * @Bean
+ * JobInterruptMonitorPlugin jobInterruptMonitor() {
+ *     JobInterruptMonitorPlugin plugin = new JobInterruptMonitorPlugin();
+ *     plugin.setDefaultMaxRunTime(Duration.ofMinutes(10));
+ *     return plugin;
+ * }
+ * }</pre>
+ *
  * @see org.quartz.Scheduler#interrupt(JobKey)
  * @author Rama Chavali
  */
@@ -65,10 +81,13 @@ public class JobInterruptMonitorPlugin extends TriggerListenerSupport implements
 
   // Constants
 
+  /** Job data key: {@code true} to have the job interrupted when it runs too long. */
   public static final String AUTO_INTERRUPTIBLE = "AutoInterruptable";
 
+  /** Job data key: the job's maximum run time in milliseconds, overriding the default. */
   public static final String MAX_RUN_TIME = "MaxRunTime";
 
+  /** Create the plugin with a default maximum run time of 5 minutes. */
   public JobInterruptMonitorPlugin() {}
 
   @Override
@@ -83,6 +102,13 @@ public class JobInterruptMonitorPlugin extends TriggerListenerSupport implements
     return log;
   }
 
+  /**
+   * Schedule the interruption of a job after a delay.
+   *
+   * @param jobkey the job to interrupt
+   * @param delay how long the job may run
+   * @return the scheduled interruption, cancelled when the job completes in time
+   */
   @SuppressWarnings("rawtypes")
   public ScheduledFuture scheduleJobInterruptMonitor(JobKey jobkey, Duration delay) {
     return this.executor.schedule(
@@ -91,10 +117,20 @@ public class JobInterruptMonitorPlugin extends TriggerListenerSupport implements
 
   // Bean Property Methods
 
+  /**
+   * How long a job may run unless its job data sets {@value #MAX_RUN_TIME}.
+   *
+   * @return the default maximum run time
+   */
   public Duration getDefaultMaxRunTime() {
     return this.defaultMaxRunTime;
   }
 
+  /**
+   * Set how long a job may run unless its job data sets {@value #MAX_RUN_TIME}; default 5 minutes.
+   *
+   * @param defaultMaxRunTime the default maximum run time
+   */
   public void setDefaultMaxRunTime(Duration defaultMaxRunTime) {
     this.defaultMaxRunTime = defaultMaxRunTime;
   }

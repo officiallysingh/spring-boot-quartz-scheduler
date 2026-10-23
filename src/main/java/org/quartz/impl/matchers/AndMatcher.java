@@ -30,9 +30,19 @@ public class AndMatcher<T extends Key<?>> implements Matcher<T> {
 
   private static final long serialVersionUID = 4697276220890670941L;
 
+  /** The matcher that must match first. */
   protected Matcher<T> leftOperand;
+
+  /** The matcher that must match as well. */
   protected Matcher<T> rightOperand;
 
+  /**
+   * Create a matcher matching keys that both operands match; use {@link #and(Matcher, Matcher)}.
+   *
+   * @param leftOperand the first matcher
+   * @param rightOperand the second matcher
+   * @throws IllegalArgumentException if an operand is {@code null}
+   */
   protected AndMatcher(Matcher<T> leftOperand, Matcher<T> rightOperand) {
     if (leftOperand == null || rightOperand == null)
       throw new IllegalArgumentException("Two non-null operands required!");
@@ -52,10 +62,20 @@ public class AndMatcher<T extends Key<?>> implements Matcher<T> {
     return leftOperand.isMatch(key) && rightOperand.isMatch(key);
   }
 
+  /**
+   * The first operand.
+   *
+   * @return the first matcher
+   */
   public Matcher<T> getLeftOperand() {
     return leftOperand;
   }
 
+  /**
+   * The second operand.
+   *
+   * @return the second matcher
+   */
   public Matcher<T> getRightOperand() {
     return rightOperand;
   }

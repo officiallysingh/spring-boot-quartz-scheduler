@@ -66,6 +66,18 @@ public class TriggerFiredBundle implements java.io.Serializable {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
+  /**
+   * Create a bundle.
+   *
+   * @param job the job to execute
+   * @param trigger the trigger that fired, already updated for its next firing
+   * @param cal the trigger's calendar, or {@code null}
+   * @param jobIsRecovering whether this execution recovers one that a failed instance had started
+   * @param fireTime when the trigger actually fired
+   * @param scheduledFireTime when the trigger was scheduled to fire
+   * @param prevFireTime the trigger's previous fire time, or {@code null}
+   * @param nextFireTime the trigger's next fire time, or {@code null} if it will not fire again
+   */
   public TriggerFiredBundle(
       JobDetail job,
       OperableTrigger trigger,
@@ -93,45 +105,73 @@ public class TriggerFiredBundle implements java.io.Serializable {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
+  /**
+   * The job to execute.
+   *
+   * @return the job
+   */
   public JobDetail getJobDetail() {
     return job;
   }
 
+  /**
+   * The trigger that fired.
+   *
+   * @return the trigger
+   */
   public OperableTrigger getTrigger() {
     return trigger;
   }
 
+  /**
+   * The trigger's calendar.
+   *
+   * @return the calendar, or {@code null} if the trigger has none
+   */
   public @Nullable Calendar getCalendar() {
     return cal;
   }
 
+  /**
+   * Whether this execution recovers one that a failed instance had started.
+   *
+   * @return {@code true} when recovering
+   */
   public boolean isRecovering() {
     return jobIsRecovering;
   }
 
   /**
-   * @return Returns the fireTime.
+   * When the trigger actually fired.
+   *
+   * @return the fire time
    */
   public Instant getFireTime() {
     return fireTime;
   }
 
   /**
-   * @return Returns the nextFireTime.
+   * The trigger's next fire time.
+   *
+   * @return the next fire time, or {@code null} if it will not fire again
    */
   public @Nullable Instant getNextFireTime() {
     return nextFireTime;
   }
 
   /**
-   * @return Returns the prevFireTime.
+   * The trigger's previous fire time.
+   *
+   * @return the previous fire time, or {@code null}
    */
   public @Nullable Instant getPrevFireTime() {
     return prevFireTime;
   }
 
   /**
-   * @return Returns the scheduledFireTime.
+   * When the trigger was scheduled to fire (earlier than {@link #getFireTime()} if it fired late).
+   *
+   * @return the scheduled fire time
    */
   public Instant getScheduledFireTime() {
     return scheduledFireTime;

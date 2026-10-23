@@ -263,6 +263,7 @@ public final class CronExpression implements Serializable, Cloneable {
   protected transient int nthDayOfWeek = 0;
   protected transient boolean expressionParsed = false;
 
+  /** The last year an expression is evaluated for: 100 years from the current year. */
   public static final int MAX_YEAR = Year.now().getValue() + 100;
 
   /**
@@ -307,8 +308,8 @@ public final class CronExpression implements Serializable, Cloneable {
 
   /**
    * Indicates whether the given date satisfies the cron expression. Note that milliseconds are
-   * ignored, so two Dates falling on different milliseconds of the same second will always have the
-   * same result here.
+   * ignored, so two instants falling on different milliseconds of the same second will always have
+   * the same result here.
    *
    * @param date the date to evaluate
    * @return a boolean indicating whether the given date satisfies the cron expression
@@ -414,6 +415,13 @@ public final class CronExpression implements Serializable, Cloneable {
     return true;
   }
 
+  /**
+   * Check that a cron expression is valid.
+   *
+   * @param cronExpression the expression
+   * @throws ParseException if it is not valid, with the position of the problem
+   * @see #isValidExpression(String)
+   */
   public static void validateExpression(String cronExpression) throws ParseException {
 
     new CronExpression(cronExpression);
@@ -848,10 +856,21 @@ public final class CronExpression implements Serializable, Cloneable {
     return i;
   }
 
+  /**
+   * The expression this object was built from, in upper case.
+   *
+   * @return the cron expression
+   */
   public String getCronExpression() {
     return cronExpression;
   }
 
+  /**
+   * A multi-line, human-readable summary of the parsed fields (seconds, minutes, hours, days of
+   * month and week, months, years), for diagnostics.
+   *
+   * @return the summary
+   */
   public String getExpressionSummary() {
     StringBuilder buf = new StringBuilder();
 

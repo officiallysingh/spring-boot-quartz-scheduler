@@ -30,8 +30,15 @@ public class NotMatcher<T extends Key<?>> implements Matcher<T> {
 
   private static final long serialVersionUID = -2856769076151741391L;
 
+  /** The matcher whose result is negated. */
   protected Matcher<T> operand;
 
+  /**
+   * Create a matcher matching keys the operand does not match; use {@link #not(Matcher)}.
+   *
+   * @param operand the matcher to negate
+   * @throws IllegalArgumentException if the operand is {@code null}
+   */
   protected NotMatcher(Matcher<T> operand) {
     if (operand == null) throw new IllegalArgumentException("Non-null operand required!");
 
@@ -48,6 +55,11 @@ public class NotMatcher<T extends Key<?>> implements Matcher<T> {
     return !operand.isMatch(key);
   }
 
+  /**
+   * The negated matcher.
+   *
+   * @return the operand
+   */
   public Matcher<T> getOperand() {
     return operand;
   }

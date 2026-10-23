@@ -82,6 +82,12 @@ public interface JobExecutionContext {
    */
   TriggerKey getRecoveringTriggerKey() throws IllegalStateException;
 
+  /**
+   * How many times the job has been re-executed for this firing ({@link
+   * JobExecutionException#setRefireImmediately}); 0 for the first execution.
+   *
+   * @return the refire count
+   */
   int getRefireCount();
 
   /**
@@ -130,8 +136,18 @@ public interface JobExecutionContext {
    */
   Instant getScheduledFireTime();
 
+  /**
+   * The trigger's previous fire time, before this firing.
+   *
+   * @return the previous fire time, or {@code null} for the trigger's first firing
+   */
   @Nullable Instant getPreviousFireTime();
 
+  /**
+   * The trigger's next fire time, after this firing.
+   *
+   * @return the next fire time, or {@code null} if the trigger will not fire again
+   */
   @Nullable Instant getNextFireTime();
 
   /**

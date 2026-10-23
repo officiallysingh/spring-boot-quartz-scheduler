@@ -9,6 +9,10 @@ import org.quartz.JobExecutionException;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 
+/**
+ * A {@link MutableTrigger} the scheduler and job stores operate: computing fire times, reacting to
+ * firings, misfires and calendar changes. Not for use by applications.
+ */
 public interface OperableTrigger extends MutableTrigger {
 
   /**
@@ -121,7 +125,17 @@ public interface OperableTrigger extends MutableTrigger {
   /** This method should not be used by the Quartz client. */
   @Nullable String getFireInstanceId();
 
+  /**
+   * Set the next time the trigger fires; used by job stores when loading a trigger.
+   *
+   * @param nextFireTime the next fire time, or {@code null} if it will not fire again
+   */
   void setNextFireTime(@Nullable Instant nextFireTime);
 
+  /**
+   * Set the time the trigger last fired; used by job stores when loading a trigger.
+   *
+   * @param previousFireTime the previous fire time, or {@code null}
+   */
   void setPreviousFireTime(@Nullable Instant previousFireTime);
 }

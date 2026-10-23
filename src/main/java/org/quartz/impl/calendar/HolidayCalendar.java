@@ -44,16 +44,36 @@ public class HolidayCalendar extends BaseCalendar implements Calendar, Serializa
   // A sorted set to store the holidays
   private TreeSet<Instant> dates = new TreeSet<>();
 
+  /**
+   * Create a calendar that excludes nothing yet, without a base calendar, in the system default
+   * time zone.
+   */
   public HolidayCalendar() {}
 
+  /**
+   * Create a calendar that excludes nothing yet on top of another, in the system default time zone.
+   *
+   * @param baseCalendar the calendar that must also include a time, or {@code null}
+   */
   public HolidayCalendar(@Nullable Calendar baseCalendar) {
     super(baseCalendar);
   }
 
+  /**
+   * Create a calendar that excludes nothing yet without a base calendar.
+   *
+   * @param timeZone the time zone, or {@code null} for the system default
+   */
   public HolidayCalendar(@Nullable ZoneId timeZone) {
     super(timeZone);
   }
 
+  /**
+   * Create a calendar that excludes nothing yet on top of another.
+   *
+   * @param baseCalendar the calendar that must also include a time, or {@code null}
+   * @param timeZone the time zone, or {@code null} for the system default
+   */
   public HolidayCalendar(@Nullable Calendar baseCalendar, @Nullable ZoneId timeZone) {
     super(baseCalendar, timeZone);
   }
@@ -66,7 +86,7 @@ public class HolidayCalendar extends BaseCalendar implements Calendar, Serializa
   }
 
   /**
-   * Determine whether the given time (in milliseconds) is 'included' by the Calendar.
+   * Determine whether the given instant is 'included' by the Calendar.
    *
    * <p>Note that this Calendar is only has full-day precision.
    */
@@ -82,8 +102,7 @@ public class HolidayCalendar extends BaseCalendar implements Calendar, Serializa
   }
 
   /**
-   * Determine the next time (in milliseconds) that is 'included' by the Calendar after the given
-   * time.
+   * Determine the next instant that is 'included' by the Calendar after the given instant.
    *
    * <p>Note that this Calendar is only has full-day precision.
    */
@@ -101,13 +120,12 @@ public class HolidayCalendar extends BaseCalendar implements Calendar, Serializa
     while (!isTimeIncluded(day.toInstant())) {
       day.add(LenientDateTime.DAY_OF_MONTH, 1);
     }
-
     return day.toInstant();
   }
 
   /**
-   * Add the given Date to the list of excluded days. Only the month, day and year of the returned
-   * dates are significant.
+   * Add the given instant's day to the list of excluded days. Only the month, day and year of the
+   * returned dates are significant.
    */
   public void addExcludedDate(Instant excludedDate) {
     Instant date = getStartOfDay(excludedDate).toInstant();
@@ -118,6 +136,11 @@ public class HolidayCalendar extends BaseCalendar implements Calendar, Serializa
     this.dates.add(date);
   }
 
+  /**
+   * Remove the given instant's day from the list of excluded days.
+   *
+   * @param dateToRemove any instant on the day to include again
+   */
   public void removeExcludedDate(Instant dateToRemove) {
     Instant date = getStartOfDay(dateToRemove).toInstant();
     dates.remove(date);

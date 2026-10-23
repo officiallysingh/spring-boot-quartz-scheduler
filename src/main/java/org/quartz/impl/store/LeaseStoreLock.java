@@ -39,6 +39,8 @@ public abstract class LeaseStoreLock implements StoreLock {
   private final Duration retryInterval;
 
   /**
+   * Create a lock for one store instance.
+   *
    * @param owner unique id of the lock holder (scheduler instance plus store instance)
    * @param leaseTime how long a lease is valid without being released
    * @param retryInterval pause between attempts while another instance holds the lease
@@ -49,10 +51,20 @@ public abstract class LeaseStoreLock implements StoreLock {
     this.retryInterval = retryInterval.isZero() ? Duration.ofMillis(1) : retryInterval;
   }
 
+  /**
+   * The id this instance holds leases under.
+   *
+   * @return the owner id
+   */
   public String getOwner() {
     return owner;
   }
 
+  /**
+   * How long a lease is valid without being released; then other instances may take it.
+   *
+   * @return the lease time
+   */
   public Duration getLeaseTime() {
     return leaseTime;
   }

@@ -49,13 +49,21 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
 
   private @Nullable ZoneId timeZone;
 
+  /** Create a calendar without a base calendar, in the system default time zone. */
   public BaseCalendar() {}
 
+  /**
+   * Create a calendar on top of another, in the system default time zone.
+   *
+   * @param baseCalendar the calendar that must also include a time, or {@code null}
+   */
   public BaseCalendar(@Nullable Calendar baseCalendar) {
     setBaseCalendar(baseCalendar);
   }
 
   /**
+   * Create a calendar without a base calendar.
+   *
    * @param timeZone The time zone to use for this Calendar, <code>null</code> if <code>
    *     {@link ZoneId#systemDefault()}</code> should be used
    */
@@ -64,6 +72,9 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
   }
 
   /**
+   * Create a calendar on top of another.
+   *
+   * @param baseCalendar the calendar that must also include a time, or {@code null}
    * @param timeZone The time zone to use for this Calendar, <code>null</code> if <code>
    *     {@link ZoneId#systemDefault()}</code> should be used
    */
@@ -154,8 +165,8 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
   }
 
   /**
-   * Determine the next time (in milliseconds) that is 'included' by the Calendar after the given
-   * time. Return the original value if timeStamp is included. Return 0 if all days are excluded.
+   * Determine the next instant that is 'included' by the Calendar after the given instant. Return
+   * the original value if timeStamp is included. Return 0 if all days are excluded.
    *
    * @see org.quartz.Calendar#getNextIncludedTime(java.time.Instant)
    */

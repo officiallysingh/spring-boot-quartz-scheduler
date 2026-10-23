@@ -87,7 +87,7 @@ public class TriggerUtils {
   }
 
   /**
-   * Compute the <code>Date</code> that is 1 second after the Nth firing of the given <code>Trigger
+   * Compute the instant that is 1 second after the Nth firing of the given <code>Trigger
    * </code>, taking the trigger's associated <code>Calendar</code> into consideration.
    *
    * <p>The input trigger will be cloned before any work is done, so you need not worry about its
@@ -96,7 +96,7 @@ public class TriggerUtils {
    * @param trigger The trigger upon which to do the work
    * @param cal The calendar to apply to the trigger's schedule
    * @param numTimes The number of next fire times to produce
-   * @return the computed Date, or null if the trigger (as configured) will not fire that many
+   * @return the computed instant, or null if the trigger (as configured) will not fire that many
    *     times.
    */
   public static @Nullable Instant computeEndTimeToAllowParticularNumberOfFirings(

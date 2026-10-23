@@ -58,18 +58,42 @@ public final class JobKey extends Key<JobKey> {
 
   private static final long serialVersionUID = -6073883950062574010L;
 
+  /**
+   * Create a key in the default group ({@value Key#DEFAULT_GROUP}).
+   *
+   * @param name the name; not {@code null}
+   */
   public JobKey(String name) {
     super(name, null);
   }
 
+  /**
+   * Create a key.
+   *
+   * @param name the name; not {@code null}
+   * @param group the group, or {@code null} for the default group ({@value Key#DEFAULT_GROUP})
+   */
   public JobKey(String name, @Nullable String group) {
     super(name, group);
   }
 
+  /**
+   * A key in the default group ({@value Key#DEFAULT_GROUP}).
+   *
+   * @param name the name; not {@code null}
+   * @return the key
+   */
   public static JobKey jobKey(String name) {
     return new JobKey(name, null);
   }
 
+  /**
+   * A key with the given name and group.
+   *
+   * @param name the name; not {@code null}
+   * @param group the group, or {@code null} for the default group ({@value Key#DEFAULT_GROUP})
+   * @return the key
+   */
   public static JobKey jobKey(String name, @Nullable String group) {
     return new JobKey(name, group);
   }

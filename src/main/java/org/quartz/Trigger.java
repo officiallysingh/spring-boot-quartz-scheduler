@@ -50,49 +50,49 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
 
   long serialVersionUID = -3904243490805975570L;
 
+  /** The state of a trigger in the job store, as reported by {@link Scheduler#getTriggerState}. */
   enum TriggerState {
+    /** There is no such trigger. */
     NONE,
+    /** The trigger waits for its next fire time, or is being fired. */
     NORMAL,
+    /** The trigger is paused: it does not fire until resumed. */
     PAUSED,
+    /** The trigger will not fire again. */
     COMPLETE,
+    /**
+     * The trigger is in error, for example because its job class could not be loaded; it does not
+     * fire until {@link Scheduler#resetTriggerFromErrorState reset}.
+     */
     ERROR,
+    /**
+     * The trigger's job is running and does not allow concurrent execution ({@link
+     * DisallowConcurrentExecution}): it fires once that execution ends.
+     */
     BLOCKED
   }
 
   /**
-   * <code>NOOP</code> Instructs the <code>{@link Scheduler}</code> that the <code>{@link Trigger}
-   * </code> has no further instructions.
-   *
-   * <p><code>RE_EXECUTE_JOB</code> Instructs the <code>{@link Scheduler}</code> that the <code>
-   * {@link Trigger}</code> wants the <code>{@link org.quartz.JobDetail}</code> to re-execute
-   * immediately. If not in a 'RECOVERING' or 'FAILED_OVER' situation, the execution context will be
-   * re-used (giving the <code>Job</code> the ability to 'see' anything placed in the context by its
-   * last execution).
-   *
-   * <p><code>SET_TRIGGER_COMPLETE</code> Instructs the <code>{@link Scheduler}</code> that the
-   * <code>{@link Trigger}</code> should be put in the <code>COMPLETE</code> state.
-   *
-   * <p><code>DELETE_TRIGGER</code> Instructs the <code>{@link Scheduler}</code> that the <code>
-   * {@link Trigger}</code> wants itself deleted.
-   *
-   * <p><code>SET_ALL_JOB_TRIGGERS_COMPLETE</code> Instructs the <code>{@link Scheduler}</code> that
-   * all <code>Trigger</code>s referencing the same <code>{@link org.quartz.JobDetail}</code> as
-   * this one should be put in the <code>COMPLETE</code> state.
-   *
-   * <p><code>SET_TRIGGER_ERROR</code> Instructs the <code>{@link Scheduler}</code> that all <code>
-   * Trigger</code>s referencing the same <code>{@link org.quartz.JobDetail}</code> as this one
-   * should be put in the <code>ERROR</code> state.
-   *
-   * <p><code>SET_ALL_JOB_TRIGGERS_ERROR</code> Instructs the <code>{@link Scheduler}</code> that
-   * the <code>Trigger</code> should be put in the <code>ERROR</code> state.
+   * What the scheduler does with a trigger once its job has executed, as decided by {@link
+   * org.quartz.spi.OperableTrigger#executionComplete}.
    */
   enum CompletedExecutionInstruction {
+    /** No further instruction. */
     NOOP,
+    /**
+     * Execute the job again immediately. Unless the job is recovering, the execution context is
+     * re-used, so the job can see what its last execution put in it.
+     */
     RE_EXECUTE_JOB,
+    /** Put this trigger in the {@link TriggerState#COMPLETE} state. */
     SET_TRIGGER_COMPLETE,
+    /** Delete this trigger. */
     DELETE_TRIGGER,
+    /** Put every trigger of the same job in the {@link TriggerState#COMPLETE} state. */
     SET_ALL_JOB_TRIGGERS_COMPLETE,
+    /** Put this trigger in the {@link TriggerState#ERROR} state. */
     SET_TRIGGER_ERROR,
+    /** Put every trigger of the same job in the {@link TriggerState#ERROR} state. */
     SET_ALL_JOB_TRIGGERS_ERROR
   }
 
@@ -127,8 +127,18 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
   /** The default value for priority. */
   int DEFAULT_PRIORITY = 5;
 
+  /**
+   * The key identifying this trigger: its name and group.
+   *
+   * @return the trigger's key
+   */
   TriggerKey getKey();
 
+  /**
+   * The key of the job this trigger fires.
+   *
+   * @return the job's key
+   */
   JobKey getJobKey();
 
   /**
@@ -257,9 +267,12 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
   boolean equals(@Nullable Object other);
 
   /**
-   * Compare the next fire time of this <code>Trigger</code> to that of another by comparing their
-   * keys, or in other words, sorts them according to the natural (i.e. alphabetical) order of their
-   * keys.
+   * Compares this trigger with another by their keys, sorting them in the natural (alphabetical)
+   * order of their keys. To order by next fire time, use {@link TriggerTimeComparator}.
+   *
+   * @param other the trigger to compare with
+   * @return negative, zero or positive as this trigger's key sorts before, equal to or after the
+   *     other's
    */
   int compareTo(Trigger other);
 
@@ -273,7 +286,19 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
 
     private static final long serialVersionUID = -3904243490805975570L;
 
-    // This static method exists for comparator in TC clustered quartz
+    /**
+     * Compares two triggers by their parts: earliest next fire time first (a trigger without one
+     * sorts last), then highest priority, then key.
+     *
+     * @param nextFireTime1 the first trigger's next fire time, or {@code null}
+     * @param priority1 the first trigger's priority
+     * @param key1 the first trigger's key
+     * @param nextFireTime2 the second trigger's next fire time, or {@code null}
+     * @param priority2 the second trigger's priority
+     * @param key2 the second trigger's key
+     * @return negative, zero or positive as the first trigger sorts before, with or after the
+     *     second
+     */
     public static int compare(
         @Nullable Instant nextFireTime1,
         int priority1,

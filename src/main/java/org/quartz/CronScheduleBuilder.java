@@ -59,6 +59,11 @@ public class CronScheduleBuilder extends ScheduleBuilder<CronTrigger> {
   private final CronExpression cronExpression;
   private int misfireInstruction = CronTrigger.MISFIRE_INSTRUCTION_SMART_POLICY;
 
+  /**
+   * Use one of the static factory methods, for example {@link #cronSchedule(String)}.
+   *
+   * @param cronExpression the expression
+   */
   protected CronScheduleBuilder(CronExpression cronExpression) {
     if (cronExpression == null) {
       throw new NullPointerException("cronExpression cannot be null");
@@ -244,7 +249,7 @@ public class CronScheduleBuilder extends ScheduleBuilder<CronTrigger> {
   }
 
   /**
-   * The <code>TimeZone</code> in which to base the schedule.
+   * The time zone in which to base the schedule.
    *
    * @param timezone the time-zone for the schedule.
    * @return the updated CronScheduleBuilder

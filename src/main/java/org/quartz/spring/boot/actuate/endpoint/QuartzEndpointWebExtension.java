@@ -52,12 +52,26 @@ public class QuartzEndpointWebExtension {
 
   private final Set<String> roles;
 
+  /**
+   * Create the web extension.
+   *
+   * @param delegate the endpoint
+   * @param showValues when to show unsanitized job or trigger values
+   * @param roles the roles allowed to see unsanitized values; when empty, all authenticated users
+   */
   public QuartzEndpointWebExtension(QuartzEndpoint delegate, Show showValues, Set<String> roles) {
     this.delegate = delegate;
     this.showValues = showValues;
     this.roles = roles;
   }
 
+  /**
+   * {@code GET /actuator/quartz/jobs} or {@code /actuator/quartz/triggers}: the groups.
+   *
+   * @param jobsOrTriggers {@code jobs} or {@code triggers}
+   * @return the groups; 400 for any other value
+   * @throws SchedulerException if the scheduler cannot be read
+   */
   @ReadOperation
   public WebEndpointResponse<QuartzGroupsDescriptor> quartzJobOrTriggerGroups(
       @Selector String jobsOrTriggers) throws SchedulerException {
@@ -65,6 +79,15 @@ public class QuartzEndpointWebExtension {
         jobsOrTriggers, this.delegate::quartzJobGroups, this.delegate::quartzTriggerGroups);
   }
 
+  /**
+   * {@code GET /actuator/quartz/jobs/{group}} or {@code /actuator/quartz/triggers/{group}}: a
+   * group's jobs or triggers.
+   *
+   * @param jobsOrTriggers {@code jobs} or {@code triggers}
+   * @param group the group
+   * @return the summary; 404 if there is no such group, 400 if {@code jobsOrTriggers} is neither
+   * @throws SchedulerException if the scheduler cannot be read
+   */
   @ReadOperation
   public WebEndpointResponse<Object> quartzJobOrTriggerGroup(
       @Selector String jobsOrTriggers, @Selector String group) throws SchedulerException {
@@ -74,6 +97,19 @@ public class QuartzEndpointWebExtension {
         () -> this.delegate.quartzTriggerGroupSummary(group));
   }
 
+  /**
+   * {@code GET /actuator/quartz/jobs/{group}/{name}} or {@code
+   * /actuator/quartz/triggers/{group}/{name}}: one job or trigger, its data sanitized unless the
+   * caller may see unsanitized values.
+   *
+   * @param securityContext the caller
+   * @param jobsOrTriggers {@code jobs} or {@code triggers}
+   * @param group the group
+   * @param name the name
+   * @return the details; 404 if there is no such job or trigger, 400 if {@code jobsOrTriggers} is
+   *     neither
+   * @throws SchedulerException if the scheduler cannot be read
+   */
   @ReadOperation
   public WebEndpointResponse<Object> quartzJobOrTrigger(
       SecurityContext securityContext,

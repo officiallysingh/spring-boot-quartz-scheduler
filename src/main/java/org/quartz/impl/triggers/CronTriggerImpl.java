@@ -124,15 +124,18 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
     return copy;
   }
 
+  /**
+   * Set the cron expression; the trigger's time zone is kept.
+   *
+   * @param cronExpression the expression
+   * @throws ParseException if the expression is not valid
+   */
   public void setCronExpression(String cronExpression) throws ParseException {
     ZoneId origTz = getTimeZone();
     this.cronEx = new CronExpression(cronExpression);
     this.cronEx.setTimeZone(origTz);
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.CronTriggerI#getCronExpression()
-   */
   // null only for an incomplete trigger whose expression is not set yet, as in Quartz
   @SuppressWarnings("NullAway")
   public String getCronExpression() {
@@ -140,7 +143,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
   }
 
   /**
-   * Set the CronExpression to the given one. The TimeZone on the passed-in CronExpression
+   * Set the CronExpression to the given one. The time zone of the passed-in CronExpression
    * over-rides any that was already set on the Trigger.
    */
   public void setCronExpression(CronExpression cronExpression) {
@@ -240,9 +243,6 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
     this.previousFireTime = Instants.toMillis(previousFireTime);
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.CronTriggerI#getTimeZone()
-   */
   public ZoneId getTimeZone() {
 
     if (cronEx != null) {
@@ -512,9 +512,6 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
     return nextFireTime;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.CronTriggerI#getExpressionSummary()
-   */
   // null only for an incomplete trigger whose expression is not set yet, as in Quartz
   @SuppressWarnings("NullAway")
   public String getExpressionSummary() {

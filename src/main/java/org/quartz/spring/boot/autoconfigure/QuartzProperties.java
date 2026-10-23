@@ -103,6 +103,12 @@ public record QuartzProperties(
       return SYSTEM_PROPERTY_INSTANCE_ID.equals(this.instanceId);
     }
 
+    /**
+     * The typed settings these properties describe; settings without a property keep their
+     * defaults.
+     *
+     * @return the scheduler settings
+     */
     public SchedulerSettings toSettings() {
       boolean auto = AUTO_INSTANCE_ID.equals(this.instanceId) || isSystemPropertyInstanceId();
       return SchedulerSettings.builder()
@@ -140,6 +146,12 @@ public record QuartzProperties(
       @Nullable String threadNamePrefix,
       boolean virtualThreads) {
 
+    /**
+     * The typed settings these properties describe; settings without a property keep their
+     * defaults.
+     *
+     * @return the thread pool settings
+     */
     public ThreadPoolSettings toSettings() {
       return ThreadPoolSettings.builder()
           .threadCount(this.threadCount)
@@ -174,6 +186,12 @@ public record QuartzProperties(
       @DefaultValue Mongodb mongodb,
       @DefaultValue Redis redis) {
 
+    /**
+     * The typed settings these properties describe; settings without a property keep their
+     * defaults.
+     *
+     * @return the job store settings
+     */
     public JobStoreSettings toSettings() {
       return JobStoreSettings.builder()
           .misfireThreshold(this.misfireThreshold)

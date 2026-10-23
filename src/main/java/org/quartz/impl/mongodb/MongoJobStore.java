@@ -79,6 +79,14 @@ public class MongoJobStore extends PersistentJobStore {
 
   private volatile boolean transactional;
 
+  /**
+   * Create a MongoDB job store.
+   *
+   * @param client the client; the store does not close it
+   * @param databaseName the database holding the store's collections
+   * @param settings the store-independent settings
+   * @param mongoSettings the MongoDB-specific settings
+   */
   public MongoJobStore(
       MongoClient client,
       String databaseName,
@@ -90,6 +98,11 @@ public class MongoJobStore extends PersistentJobStore {
     this.mongoSettings = Objects.requireNonNull(mongoSettings, "mongoSettings");
   }
 
+  /**
+   * The MongoDB-specific settings.
+   *
+   * @return the settings
+   */
   public MongoJobStoreSettings getMongoSettings() {
     return mongoSettings;
   }

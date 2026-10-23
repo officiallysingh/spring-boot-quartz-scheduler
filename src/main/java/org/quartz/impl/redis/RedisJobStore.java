@@ -45,6 +45,14 @@ public class RedisJobStore extends PersistentJobStore {
   @SuppressWarnings("NullAway.Init")
   private RedisKeys keys;
 
+  /**
+   * Create a Redis job store.
+   *
+   * @param redis the template the store talks to Redis through; its connection factory is not
+   *     closed
+   * @param settings the store-independent settings
+   * @param redisSettings the Redis-specific settings
+   */
   public RedisJobStore(
       StringRedisTemplate redis, JobStoreSettings settings, RedisJobStoreSettings redisSettings) {
     super(settings);
@@ -52,6 +60,11 @@ public class RedisJobStore extends PersistentJobStore {
     this.redisSettings = Objects.requireNonNull(redisSettings, "redisSettings");
   }
 
+  /**
+   * The Redis-specific settings.
+   *
+   * @return the settings
+   */
   public RedisJobStoreSettings getRedisSettings() {
     return redisSettings;
   }

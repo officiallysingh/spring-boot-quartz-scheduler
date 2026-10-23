@@ -202,6 +202,7 @@ public class QuartzSchedulerThread extends Thread {
     }
   }
 
+  /** Forget a signalled scheduling change, before the thread looks for triggers again. */
   public void clearSignaledSchedulingChange() {
     synchronized (sigLock) {
       signaled = false;
@@ -209,12 +210,22 @@ public class QuartzSchedulerThread extends Thread {
     }
   }
 
+  /**
+   * Whether a scheduling change was signalled since it was last cleared.
+   *
+   * @return {@code true} if the schedule changed
+   */
   public boolean isScheduleChanged() {
     synchronized (sigLock) {
       return signaled;
     }
   }
 
+  /**
+   * The earliest fire time signalled with the change, in epoch milliseconds.
+   *
+   * @return the signalled time, or 0 for none
+   */
   public long getSignaledNextFireTime() {
     synchronized (sigLock) {
       return signaledNextFireTime;

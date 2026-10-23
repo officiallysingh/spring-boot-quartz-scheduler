@@ -77,7 +77,7 @@ public interface CalendarIntervalTrigger extends Trigger {
   /**
    * Gets the time zone within which time calculations related to this trigger will be performed.
    *
-   * <p>If null, the system default TimeZone will be used.
+   * <p>If none was set, the system default time zone is used.
    */
   ZoneId getTimeZone();
 

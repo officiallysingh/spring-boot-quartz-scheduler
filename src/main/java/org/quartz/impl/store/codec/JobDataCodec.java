@@ -75,10 +75,25 @@ public final class JobDataCodec {
     return data;
   }
 
+  /**
+   * Java-serialize a whole job data map (for non-simple values).
+   *
+   * @param data the job data
+   * @return the bytes
+   * @throws JobPersistenceException if a value is not serializable
+   */
   public static byte[] serialize(JobDataMap data) throws JobPersistenceException {
     return SerializationCodec.serialize(data);
   }
 
+  /**
+   * Read a Java-serialized job data map; the result is not dirty.
+   *
+   * @param bytes the bytes
+   * @param loadHelper loads the classes of the values
+   * @return the job data
+   * @throws JobPersistenceException if the bytes cannot be read
+   */
   public static JobDataMap deserialize(byte[] bytes, ClassLoadHelper loadHelper)
       throws JobPersistenceException {
     JobDataMap data = SerializationCodec.deserialize(bytes, JobDataMap.class, loadHelper);

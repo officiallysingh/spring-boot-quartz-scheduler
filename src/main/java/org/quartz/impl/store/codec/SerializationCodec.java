@@ -33,6 +33,13 @@ public final class SerializationCodec {
 
   private SerializationCodec() {}
 
+  /**
+   * Java-serialize a value.
+   *
+   * @param value the value; must be {@link Serializable}
+   * @return the bytes
+   * @throws JobPersistenceException if it is not serializable or writing fails
+   */
   public static byte[] serialize(Object value) throws JobPersistenceException {
     if (!(value instanceof Serializable)) {
       throw new JobPersistenceException(
@@ -48,6 +55,16 @@ public final class SerializationCodec {
     return bytes.toByteArray();
   }
 
+  /**
+   * Read a Java-serialized value, resolving its classes through the scheduler's class load helper.
+   *
+   * @param bytes the bytes
+   * @param type the expected type
+   * @param loadHelper loads the classes
+   * @param <T> the expected type
+   * @return the value
+   * @throws JobPersistenceException if it cannot be read or is not of the expected type
+   */
   public static <T> T deserialize(byte[] bytes, Class<T> type, ClassLoadHelper loadHelper)
       throws JobPersistenceException {
     try (ObjectInputStream in =
@@ -59,10 +76,22 @@ public final class SerializationCodec {
     }
   }
 
+  /**
+   * Encode bytes as Base64, for stores that only keep strings.
+   *
+   * @param bytes the bytes
+   * @return the Base64 text
+   */
   public static String toBase64(byte[] bytes) {
     return Base64.getEncoder().encodeToString(bytes);
   }
 
+  /**
+   * Decode Base64 text.
+   *
+   * @param value the Base64 text
+   * @return the bytes
+   */
   public static byte[] fromBase64(String value) {
     return Base64.getDecoder().decode(value);
   }

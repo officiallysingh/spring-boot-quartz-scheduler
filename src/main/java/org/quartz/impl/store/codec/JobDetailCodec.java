@@ -29,17 +29,38 @@ import org.quartz.spi.ClassLoadHelper;
  */
 public final class JobDetailCodec {
 
+  /** Stored field: the job's name. */
   public static final String NAME = "name";
+
+  /** Stored field: the job's group. */
   public static final String GROUP = "group";
+
+  /** Stored field: the job's description. */
   public static final String DESCRIPTION = "description";
+
+  /** Stored field: the job class name. */
   public static final String JOB_CLASS = "jobClass";
+
+  /** Stored field: the job's durable. */
   public static final String DURABLE = "durable";
+
+  /** Stored field: the job's requests recovery. */
   public static final String REQUESTS_RECOVERY = "requestsRecovery";
+
+  /** Stored field: whether the job disallows concurrent execution. */
   public static final String NON_CONCURRENT = "nonConcurrent";
+
+  /** Stored field: whether the job data is stored again after each execution. */
   public static final String PERSIST_JOB_DATA = "persistJobData";
 
   private JobDetailCodec() {}
 
+  /**
+   * Encode a job, without its job data (encoded by {@link JobDataCodec}).
+   *
+   * @param job the job
+   * @return the stored fields
+   */
   public static Map<String, Object> encode(JobDetail job) {
     Map<String, Object> fields = new LinkedHashMap<>();
     fields.put(NAME, job.getKey().getName());
@@ -55,6 +76,16 @@ public final class JobDetailCodec {
     return fields;
   }
 
+  /**
+   * Decode a job from its stored fields.
+   *
+   * @param fields the stored fields
+   * @param jobData the decoded job data
+   * @param loadHelper loads the job class
+   * @return the job
+   * @throws JobPersistenceException if the job class cannot be loaded
+   * @throws IllegalStateException if a required field is missing
+   */
   public static JobDetail decode(
       Map<String, ?> fields, JobDataMap jobData, ClassLoadHelper loadHelper)
       throws JobPersistenceException {

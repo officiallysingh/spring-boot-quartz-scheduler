@@ -24,6 +24,11 @@ import java.util.Objects;
  */
 public record RedisJobStoreSettings(String keyPrefix, Duration lockTimeout) {
 
+  /**
+   * Validates the settings.
+   *
+   * @throws IllegalArgumentException if the lock timeout is shorter than 1ms
+   */
   public RedisJobStoreSettings {
     Objects.requireNonNull(keyPrefix, "keyPrefix");
     Objects.requireNonNull(lockTimeout, "lockTimeout");
@@ -32,6 +37,11 @@ public record RedisJobStoreSettings(String keyPrefix, Duration lockTimeout) {
     }
   }
 
+  /**
+   * The defaults: prefix {@code quartz:}, lock timeout 30 seconds.
+   *
+   * @return the defaults
+   */
   public static RedisJobStoreSettings defaults() {
     return new RedisJobStoreSettings("quartz:", Duration.ofSeconds(30));
   }

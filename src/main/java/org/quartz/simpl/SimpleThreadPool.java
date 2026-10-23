@@ -154,45 +154,77 @@ public class SimpleThreadPool implements ThreadPool {
     return prio;
   }
 
+  /**
+   * Set the prefix of the worker thread names; default {@code <scheduler name>_Worker}.
+   *
+   * @param prefix the prefix
+   */
   public void setThreadNamePrefix(String prefix) {
     this.threadNamePrefix = prefix;
   }
 
+  /**
+   * The prefix of the worker thread names.
+   *
+   * @return the prefix, or {@code null} for {@code <scheduler name>_Worker}
+   */
   public @Nullable String getThreadNamePrefix() {
     return threadNamePrefix;
   }
 
   /**
-   * @return Returns the threadsInheritContextClassLoaderOfInitializingThread.
+   * Whether the worker threads use the context class loader of the thread that initializes the
+   * pool.
+   *
+   * @return whether the initializing thread's class loader is used
    */
   public boolean isThreadsInheritContextClassLoaderOfInitializingThread() {
     return inheritLoader;
   }
 
   /**
-   * @param inheritLoader The threadsInheritContextClassLoaderOfInitializingThread to set.
+   * Set whether the worker threads use the context class loader of the thread that initializes the
+   * pool.
+   *
+   * @param inheritLoader whether to use the initializing thread's class loader
    */
   public void setThreadsInheritContextClassLoaderOfInitializingThread(boolean inheritLoader) {
     this.inheritLoader = inheritLoader;
   }
 
+  /**
+   * Whether the worker threads join the thread group of the thread that initializes the pool,
+   * rather than a group of their own.
+   *
+   * @return whether the initializing thread's group is used
+   */
   public boolean isThreadsInheritGroupOfInitializingThread() {
     return inheritGroup;
   }
 
+  /**
+   * Set whether the worker threads join the thread group of the thread that initializes the pool
+   * (default), rather than a group of their own.
+   *
+   * @param inheritGroup whether to use the initializing thread's group
+   */
   public void setThreadsInheritGroupOfInitializingThread(boolean inheritGroup) {
     this.inheritGroup = inheritGroup;
   }
 
   /**
-   * @return Returns the value of makeThreadsDaemons.
+   * Whether the worker threads are daemon threads.
+   *
+   * @return {@code true} for daemon threads
    */
   public boolean isMakeThreadsDaemons() {
     return makeThreadsDaemons;
   }
 
   /**
-   * @param makeThreadsDaemons The value of makeThreadsDaemons to set.
+   * Set whether the worker threads are daemon threads; default {@code false}.
+   *
+   * @param makeThreadsDaemons {@code true} for daemon threads
    */
   public void setMakeThreadsDaemons(boolean makeThreadsDaemons) {
     this.makeThreadsDaemons = makeThreadsDaemons;

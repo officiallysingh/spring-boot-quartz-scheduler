@@ -25,6 +25,7 @@ public class BroadcastSchedulerListener implements SchedulerListener {
 
   private final List<SchedulerListener> listeners;
 
+  /** Create a listener broadcasting to no listeners yet. */
   public BroadcastSchedulerListener() {
     listeners = new LinkedList<>();
   }
@@ -39,14 +40,30 @@ public class BroadcastSchedulerListener implements SchedulerListener {
     this.listeners.addAll(listeners);
   }
 
+  /**
+   * Add a listener to broadcast to.
+   *
+   * @param listener the listener
+   */
   public void addListener(SchedulerListener listener) {
     listeners.add(listener);
   }
 
+  /**
+   * Remove a listener.
+   *
+   * @param listener the listener
+   * @return whether it was registered
+   */
   public boolean removeListener(SchedulerListener listener) {
     return listeners.remove(listener);
   }
 
+  /**
+   * The listeners broadcast to, in order.
+   *
+   * @return an unmodifiable view of the listeners
+   */
   public List<SchedulerListener> getListeners() {
     return java.util.Collections.unmodifiableList(listeners);
   }

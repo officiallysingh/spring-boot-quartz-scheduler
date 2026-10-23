@@ -63,6 +63,13 @@ public class SchedulerSignalerImpl implements SchedulerSignaler {
     this(sched, schedThread, Clock.systemUTC());
   }
 
+  /**
+   * Create a signaler.
+   *
+   * @param sched the scheduler
+   * @param schedThread the scheduler thread to wake on scheduling changes
+   * @param clock the source of the scheduling time
+   */
   public SchedulerSignalerImpl(
       QuartzScheduler sched, QuartzSchedulerThread schedThread, Clock clock) {
     this.sched = sched;

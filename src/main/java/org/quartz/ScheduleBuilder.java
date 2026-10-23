@@ -20,7 +20,20 @@ package org.quartz;
 
 import org.quartz.spi.MutableTrigger;
 
+/**
+ * The schedule part of a trigger: {@link SimpleScheduleBuilder}, {@link CronScheduleBuilder},
+ * {@link CalendarIntervalScheduleBuilder} or {@link DailyTimeIntervalScheduleBuilder}, passed to
+ * {@link TriggerBuilder#withSchedule}.
+ *
+ * @param <T> the type of trigger the schedule produces
+ */
 public abstract class ScheduleBuilder<T extends Trigger> {
 
+  /**
+   * Build the trigger for this schedule; {@link TriggerBuilder} then sets its identity, times and
+   * data.
+   *
+   * @return the trigger
+   */
   protected abstract MutableTrigger build();
 }

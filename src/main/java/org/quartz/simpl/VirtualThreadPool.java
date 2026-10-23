@@ -82,6 +82,11 @@ public class VirtualThreadPool implements ThreadPool {
     return maxConcurrency;
   }
 
+  /**
+   * The prefix of the thread names.
+   *
+   * @return the prefix, or {@code null} for {@code <scheduler name>_Worker}
+   */
   public @Nullable String getThreadNamePrefix() {
     return threadNamePrefix;
   }
@@ -91,6 +96,11 @@ public class VirtualThreadPool implements ThreadPool {
     this.threadNamePrefix = threadNamePrefix;
   }
 
+  /**
+   * Whether the job threads use the context class loader of the thread that initializes the pool.
+   *
+   * @return {@code true} by default
+   */
   public boolean isThreadsInheritContextClassLoaderOfInitializingThread() {
     return inheritLoader;
   }

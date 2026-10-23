@@ -117,6 +117,7 @@ public class DailyTimeIntervalScheduleBuilder extends ScheduleBuilder<DailyTimeI
     SATURDAY_AND_SUNDAY = Collections.unmodifiableSet(t);
   }
 
+  /** Use {@link #dailyTimeIntervalSchedule()}. */
   protected DailyTimeIntervalScheduleBuilder() {}
 
   /**

@@ -174,6 +174,11 @@ public interface CronTrigger extends Trigger {
    */
   int MISFIRE_INSTRUCTION_DO_NOTHING = 2;
 
+  /**
+   * The cron expression the trigger fires on.
+   *
+   * @return the expression, for example {@code "0 0/15 8-17 ? * MON-FRI"}
+   */
   String getCronExpression();
 
   /**
@@ -182,6 +187,12 @@ public interface CronTrigger extends Trigger {
    */
   ZoneId getTimeZone();
 
+  /**
+   * A human-readable summary of the parsed cron expression, for diagnostics.
+   *
+   * @return the summary
+   * @see CronExpression#getExpressionSummary()
+   */
   String getExpressionSummary();
 
   TriggerBuilder<CronTrigger> getTriggerBuilder();

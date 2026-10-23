@@ -30,6 +30,12 @@ public class GroupMatcher<T extends Key<?>> extends StringMatcher<T> {
 
   private static final long serialVersionUID = -3275767650469343849L;
 
+  /**
+   * Create a matcher on key groups; use the static factory methods.
+   *
+   * @param compareTo the value the group is compared with
+   * @param compareWith how the group is compared
+   */
   protected GroupMatcher(String compareTo, StringOperatorName compareWith) {
     super(compareTo, compareWith);
   }

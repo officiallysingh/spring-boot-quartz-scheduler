@@ -85,6 +85,11 @@ public class SpringTransactionJobRunShellFactory implements JobRunShellFactory {
 
   private volatile @Nullable PlatformTransactionManager defaultTransactionManager;
 
+  /**
+   * Create the factory.
+   *
+   * @param beanFactory where the transaction managers are looked up
+   */
   public SpringTransactionJobRunShellFactory(ListableBeanFactory beanFactory) {
     this.beanFactory = Objects.requireNonNull(beanFactory, "beanFactory");
   }

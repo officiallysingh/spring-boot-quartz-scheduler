@@ -45,36 +45,94 @@ import org.quartz.spi.OperableTrigger;
  */
 public final class TriggerCodec {
 
+  /** Stored field: the trigger type (one of the {@code TYPE_*} values). */
   public static final String TYPE = "type";
+
+  /** Stored field: the trigger's name. */
   public static final String NAME = "name";
+
+  /** Stored field: the trigger's group. */
   public static final String GROUP = "group";
+
+  /** Stored field: the trigger's job name. */
   public static final String JOB_NAME = "jobName";
+
+  /** Stored field: the trigger's job group. */
   public static final String JOB_GROUP = "jobGroup";
+
+  /** Stored field: the trigger's description. */
   public static final String DESCRIPTION = "description";
+
+  /** Stored field: the trigger's next fire time. */
   public static final String NEXT_FIRE_TIME = "nextFireTime";
+
+  /** Stored field: the trigger's previous fire time. */
   public static final String PREVIOUS_FIRE_TIME = "previousFireTime";
+
+  /** Stored field: the trigger's priority. */
   public static final String PRIORITY = "priority";
+
+  /** Stored field: the trigger's misfire instruction. */
   public static final String MISFIRE_INSTRUCTION = "misfireInstruction";
+
+  /** Stored field: the trigger's calendar name. */
   public static final String CALENDAR_NAME = "calendarName";
+
+  /** Stored field: the trigger's start time. */
   public static final String START_TIME = "startTime";
+
+  /** Stored field: the trigger's end time. */
   public static final String END_TIME = "endTime";
+
+  /** Stored field: the trigger's repeat count. */
   public static final String REPEAT_COUNT = "repeatCount";
+
+  /** Stored field: the repeat interval (milliseconds, or the number of units). */
   public static final String REPEAT_INTERVAL = "repeatInterval";
+
+  /** Stored field: the trigger's repeat interval unit. */
   public static final String REPEAT_INTERVAL_UNIT = "repeatIntervalUnit";
+
+  /** Stored field: the trigger's times triggered. */
   public static final String TIMES_TRIGGERED = "timesTriggered";
+
+  /** Stored field: the trigger's cron expression. */
   public static final String CRON_EXPRESSION = "cronExpression";
+
+  /** Stored field: the time zone id. */
   public static final String TIME_ZONE = "timeZone";
+
+  /** Stored field: whether the hour of day is kept across daylight-saving changes. */
   public static final String PRESERVE_HOUR = "preserveHourOfDayAcrossDaylightSavings";
+
+  /** Stored field: whether a day without its preserved hour is skipped. */
   public static final String SKIP_DAY = "skipDayIfHourDoesNotExist";
+
+  /** Stored field: the trigger's start time of day. */
   public static final String START_TIME_OF_DAY = "startTimeOfDay";
+
+  /** Stored field: the trigger's end time of day. */
   public static final String END_TIME_OF_DAY = "endTimeOfDay";
+
+  /** Stored field: the days of the week, as numbers. */
   public static final String DAYS_OF_WEEK = "daysOfWeek";
+
+  /** Stored field: the Java-serialized trigger of a type without its own encoding. */
   public static final String BLOB = "blob";
 
+  /** Value of {@link #TYPE}: a {@code SimpleTrigger}. */
   public static final String TYPE_SIMPLE = "SIMPLE";
+
+  /** Value of {@link #TYPE}: a {@code CronTrigger}. */
   public static final String TYPE_CRON = "CRON";
+
+  /** Value of {@link #TYPE}: a {@code CalendarIntervalTrigger}. */
   public static final String TYPE_CALENDAR_INTERVAL = "CAL_INT";
+
+  /** Value of {@link #TYPE}: a {@code DailyTimeIntervalTrigger}. */
   public static final String TYPE_DAILY_TIME_INTERVAL = "DAILY_I";
+
+  /** Value of {@link #TYPE}: any other trigger type, stored Java-serialized. */
   public static final String TYPE_BLOB = "BLOB";
 
   private TriggerCodec() {}

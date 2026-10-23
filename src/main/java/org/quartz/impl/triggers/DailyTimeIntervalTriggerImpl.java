@@ -195,15 +195,15 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
    * Create a <code>DailyTimeIntervalTrigger</code> that will occur at the given time, and repeat at
    * the given interval until the given end time.
    *
-   * @param startTime A <code>Date</code> set to the time for the <code>Trigger</code> to fire.
-   * @param endTime A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat
-   *     firing.
+   * @param startTime the time for the <code>Trigger</code> to fire.
+   * @param endTime the time for the <code>Trigger</code> to quit repeat firing, or {@code null} for
+   *     none.
    * @param startTimeOfDay The <code>TimeOfDay</code> that the repeating should begin occurring.
    * @param endTimeOfDay The <code>TimeOfDay</code> that the repeating should stop occurring.
    * @param intervalUnit The repeat interval unit. The only intervals that are valid for this type
    *     of trigger are {@link IntervalUnit#SECOND}, {@link IntervalUnit#MINUTE}, and {@link
    *     IntervalUnit#HOUR}.
-   * @param repeatInterval The number of milliseconds to pause between the repeat firing.
+   * @param repeatInterval the pause between repeat firings.
    * @throws IllegalArgumentException if an invalid IntervalUnit is given, or the repeat interval is
    *     zero or less.
    */
@@ -223,15 +223,15 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
    * Create a <code>DailyTimeIntervalTrigger</code> that will occur at the given time, and repeat at
    * the given interval until the given end time.
    *
-   * @param startTime A <code>Date</code> set to the time for the <code>Trigger</code> to fire.
-   * @param endTime A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat
-   *     firing.
+   * @param startTime the time for the <code>Trigger</code> to fire.
+   * @param endTime the time for the <code>Trigger</code> to quit repeat firing, or {@code null} for
+   *     none.
    * @param startTimeOfDay The <code>TimeOfDay</code> that the repeating should begin occurring.
    * @param endTimeOfDay The <code>TimeOfDay</code> that the repeating should stop occurring.
    * @param intervalUnit The repeat interval unit. The only intervals that are valid for this type
    *     of trigger are {@link IntervalUnit#SECOND}, {@link IntervalUnit#MINUTE}, and {@link
    *     IntervalUnit#HOUR}.
-   * @param repeatInterval The number of milliseconds to pause between the repeat firing.
+   * @param repeatInterval the pause between repeat firings.
    * @throws IllegalArgumentException if an invalid IntervalUnit is given, or the repeat interval is
    *     zero or less.
    */
@@ -258,15 +258,15 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
    * Create a <code>DailyTimeIntervalTrigger</code> that will occur at the given time, fire the
    * identified <code>Job</code> and repeat at the given interval until the given end time.
    *
-   * @param startTime A <code>Date</code> set to the time for the <code>Trigger</code> to fire.
-   * @param endTime A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat
-   *     firing.
+   * @param startTime the time for the <code>Trigger</code> to fire.
+   * @param endTime the time for the <code>Trigger</code> to quit repeat firing, or {@code null} for
+   *     none.
    * @param startTimeOfDay The <code>TimeOfDay</code> that the repeating should begin occurring.
    * @param endTimeOfDay The <code>TimeOfDay</code> that the repeating should stop occurring.
    * @param intervalUnit The repeat interval unit. The only intervals that are valid for this type
    *     of trigger are {@link IntervalUnit#SECOND}, {@link IntervalUnit#MINUTE}, and {@link
    *     IntervalUnit#HOUR}.
-   * @param repeatInterval The number of milliseconds to pause between the repeat firing.
+   * @param repeatInterval the pause between repeat firings.
    * @throws IllegalArgumentException if an invalid IntervalUnit is given, or the repeat interval is
    *     zero or less.
    */
@@ -356,9 +356,6 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
     this.endTime = Instants.toMillis(endTime);
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.DailyTimeIntervalTriggerI#getRepeatIntervalUnit()
-   */
   public IntervalUnit getRepeatIntervalUnit() {
     return repeatIntervalUnit;
   }
@@ -380,9 +377,6 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
     this.repeatIntervalUnit = intervalUnit;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.DailyTimeIntervalTriggerI#getRepeatInterval()
-   */
   public int getRepeatInterval() {
     return repeatInterval;
   }
@@ -402,9 +396,6 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
     this.repeatInterval = repeatInterval;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.DailyTimeIntervalTriggerI#getTimesTriggered()
-   */
   public int getTimesTriggered() {
     return timesTriggered;
   }
@@ -842,6 +833,13 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
     return daysOfWeek;
   }
 
+  /**
+   * Set the days of the week the trigger fires on.
+   *
+   * @param daysOfWeek the days, {@link org.quartz.DateBuilder#SUNDAY} (1) to {@link
+   *     org.quartz.DateBuilder#SATURDAY} (7)
+   * @throws IllegalArgumentException if the set is {@code null} or empty
+   */
   public void setDaysOfWeek(Set<Integer> daysOfWeek) {
     if (daysOfWeek == null || daysOfWeek.isEmpty())
       throw new IllegalArgumentException(
@@ -858,6 +856,12 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
     return startTimeOfDay;
   }
 
+  /**
+   * Set the time of day at which the trigger starts firing each day.
+   *
+   * @param startTimeOfDay the start time of day
+   * @throws IllegalArgumentException if it is {@code null} or after the end time of day
+   */
   public void setStartTimeOfDay(TimeOfDay startTimeOfDay) {
     if (startTimeOfDay == null) {
       throw new IllegalArgumentException("Start time of day cannot be null");
@@ -878,6 +882,12 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
     return endTimeOfDay;
   }
 
+  /**
+   * Set the time of day after which the trigger stops firing each day.
+   *
+   * @param endTimeOfDay the end time of day
+   * @throws IllegalArgumentException if it is {@code null}
+   */
   public void setEndTimeOfDay(TimeOfDay endTimeOfDay) {
     if (endTimeOfDay == null) throw new IllegalArgumentException("End time of day cannot be null");
 
@@ -925,6 +935,12 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
     return repeatCount;
   }
 
+  /**
+   * Set how many times the trigger repeats after its first firing.
+   *
+   * @param repeatCount the repeat count, or {@link #REPEAT_INDEFINITELY}
+   * @throws IllegalArgumentException if it is negative and not {@link #REPEAT_INDEFINITELY}
+   */
   public void setRepeatCount(int repeatCount) {
     if (repeatCount < 0 && repeatCount != REPEAT_INDEFINITELY) {
       throw new IllegalArgumentException(

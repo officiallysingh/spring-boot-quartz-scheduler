@@ -84,16 +84,34 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class PersistentJobStore implements JobStore {
 
+  /** Stored trigger state: waiting for its next fire time. */
   public static final String STATE_WAITING = "WAITING";
+
+  /** Stored trigger state: acquired by a scheduler instance, about to fire. */
   public static final String STATE_ACQUIRED = "ACQUIRED";
+
+  /** Fired-trigger state: its job is executing. */
   public static final String STATE_EXECUTING = "EXECUTING";
+
+  /** Stored trigger state: it will not fire again. */
   public static final String STATE_COMPLETE = "COMPLETE";
+
+  /** Stored trigger state: waiting for a non-concurrent execution of its job to end. */
   public static final String STATE_BLOCKED = "BLOCKED";
+
+  /** Stored trigger state: in error, until reset. */
   public static final String STATE_ERROR = "ERROR";
+
+  /** Stored trigger state: paused. */
   public static final String STATE_PAUSED = "PAUSED";
+
+  /** Stored trigger state: paused while blocked; becomes {@value #STATE_BLOCKED} when resumed. */
   public static final String STATE_PAUSED_BLOCKED = "PAUSED_BLOCKED";
 
+  /** Name of the lock serializing changes to jobs, triggers and calendars. */
   public static final String LOCK_TRIGGER_ACCESS = "TRIGGER_ACCESS";
+
+  /** Name of the lock serializing cluster check-ins and the recovery of failed instances. */
   public static final String LOCK_STATE_ACCESS = "STATE_ACCESS";
 
   /** Marker paused-group entry written by {@link #pauseAll()}. */
@@ -104,6 +122,7 @@ public abstract class PersistentJobStore implements JobStore {
 
   private static final AtomicLong RECOVERY_COUNTER = new AtomicLong(System.currentTimeMillis());
 
+  /** Logger available to subclasses. */
   protected final Logger log = LoggerFactory.getLogger(getClass());
 
   private final JobStoreSettings settings;
@@ -146,6 +165,11 @@ public abstract class PersistentJobStore implements JobStore {
 
   private volatile Instant lastCheckin = Instant.now();
 
+  /**
+   * Create a store.
+   *
+   * @param settings the store-independent settings
+   */
   protected PersistentJobStore(JobStoreSettings settings) {
     this.settings = Objects.requireNonNull(settings, "settings");
   }
@@ -187,6 +211,12 @@ public abstract class PersistentJobStore implements JobStore {
   /** A store operation. */
   @FunctionalInterface
   protected interface StoreCallback<T extends @Nullable Object> {
+    /**
+     * Run the operation.
+     *
+     * @return its result
+     * @throws JobPersistenceException if the store fails
+     */
     T execute() throws JobPersistenceException;
   }
 
@@ -194,6 +224,11 @@ public abstract class PersistentJobStore implements JobStore {
   // configuration and lifecycle
   // ------------------------------------------------------------------
 
+  /**
+   * The store-independent settings.
+   *
+   * @return the settings
+   */
   public JobStoreSettings getSettings() {
     return settings;
   }
@@ -206,6 +241,11 @@ public abstract class PersistentJobStore implements JobStore {
     return lastCheckin;
   }
 
+  /**
+   * The delegate doing the store's primitive reads and writes; set by {@link #initialize}.
+   *
+   * @return the delegate
+   */
   protected StoreDelegate getDelegate() {
     return delegate;
   }
@@ -215,14 +255,29 @@ public abstract class PersistentJobStore implements JobStore {
     return lock;
   }
 
+  /**
+   * How job classes are loaded; set by {@link #initialize}.
+   *
+   * @return the class load helper
+   */
   protected ClassLoadHelper getClassLoadHelper() {
     return classLoadHelper;
   }
 
+  /**
+   * The id of the scheduler instance using the store.
+   *
+   * @return the instance id
+   */
   public String getInstanceId() {
     return instanceId;
   }
 
+  /**
+   * The name of the scheduler using the store; all records are scoped to it.
+   *
+   * @return the scheduler name
+   */
   public String getInstanceName() {
     return instanceName;
   }
@@ -321,6 +376,11 @@ public abstract class PersistentJobStore implements JobStore {
     }
   }
 
+  /**
+   * Whether {@link #shutdown()} was called.
+   *
+   * @return {@code true} once shut down
+   */
   protected boolean isShutdown() {
     return shutdown;
   }
@@ -345,6 +405,13 @@ public abstract class PersistentJobStore implements JobStore {
     return settings.retryInterval();
   }
 
+  /**
+   * The scheduler's current time ({@link SchedulerSignaler#getCurrentTime()}), which may come from
+   * a custom {@link java.time.Clock}.
+   *
+   * @return the current scheduling time
+   * @throws IllegalStateException if the signaler cannot provide it
+   */
   protected Instant getSchedulingTime() {
     Instant now;
     try {
@@ -358,11 +425,22 @@ public abstract class PersistentJobStore implements JobStore {
     return now;
   }
 
+  /**
+   * The instant before which a trigger's next fire time counts as misfired: the scheduling time
+   * minus the misfire threshold, not before the epoch.
+   *
+   * @return the misfire cut-off
+   */
   protected Instant getMisfireTime() {
     Instant misfireTime = getSchedulingTime().minus(settings.misfireThreshold());
     return misfireTime.isBefore(Instant.EPOCH) ? Instant.EPOCH : misfireTime;
   }
 
+  /**
+   * A fire-instance id unique to this store: the instance id and a counter.
+   *
+   * @return the new id
+   */
   protected String newFireInstanceId() {
     return instanceId + "_" + FIRE_INSTANCE_COUNTER.incrementAndGet();
   }
@@ -422,6 +500,14 @@ public abstract class PersistentJobStore implements JobStore {
     }
   }
 
+  /**
+   * Run an operation without a lock (but in a transaction when the store has them).
+   *
+   * @param callback the operation
+   * @param <T> its result type
+   * @return its result
+   * @throws JobPersistenceException if the store fails
+   */
   protected <T extends @Nullable Object> T executeWithoutLock(StoreCallback<T> callback)
       throws JobPersistenceException {
     return executeInLock(null, callback);
@@ -1435,6 +1521,15 @@ public abstract class PersistentJobStore implements JobStore {
     return executeInLock(LOCK_TRIGGER_ACCESS, () -> recoverMisfiredJobs(false));
   }
 
+  /**
+   * Apply the misfire instructions of triggers whose next fire time is before {@link
+   * #getMisfireTime()}; called with the trigger lock held.
+   *
+   * @param recovering {@code true} at startup or cluster recovery: handle all misfired triggers,
+   *     not only {@code maxMisfiresToHandleAtATime}
+   * @return how many were handled, whether more remain, and the earliest new fire time
+   * @throws JobPersistenceException if the store fails
+   */
   protected MisfireResult recoverMisfiredJobs(boolean recovering) throws JobPersistenceException {
     // when recovering, handle all misfired triggers right away
     int max = recovering ? -1 : settings.maxMisfiresToHandleAtATime();
@@ -1481,6 +1576,15 @@ public abstract class PersistentJobStore implements JobStore {
     return new MisfireResult(hasMore, misfired.size(), earliestNewTime);
   }
 
+  /**
+   * Apply the misfire instruction of one trigger, if it has misfired.
+   *
+   * @param triggerKey the trigger
+   * @param newStateIfNotComplete the state to store if the trigger fires again
+   * @param forceState whether to store that state whatever the trigger's current state
+   * @return {@code false} if the trigger is gone or has not misfired
+   * @throws JobPersistenceException if the store fails
+   */
   protected boolean updateMisfiredTrigger(
       TriggerKey triggerKey, String newStateIfNotComplete, boolean forceState)
       throws JobPersistenceException {

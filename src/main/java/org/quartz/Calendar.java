@@ -48,6 +48,7 @@ public interface Calendar extends java.io.Serializable, java.lang.Cloneable {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
+  /** Unused; kept from Quartz for compatibility. */
   int MONTH = 0;
 
   /*
@@ -84,5 +85,10 @@ public interface Calendar extends java.io.Serializable, java.lang.Cloneable {
    */
   void setDescription(@Nullable String description);
 
+  /**
+   * A copy of this calendar, including a copy of its base calendar.
+   *
+   * @return the copy
+   */
   Object clone();
 }

@@ -287,8 +287,9 @@ public class DailyCalendar extends BaseCalendar {
    * </code> if you don't want the given <code>rangeStartingTimeInMillis</code> and <code>
    * rangeEndingTimeInMillis</code> to be evaluated in the default time zone.
    *
-   * @param rangeStartingTimeInMillis a long representing the starting time for the time range
-   * @param rangeEndingTimeInMillis a long representing the ending time for the time range
+   * @param rangeStartingTimeInMillis the starting time of the time range (only its time of day is
+   *     used)
+   * @param rangeEndingTimeInMillis the ending time of the time range (only its time of day is used)
    */
   public DailyCalendar(Instant rangeStartingTimeInMillis, Instant rangeEndingTimeInMillis) {
     super();
@@ -317,8 +318,9 @@ public class DailyCalendar extends BaseCalendar {
    *
    * @param baseCalendar the base calendar for this calendar instance &ndash; see {@link
    *     BaseCalendar} for more information on base calendar functionality
-   * @param rangeStartingTimeInMillis a long representing the starting time for the time range
-   * @param rangeEndingTimeInMillis a long representing the ending time for the time range
+   * @param rangeStartingTimeInMillis the starting time of the time range (only its time of day is
+   *     used)
+   * @param rangeEndingTimeInMillis the ending time of the time range (only its time of day is used)
    */
   public DailyCalendar(
       org.quartz.@Nullable Calendar baseCalendar,
@@ -343,8 +345,9 @@ public class DailyCalendar extends BaseCalendar {
    *
    * @param timeZone the time zone for of the <code>DailyCalendar</code> which will also be used to
    *     resolve the given start/end times.
-   * @param rangeStartingTimeInMillis a long representing the starting time for the time range
-   * @param rangeEndingTimeInMillis a long representing the ending time for the time range
+   * @param rangeStartingTimeInMillis the starting time of the time range (only its time of day is
+   *     used)
+   * @param rangeEndingTimeInMillis the ending time of the time range (only its time of day is used)
    */
   public DailyCalendar(
       @Nullable ZoneId timeZone,
@@ -371,8 +374,9 @@ public class DailyCalendar extends BaseCalendar {
    *     BaseCalendar} for more information on base calendar functionality
    * @param timeZone the time zone for of the <code>DailyCalendar</code> which will also be used to
    *     resolve the given start/end times.
-   * @param rangeStartingTimeInMillis a long representing the starting time for the time range
-   * @param rangeEndingTimeInMillis a long representing the ending time for the time range
+   * @param rangeStartingTimeInMillis the starting time of the time range (only its time of day is
+   *     used)
+   * @param rangeEndingTimeInMillis the ending time of the time range (only its time of day is used)
    */
   public DailyCalendar(
       org.quartz.@Nullable Calendar baseCalendar,
@@ -389,7 +393,7 @@ public class DailyCalendar extends BaseCalendar {
   }
 
   /**
-   * Determines whether the given time (in milliseconds) is 'included' by the <CODE>BaseCalendar
+   * Determines whether the given instant is 'included' by the <CODE>BaseCalendar
    * </CODE>
    *
    * @param timeStamp the date/time to test
@@ -424,7 +428,7 @@ public class DailyCalendar extends BaseCalendar {
    * Determines the next time included by the <CODE>DailyCalendar</CODE> after the specified time.
    *
    * @param timeStamp the initial date/time after which to find an included time
-   * @return the time in milliseconds representing the next time included after the specified time.
+   * @return the next instant included after the specified one.
    */
   @Override
   public Instant getNextIncludedTime(Instant timeStamp) {
@@ -480,12 +484,11 @@ public class DailyCalendar extends BaseCalendar {
   }
 
   /**
-   * Returns the start time of the time range (in milliseconds) of the day specified in <CODE>
+   * Returns the start of the time range on the day of <CODE>
    * timeInMillis</CODE>
    *
    * @param timeStamp a time containing the desired date for the starting time of the time range.
-   * @return a date/time (in milliseconds) representing the start time of the time range for the
-   *     specified date.
+   * @return the instant at which the time range starts on the specified date.
    */
   public Instant getTimeRangeStartingTime(Instant timeStamp) {
     LenientDateTime rangeStartingTime = createDateTime(timeStamp);
@@ -501,12 +504,11 @@ public class DailyCalendar extends BaseCalendar {
   }
 
   /**
-   * Returns the end time of the time range (in milliseconds) of the day specified in <CODE>
+   * Returns the end of the time range on the day of <CODE>
    * timeInMillis</CODE>
    *
    * @param timeStamp a time containing the desired date for the ending time of the time range.
-   * @return a date/time (in milliseconds) representing the end time of the time range for the
-   *     specified date.
+   * @return the instant at which the time range ends on the specified date.
    */
   public Instant getTimeRangeEndingTime(Instant timeStamp) {
     LenientDateTime rangeEndingTime = createDateTime(timeStamp);
@@ -753,8 +755,8 @@ public class DailyCalendar extends BaseCalendar {
    * Sets the time range for the <CODE>DailyCalendar</CODE> to the times represented in the
    * specified values.
    *
-   * @param rangeStartingTime the starting time (in milliseconds) for the time range
-   * @param rangeEndingTime the ending time (in milliseconds) for the time range
+   * @param rangeStartingTime the starting time of the time range (only its time of day is used)
+   * @param rangeEndingTime the ending time of the time range (only its time of day is used)
    */
   public void setTimeRange(Instant rangeStartingTime, Instant rangeEndingTime) {
     setTimeRange(

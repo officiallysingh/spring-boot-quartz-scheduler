@@ -67,6 +67,7 @@ public class JobBuilder {
 
   private JobDataMap jobDataMap = new JobDataMap();
 
+  /** Use {@link #newJob()} or {@link #newJob(Class)}. */
   protected JobBuilder() {}
 
   /**

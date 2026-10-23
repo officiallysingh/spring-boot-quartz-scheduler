@@ -146,11 +146,11 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    * Create a <code>DateIntervalTrigger</code> that will occur at the given time, and repeat at the
    * given interval until the given end time.
    *
-   * @param startTime A <code>Date</code> set to the time for the <code>Trigger</code> to fire.
-   * @param endTime A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat
-   *     firing.
+   * @param startTime the time for the <code>Trigger</code> to fire.
+   * @param endTime the time for the <code>Trigger</code> to quit repeat firing, or {@code null} for
+   *     none.
    * @param intervalUnit The repeat interval unit (minutes, days, months, etc).
-   * @param repeatInterval The number of milliseconds to pause between the repeat firing.
+   * @param repeatInterval the pause between repeat firings.
    */
   public CalendarIntervalTriggerImpl(
       String name,
@@ -165,11 +165,11 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    * Create a <code>DateIntervalTrigger</code> that will occur at the given time, and repeat at the
    * given interval until the given end time.
    *
-   * @param startTime A <code>Date</code> set to the time for the <code>Trigger</code> to fire.
-   * @param endTime A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat
-   *     firing.
+   * @param startTime the time for the <code>Trigger</code> to fire.
+   * @param endTime the time for the <code>Trigger</code> to quit repeat firing, or {@code null} for
+   *     none.
    * @param intervalUnit The repeat interval unit (minutes, days, months, etc).
-   * @param repeatInterval The number of milliseconds to pause between the repeat firing.
+   * @param repeatInterval the pause between repeat firings.
    */
   public CalendarIntervalTriggerImpl(
       String name,
@@ -190,11 +190,11 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    * Create a <code>DateIntervalTrigger</code> that will occur at the given time, fire the
    * identified <code>Job</code> and repeat at the given interval until the given end time.
    *
-   * @param startTime A <code>Date</code> set to the time for the <code>Trigger</code> to fire.
-   * @param endTime A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat
-   *     firing.
+   * @param startTime the time for the <code>Trigger</code> to fire.
+   * @param endTime the time for the <code>Trigger</code> to quit repeat firing, or {@code null} for
+   *     none.
    * @param intervalUnit The repeat interval unit (minutes, days, months, etc).
-   * @param repeatInterval The number of milliseconds to pause between the repeat firing.
+   * @param repeatInterval the pause between repeat firings.
    */
   public CalendarIntervalTriggerImpl(
       String name,
@@ -273,9 +273,6 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
     this.endTime = Instants.toMillis(endTime);
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.DateIntervalTriggerI#getRepeatIntervalUnit()
-   */
   public IntervalUnit getRepeatIntervalUnit() {
     return repeatIntervalUnit;
   }
@@ -285,9 +282,6 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
     this.repeatIntervalUnit = intervalUnit;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.DateIntervalTriggerI#getRepeatInterval()
-   */
   public int getRepeatInterval() {
     return repeatInterval;
   }
@@ -306,9 +300,6 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
     this.repeatInterval = repeatInterval;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.CalendarIntervalTriggerI#getTimeZone()
-   */
   public ZoneId getTimeZone() {
 
     if (timeZone == null) {
@@ -320,7 +311,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
   /**
    * Sets the time zone within which time calculations related to this trigger will be performed.
    *
-   * @param timeZone the desired TimeZone, or null for the system default.
+   * @param timeZone the desired time zone, or null for the system default.
    */
   public void setTimeZone(@Nullable ZoneId timeZone) {
     this.timeZone = timeZone;
@@ -349,6 +340,12 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
     return preserveHourOfDayAcrossDaylightSavings;
   }
 
+  /**
+   * Set whether firings keep the start time's hour of day across daylight-saving changes.
+   *
+   * @param preserveHourOfDayAcrossDaylightSavings whether to keep the hour of day
+   * @see #isPreserveHourOfDayAcrossDaylightSavings()
+   */
   public void setPreserveHourOfDayAcrossDaylightSavings(
       boolean preserveHourOfDayAcrossDaylightSavings) {
     this.preserveHourOfDayAcrossDaylightSavings = preserveHourOfDayAcrossDaylightSavings;
@@ -373,13 +370,17 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
     return skipDayIfHourDoesNotExist;
   }
 
+  /**
+   * Set whether a day is skipped when its preserved hour of day does not exist (a daylight-saving
+   * gap).
+   *
+   * @param skipDayIfHourDoesNotExist whether to skip such days
+   * @see #isSkipDayIfHourDoesNotExist()
+   */
   public void setSkipDayIfHourDoesNotExist(boolean skipDayIfHourDoesNotExist) {
     this.skipDayIfHourDoesNotExist = skipDayIfHourDoesNotExist;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.DateIntervalTriggerI#getTimesTriggered()
-   */
   public int getTimesTriggered() {
     return timesTriggered;
   }

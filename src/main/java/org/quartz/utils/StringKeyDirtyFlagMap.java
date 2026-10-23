@@ -26,14 +26,26 @@ import org.jspecify.annotations.Nullable;
 public class StringKeyDirtyFlagMap extends DirtyFlagMap<String, Object> {
   private static final long serialVersionUID = -9076749120524952280L;
 
+  /** Create an empty, clean map. */
   public StringKeyDirtyFlagMap() {
     super();
   }
 
+  /**
+   * Create an empty, clean map.
+   *
+   * @param initialCapacity the initial capacity of the backing map
+   */
   public StringKeyDirtyFlagMap(int initialCapacity) {
     super(initialCapacity);
   }
 
+  /**
+   * Create an empty, clean map.
+   *
+   * @param initialCapacity the initial capacity of the backing map
+   * @param loadFactor the load factor of the backing map
+   */
   public StringKeyDirtyFlagMap(int initialCapacity, float loadFactor) {
     super(initialCapacity, loadFactor);
   }

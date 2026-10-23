@@ -66,10 +66,21 @@ public class SchedulerRepository {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
+  /**
+   * The JVM-wide repository.
+   *
+   * @return the repository
+   */
   public static synchronized SchedulerRepository getInstance() {
     return Holder.INSTANCE;
   }
 
+  /**
+   * Register a scheduler under its name.
+   *
+   * @param sched the scheduler
+   * @throws SchedulerException if a scheduler with that name is already registered
+   */
   public synchronized void bind(Scheduler sched) throws SchedulerException {
 
     if (schedulers.get(sched.getSchedulerName()) != null) {
@@ -80,14 +91,31 @@ public class SchedulerRepository {
     schedulers.put(sched.getSchedulerName(), sched);
   }
 
+  /**
+   * Unregister a scheduler.
+   *
+   * @param schedName the scheduler's name
+   * @return whether it was registered
+   */
   public synchronized boolean remove(String schedName) {
     return (schedulers.remove(schedName) != null);
   }
 
+  /**
+   * The scheduler registered under a name.
+   *
+   * @param schedName the scheduler's name
+   * @return the scheduler, or {@code null} if none is registered under it
+   */
   public synchronized @Nullable Scheduler lookup(String schedName) {
     return schedulers.get(schedName);
   }
 
+  /**
+   * Every registered scheduler.
+   *
+   * @return an unmodifiable view of the schedulers
+   */
   public synchronized Collection<Scheduler> lookupAll() {
     return java.util.Collections.unmodifiableCollection(schedulers.values());
   }

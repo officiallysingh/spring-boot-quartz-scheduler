@@ -30,8 +30,14 @@ public class KeyMatcher<T extends Key<?>> implements Matcher<T> {
 
   private static final long serialVersionUID = 1230009869074992437L;
 
+  /** The key to match. */
   protected final T compareTo;
 
+  /**
+   * Create a matcher matching one key; use {@link #keyEquals(Key)}.
+   *
+   * @param compareTo the key to match
+   */
   protected KeyMatcher(T compareTo) {
     this.compareTo = compareTo;
   }
@@ -46,6 +52,11 @@ public class KeyMatcher<T extends Key<?>> implements Matcher<T> {
     return compareTo.equals(key);
   }
 
+  /**
+   * The key this matcher matches.
+   *
+   * @return the key
+   */
   public T getCompareToValue() {
     return compareTo;
   }

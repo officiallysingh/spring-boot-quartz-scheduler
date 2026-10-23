@@ -210,9 +210,6 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
     return group + "." + name;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.JobDetailI#getKey()
-   */
   // null only for an incomplete job whose name is not set yet, as in Quartz
   @SuppressWarnings("NullAway")
   public JobKey getKey() {
@@ -224,6 +221,12 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
     return key;
   }
 
+  /**
+   * Set the job's name and group from a key.
+   *
+   * @param key the key
+   * @throws IllegalArgumentException if the key is {@code null}
+   */
   public void setKey(JobKey key) {
     if (key == null) throw new IllegalArgumentException("Key cannot be null!");
 
@@ -232,9 +235,6 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
     this.key = key;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.JobDetailI#getDescription()
-   */
   public @Nullable String getDescription() {
     return description;
   }
@@ -247,9 +247,6 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
     this.description = description;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.JobDetailI#getJobClass()
-   */
   public Class<? extends Job> getJobClass() {
     return jobClass;
   }
@@ -271,9 +268,6 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
     this.jobClass = jobClass;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.JobDetailI#getJobDataMap()
-   */
   public JobDataMap getJobDataMap() {
     if (jobDataMap == null) {
       jobDataMap = new JobDataMap();
@@ -308,9 +302,6 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
     this.shouldRecover = shouldRecover;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.JobDetailI#isDurable()
-   */
   public boolean isDurable() {
     return durability;
   }
@@ -333,9 +324,6 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
     return ClassUtils.isAnnotationPresent(jobClass, DisallowConcurrentExecution.class);
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.JobDetailI#requestsRecovery()
-   */
   public boolean requestsRecovery() {
     return shouldRecover;
   }
