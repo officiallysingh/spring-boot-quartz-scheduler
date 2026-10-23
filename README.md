@@ -325,6 +325,14 @@ Docker must be running: the integration tests start real MongoDB (`mongo:8.0`, s
 `SampleApplicationIT`, which runs a sample application on {MongoDB, Redis} × {single node, two-node cluster} ×
 {jobs in transactions, without}. Use JDK 25. `./mvnw javadoc:javadoc` builds the API docs.
 
+The sources and javadoc jars Maven Central needs are only built by the `publish-artefacts` profile, which also
+signs the artefacts and uploads them. Before a release, check them without signing or uploading (the javadoc step
+fails on broken Javadoc):
+
+```bash
+./mvnw -Ppublish-artefacts -Dgpg.skip -DskipTests package
+```
+
 ## License
 
 Apache License 2.0, see [`LICENSE.txt`](LICENSE.txt) and [`NOTICE`](NOTICE). Based on Quartz Scheduler and on Spring

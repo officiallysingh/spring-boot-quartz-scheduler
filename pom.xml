@@ -59,11 +59,8 @@
         <fmt-maven-plugin.version>2.29</fmt-maven-plugin.version>
         <error-prone.version>2.50.0</error-prone.version>
         <nullaway.version>0.14.2</nullaway.version>
-        <maven.compiler.source>${java.version}</maven.compiler.source>
-        <maven.compiler.target>${java.version}</maven.compiler.target>
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
 
     <dependencyManagement>
@@ -266,7 +263,7 @@
 
     <build>
         <resources>
-            <!-- only the build-info file is filtered; SQL/XSD resources stay byte-identical -->
+            <!-- only the build-info file (the version) is filtered; the other resources are copied as they are -->
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>false</filtering>
@@ -324,6 +321,10 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
                     <version>${maven-javadoc-plugin.version}</version>
+                    <configuration>
+                        <!-- classpath mode, like the compiler: there is no module-info, only Automatic-Module-Name -->
+                        <legacyMode>true</legacyMode>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -354,9 +355,6 @@
                 <groupId>com.spotify.fmt</groupId>
                 <artifactId>fmt-maven-plugin</artifactId>
                 <version>${fmt-maven-plugin.version}</version>
-                <!--                <configuration>-->
-                <!--                    <skip>true</skip>-->
-                <!--                </configuration>-->
                 <executions>
                     <execution>
                         <goals>
@@ -469,34 +467,6 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>attach-sources</id>
-                        <goals>
-                            <goal>jar-no-fork</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <configuration>
-                    <!-- classpath mode, like the compiler: there is no module-info, only Automatic-Module-Name -->
-                    <legacyMode>true</legacyMode>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>attach-javadocs</id>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <executions>
                     <execution>
@@ -539,15 +509,15 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-deploy-plugin</artifactId>
-                        <version>${maven-deploy-plugin.version}</version>
+                        <!-- central-publishing-maven-plugin uploads instead -->
                         <configuration>
                             <skip>true</skip>
                         </configuration>
                     </plugin>
+                    <!-- the sources and javadoc jars Maven Central requires; only built when publishing -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-source-plugin</artifactId>
-                        <version>${maven-source-plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>attach-sources</id>
@@ -560,13 +530,9 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>${maven-javadoc-plugin.version}</version>
                         <configuration>
                             <doctitle>Spring Boot Quartz Job Scheduler ${project.version} API</doctitle>
                             <windowtitle>Spring Boot Quartz Job Scheduler ${project.version} API</windowtitle>
-                            <encoding>UTF-8</encoding>
-                            <failOnError>false</failOnError>
-                            <source>${maven.compiler.source}</source>
                         </configuration>
                         <executions>
                             <execution>
