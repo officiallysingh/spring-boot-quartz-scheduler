@@ -1280,15 +1280,12 @@ public abstract class PersistentJobStore implements JobStore {
         if (nextFireTime.isAfter(batchEnd)) {
           break;
         }
-        // somebody else may have acquired it meanwhile: only a successful WAITING -> ACQUIRED
-        // counts
-        if (delegate.updateTriggerStateFromOtherStates(
-                triggerKey, STATE_ACQUIRED, List.of(STATE_WAITING))
-            <= 0) {
-          continue;
-        }
+        // The fired-trigger record is written before the trigger is marked ACQUIRED: a store
+        // without transactions (Redis) runs the two writes separately, and an instance that
+        // stops between them (killed, or interrupted at shutdown after the server applied the
+        // state change) must leave a record, or cluster recovery never frees the trigger and it
+        // never fires again. A record without the state change is harmless: recovery deletes it.
         String fireInstanceId = newFireInstanceId();
-        nextTrigger.setFireInstanceId(fireInstanceId);
         delegate.insertFiredTrigger(
             new FiredTriggerRecord(
                 fireInstanceId,
@@ -1301,6 +1298,15 @@ public abstract class PersistentJobStore implements JobStore {
                 nextTrigger.getPriority(),
                 false,
                 false));
+        // somebody else may have acquired it meanwhile: only a successful WAITING -> ACQUIRED
+        // counts
+        if (delegate.updateTriggerStateFromOtherStates(
+                triggerKey, STATE_ACQUIRED, List.of(STATE_WAITING))
+            <= 0) {
+          delegate.deleteFiredTrigger(fireInstanceId);
+          continue;
+        }
+        nextTrigger.setFireInstanceId(fireInstanceId);
         if (acquired.isEmpty()) {
           Instant now = getSchedulingTime();
           batchEnd = (nextFireTime.isAfter(now) ? nextFireTime : now).plus(timeWindow);
@@ -1795,9 +1801,17 @@ public abstract class PersistentJobStore implements JobStore {
         JobKey jobKey = record.jobKey();
         triggerKeys.add(triggerKey);
         if (STATE_ACQUIRED.equals(record.state())) {
-          // release acquired triggers
-          delegate.updateTriggerStateFromOtherStates(
-              triggerKey, STATE_WAITING, List.of(STATE_ACQUIRED));
+          // release acquired triggers, unless a live instance acquired the trigger since: every
+          // instance writes its fired-trigger record before marking a trigger ACQUIRED, so a
+          // trigger it holds always has its record (this one may be left over, for example from
+          // an interrupted clean-up after losing the trigger to that instance)
+          boolean heldByAnother =
+              delegate.selectFiredTriggerRecordsForTrigger(triggerKey).stream()
+                  .anyMatch((other) -> !other.instanceId().equals(failedId));
+          if (!heldByAnother) {
+            delegate.updateTriggerStateFromOtherStates(
+                triggerKey, STATE_WAITING, List.of(STATE_ACQUIRED));
+          }
           acquiredCount++;
         } else if (record.requestsRecovery()) {
           // re-run jobs that request recovery
