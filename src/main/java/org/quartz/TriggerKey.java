@@ -18,6 +18,7 @@
 
 package org.quartz;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.utils.Key;
 
 /**
@@ -61,7 +62,7 @@ public final class TriggerKey extends Key<TriggerKey> {
     super(name, null);
   }
 
-  public TriggerKey(String name, String group) {
+  public TriggerKey(String name, @Nullable String group) {
     super(name, group);
   }
 
@@ -69,7 +70,7 @@ public final class TriggerKey extends Key<TriggerKey> {
     return new TriggerKey(name, null);
   }
 
-  public static TriggerKey triggerKey(String name, String group) {
+  public static TriggerKey triggerKey(String name, @Nullable String group) {
     return new TriggerKey(name, group);
   }
 }

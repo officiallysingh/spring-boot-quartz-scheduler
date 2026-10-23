@@ -19,6 +19,7 @@
 package org.quartz.spi;
 
 import java.time.Instant;
+import org.jspecify.annotations.Nullable;
 import org.quartz.JobKey;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
@@ -51,7 +52,7 @@ public interface SchedulerSignaler {
    * @param candidateNewNextFireTime when the newly scheduled trigger will fire, or {@code null} if
    *     the change is not about a particular fire time
    */
-  void signalSchedulingChange(Instant candidateNewNextFireTime);
+  void signalSchedulingChange(@Nullable Instant candidateNewNextFireTime);
 
   /**
    * Returns the current scheduling time.

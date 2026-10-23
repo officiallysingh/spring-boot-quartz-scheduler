@@ -24,6 +24,7 @@ import java.time.ZoneId;
 import java.util.Collections;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.utils.LenientDateTime;
 
@@ -45,15 +46,15 @@ public class HolidayCalendar extends BaseCalendar implements Calendar, Serializa
 
   public HolidayCalendar() {}
 
-  public HolidayCalendar(Calendar baseCalendar) {
+  public HolidayCalendar(@Nullable Calendar baseCalendar) {
     super(baseCalendar);
   }
 
-  public HolidayCalendar(ZoneId timeZone) {
+  public HolidayCalendar(@Nullable ZoneId timeZone) {
     super(timeZone);
   }
 
-  public HolidayCalendar(Calendar baseCalendar, ZoneId timeZone) {
+  public HolidayCalendar(@Nullable Calendar baseCalendar, @Nullable ZoneId timeZone) {
     super(baseCalendar, timeZone);
   }
 

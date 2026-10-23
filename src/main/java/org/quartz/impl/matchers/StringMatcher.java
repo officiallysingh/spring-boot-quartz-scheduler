@@ -17,6 +17,7 @@
  */
 package org.quartz.impl.matchers;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.Matcher;
 import org.quartz.utils.Key;
 
@@ -97,7 +98,7 @@ public abstract class StringMatcher<T extends Key<?>> implements Matcher<T> {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (this == obj) return true;
     if (obj == null) return false;
     if (getClass() != obj.getClass()) return false;

@@ -19,6 +19,7 @@
 package org.quartz;
 
 import java.io.Serializable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Conveys the detail properties of a given <code>Job</code> instance. JobDetails are to be
@@ -49,7 +50,7 @@ public interface JobDetail extends Serializable, Cloneable {
    *
    * @return null if no description was set.
    */
-  String getDescription();
+  @Nullable String getDescription();
 
   /** Get the instance of <code>Job</code> that will be executed. */
   Class<? extends Job> getJobClass();

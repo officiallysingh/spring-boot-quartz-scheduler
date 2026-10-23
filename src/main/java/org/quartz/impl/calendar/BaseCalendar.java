@@ -21,6 +21,7 @@ package org.quartz.impl.calendar;
 import java.io.Serializable;
 import java.time.Instant;
 import java.time.ZoneId;
+import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.utils.LenientDateTime;
 
@@ -42,15 +43,15 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
   private static final long serialVersionUID = 3106623404629760239L;
 
   // <p>A optional base calendar.</p>
-  private Calendar baseCalendar;
+  private @Nullable Calendar baseCalendar;
 
-  private String description;
+  private @Nullable String description;
 
-  private ZoneId timeZone;
+  private @Nullable ZoneId timeZone;
 
   public BaseCalendar() {}
 
-  public BaseCalendar(Calendar baseCalendar) {
+  public BaseCalendar(@Nullable Calendar baseCalendar) {
     setBaseCalendar(baseCalendar);
   }
 
@@ -58,7 +59,7 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
    * @param timeZone The time zone to use for this Calendar, <code>null</code> if <code>
    *     {@link ZoneId#systemDefault()}</code> should be used
    */
-  public BaseCalendar(ZoneId timeZone) {
+  public BaseCalendar(@Nullable ZoneId timeZone) {
     setTimeZone(timeZone);
   }
 
@@ -66,7 +67,7 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
    * @param timeZone The time zone to use for this Calendar, <code>null</code> if <code>
    *     {@link ZoneId#systemDefault()}</code> should be used
    */
-  public BaseCalendar(Calendar baseCalendar, ZoneId timeZone) {
+  public BaseCalendar(@Nullable Calendar baseCalendar, @Nullable ZoneId timeZone) {
     setBaseCalendar(baseCalendar);
     setTimeZone(timeZone);
   }
@@ -85,12 +86,12 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
   }
 
   /** Set a new base calendar or remove the existing one */
-  public void setBaseCalendar(Calendar baseCalendar) {
+  public void setBaseCalendar(@Nullable Calendar baseCalendar) {
     this.baseCalendar = baseCalendar;
   }
 
   /** Get the base calendar. Will be null, if not set. */
-  public Calendar getBaseCalendar() {
+  public @Nullable Calendar getBaseCalendar() {
     return this.baseCalendar;
   }
 
@@ -99,7 +100,7 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
    *
    * @return null if no description was set.
    */
-  public String getDescription() {
+  public @Nullable String getDescription() {
     return description;
   }
 
@@ -108,7 +109,7 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
    * remembering/displaying the purpose of the calendar, though the description has no meaning to
    * Quartz.
    */
-  public void setDescription(String description) {
+  public void setDescription(@Nullable String description) {
     this.description = description;
   }
 
@@ -118,7 +119,7 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
    * @return This Calendar's timezone, <code>null</code> if Calendar should use the <code>
    *     {@link ZoneId#systemDefault()}</code>
    */
-  public ZoneId getTimeZone() {
+  public @Nullable ZoneId getTimeZone() {
     return timeZone;
   }
 
@@ -128,7 +129,7 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
    * @param timeZone The time zone to use for this Calendar, <code>null</code> if <code>
    *     {@link ZoneId#systemDefault()}</code> should be used
    */
-  public void setTimeZone(ZoneId timeZone) {
+  public void setTimeZone(@Nullable ZoneId timeZone) {
     this.timeZone = timeZone;
   }
 

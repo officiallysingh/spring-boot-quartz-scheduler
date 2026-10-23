@@ -456,7 +456,7 @@ public class QuartzEndpoint {
 
     private final String name;
 
-    private final String description;
+    private final @Nullable String description;
 
     private final String className;
 
@@ -488,7 +488,7 @@ public class QuartzEndpoint {
       return this.name;
     }
 
-    public String getDescription() {
+    public @Nullable String getDescription() {
       return this.description;
     }
 

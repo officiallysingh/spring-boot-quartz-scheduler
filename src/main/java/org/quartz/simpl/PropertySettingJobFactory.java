@@ -24,6 +24,7 @@ import java.beans.PropertyDescriptor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Locale;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import org.quartz.Job;
 import org.quartz.JobDataMap;
 import org.quartz.Scheduler;
@@ -74,11 +75,13 @@ public class PropertySettingJobFactory extends SimpleJobFactory {
 
   protected void setBeanProps(Object obj, JobDataMap data) throws SchedulerException {
 
-    BeanInfo bi = null;
+    BeanInfo bi;
     try {
       bi = Introspector.getBeanInfo(obj.getClass());
     } catch (IntrospectionException e) {
+      // throws, or only warns and sets no properties (it used to fail on the null BeanInfo)
       handleError("Unable to introspect Job class.", e);
+      return;
     }
 
     PropertyDescriptor[] propDescs = bi.getPropertyDescriptors();
@@ -203,7 +206,7 @@ public class PropertySettingJobFactory extends SimpleJobFactory {
                 + "' expects a "
                 + paramType
                 + " but was given "
-                + o.getClass().getName(),
+                + (o == null ? "null" : o.getClass().getName()),
             e);
       } catch (IllegalAccessException e) {
         handleError(
@@ -229,7 +232,7 @@ public class PropertySettingJobFactory extends SimpleJobFactory {
     handleError(message, null);
   }
 
-  private void handleError(String message, Exception e) throws SchedulerException {
+  private void handleError(String message, @Nullable Exception e) throws SchedulerException {
     if (isThrowIfPropertyNotFound()) {
       throw new SchedulerException(message, e);
     }
@@ -243,7 +246,7 @@ public class PropertySettingJobFactory extends SimpleJobFactory {
     }
   }
 
-  private java.lang.reflect.Method getSetMethod(String name, PropertyDescriptor[] props) {
+  private java.lang.reflect.@Nullable Method getSetMethod(String name, PropertyDescriptor[] props) {
     for (PropertyDescriptor prop : props) {
       java.lang.reflect.Method wMeth = prop.getWriteMethod();
 

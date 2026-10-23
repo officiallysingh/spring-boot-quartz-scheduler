@@ -25,6 +25,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 import org.quartz.JobListener;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerConfigException;
@@ -83,17 +84,17 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
   private final QuartzSettings settings;
 
-  private final ThreadPool threadPool;
+  private final @Nullable ThreadPool threadPool;
 
-  private final JobStore jobStore;
+  private final @Nullable JobStore jobStore;
 
-  private final JobFactory jobFactory;
+  private final @Nullable JobFactory jobFactory;
 
-  private final InstanceIdGenerator instanceIdGenerator;
+  private final @Nullable InstanceIdGenerator instanceIdGenerator;
 
-  private final ClassLoadHelper classLoadHelper;
+  private final @Nullable ClassLoadHelper classLoadHelper;
 
-  private final ThreadExecutor threadExecutor;
+  private final @Nullable ThreadExecutor threadExecutor;
 
   private final Map<String, SchedulerPlugin> plugins;
 
@@ -103,7 +104,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
   private final Clock clock;
 
-  private final JobRunShellFactory jobRunShellFactory;
+  private final @Nullable JobRunShellFactory jobRunShellFactory;
 
   private final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -281,9 +282,9 @@ public class StdSchedulerFactory implements SchedulerFactory {
   }
 
   private void shutdownFromInstantiateException(
-      ThreadPool tp, QuartzScheduler qs, boolean tpInited, boolean qsInited) {
+      ThreadPool tp, @Nullable QuartzScheduler qs, boolean tpInited, boolean qsInited) {
     try {
-      if (qsInited) qs.shutdown(false);
+      if (qsInited && qs != null) qs.shutdown(false);
       else if (tpInited) tp.shutdown(false);
     } catch (Exception e) {
       getLog().error("Got another exception while shutting down after instantiation exception", e);
@@ -320,7 +321,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
    * Returns a handle to the Scheduler with the given name, if it exists (if it has already been
    * instantiated).
    */
-  public Scheduler getScheduler(String schedName) throws SchedulerException {
+  public @Nullable Scheduler getScheduler(String schedName) throws SchedulerException {
     return SchedulerRepository.getInstance().lookup(schedName);
   }
 
@@ -339,17 +340,17 @@ public class StdSchedulerFactory implements SchedulerFactory {
   public static final class Builder {
     private SchedulerSettings scheduler = SchedulerSettings.defaults();
     private ThreadPoolSettings threadPoolSettings = ThreadPoolSettings.defaults();
-    private ThreadPool threadPool;
-    private JobStore jobStore;
-    private JobFactory jobFactory;
-    private InstanceIdGenerator instanceIdGenerator;
-    private ClassLoadHelper classLoadHelper;
-    private ThreadExecutor threadExecutor;
+    private @Nullable ThreadPool threadPool;
+    private @Nullable JobStore jobStore;
+    private @Nullable JobFactory jobFactory;
+    private @Nullable InstanceIdGenerator instanceIdGenerator;
+    private @Nullable ClassLoadHelper classLoadHelper;
+    private @Nullable ThreadExecutor threadExecutor;
     private final Map<String, SchedulerPlugin> plugins = new LinkedHashMap<>();
     private final List<JobListener> jobListeners = new ArrayList<>();
     private final List<TriggerListener> triggerListeners = new ArrayList<>();
     private Clock clock = Clock.systemUTC();
-    private JobRunShellFactory jobRunShellFactory;
+    private @Nullable JobRunShellFactory jobRunShellFactory;
 
     private Builder() {}
 

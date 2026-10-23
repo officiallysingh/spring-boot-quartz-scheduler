@@ -28,6 +28,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
+import org.jspecify.annotations.Nullable;
 
 /**
  * <code>DateBuilder</code> is used to conveniently create <code>java.time.Instant</code> values
@@ -126,7 +127,7 @@ public class DateBuilder {
   private int minute = -1;
   private int second = -1;
   private ZoneId zoneId;
-  private Locale lc;
+  private @Nullable Locale lc;
   private Clock clock = Clock.systemDefaultZone();
 
   /**
@@ -460,11 +461,11 @@ public class DateBuilder {
    * @param date the Date to round, if <code>null</code> the current time will be used
    * @return the new rounded date
    */
-  public static Instant evenHourDate(Instant date) {
+  public static Instant evenHourDate(@Nullable Instant date) {
     return evenHourDate(date, Clock.systemDefaultZone());
   }
 
-  static Instant evenHourDate(Instant date, Clock clock) {
+  static Instant evenHourDate(@Nullable Instant date, Clock clock) {
     var zdt =
         (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
 
@@ -481,11 +482,11 @@ public class DateBuilder {
    * @param date the Date to round, if <code>null</code> the current time will be used
    * @return the new rounded date
    */
-  public static Instant evenHourDateBefore(Instant date) {
+  public static Instant evenHourDateBefore(@Nullable Instant date) {
     return evenHourDateBefore(date, Clock.systemDefaultZone());
   }
 
-  static Instant evenHourDateBefore(Instant date, Clock clock) {
+  static Instant evenHourDateBefore(@Nullable Instant date, Clock clock) {
     var zdt =
         (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
 
@@ -518,11 +519,11 @@ public class DateBuilder {
    * @param date the Date to round, if <code>null</code> the current time will be used
    * @return the new rounded date
    */
-  public static Instant evenMinuteDate(Instant date) {
+  public static Instant evenMinuteDate(@Nullable Instant date) {
     return evenMinuteDate(date, Clock.systemDefaultZone());
   }
 
-  public static Instant evenMinuteDate(Instant date, Clock clock) {
+  public static Instant evenMinuteDate(@Nullable Instant date, Clock clock) {
     var zdt =
         (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
 
@@ -539,11 +540,11 @@ public class DateBuilder {
    * @param date the Date to round, if <code>null</code> the current time will be used
    * @return the new rounded date
    */
-  public static Instant evenMinuteDateBefore(Instant date) {
+  public static Instant evenMinuteDateBefore(@Nullable Instant date) {
     return evenMinuteDateBefore(date, Clock.systemDefaultZone());
   }
 
-  static Instant evenMinuteDateBefore(Instant date, Clock clock) {
+  static Instant evenMinuteDateBefore(@Nullable Instant date, Clock clock) {
     var zdt =
         (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
 
@@ -569,11 +570,11 @@ public class DateBuilder {
    * @param date the Date to round, if <code>null</code> the current time will be used
    * @return the new rounded date
    */
-  public static Instant evenSecondDate(Instant date) {
+  public static Instant evenSecondDate(@Nullable Instant date) {
     return evenSecondDate(date, Clock.systemDefaultZone());
   }
 
-  static Instant evenSecondDate(Instant date, Clock clock) {
+  static Instant evenSecondDate(@Nullable Instant date, Clock clock) {
     var zdt =
         (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
 
@@ -590,11 +591,11 @@ public class DateBuilder {
    * @param date the Date to round, if <code>null</code> the current time will be used
    * @return the new rounded date
    */
-  public static Instant evenSecondDateBefore(Instant date) {
+  public static Instant evenSecondDateBefore(@Nullable Instant date) {
     return evenSecondDateBefore(date, Clock.systemDefaultZone());
   }
 
-  static Instant evenSecondDateBefore(Instant date, Clock clock) {
+  static Instant evenSecondDateBefore(@Nullable Instant date, Clock clock) {
     var zdt =
         (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
 

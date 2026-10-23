@@ -20,6 +20,7 @@ package org.quartz.simpl;
 
 import java.io.InputStream;
 import java.net.URL;
+import org.jspecify.annotations.Nullable;
 import org.quartz.spi.ClassLoadHelper;
 
 /**
@@ -69,7 +70,7 @@ public class ThreadContextClassLoadHelper implements ClassLoadHelper {
    * @param name name of the desired resource
    * @return a java.net.URL object
    */
-  public URL getResource(String name) {
+  public @Nullable URL getResource(String name) {
     return getClassLoader().getResource(name);
   }
 
@@ -80,7 +81,7 @@ public class ThreadContextClassLoadHelper implements ClassLoadHelper {
    * @param name name of the desired resource
    * @return a java.io.InputStream object
    */
-  public InputStream getResourceAsStream(String name) {
+  public @Nullable InputStream getResourceAsStream(String name) {
     return getClassLoader().getResourceAsStream(name);
   }
 

@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import org.quartz.JobKey;
 import org.quartz.JobListener;
 import org.quartz.ListenerManager;
@@ -89,7 +90,7 @@ public class ListenerManagerImpl implements ListenerManager {
     }
   }
 
-  public List<Matcher<JobKey>> getJobListenerMatchers(String listenerName) {
+  public @Nullable List<Matcher<JobKey>> getJobListenerMatchers(String listenerName) {
     synchronized (globalJobListeners) {
       List<Matcher<JobKey>> matchers = globalJobListenersMatchers.get(listenerName);
       if (matchers == null) return null;
@@ -120,7 +121,7 @@ public class ListenerManagerImpl implements ListenerManager {
     }
   }
 
-  public JobListener getJobListener(String name) {
+  public @Nullable JobListener getJobListener(String name) {
     synchronized (globalJobListeners) {
       return globalJobListeners.get(name);
     }
@@ -188,7 +189,7 @@ public class ListenerManagerImpl implements ListenerManager {
     }
   }
 
-  public List<Matcher<TriggerKey>> getTriggerListenerMatchers(String listenerName) {
+  public @Nullable List<Matcher<TriggerKey>> getTriggerListenerMatchers(String listenerName) {
     synchronized (globalTriggerListeners) {
       List<Matcher<TriggerKey>> matchers = globalTriggerListenersMatchers.get(listenerName);
       if (matchers == null) return null;
@@ -221,7 +222,7 @@ public class ListenerManagerImpl implements ListenerManager {
     }
   }
 
-  public TriggerListener getTriggerListener(String name) {
+  public @Nullable TriggerListener getTriggerListener(String name) {
     synchronized (globalTriggerListeners) {
       return globalTriggerListeners.get(name);
     }

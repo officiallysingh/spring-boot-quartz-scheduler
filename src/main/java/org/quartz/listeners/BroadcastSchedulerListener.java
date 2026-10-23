@@ -2,6 +2,7 @@ package org.quartz.listeners;
 
 import java.util.LinkedList;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import org.quartz.JobDetail;
 import org.quartz.JobKey;
 import org.quartz.SchedulerException;
@@ -86,13 +87,13 @@ public class BroadcastSchedulerListener implements SchedulerListener {
     }
   }
 
-  public void triggersPaused(String triggerGroup) {
+  public void triggersPaused(@Nullable String triggerGroup) {
     for (SchedulerListener l : listeners) {
       l.triggersPaused(triggerGroup);
     }
   }
 
-  public void triggerResumed(TriggerKey key) {
+  public void triggerResumed(@Nullable TriggerKey key) {
     for (SchedulerListener l : listeners) {
       l.triggerResumed(key);
     }
@@ -116,7 +117,7 @@ public class BroadcastSchedulerListener implements SchedulerListener {
     }
   }
 
-  public void jobsPaused(String jobGroup) {
+  public void jobsPaused(@Nullable String jobGroup) {
     for (SchedulerListener l : listeners) {
       l.jobsPaused(jobGroup);
     }

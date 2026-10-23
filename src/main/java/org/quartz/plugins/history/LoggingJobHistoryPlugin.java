@@ -19,6 +19,7 @@
 package org.quartz.plugins.history;
 
 import java.time.Instant;
+import org.jspecify.annotations.Nullable;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.JobListener;
@@ -280,6 +281,7 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
+  @SuppressWarnings("NullAway.Init")
   private String name;
 
   private String jobToBeFiredMessage =
@@ -453,7 +455,8 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
   /**
    * @see org.quartz.JobListener#jobWasExecuted(JobExecutionContext, JobExecutionException)
    */
-  public void jobWasExecuted(JobExecutionContext context, JobExecutionException jobException) {
+  public void jobWasExecuted(
+      JobExecutionContext context, @Nullable JobExecutionException jobException) {
 
     Trigger trigger = context.getTrigger();
 

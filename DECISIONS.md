@@ -365,3 +365,32 @@ The user edited `pom.xml` by hand: `<scm>` for `officiallysingh/spring-boot-quar
 ## D-025 — NullAway in the build
 
 Approved by the user (D-020 had left it as a decision). The main compilation runs Error Prone 2.50.0 with NullAway 0.14.2 as annotation processors, with every other Error Prone check disabled (`-XepDisableAllChecks -Xep:NullAway:ERROR`): the build fails on a nullness error, and nothing else about the code is judged. Options: `OnlyNullMarked=true` (only `@NullMarked` code is checked; unannotated code is unchecked rather than assumed non-null) and `JSpecifyMode=true` (generics and type-use annotations as JSpecify defines them). Tests are compiled without it. `.mvn/jvm.config` opens the `jdk.compiler` internals Error Prone needs on JDK 25.
+
+## D-026 — Every package is `@NullMarked`
+
+Requested by the user after D-020, which had left the Quartz packages unannotated. All twelve (`org.quartz`, `core`, `impl`, `impl.calendar`, `impl.matchers`, `impl.triggers`, `listeners`, `plugins.history`, `plugins.interrupt`, `simpl`, `spi`, `utils`) now have a `package-info.java` with `@NullMarked`; the old `package.html` files became its Javadoc. NullAway (D-025) checks them with the rest, and reports nothing.
+
+**Where the API is `@Nullable`.** Everything Quartz documents or implements as possibly null:
+- `Trigger`: `getDescription`, `getCalendarName`, `getEndTime`, `getNextFireTime`, `getPreviousFireTime`, `getFireTimeAfter` (and its argument), `getFinalFireTime`; `JobDetail` / `Calendar`: `getDescription`, `Calendar.getBaseCalendar`.
+- `Scheduler`: `getJobDetail`, `getTrigger`, `getCalendar`, `rescheduleJob` (absent → `null`), `triggerJob(key, data)`'s data; `SchedulerFactory.getScheduler(name)`; `ListenerManager`'s lookups by name; `SchedulerMetaData.getRunningSince`.
+- `JobExecutionContext`: `getCalendar`, `getPreviousFireTime`, `getNextFireTime`, `getResult` / `setResult`, `get`.
+- Listener arguments: `JobListener.jobWasExecuted`'s exception; `SchedulerListener.triggersPaused` / `jobsPaused` group (`null` = all), and `triggerResumed`'s key, which `resumeAll()` passes as `null` (kept, now documented).
+- Builders, keys and implementations: optional groups (`null` = default group), descriptions, calendar names, end times, time zones and base calendars; `JobDataMap` / `StringKeyDirtyFlagMap` `get`, `put`, `remove`, `getString`; `CronExpression.getTimeAfter` / `getTimeBefore` / `getNextValidTimeAfter` / `getFinalFireTime`; `TriggerUtils.computeEndTimeToAllowParticularNumberOfFirings`.
+- SPI: `JobStore.retrieveJob/Trigger/Calendar` and `triggersFired`; `OperableTrigger`'s calendars, `computeFirstFireTime`, fire-instance id and fire-time setters; `TriggerFiredBundle`'s calendar and previous/next fire times; `TriggerFiredResult`; `ClassLoadHelper.getResource*`; `SchedulerSignaler.signalSchedulingChange`.
+
+`Trigger.getKey()` / `getJobKey()`, `JobDetail.getKey()`, `CronTrigger.getCronExpression()`, `DailyTimeIntervalTrigger.getEndTimeOfDay()` and `JobExecutionContext.getFireInstanceId()` stay non-null: they are null only on an incomplete object whose setters have not run (not one a builder or the scheduler hands out). The implementations keep returning `null` in that case, under `@SuppressWarnings("NullAway")` with a comment (conservative: no behaviour change).
+
+**Null-in, null-out helpers** (`Instants.toMillis`, `TimeOfDay.getTimeOfDayForDate`, `hourAndMinute[AndSecond]FromDate`) carry Spring's `@Contract("null -> null; !null -> !null")`, which NullAway reads, instead of a suppression.
+
+**Fields set after construction** (by `initialize`, setters, or the constructors through setters) are non-null with `@SuppressWarnings("NullAway.Init")`, as in D-020: trigger / job names and start times, `CronExpression`'s parsed sets, plugin names and collaborators, `QuartzSchedulerResources`, `SimpleThreadPool`, `JobRunShell`. Two places drop references for the GC when done (`JobRunShell.passivate`, the halted `QuartzSchedulerThread`) and are suppressed with a comment. `DirtyFlagMap`'s `toArray(U[])` writes the `null` terminator `Collection.toArray` specifies, also suppressed.
+
+**Code changes where the checker found a possible `NullPointerException`** (each was an NPE before; none changes a normal path):
+- `CronTriggerImpl.willFireOn` returns `false` when the trigger stops firing before the tested time.
+- `CalendarIntervalTriggerImpl.getFireTimeAfter` / `getFinalFireTime` return `null` where no fire time was computed.
+- `DailyTimeIntervalTriggerImpl` reads the start time of day through its getter (default 00:00:00) instead of the possibly unset field.
+- `PropertySettingJobFactory` sets no properties when introspecting the job class fails and it is configured only to warn.
+- `PersistentJobStore` treats a trigger with no next fire time as not misfired.
+- The store codecs fail with `IllegalStateException` naming the field when a stored record lacks a required one (`Fields.requiredString`); the Redis fired-trigger decoder uses its existing `required`.
+- `CronExpression.getSet` throws `IllegalArgumentException` for an unknown field type instead of returning `null` (unreachable).
+- `JobBuilder.build()` without a job class throws the same `IllegalArgumentException` as before, now from the builder.
+- `Objects.requireNonNull` where an invariant guarantees a value: an acquired trigger's next fire time and fire-instance id, a fired trigger's previous fire time, the interrupt-monitor plugin in the scheduler context, a recovering job's original trigger name.

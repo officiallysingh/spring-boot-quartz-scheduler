@@ -3,6 +3,7 @@ package org.quartz.impl.calendar;
 import java.text.ParseException;
 import java.time.Instant;
 import java.time.ZoneId;
+import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.CronExpression;
 
@@ -44,7 +45,7 @@ public class CronCalendar extends BaseCalendar {
    *     BaseCalendar} for more information on base calendar functionality
    * @param expression a String representation of the desired cron expression
    */
-  public CronCalendar(Calendar baseCalendar, String expression) throws ParseException {
+  public CronCalendar(@Nullable Calendar baseCalendar, String expression) throws ParseException {
     this(baseCalendar, expression, null);
   }
 
@@ -60,7 +61,7 @@ public class CronCalendar extends BaseCalendar {
    *     If <code>timeZone</code> is <code>null</code> then <code>TimeZone.getDefault()</code> will
    *     be used.
    */
-  public CronCalendar(Calendar baseCalendar, String expression, ZoneId timeZone)
+  public CronCalendar(@Nullable Calendar baseCalendar, String expression, @Nullable ZoneId timeZone)
       throws ParseException {
     super(baseCalendar);
     this.cronExpression = new CronExpression(expression);
@@ -95,7 +96,7 @@ public class CronCalendar extends BaseCalendar {
    * CronExpression</code>.
    */
   @Override
-  public void setTimeZone(ZoneId timeZone) {
+  public void setTimeZone(@Nullable ZoneId timeZone) {
     cronExpression.setTimeZone(timeZone);
   }
 

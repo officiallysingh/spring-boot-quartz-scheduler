@@ -588,8 +588,8 @@ class RedisStoreDelegate implements StoreDelegate {
     return new FiredTriggerRecord(
         required(fields, FIRE_INSTANCE_ID),
         required(fields, INSTANCE_ID),
-        new TriggerKey(fields.get(TRIGGER_NAME), fields.get(TRIGGER_GROUP)),
-        new JobKey(fields.get(TriggerCodec.JOB_NAME), fields.get(TriggerCodec.JOB_GROUP)),
+        new TriggerKey(required(fields, TRIGGER_NAME), fields.get(TRIGGER_GROUP)),
+        new JobKey(required(fields, TriggerCodec.JOB_NAME), fields.get(TriggerCodec.JOB_GROUP)),
         required(fields, STATE),
         Instant.ofEpochMilli(Long.parseLong(fields.get(FIRED_TIME))),
         Instant.ofEpochMilli(Long.parseLong(fields.get(SCHEDULED_TIME))),

@@ -16,6 +16,9 @@
  */
 package org.quartz.utils;
 
+import java.util.Objects;
+import org.jspecify.annotations.Nullable;
+
 /**
  * An implementation of <code>Map</code> that wraps another <code>Map</code> and flags itself
  * 'dirty' when it is modified, enforces that all keys are Strings.
@@ -36,7 +39,7 @@ public class StringKeyDirtyFlagMap extends DirtyFlagMap<String, Object> {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     return super.equals(obj);
   }
 
@@ -87,7 +90,7 @@ public class StringKeyDirtyFlagMap extends DirtyFlagMap<String, Object> {
 
   /** Adds the given <code>Object</code> value to the <code>StringKeyDirtyFlagMap</code>. */
   @Override
-  public Object put(String key, Object value) {
+  public @Nullable Object put(String key, Object value) {
     return super.put((String) key, value);
   }
 
@@ -181,7 +184,7 @@ public class StringKeyDirtyFlagMap extends DirtyFlagMap<String, Object> {
 
     try {
       if (obj instanceof Character) return (Character) obj;
-      return ((String) obj).charAt(0);
+      return ((String) Objects.requireNonNull(obj)).charAt(0);
     } catch (Exception e) {
       throw new ClassCastException("Identified object is not a Character.");
     }
@@ -192,7 +195,7 @@ public class StringKeyDirtyFlagMap extends DirtyFlagMap<String, Object> {
    *
    * @throws ClassCastException if the identified object is not a String.
    */
-  public String getString(String key) {
+  public @Nullable String getString(String key) {
     Object obj = get(key);
 
     try {

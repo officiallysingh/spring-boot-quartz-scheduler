@@ -18,6 +18,7 @@
 
 package org.quartz.impl;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobBuilder;
@@ -64,21 +65,25 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
+  // set by the constructors or setName / setKey before the job is used
+  @SuppressWarnings("NullAway.Init")
   private String name;
 
   private String group = Scheduler.DEFAULT_GROUP;
 
-  private String description;
+  private @Nullable String description;
 
+  // set by the constructors or setJobClass before the job is used
+  @SuppressWarnings("NullAway.Init")
   private Class<? extends Job> jobClass;
 
-  private JobDataMap jobDataMap;
+  private @Nullable JobDataMap jobDataMap;
 
   private boolean durability = false;
 
   private boolean shouldRecover = false;
 
-  private transient JobKey key = null;
+  private transient @Nullable JobKey key = null;
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -121,7 +126,7 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
    * @deprecated use {@link JobBuilder}
    */
   @Deprecated
-  public JobDetailImpl(String name, String group, Class<? extends Job> jobClass) {
+  public JobDetailImpl(String name, @Nullable String group, Class<? extends Job> jobClass) {
     setName(name);
     setGroup(group);
     setJobClass(jobClass);
@@ -138,7 +143,7 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
   @Deprecated
   public JobDetailImpl(
       String name,
-      String group,
+      @Nullable String group,
       Class<? extends Job> jobClass,
       boolean durability,
       boolean recover) {
@@ -187,7 +192,7 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
    * @param group if <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
    * @exception IllegalArgumentException if the group is an empty string.
    */
-  public void setGroup(String group) {
+  public void setGroup(@Nullable String group) {
     if (group != null && group.trim().isEmpty()) {
       throw new IllegalArgumentException("Group name cannot be empty.");
     }
@@ -208,6 +213,8 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
   /* (non-Javadoc)
    * @see org.quartz.JobDetailI#getKey()
    */
+  // null only for an incomplete job whose name is not set yet, as in Quartz
+  @SuppressWarnings("NullAway")
   public JobKey getKey() {
     if (key == null) {
       if (getName() == null) return null;
@@ -228,7 +235,7 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
   /* (non-Javadoc)
    * @see org.quartz.JobDetailI#getDescription()
    */
-  public String getDescription() {
+  public @Nullable String getDescription() {
     return description;
   }
 
@@ -236,7 +243,7 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
    * Set a description for the <code>Job</code> instance - may be useful for remembering/displaying
    * the purpose of the job, though the description has no meaning to Quartz.
    */
-  public void setDescription(String description) {
+  public void setDescription(@Nullable String description) {
     this.description = description;
   }
 
@@ -275,7 +282,7 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
   }
 
   /** Set the <code>JobDataMap</code> to be associated with the <code>Job</code>. */
-  public void setJobDataMap(JobDataMap jobDataMap) {
+  public void setJobDataMap(@Nullable JobDataMap jobDataMap) {
     this.jobDataMap = jobDataMap;
   }
 
@@ -351,7 +358,7 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (!(obj instanceof JobDetail)) {
       return false;
     }

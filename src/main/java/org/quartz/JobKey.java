@@ -18,6 +18,7 @@
 
 package org.quartz;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.utils.Key;
 
 /**
@@ -61,7 +62,7 @@ public final class JobKey extends Key<JobKey> {
     super(name, null);
   }
 
-  public JobKey(String name, String group) {
+  public JobKey(String name, @Nullable String group) {
     super(name, group);
   }
 
@@ -69,7 +70,7 @@ public final class JobKey extends Key<JobKey> {
     return new JobKey(name, null);
   }
 
-  public static JobKey jobKey(String name, String group) {
+  public static JobKey jobKey(String name, @Nullable String group) {
     return new JobKey(name, group);
   }
 }

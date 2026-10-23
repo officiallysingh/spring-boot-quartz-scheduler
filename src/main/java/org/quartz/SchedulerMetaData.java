@@ -19,6 +19,7 @@
 package org.quartz;
 
 import java.time.Instant;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Describes the settings and capabilities of a given <code>{@link Scheduler}</code> instance.
@@ -51,7 +52,7 @@ public class SchedulerMetaData implements java.io.Serializable {
 
   private final boolean shutdown;
 
-  private final Instant startTime;
+  private final @Nullable Instant startTime;
 
   private final int numJobsExec;
 
@@ -83,7 +84,7 @@ public class SchedulerMetaData implements java.io.Serializable {
       boolean started,
       boolean isInStandbyMode,
       boolean shutdown,
-      Instant startTime,
+      @Nullable Instant startTime,
       int numJobsExec,
       Class<?> jsClass,
       boolean jsPersistent,
@@ -136,7 +137,7 @@ public class SchedulerMetaData implements java.io.Serializable {
    *
    * @return null if the scheduler has not been started.
    */
-  public Instant getRunningSince() {
+  public @Nullable Instant getRunningSince() {
     return startTime;
   }
 

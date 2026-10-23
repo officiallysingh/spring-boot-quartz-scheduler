@@ -32,6 +32,7 @@ import java.util.Optional;
 import java.util.SortedSet;
 import java.util.StringTokenizer;
 import java.util.TreeSet;
+import org.jspecify.annotations.Nullable;
 import org.quartz.utils.LenientDateTime;
 
 /**
@@ -231,14 +232,31 @@ public final class CronExpression implements Serializable, Cloneable {
   }
 
   private final String cronExpression;
-  private ZoneId timeZone = null;
+  private @Nullable ZoneId timeZone = null;
+
+  // the sets below are built by buildExpression, which every constructor and readObject call
+  @SuppressWarnings("NullAway.Init")
   protected transient TreeSet<Integer> seconds;
+
+  @SuppressWarnings("NullAway.Init")
   protected transient TreeSet<Integer> minutes;
+
+  @SuppressWarnings("NullAway.Init")
   protected transient TreeSet<Integer> hours;
+
+  @SuppressWarnings("NullAway.Init")
   protected transient TreeSet<Integer> daysOfMonth;
+
+  @SuppressWarnings("NullAway.Init")
   protected transient TreeSet<Integer> nearestWeekdays;
+
+  @SuppressWarnings("NullAway.Init")
   protected transient TreeSet<Integer> months;
+
+  @SuppressWarnings("NullAway.Init")
   protected transient TreeSet<Integer> daysOfWeek;
+
+  @SuppressWarnings("NullAway.Init")
   protected transient TreeSet<Integer> years;
 
   protected transient boolean lastDayOfWeek = false;
@@ -313,7 +331,7 @@ public final class CronExpression implements Serializable, Cloneable {
    * @param date the date/time at which to begin the search for the next valid date/time
    * @return the next valid date/time
    */
-  public Instant getNextValidTimeAfter(Instant date) {
+  public @Nullable Instant getNextValidTimeAfter(Instant date) {
     return getTimeAfter(date);
   }
 
@@ -365,7 +383,7 @@ public final class CronExpression implements Serializable, Cloneable {
   }
 
   /** Sets the time zone for which this <code>CronExpression</code> will be resolved. */
-  public void setTimeZone(ZoneId timeZone) {
+  public void setTimeZone(@Nullable ZoneId timeZone) {
     this.timeZone = timeZone;
   }
 
@@ -1090,7 +1108,7 @@ public final class CronExpression implements Serializable, Cloneable {
       case YEAR:
         return years;
       default:
-        return null;
+        throw new IllegalArgumentException("Unknown cron field type " + type);
     }
   }
 
@@ -1144,7 +1162,7 @@ public final class CronExpression implements Serializable, Cloneable {
   //
   ////////////////////////////////////////////////////////////////////////////
 
-  public Instant getTimeAfter(Instant afterTime) {
+  public @Nullable Instant getTimeAfter(Instant afterTime) {
 
     // Computation is based on Gregorian year only.
     ZoneId zone = getTimeZone();
@@ -1543,7 +1561,7 @@ public final class CronExpression implements Serializable, Cloneable {
    * @return the previous matching time before the given end time, or null if there are no previous
    *     matching times
    */
-  public Instant getTimeBefore(Instant endTime) {
+  public @Nullable Instant getTimeBefore(Instant endTime) {
     // the current implementation is not a direct calculation, but rather
     // uses getTimeAfter with a binary search to find the previous match time
     long end = endTime.toEpochMilli();
@@ -1582,7 +1600,7 @@ public final class CronExpression implements Serializable, Cloneable {
   /**
    * NOT YET IMPLEMENTED: Returns the final time that the <code>CronExpression</code> will match.
    */
-  public Instant getFinalFireTime() {
+  public @Nullable Instant getFinalFireTime() {
     // FUTURE_TODO: implement QUARTZ-423
     return null;
   }

@@ -58,7 +58,7 @@ public final class JobDetailCodec {
   public static JobDetail decode(
       Map<String, ?> fields, JobDataMap jobData, ClassLoadHelper loadHelper)
       throws JobPersistenceException {
-    String className = Fields.string(fields, JOB_CLASS);
+    String className = Fields.requiredString(fields, JOB_CLASS);
     Class<? extends Job> jobClass;
     try {
       jobClass = loadHelper.loadClass(className, Job.class);
@@ -67,7 +67,7 @@ public final class JobDetailCodec {
           "Couldn't load job class " + className + ": " + ex.getMessage(), ex);
     }
     JobDetailImpl job = new JobDetailImpl();
-    job.setName(Fields.string(fields, NAME));
+    job.setName(Fields.requiredString(fields, NAME));
     job.setGroup(Fields.string(fields, GROUP));
     job.setDescription(Fields.string(fields, DESCRIPTION));
     job.setJobClass(jobClass);

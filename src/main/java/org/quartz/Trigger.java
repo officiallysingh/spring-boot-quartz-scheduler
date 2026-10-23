@@ -21,6 +21,7 @@ package org.quartz;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.Comparator;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The base interface with properties common to all <code>Trigger</code>s - use {@link
@@ -135,14 +136,14 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
    *
    * @return null if no description was set.
    */
-  String getDescription();
+  @Nullable String getDescription();
 
   /**
    * Get the name of the <code>{@link Calendar}</code> associated with this Trigger.
    *
    * @return <code>null</code> if there is no associated Calendar.
    */
-  String getCalendarName();
+  @Nullable String getCalendarName();
 
   /**
    * Get the <code>JobDataMap</code> that is associated with the <code>Trigger</code>.
@@ -181,7 +182,7 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
    *
    * @see #getFinalFireTime()
    */
-  Instant getEndTime();
+  @Nullable Instant getEndTime();
 
   /**
    * Returns the next time at which the <code>Trigger</code> is scheduled to fire. If the trigger
@@ -196,19 +197,19 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
    * @see TriggerUtils#computeFireTimesBetween(org.quartz.spi.OperableTrigger, Calendar,
    *     java.time.Instant, java.time.Instant)
    */
-  Instant getNextFireTime();
+  @Nullable Instant getNextFireTime();
 
   /**
    * Returns the previous time at which the <code>Trigger</code> fired. If the trigger has not yet
    * fired, <code>null</code> will be returned.
    */
-  Instant getPreviousFireTime();
+  @Nullable Instant getPreviousFireTime();
 
   /**
    * Returns the next time at which the <code>Trigger</code> will fire, after the given time. If the
    * trigger will not fire after the given time, <code>null</code> will be returned.
    */
-  Instant getFireTimeAfter(Instant afterTime);
+  @Nullable Instant getFireTimeAfter(@Nullable Instant afterTime);
 
   /**
    * Returns the last time at which the <code>Trigger</code> will fire, if the Trigger will repeat
@@ -216,7 +217,7 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
    *
    * <p>Note that the return time *may* be in the past.
    */
-  Instant getFinalFireTime();
+  @Nullable Instant getFinalFireTime();
 
   /**
    * Get the instruction the <code>Scheduler</code> should be given for handling misfire situations
@@ -253,7 +254,7 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
    *
    * @return true if the key of this Trigger equals that of the given Trigger.
    */
-  boolean equals(Object other);
+  boolean equals(@Nullable Object other);
 
   /**
    * Compare the next fire time of this <code>Trigger</code> to that of another by comparing their
@@ -274,10 +275,10 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
 
     // This static method exists for comparator in TC clustered quartz
     public static int compare(
-        Instant nextFireTime1,
+        @Nullable Instant nextFireTime1,
         int priority1,
         TriggerKey key1,
-        Instant nextFireTime2,
+        @Nullable Instant nextFireTime2,
         int priority2,
         TriggerKey key2) {
       if (nextFireTime1 != null || nextFireTime2 != null) {

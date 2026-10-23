@@ -19,6 +19,7 @@
 package org.quartz;
 
 import java.time.Instant;
+import org.jspecify.annotations.Nullable;
 import org.quartz.spi.MutableTrigger;
 import org.quartz.utils.Instants;
 import org.quartz.utils.Key;
@@ -62,16 +63,16 @@ import org.quartz.utils.Key;
  */
 public class TriggerBuilder<T extends Trigger> {
 
-  private TriggerKey key;
-  private String description;
+  private @Nullable TriggerKey key;
+  private @Nullable String description;
   private Instant startTime = Instants.now();
-  private Instant endTime;
+  private @Nullable Instant endTime;
   private int priority = Trigger.DEFAULT_PRIORITY;
-  private String calendarName;
-  private JobKey jobKey;
+  private @Nullable String calendarName;
+  private @Nullable JobKey jobKey;
   private JobDataMap jobDataMap = new JobDataMap();
 
-  private ScheduleBuilder<?> scheduleBuilder = null;
+  private @Nullable ScheduleBuilder<?> scheduleBuilder = null;
 
   private TriggerBuilder() {}
 
@@ -137,7 +138,7 @@ public class TriggerBuilder<T extends Trigger> {
    * @see TriggerKey
    * @see Trigger#getKey()
    */
-  public TriggerBuilder<T> withIdentity(String name, String group) {
+  public TriggerBuilder<T> withIdentity(String name, @Nullable String group) {
     key = new TriggerKey(name, group);
     return this;
   }
@@ -165,7 +166,7 @@ public class TriggerBuilder<T extends Trigger> {
    * @return the updated TriggerBuilder
    * @see Trigger#getDescription()
    */
-  public TriggerBuilder<T> withDescription(String triggerDescription) {
+  public TriggerBuilder<T> withDescription(@Nullable String triggerDescription) {
     this.description = triggerDescription;
     return this;
   }
@@ -192,7 +193,7 @@ public class TriggerBuilder<T extends Trigger> {
    * @see Calendar
    * @see Trigger#getCalendarName()
    */
-  public TriggerBuilder<T> modifiedByCalendar(String calName) {
+  public TriggerBuilder<T> modifiedByCalendar(@Nullable String calName) {
     this.calendarName = calName;
     return this;
   }
@@ -233,7 +234,7 @@ public class TriggerBuilder<T extends Trigger> {
    * @see Trigger#getEndTime()
    * @see DateBuilder
    */
-  public TriggerBuilder<T> endAt(Instant triggerEndTime) {
+  public TriggerBuilder<T> endAt(@Nullable Instant triggerEndTime) {
     this.endTime = triggerEndTime;
     return this;
   }
@@ -291,7 +292,7 @@ public class TriggerBuilder<T extends Trigger> {
    * @return the updated TriggerBuilder
    * @see Trigger#getJobKey()
    */
-  public TriggerBuilder<T> forJob(String jobName, String jobGroup) {
+  public TriggerBuilder<T> forJob(String jobName, @Nullable String jobGroup) {
     this.jobKey = new JobKey(jobName, jobGroup);
     return this;
   }

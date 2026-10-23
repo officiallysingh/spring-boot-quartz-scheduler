@@ -18,6 +18,8 @@
 
 package org.quartz;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * The interface to be implemented by classes that want to be informed when a <code>
  * {@link org.quartz.JobDetail}</code> executes. In general, applications that use a <code>Scheduler
@@ -69,5 +71,5 @@ public interface JobListener {
    * has been executed, and be for the associated <code>Trigger</code>'s <code>triggered(xx)</code>
    * method has been called.
    */
-  void jobWasExecuted(JobExecutionContext context, JobExecutionException jobException);
+  void jobWasExecuted(JobExecutionContext context, @Nullable JobExecutionException jobException);
 }

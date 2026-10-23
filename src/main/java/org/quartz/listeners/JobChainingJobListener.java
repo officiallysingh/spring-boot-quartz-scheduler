@@ -18,6 +18,7 @@ package org.quartz.listeners;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.JobKey;
@@ -82,7 +83,8 @@ public class JobChainingJobListener extends JobListenerSupport {
   }
 
   @Override
-  public void jobWasExecuted(JobExecutionContext context, JobExecutionException jobException) {
+  public void jobWasExecuted(
+      JobExecutionContext context, @Nullable JobExecutionException jobException) {
 
     JobKey sj = chainLinks.get(context.getJobDetail().getKey());
 

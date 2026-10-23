@@ -19,6 +19,7 @@
 package org.quartz.core;
 
 import java.time.Duration;
+import org.jspecify.annotations.Nullable;
 import org.quartz.Job;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
@@ -59,9 +60,12 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
-  protected JobExecutionContextImpl jec = null;
+  // set by initialize before run, and dropped by passivate once the shell is done
+  @SuppressWarnings("NullAway.Init")
+  protected JobExecutionContextImpl jec;
 
-  protected QuartzScheduler qs = null;
+  @SuppressWarnings("NullAway.Init")
+  protected QuartzScheduler qs;
 
   protected TriggerFiredBundle firedTriggerBundle;
 
@@ -281,6 +285,8 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
 
   protected void complete(boolean successfulExecution) throws SchedulerException {}
 
+  // drops the references for the garbage collector; the shell is not used again
+  @SuppressWarnings("NullAway")
   public void passivate() {
     jec = null;
     qs = null;
@@ -340,7 +346,7 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
   }
 
   private boolean notifyJobListenersComplete(
-      JobExecutionContext jobExCtx, JobExecutionException jobExEx) {
+      JobExecutionContext jobExCtx, @Nullable JobExecutionException jobExEx) {
     try {
       qs.notifyJobListenersWasExecuted(jobExCtx, jobExEx);
     } catch (SchedulerException se) {

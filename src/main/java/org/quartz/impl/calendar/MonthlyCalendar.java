@@ -21,6 +21,7 @@ package org.quartz.impl.calendar;
 import java.io.Serializable;
 import java.time.Instant;
 import java.time.ZoneId;
+import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.utils.LenientDateTime;
 
@@ -49,15 +50,15 @@ public class MonthlyCalendar extends BaseCalendar implements Calendar, Serializa
     this(null, null);
   }
 
-  public MonthlyCalendar(Calendar baseCalendar) {
+  public MonthlyCalendar(@Nullable Calendar baseCalendar) {
     this(baseCalendar, null);
   }
 
-  public MonthlyCalendar(ZoneId timeZone) {
+  public MonthlyCalendar(@Nullable ZoneId timeZone) {
     this(null, timeZone);
   }
 
-  public MonthlyCalendar(Calendar baseCalendar, ZoneId timeZone) {
+  public MonthlyCalendar(@Nullable Calendar baseCalendar, @Nullable ZoneId timeZone) {
     super(baseCalendar, timeZone);
 
     // all days are included by default

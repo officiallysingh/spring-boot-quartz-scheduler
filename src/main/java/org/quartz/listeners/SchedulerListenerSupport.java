@@ -16,6 +16,7 @@
  */
 package org.quartz.listeners;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.JobDetail;
 import org.quartz.JobKey;
 import org.quartz.SchedulerException;
@@ -55,7 +56,7 @@ public abstract class SchedulerListenerSupport implements SchedulerListener {
 
   public void jobScheduled(Trigger trigger) {}
 
-  public void jobsPaused(String jobGroup) {}
+  public void jobsPaused(@Nullable String jobGroup) {}
 
   public void jobsResumed(String jobGroup) {}
 
@@ -77,9 +78,9 @@ public abstract class SchedulerListenerSupport implements SchedulerListener {
 
   public void triggerPaused(TriggerKey triggerKey) {}
 
-  public void triggerResumed(TriggerKey triggerKey) {}
+  public void triggerResumed(@Nullable TriggerKey triggerKey) {}
 
-  public void triggersPaused(String triggerGroup) {}
+  public void triggersPaused(@Nullable String triggerGroup) {}
 
   public void triggersResumed(String triggerGroup) {}
 

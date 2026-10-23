@@ -19,6 +19,7 @@
 package org.quartz;
 
 import java.time.ZoneId;
+import org.jspecify.annotations.Nullable;
 import org.quartz.DateBuilder.IntervalUnit;
 import org.quartz.impl.triggers.CalendarIntervalTriggerImpl;
 import org.quartz.spi.MutableTrigger;
@@ -61,7 +62,7 @@ public class CalendarIntervalScheduleBuilder extends ScheduleBuilder<CalendarInt
   private IntervalUnit intervalUnit = IntervalUnit.DAY;
 
   private int misfireInstruction = CalendarIntervalTrigger.MISFIRE_INSTRUCTION_SMART_POLICY;
-  private ZoneId timeZone;
+  private @Nullable ZoneId timeZone;
   private boolean preserveHourOfDayAcrossDaylightSavings;
   private boolean skipDayIfHourDoesNotExist;
 

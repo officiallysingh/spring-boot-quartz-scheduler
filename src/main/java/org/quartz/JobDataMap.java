@@ -20,6 +20,7 @@ package org.quartz;
 
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Objects;
 import org.quartz.utils.StringKeyDirtyFlagMap;
 
 /**
@@ -284,7 +285,7 @@ public class JobDataMap extends StringKeyDirtyFlagMap implements Serializable {
   public char getCharFromString(String key) {
     Object obj = get(key);
 
-    return ((String) obj).charAt(0);
+    return ((String) Objects.requireNonNull(obj)).charAt(0);
   }
 
   /**
@@ -295,7 +296,7 @@ public class JobDataMap extends StringKeyDirtyFlagMap implements Serializable {
   public Character getCharacterFromString(String key) {
     Object obj = get(key);
 
-    return ((String) obj).charAt(0);
+    return ((String) Objects.requireNonNull(obj)).charAt(0);
   }
 
   /**

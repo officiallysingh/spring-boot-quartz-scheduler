@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An implementation of <code>Map</code> that wraps another <code>Map</code> and flags itself
@@ -124,7 +125,7 @@ public class DirtyFlagMap<K, V> implements Map<K, V>, Cloneable, java.io.Seriali
   }
 
   @Override
-  public boolean equals(final Object obj) {
+  public boolean equals(final @Nullable Object obj) {
     if (obj == null || !(obj instanceof DirtyFlagMap)) {
       return false;
     }
@@ -137,7 +138,7 @@ public class DirtyFlagMap<K, V> implements Map<K, V>, Cloneable, java.io.Seriali
     return map.hashCode();
   }
 
-  public V get(final Object key) {
+  public @Nullable V get(final Object key) {
     return map.get(key);
   }
 
@@ -149,7 +150,7 @@ public class DirtyFlagMap<K, V> implements Map<K, V>, Cloneable, java.io.Seriali
     return new DirtyFlagSet<>(map.keySet());
   }
 
-  public V put(final K key, final V val) {
+  public @Nullable V put(final K key, final V val) {
     dirty = true;
 
     return map.put(key, val);
@@ -163,7 +164,7 @@ public class DirtyFlagMap<K, V> implements Map<K, V>, Cloneable, java.io.Seriali
     map.putAll(t);
   }
 
-  public V remove(final Object key) {
+  public @Nullable V remove(final Object key) {
     V obj = map.remove(key);
 
     if (obj != null) {
@@ -338,7 +339,9 @@ public class DirtyFlagMap<K, V> implements Map<K, V>, Cloneable, java.io.Seriali
       return toArray(new Object[super.size()]);
     }
 
-    @SuppressWarnings("unchecked") // suppress warnings on both U[] and U casting.
+    // unchecked: the U[] and U casts; NullAway: the slot after the last element is set to null,
+    // as Collection.toArray(T[]) specifies
+    @SuppressWarnings({"unchecked", "NullAway"})
     @Override
     public <U> U[] toArray(final U[] array) {
       if (!array.getClass().getComponentType().isAssignableFrom(Entry.class)) {
@@ -402,7 +405,7 @@ public class DirtyFlagMap<K, V> implements Map<K, V>, Cloneable, java.io.Seriali
       return entry.getValue();
     }
 
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       return entry.equals(o);
     }
   }

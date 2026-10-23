@@ -21,6 +21,7 @@ package org.quartz;
 import java.time.Instant;
 import java.util.LinkedList;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import org.quartz.spi.OperableTrigger;
 
 /**
@@ -98,7 +99,7 @@ public class TriggerUtils {
    * @return the computed Date, or null if the trigger (as configured) will not fire that many
    *     times.
    */
-  public static Instant computeEndTimeToAllowParticularNumberOfFirings(
+  public static @Nullable Instant computeEndTimeToAllowParticularNumberOfFirings(
       OperableTrigger trigger, org.quartz.Calendar cal, int numTimes) {
 
     OperableTrigger t = (OperableTrigger) trigger.clone();

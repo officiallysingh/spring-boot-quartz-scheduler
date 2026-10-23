@@ -219,6 +219,7 @@ public class LoggingTriggerHistoryPlugin implements SchedulerPlugin, TriggerList
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
+  @SuppressWarnings("NullAway.Init")
   private String name;
 
   private String triggerFiredMessage =

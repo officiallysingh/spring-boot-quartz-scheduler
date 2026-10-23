@@ -18,6 +18,8 @@
 
 package org.quartz;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * The interface to be implemented by classes that want to be informed of major <code>
  * {@link Scheduler}</code> events.
@@ -71,13 +73,16 @@ public interface SchedulerListener {
    *
    * @param triggerGroup the paused group, or null if all were paused
    */
-  void triggersPaused(String triggerGroup);
+  void triggersPaused(@Nullable String triggerGroup);
 
   /**
    * Called by the <code>{@link Scheduler}</code> when a <code>{@link Trigger}</code> has been
    * un-paused.
+   *
+   * @param triggerKey the resumed trigger, or null if all triggers were resumed ({@link
+   *     Scheduler#resumeAll()})
    */
-  void triggerResumed(TriggerKey triggerKey);
+  void triggerResumed(@Nullable TriggerKey triggerKey);
 
   /**
    * Called by the <code>{@link Scheduler}</code> when a group of <code>{@link Trigger}s</code> has
@@ -109,7 +114,7 @@ public interface SchedulerListener {
    *
    * @param jobGroup the paused group, or null if all were paused
    */
-  void jobsPaused(String jobGroup);
+  void jobsPaused(@Nullable String jobGroup);
 
   /**
    * Called by the <code>{@link Scheduler}</code> when a <code>{@link org.quartz.JobDetail}</code>

@@ -17,6 +17,7 @@
 package org.quartz.plugins.interrupt;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -48,13 +49,16 @@ public class JobInterruptMonitorPlugin extends TriggerListenerSupport implements
 
   private Duration defaultMaxRunTime = Duration.ofMinutes(5);
 
+  @SuppressWarnings("NullAway.Init")
   private String name;
 
+  @SuppressWarnings("NullAway.Init")
   private ScheduledExecutorService executor;
 
   @SuppressWarnings("rawtypes")
   private final ConcurrentMap<String, ScheduledFuture> futures = new ConcurrentHashMap<>();
 
+  @SuppressWarnings("NullAway.Init")
   private Scheduler scheduler;
 
   private final Logger log = LoggerFactory.getLogger(getClass());
@@ -105,9 +109,11 @@ public class JobInterruptMonitorPlugin extends TriggerListenerSupport implements
     try {
       // Schedule Monitor only if the job wants AutoInterruptable functionality
       if (context.getMergedJobDataMap().getBoolean(AUTO_INTERRUPTIBLE)) {
+        // the plugin puts itself into the scheduler context when it starts
         JobInterruptMonitorPlugin monitorPlugin =
             (JobInterruptMonitorPlugin)
-                context.getScheduler().getContext().get(JOB_INTERRUPT_MONITOR_KEY);
+                Objects.requireNonNull(
+                    context.getScheduler().getContext().get(JOB_INTERRUPT_MONITOR_KEY));
         // Get the MaxRuntime (milliseconds) from Job Data if NOT available use defaultMaxRunTime
         // from Plugin Configuration
         Duration jobDataDelay = defaultMaxRunTime;

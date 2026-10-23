@@ -1,15 +1,17 @@
 package org.quartz.spi;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * @author lorban
  */
 public class TriggerFiredResult {
 
-  private TriggerFiredBundle triggerFiredBundle;
+  private @Nullable TriggerFiredBundle triggerFiredBundle;
 
-  private Exception exception;
+  private @Nullable Exception exception;
 
-  public TriggerFiredResult(TriggerFiredBundle triggerFiredBundle) {
+  public TriggerFiredResult(@Nullable TriggerFiredBundle triggerFiredBundle) {
     this.triggerFiredBundle = triggerFiredBundle;
   }
 
@@ -17,11 +19,11 @@ public class TriggerFiredResult {
     this.exception = exception;
   }
 
-  public TriggerFiredBundle getTriggerFiredBundle() {
+  public @Nullable TriggerFiredBundle getTriggerFiredBundle() {
     return triggerFiredBundle;
   }
 
-  public Exception getException() {
+  public @Nullable Exception getException() {
     return exception;
   }
 }

@@ -21,6 +21,7 @@ package org.quartz.simpl;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.LinkedList;
+import org.jspecify.annotations.Nullable;
 import org.quartz.spi.ClassLoadHelper;
 
 /**
@@ -53,9 +54,10 @@ public class CascadingClassLoadHelper implements ClassLoadHelper {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
+  @SuppressWarnings("NullAway.Init")
   private LinkedList<ClassLoadHelper> loadHelpers;
 
-  private ClassLoadHelper bestCandidate;
+  private @Nullable ClassLoadHelper bestCandidate;
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -126,7 +128,7 @@ public class CascadingClassLoadHelper implements ClassLoadHelper {
    * @param name name of the desired resource
    * @return a java.net.URL object
    */
-  public URL getResource(String name) {
+  public @Nullable URL getResource(String name) {
 
     URL result = null;
 
@@ -161,7 +163,7 @@ public class CascadingClassLoadHelper implements ClassLoadHelper {
    * @param name name of the desired resource
    * @return a java.io.InputStream object
    */
-  public InputStream getResourceAsStream(String name) {
+  public @Nullable InputStream getResourceAsStream(String name) {
 
     InputStream result = null;
 

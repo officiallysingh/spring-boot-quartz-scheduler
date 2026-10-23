@@ -20,6 +20,7 @@ package org.quartz.impl;
 
 import java.util.Collection;
 import java.util.HashMap;
+import org.jspecify.annotations.Nullable;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 
@@ -83,7 +84,7 @@ public class SchedulerRepository {
     return (schedulers.remove(schedName) != null);
   }
 
-  public synchronized Scheduler lookup(String schedName) {
+  public synchronized @Nullable Scheduler lookup(String schedName) {
     return schedulers.get(schedName);
   }
 

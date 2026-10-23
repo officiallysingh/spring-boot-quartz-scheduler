@@ -17,6 +17,7 @@
  */
 package org.quartz.impl.matchers;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.JobKey;
 import org.quartz.Matcher;
 import org.quartz.TriggerKey;
@@ -48,7 +49,7 @@ public class EverythingMatcher<T extends Key<?>> implements Matcher<T> {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (obj == null) return false;
 
     return obj.getClass().equals(getClass());

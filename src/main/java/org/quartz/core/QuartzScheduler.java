@@ -37,6 +37,7 @@ import java.util.Map.Entry;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.InterruptableJob;
 import org.quartz.Job;
@@ -120,7 +121,7 @@ public class QuartzScheduler {
   }
 
   // the Maven-filtered build file holds plain "key=value" lines
-  private static String readVersion(InputStream is) throws IOException {
+  private static @Nullable String readVersion(InputStream is) throws IOException {
     BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
     String line;
     while ((line = reader.readLine()) != null) {
@@ -144,7 +145,7 @@ public class QuartzScheduler {
 
   private final QuartzSchedulerThread schedThread;
 
-  private ThreadGroup threadGroup;
+  private @Nullable ThreadGroup threadGroup;
 
   private final SchedulerContext context = new SchedulerContext();
 
@@ -156,9 +157,9 @@ public class QuartzScheduler {
 
   private JobFactory jobFactory = new PropertySettingJobFactory();
 
-  ExecutingJobsManager jobMgr = null;
+  ExecutingJobsManager jobMgr;
 
-  ErrorLogger errLogger = null;
+  ErrorLogger errLogger;
 
   private final SchedulerSignaler signaler;
 
@@ -169,7 +170,7 @@ public class QuartzScheduler {
   private volatile boolean closed = false;
   private volatile boolean shuttingDown = false;
 
-  private Instant initialStart = null;
+  private @Nullable Instant initialStart = null;
 
   private final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -375,7 +376,7 @@ public class QuartzScheduler {
     return schedThread.isPaused();
   }
 
-  public Instant runningSince() {
+  public @Nullable Instant runningSince() {
     if (initialStart == null) return null;
     return Instant.ofEpochMilli(initialStart.toEpochMilli());
   }
@@ -786,7 +787,7 @@ public class QuartzScheduler {
    * @return <code>null</code> if a <code>Trigger</code> with the given name and group was not found
    *     and removed from the store, otherwise the first fire time of the newly scheduled trigger.
    */
-  public Instant rescheduleJob(TriggerKey triggerKey, Trigger newTrigger)
+  public @Nullable Instant rescheduleJob(TriggerKey triggerKey, Trigger newTrigger)
       throws SchedulerException {
     validateState();
 
@@ -841,7 +842,7 @@ public class QuartzScheduler {
    * non-volatile trigger.
    */
   @SuppressWarnings("deprecation")
-  public void triggerJob(JobKey jobKey, JobDataMap data) throws SchedulerException {
+  public void triggerJob(JobKey jobKey, @Nullable JobDataMap data) throws SchedulerException {
     validateState();
 
     OperableTrigger trig =
@@ -1102,7 +1103,7 @@ public class QuartzScheduler {
    * Get the <code>{@link JobDetail}</code> for the <code>Job</code> instance with the given name
    * and group.
    */
-  public JobDetail getJobDetail(JobKey jobKey) throws SchedulerException {
+  public @Nullable JobDetail getJobDetail(JobKey jobKey) throws SchedulerException {
     validateState();
 
     return resources.getJobStore().retrieveJob(jobKey);
@@ -1118,7 +1119,7 @@ public class QuartzScheduler {
   }
 
   /** Get the <code>{@link Trigger}</code> instance with the given name and group. */
-  public Trigger getTrigger(TriggerKey triggerKey) throws SchedulerException {
+  public @Nullable Trigger getTrigger(TriggerKey triggerKey) throws SchedulerException {
     validateState();
 
     return resources.getJobStore().retrieveTrigger(triggerKey);
@@ -1207,7 +1208,7 @@ public class QuartzScheduler {
   }
 
   /** Get the <code>{@link Calendar}</code> instance with the given name. */
-  public Calendar getCalendar(String calName) throws SchedulerException {
+  public @Nullable Calendar getCalendar(String calName) throws SchedulerException {
     validateState();
 
     return resources.getJobStore().retrieveCalendar(calName);
@@ -1291,7 +1292,7 @@ public class QuartzScheduler {
     resources.getJobStore().triggeredJobComplete(trigger, detail, instCode);
   }
 
-  protected void notifySchedulerThread(Instant candidateNewNextFireTime) {
+  protected void notifySchedulerThread(@Nullable Instant candidateNewNextFireTime) {
     signaler.signalSchedulingChange(candidateNewNextFireTime);
   }
 
@@ -1423,8 +1424,8 @@ public class QuartzScheduler {
     }
   }
 
-  public void notifyJobListenersWasExecuted(JobExecutionContext jec, JobExecutionException je)
-      throws SchedulerException {
+  public void notifyJobListenersWasExecuted(
+      JobExecutionContext jec, @Nullable JobExecutionException je) throws SchedulerException {
     // build a list of all job listeners that are to be notified...
     List<JobListener> jobListeners = buildJobListenerList();
 
@@ -1472,7 +1473,8 @@ public class QuartzScheduler {
     }
   }
 
-  public void notifySchedulerListenersUnscheduled(TriggerKey triggerKey) {
+  /** Notifies the unscheduling of a trigger, or, for {@code null}, that all data was cleared. */
+  public void notifySchedulerListenersUnscheduled(@Nullable TriggerKey triggerKey) {
     // build a list of all scheduler listeners that are to be notified...
     List<SchedulerListener> schedListeners = buildSchedulerListenerList();
 
@@ -1524,7 +1526,7 @@ public class QuartzScheduler {
     }
   }
 
-  public void notifySchedulerListenersPausedTriggers(String group) {
+  public void notifySchedulerListenersPausedTriggers(@Nullable String group) {
     // build a list of all scheduler listeners that are to be notified...
     List<SchedulerListener> schedListeners = buildSchedulerListenerList();
 
@@ -1539,7 +1541,7 @@ public class QuartzScheduler {
     }
   }
 
-  public void notifySchedulerListenersResumedTrigger(TriggerKey key) {
+  public void notifySchedulerListenersResumedTrigger(@Nullable TriggerKey key) {
     // build a list of all scheduler listeners that are to be notified...
     List<SchedulerListener> schedListeners = buildSchedulerListenerList();
 
@@ -1581,7 +1583,7 @@ public class QuartzScheduler {
     }
   }
 
-  public void notifySchedulerListenersPausedJobs(String group) {
+  public void notifySchedulerListenersPausedJobs(@Nullable String group) {
     // build a list of all scheduler listeners that are to be notified...
     List<SchedulerListener> schedListeners = buildSchedulerListenerList();
 
@@ -1858,7 +1860,8 @@ class ExecutingJobsManager implements JobListener {
     }
   }
 
-  public void jobWasExecuted(JobExecutionContext context, JobExecutionException jobException) {
+  public void jobWasExecuted(
+      JobExecutionContext context, @Nullable JobExecutionException jobException) {
     synchronized (executingJobs) {
       executingJobs.remove(((OperableTrigger) context.getTrigger()).getFireInstanceId());
     }

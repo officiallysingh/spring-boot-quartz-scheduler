@@ -21,6 +21,7 @@ package org.quartz.impl.calendar;
 import java.io.Serializable;
 import java.time.Instant;
 import java.time.ZoneId;
+import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.DateBuilder;
 import org.quartz.utils.LenientDateTime;
@@ -48,15 +49,15 @@ public class WeeklyCalendar extends BaseCalendar implements Calendar, Serializab
     this(null, null);
   }
 
-  public WeeklyCalendar(Calendar baseCalendar) {
+  public WeeklyCalendar(@Nullable Calendar baseCalendar) {
     this(baseCalendar, null);
   }
 
-  public WeeklyCalendar(ZoneId timeZone) {
+  public WeeklyCalendar(@Nullable ZoneId timeZone) {
     super(null, timeZone);
   }
 
-  public WeeklyCalendar(Calendar baseCalendar, ZoneId timeZone) {
+  public WeeklyCalendar(@Nullable Calendar baseCalendar, @Nullable ZoneId timeZone) {
     super(baseCalendar, timeZone);
 
     excludeDays[DateBuilder.SUNDAY] = true;

@@ -39,6 +39,7 @@ public class StdJobRunShellFactory implements JobRunShellFactory {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
+  @SuppressWarnings("NullAway.Init")
   private Scheduler scheduler;
 
   /*

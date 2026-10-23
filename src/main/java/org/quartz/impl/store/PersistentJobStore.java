@@ -1201,10 +1201,11 @@ public abstract class PersistentJobStore implements JobStore {
             <= 0) {
           continue;
         }
-        nextTrigger.setFireInstanceId(newFireInstanceId());
+        String fireInstanceId = newFireInstanceId();
+        nextTrigger.setFireInstanceId(fireInstanceId);
         delegate.insertFiredTrigger(
             new FiredTriggerRecord(
-                nextTrigger.getFireInstanceId(),
+                fireInstanceId,
                 instanceId,
                 triggerKey,
                 nextTrigger.getJobKey(),
@@ -1287,15 +1288,16 @@ public abstract class PersistentJobStore implements JobStore {
         return null;
       }
     }
+    // an acquired trigger has its fire instance id and next fire time
     delegate.updateFiredTrigger(
         new FiredTriggerRecord(
-            trigger.getFireInstanceId(),
+            Objects.requireNonNull(trigger.getFireInstanceId()),
             instanceId,
             trigger.getKey(),
             job.getKey(),
             STATE_EXECUTING,
             Instant.now(),
-            trigger.getNextFireTime(),
+            Objects.requireNonNull(trigger.getNextFireTime()),
             trigger.getPriority(),
             job.isConcurrentExecutionDisallowed(),
             job.requestsRecovery()));
@@ -1327,7 +1329,8 @@ public abstract class PersistentJobStore implements JobStore {
         calendar,
         trigger.getKey().getGroup().equals(Scheduler.DEFAULT_RECOVERY_GROUP),
         getSchedulingTime(),
-        trigger.getPreviousFireTime(),
+        // the time it has just been fired for
+        Objects.requireNonNull(trigger.getPreviousFireTime()),
         prevFireTime,
         trigger.getNextFireTime());
   }
@@ -1482,7 +1485,8 @@ public abstract class PersistentJobStore implements JobStore {
       TriggerKey triggerKey, String newStateIfNotComplete, boolean forceState)
       throws JobPersistenceException {
     OperableTrigger trigger = delegate.selectTrigger(triggerKey);
-    if (trigger == null || trigger.getNextFireTime().isAfter(getMisfireTime())) {
+    Instant nextFireTime = (trigger != null) ? trigger.getNextFireTime() : null;
+    if (trigger == null || nextFireTime == null || nextFireTime.isAfter(getMisfireTime())) {
       return false;
     }
     doUpdateOfMisfiredTrigger(trigger, forceState, newStateIfNotComplete, false);

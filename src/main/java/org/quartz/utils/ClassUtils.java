@@ -20,6 +20,7 @@ import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Queue;
+import org.jspecify.annotations.Nullable;
 
 public class ClassUtils {
 
@@ -41,7 +42,7 @@ public class ClassUtils {
     return false;
   }
 
-  public static <T extends Annotation> T getAnnotation(Class<?> clazz, Class<T> aClazz) {
+  public static <T extends Annotation> @Nullable T getAnnotation(Class<?> clazz, Class<T> aClazz) {
     // Check class hierarchy
     for (Class<?> c = clazz; c != null; c = c.getSuperclass()) {
       T anno = c.getAnnotation(aClazz);

@@ -1,5 +1,6 @@
 package org.quartz.simpl;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.SchedulerException;
 import org.quartz.spi.InstanceIdGenerator;
 
@@ -20,8 +21,8 @@ public class SystemPropertyInstanceIdGenerator implements InstanceIdGenerator {
   /** System property to read the instanceId from */
   public static final String SYSTEM_PROPERTY = "org.quartz.scheduler.instanceId";
 
-  private String prepend = null;
-  private String postpend = null;
+  private @Nullable String prepend = null;
+  private @Nullable String postpend = null;
   private String systemPropertyName = SYSTEM_PROPERTY;
 
   /**
@@ -49,7 +50,7 @@ public class SystemPropertyInstanceIdGenerator implements InstanceIdGenerator {
    * A String of text to prepend (add to the beginning) to the instanceId found in the system
    * property.
    */
-  public String getPrepend() {
+  public @Nullable String getPrepend() {
     return prepend;
   }
 
@@ -59,14 +60,14 @@ public class SystemPropertyInstanceIdGenerator implements InstanceIdGenerator {
    *
    * @param prepend the value to prepend, or null if none is desired.
    */
-  public void setPrepend(String prepend) {
+  public void setPrepend(@Nullable String prepend) {
     this.prepend = prepend == null ? null : prepend.trim();
   }
 
   /**
    * A String of text to postpend (add to the end) to the instanceId found in the system property.
    */
-  public String getPostpend() {
+  public @Nullable String getPostpend() {
     return postpend;
   }
 
@@ -75,7 +76,7 @@ public class SystemPropertyInstanceIdGenerator implements InstanceIdGenerator {
    *
    * @param postpend the value to postpend, or null if none is desired.
    */
-  public void setPostpend(String postpend) {
+  public void setPostpend(@Nullable String postpend) {
     this.postpend = postpend == null ? null : postpend.trim();
   }
 

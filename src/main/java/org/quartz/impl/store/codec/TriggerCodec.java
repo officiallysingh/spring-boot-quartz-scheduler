@@ -173,10 +173,10 @@ public final class TriggerCodec {
           ex);
     }
     if (trigger instanceof AbstractTrigger<?> common) {
-      common.setName(Fields.string(fields, NAME));
+      common.setName(Fields.requiredString(fields, NAME));
       common.setGroup(Fields.string(fields, GROUP));
       common.setJobKey(
-          new JobKey(Fields.string(fields, JOB_NAME), Fields.string(fields, JOB_GROUP)));
+          new JobKey(Fields.requiredString(fields, JOB_NAME), Fields.string(fields, JOB_GROUP)));
       common.setDescription(Fields.string(fields, DESCRIPTION));
       common.setCalendarName(Fields.string(fields, CALENDAR_NAME));
     }
@@ -207,18 +207,18 @@ public final class TriggerCodec {
 
   private static CronTriggerImpl decodeCron(Map<String, ?> fields) throws ParseException {
     CronTriggerImpl trigger = new CronTriggerImpl();
-    trigger.setCronExpression(Fields.string(fields, CRON_EXPRESSION));
-    trigger.setTimeZone(ZoneId.of(Fields.string(fields, TIME_ZONE)));
+    trigger.setCronExpression(Fields.requiredString(fields, CRON_EXPRESSION));
+    trigger.setTimeZone(ZoneId.of(Fields.requiredString(fields, TIME_ZONE)));
     return trigger;
   }
 
   private static CalendarIntervalTriggerImpl decodeCalendarInterval(Map<String, ?> fields) {
     CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl();
     trigger.setRepeatIntervalUnit(
-        IntervalUnit.valueOf(Fields.string(fields, REPEAT_INTERVAL_UNIT)));
+        IntervalUnit.valueOf(Fields.requiredString(fields, REPEAT_INTERVAL_UNIT)));
     trigger.setRepeatInterval(Fields.intValue(fields, REPEAT_INTERVAL, 1));
     trigger.setTimesTriggered(Fields.intValue(fields, TIMES_TRIGGERED, 0));
-    trigger.setTimeZone(ZoneId.of(Fields.string(fields, TIME_ZONE)));
+    trigger.setTimeZone(ZoneId.of(Fields.requiredString(fields, TIME_ZONE)));
     trigger.setPreserveHourOfDayAcrossDaylightSavings(Fields.booleanValue(fields, PRESERVE_HOUR));
     trigger.setSkipDayIfHourDoesNotExist(Fields.booleanValue(fields, SKIP_DAY));
     return trigger;
@@ -227,7 +227,7 @@ public final class TriggerCodec {
   private static DailyTimeIntervalTriggerImpl decodeDailyTimeInterval(Map<String, ?> fields) {
     DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl();
     trigger.setRepeatIntervalUnit(
-        IntervalUnit.valueOf(Fields.string(fields, REPEAT_INTERVAL_UNIT)));
+        IntervalUnit.valueOf(Fields.requiredString(fields, REPEAT_INTERVAL_UNIT)));
     trigger.setRepeatInterval(Fields.intValue(fields, REPEAT_INTERVAL, 1));
     trigger.setRepeatCount(Fields.intValue(fields, REPEAT_COUNT, -1));
     trigger.setTimesTriggered(Fields.intValue(fields, TIMES_TRIGGERED, 0));

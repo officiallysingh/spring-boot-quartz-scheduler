@@ -19,6 +19,7 @@
 package org.quartz;
 
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Client programs may be interested in the 'listener' interfaces that are available from Quartz.
@@ -119,7 +120,7 @@ public interface ListenerManager {
    * @param listenerName the name of the listener to add the matcher to
    * @return the matchers registered for selecting events for the identified listener
    */
-  List<Matcher<JobKey>> getJobListenerMatchers(String listenerName);
+  @Nullable List<Matcher<JobKey>> getJobListenerMatchers(String listenerName);
 
   /**
    * Remove the identified <code>{@link JobListener}</code> from the <code>Scheduler</code>.
@@ -135,7 +136,7 @@ public interface ListenerManager {
   List<JobListener> getJobListeners();
 
   /** Get the <code>{@link JobListener}</code> that has the given name. */
-  JobListener getJobListener(String name);
+  @Nullable JobListener getJobListener(String name);
 
   /**
    * Add the given <code>{@link TriggerListener}</code> to the <code>Scheduler</code>, and register
@@ -220,7 +221,7 @@ public interface ListenerManager {
    * @param listenerName the name of the listener to add the matcher to
    * @return the matchers registered for selecting events for the identified listener
    */
-  List<Matcher<TriggerKey>> getTriggerListenerMatchers(String listenerName);
+  @Nullable List<Matcher<TriggerKey>> getTriggerListenerMatchers(String listenerName);
 
   /**
    * Remove the identified <code>{@link TriggerListener}</code> from the <code>Scheduler</code>.
@@ -236,7 +237,7 @@ public interface ListenerManager {
   List<TriggerListener> getTriggerListeners();
 
   /** Get the <code>{@link TriggerListener}</code> that has the given name. */
-  TriggerListener getTriggerListener(String name);
+  @Nullable TriggerListener getTriggerListener(String name);
 
   /** Register the given <code>{@link SchedulerListener}</code> with the <code>Scheduler</code>. */
   void addSchedulerListener(SchedulerListener schedulerListener);

@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.quartz.JobPersistenceException;
@@ -302,7 +303,9 @@ public class QuartzSchedulerThread extends Thread {
           if (triggers != null && !triggers.isEmpty()) {
 
             now = currentTimeMillis();
-            long triggerTime = triggers.get(0).getNextFireTime().toEpochMilli();
+            // an acquired trigger has a next fire time
+            long triggerTime =
+                Objects.requireNonNull(triggers.get(0).getNextFireTime()).toEpochMilli();
             long timeUntilTrigger = triggerTime - now;
             while (timeUntilTrigger > 2) {
               synchronized (sigLock) {
@@ -454,6 +457,12 @@ public class QuartzSchedulerThread extends Thread {
     } // while (!halted)
 
     // drop references to scheduler stuff to aid garbage collection...
+    dropReferences();
+  }
+
+  // the thread has halted and does not use the fields again
+  @SuppressWarnings("NullAway")
+  private void dropReferences() {
     qs = null;
     qsRsrcs = null;
   }
@@ -549,7 +558,7 @@ public class QuartzSchedulerThread extends Thread {
     }
 
     private SchedulerException getSchedulerException() {
-      return (SchedulerException) getCause();
+      return (SchedulerException) Objects.requireNonNull(getCause());
     }
   }
 

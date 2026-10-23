@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import org.jspecify.annotations.Nullable;
 import org.quartz.CronExpression;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.CronTrigger;
@@ -75,12 +76,16 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
-  private CronExpression cronEx = null;
-  private Instant startTime = null;
-  private Instant endTime = null;
-  private Instant nextFireTime = null;
-  private Instant previousFireTime = null;
-  private transient ZoneId timeZone = null;
+  private @Nullable CronExpression cronEx = null;
+
+  // set by the constructors or setStartTime before the trigger is used
+  @SuppressWarnings("NullAway.Init")
+  private Instant startTime;
+
+  private @Nullable Instant endTime = null;
+  private @Nullable Instant nextFireTime = null;
+  private @Nullable Instant previousFireTime = null;
+  private transient @Nullable ZoneId timeZone = null;
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -128,6 +133,8 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
   /* (non-Javadoc)
    * @see org.quartz.CronTriggerI#getCronExpression()
    */
+  // null only for an incomplete trigger whose expression is not set yet, as in Quartz
+  @SuppressWarnings("NullAway")
   public String getCronExpression() {
     return cronEx == null ? null : cronEx.getCronExpression();
   }
@@ -175,12 +182,12 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    * @see #getFinalFireTime()
    */
   @Override
-  public Instant getEndTime() {
+  public @Nullable Instant getEndTime() {
     return this.endTime;
   }
 
   @Override
-  public void setEndTime(Instant endTime) {
+  public void setEndTime(@Nullable Instant endTime) {
     Instant sTime = getStartTime();
     if (sTime != null && endTime != null && sTime.isAfter(endTime)) {
       throw new IllegalArgumentException("End time cannot be before start time");
@@ -203,7 +210,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    *     java.time.Instant, java.time.Instant)
    */
   @Override
-  public Instant getNextFireTime() {
+  public @Nullable Instant getNextFireTime() {
     return this.nextFireTime;
   }
 
@@ -212,7 +219,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    * yet fired, <code>null</code> will be returned.
    */
   @Override
-  public Instant getPreviousFireTime() {
+  public @Nullable Instant getPreviousFireTime() {
     return this.previousFireTime;
   }
 
@@ -220,7 +227,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    * Sets the next time at which the <code>CronTrigger</code> will fire. <b>This method should not
    * be invoked by client code.</b>
    */
-  public void setNextFireTime(Instant nextFireTime) {
+  public void setNextFireTime(@Nullable Instant nextFireTime) {
     this.nextFireTime = Instants.toMillis(nextFireTime);
   }
 
@@ -229,7 +236,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    *
    * <p><b>This method should not be invoked by client code.</b>
    */
-  public void setPreviousFireTime(Instant previousFireTime) {
+  public void setPreviousFireTime(@Nullable Instant previousFireTime) {
     this.previousFireTime = Instants.toMillis(previousFireTime);
   }
 
@@ -257,7 +264,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    * called after this method, the time zone applied by this method will remain in effect, since the
    * String cron expression does not carry a time zone!
    */
-  public void setTimeZone(ZoneId timeZone) {
+  public void setTimeZone(@Nullable ZoneId timeZone) {
     if (cronEx != null) {
       cronEx.setTimeZone(timeZone);
     }
@@ -272,7 +279,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    * any)
    */
   @Override
-  public Instant getFireTimeAfter(Instant afterTime) {
+  public @Nullable Instant getFireTimeAfter(@Nullable Instant afterTime) {
     if (afterTime == null) {
       afterTime = Instants.now();
     }
@@ -300,7 +307,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    * against org.quartz.calendar
    */
   @Override
-  public Instant getFinalFireTime() {
+  public @Nullable Instant getFinalFireTime() {
     Instant resultTime;
     if (getEndTime() != null) {
       resultTime = getTimeBefore(Instant.ofEpochMilli(getEndTime().toEpochMilli() + 1000L));
@@ -339,12 +346,12 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    * </ul>
    */
   @Override
-  public void updateAfterMisfire(org.quartz.Calendar cal) {
+  public void updateAfterMisfire(org.quartz.@Nullable Calendar cal) {
     updateAfterMisfire(cal, Instants.now());
   }
 
   @Override
-  public void updateAfterMisfire(org.quartz.Calendar cal, Instant now) {
+  public void updateAfterMisfire(org.quartz.@Nullable Calendar cal, Instant now) {
     int instr = getMisfireInstruction();
 
     if (instr == Trigger.MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY) return;
@@ -419,11 +426,11 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
           && day == test.get(LenientDateTime.DATE));
     }
 
-    while (fta.isBefore(testTime)) {
+    while (fta != null && fta.isBefore(testTime)) {
       fta = getFireTimeAfter(fta);
     }
 
-    return fta.equals(testTime);
+    return testTime.equals(fta);
   }
 
   /**
@@ -434,7 +441,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    * @see #executionComplete(JobExecutionContext, JobExecutionException)
    */
   @Override
-  public void triggered(org.quartz.Calendar calendar) {
+  public void triggered(org.quartz.@Nullable Calendar calendar) {
     previousFireTime = nextFireTime;
     nextFireTime = getFireTimeAfter(nextFireTime);
 
@@ -447,13 +454,14 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    * @see AbstractTrigger#updateWithNewCalendar(org.quartz.Calendar, java.time.Duration)
    */
   @Override
-  public void updateWithNewCalendar(org.quartz.Calendar calendar, Duration misfireThreshold) {
+  public void updateWithNewCalendar(
+      org.quartz.@Nullable Calendar calendar, Duration misfireThreshold) {
     updateWithNewCalendar(calendar, misfireThreshold, Instants.now());
   }
 
   @Override
   public void updateWithNewCalendar(
-      org.quartz.Calendar calendar, Duration misfireThreshold, Instant now) {
+      org.quartz.@Nullable Calendar calendar, Duration misfireThreshold, Instant now) {
     nextFireTime = getFireTimeAfter(previousFireTime);
 
     if (nextFireTime == null || calendar == null) {
@@ -494,7 +502,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    *     firing of the <code>Trigger</code>).
    */
   @Override
-  public Instant computeFirstFireTime(org.quartz.Calendar calendar) {
+  public @Nullable Instant computeFirstFireTime(org.quartz.@Nullable Calendar calendar) {
     nextFireTime = getFireTimeAfter(Instant.ofEpochMilli(getStartTime().toEpochMilli() - 1000L));
 
     while (nextFireTime != null && calendar != null && !calendar.isTimeIncluded(nextFireTime)) {
@@ -507,6 +515,8 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
   /* (non-Javadoc)
    * @see org.quartz.CronTriggerI#getExpressionSummary()
    */
+  // null only for an incomplete trigger whose expression is not set yet, as in Quartz
+  @SuppressWarnings("NullAway")
   public String getExpressionSummary() {
     return cronEx == null ? null : cronEx.getExpressionSummary();
   }
@@ -560,7 +570,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
   //
   ////////////////////////////////////////////////////////////////////////////
 
-  protected Instant getTimeAfter(Instant afterTime) {
+  protected @Nullable Instant getTimeAfter(Instant afterTime) {
     return (cronEx == null) ? null : cronEx.getTimeAfter(afterTime);
   }
 
@@ -568,7 +578,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    * NOT YET IMPLEMENTED: Returns the time before the given time that this <code>CronTrigger</code>
    * will fire.
    */
-  protected Instant getTimeBefore(Instant eTime) {
+  protected @Nullable Instant getTimeBefore(Instant eTime) {
     return (cronEx == null) ? null : cronEx.getTimeBefore(eTime);
   }
 }

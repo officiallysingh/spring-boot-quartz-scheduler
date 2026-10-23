@@ -18,6 +18,8 @@
 
 package org.quartz;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Base class for exceptions thrown by the Quartz <code>{@link Scheduler}</code>.
  *
@@ -50,7 +52,7 @@ public class SchedulerException extends Exception {
     super(cause);
   }
 
-  public SchedulerException(String msg, Throwable cause) {
+  public SchedulerException(String msg, @Nullable Throwable cause) {
     super(msg, cause);
   }
 
@@ -69,7 +71,7 @@ public class SchedulerException extends Exception {
    *
    * @return the underlying exception, or <code>null</code> if there is not one.
    */
-  public Throwable getUnderlyingException() {
+  public @Nullable Throwable getUnderlyingException() {
     return super.getCause();
   }
 

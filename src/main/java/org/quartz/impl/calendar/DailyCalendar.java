@@ -7,6 +7,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.StringTokenizer;
+import org.jspecify.annotations.Nullable;
 import org.quartz.utils.LenientDateTime;
 
 /**
@@ -103,7 +104,9 @@ public class DailyCalendar extends BaseCalendar {
    * @param rangeEndingTime a String representing the ending time for the time range
    */
   public DailyCalendar(
-      org.quartz.Calendar baseCalendar, String rangeStartingTime, String rangeEndingTime) {
+      org.quartz.@Nullable Calendar baseCalendar,
+      String rangeStartingTime,
+      String rangeEndingTime) {
     super(baseCalendar);
     setTimeRange(rangeStartingTime, rangeEndingTime);
   }
@@ -184,7 +187,7 @@ public class DailyCalendar extends BaseCalendar {
    * @param rangeEndingMillis the millisecond of the start of the time range
    */
   public DailyCalendar(
-      org.quartz.Calendar baseCalendar,
+      org.quartz.@Nullable Calendar baseCalendar,
       int rangeStartingHourOfDay,
       int rangeStartingMinute,
       int rangeStartingSecond,
@@ -257,7 +260,7 @@ public class DailyCalendar extends BaseCalendar {
    * @param rangeEndingCalendar a ZonedDateTime representing the ending time for the time range
    */
   public DailyCalendar(
-      org.quartz.Calendar baseCalendar,
+      org.quartz.@Nullable Calendar baseCalendar,
       ZonedDateTime rangeStartingCalendar,
       ZonedDateTime rangeEndingCalendar) {
     super(baseCalendar);
@@ -318,7 +321,7 @@ public class DailyCalendar extends BaseCalendar {
    * @param rangeEndingTimeInMillis a long representing the ending time for the time range
    */
   public DailyCalendar(
-      org.quartz.Calendar baseCalendar,
+      org.quartz.@Nullable Calendar baseCalendar,
       Instant rangeStartingTimeInMillis,
       Instant rangeEndingTimeInMillis) {
     super(baseCalendar);
@@ -344,7 +347,9 @@ public class DailyCalendar extends BaseCalendar {
    * @param rangeEndingTimeInMillis a long representing the ending time for the time range
    */
   public DailyCalendar(
-      ZoneId timeZone, Instant rangeStartingTimeInMillis, Instant rangeEndingTimeInMillis) {
+      @Nullable ZoneId timeZone,
+      Instant rangeStartingTimeInMillis,
+      Instant rangeEndingTimeInMillis) {
     super(timeZone);
     setTimeRange(rangeStartingTimeInMillis, rangeEndingTimeInMillis);
   }
@@ -370,8 +375,8 @@ public class DailyCalendar extends BaseCalendar {
    * @param rangeEndingTimeInMillis a long representing the ending time for the time range
    */
   public DailyCalendar(
-      org.quartz.Calendar baseCalendar,
-      ZoneId timeZone,
+      org.quartz.@Nullable Calendar baseCalendar,
+      @Nullable ZoneId timeZone,
       Instant rangeStartingTimeInMillis,
       Instant rangeEndingTimeInMillis) {
     super(baseCalendar, timeZone);

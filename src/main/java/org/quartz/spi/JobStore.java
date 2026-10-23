@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.Job;
 import org.quartz.JobDetail;
@@ -160,7 +161,7 @@ public interface JobStore {
    *
    * @return The desired <code>Job</code>, or null if there is no match.
    */
-  JobDetail retrieveJob(JobKey jobKey) throws JobPersistenceException;
+  @Nullable JobDetail retrieveJob(JobKey jobKey) throws JobPersistenceException;
 
   /**
    * Gets all the <code>{@link org.quartz.JobDetail}s</code> in the matching groups. These will NOT
@@ -217,7 +218,7 @@ public interface JobStore {
    *
    * @return The desired <code>Trigger</code>, or null if there is no match.
    */
-  OperableTrigger retrieveTrigger(TriggerKey triggerKey) throws JobPersistenceException;
+  @Nullable OperableTrigger retrieveTrigger(TriggerKey triggerKey) throws JobPersistenceException;
 
   /**
    * Determine whether a {@link Job} with the given identifier already exists within the scheduler.
@@ -279,7 +280,7 @@ public interface JobStore {
    * @param calName The name of the <code>Calendar</code> to be retrieved.
    * @return The desired <code>Calendar</code>, or null if there is no match.
    */
-  Calendar retrieveCalendar(String calName) throws JobPersistenceException;
+  @Nullable Calendar retrieveCalendar(String calName) throws JobPersistenceException;
 
   /////////////////////////////////////////////////////////////////////////////
   //
@@ -571,7 +572,7 @@ public interface JobStore {
    *     trigger was not successfully put into the 'executing' state. Preference is to return an
    *     empty list if none of the triggers could be fired.
    */
-  List<TriggerFiredResult> triggersFired(List<OperableTrigger> triggers)
+  @Nullable List<TriggerFiredResult> triggersFired(List<OperableTrigger> triggers)
       throws JobPersistenceException;
 
   /**

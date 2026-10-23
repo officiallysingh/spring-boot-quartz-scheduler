@@ -44,16 +44,22 @@ public class QuartzSchedulerResources {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
+  @SuppressWarnings("NullAway.Init")
   private String name;
 
+  @SuppressWarnings("NullAway.Init")
   private String instanceId;
 
+  @SuppressWarnings("NullAway.Init")
   private String threadName;
 
+  @SuppressWarnings("NullAway.Init")
   private ThreadPool threadPool;
 
+  @SuppressWarnings("NullAway.Init")
   private JobStore jobStore;
 
+  @SuppressWarnings("NullAway.Init")
   private JobRunShellFactory jobRunShellFactory;
 
   private final List<SchedulerPlugin> schedulerPlugins = new ArrayList<>(10);
@@ -62,6 +68,7 @@ public class QuartzSchedulerResources {
 
   private boolean threadsInheritInitializersClassLoadContext = false;
 
+  @SuppressWarnings("NullAway.Init")
   private ThreadExecutor threadExecutor;
 
   private Duration batchTimeWindow = Duration.ZERO;

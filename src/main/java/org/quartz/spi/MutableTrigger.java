@@ -19,6 +19,7 @@
 package org.quartz.spi;
 
 import java.time.Instant;
+import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.CronTrigger;
 import org.quartz.JobDataMap;
@@ -38,14 +39,14 @@ public interface MutableTrigger extends Trigger {
    * remembering/displaying the purpose of the trigger, though the description has no meaning to
    * Quartz.
    */
-  void setDescription(String description);
+  void setDescription(@Nullable String description);
 
   /**
    * Associate the <code>{@link Calendar}</code> with the given name with this Trigger.
    *
    * @param calendarName use <code>null</code> to dis-associate a Calendar.
    */
-  void setCalendarName(String calendarName);
+  void setCalendarName(@Nullable String calendarName);
 
   /** Set the <code>JobDataMap</code> to be associated with the <code>Trigger</code>. */
   void setJobDataMap(JobDataMap jobDataMap);
@@ -79,7 +80,7 @@ public interface MutableTrigger extends Trigger {
    *     org.quartz.TriggerUtils#computeEndTimeToAllowParticularNumberOfFirings(org.quartz.spi.OperableTrigger,
    *     org.quartz.Calendar, int)
    */
-  void setEndTime(Instant endTime);
+  void setEndTime(@Nullable Instant endTime);
 
   /**
    * Set the instruction the <code>Scheduler</code> should be given for handling misfire situations

@@ -19,6 +19,7 @@ package org.quartz.listeners;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.JobListener;
@@ -108,7 +109,8 @@ public class BroadcastJobListener implements JobListener {
     }
   }
 
-  public void jobWasExecuted(JobExecutionContext context, JobExecutionException jobException) {
+  public void jobWasExecuted(
+      JobExecutionContext context, @Nullable JobExecutionException jobException) {
 
     for (JobListener jl : listeners) {
       jl.jobWasExecuted(context, jobException);

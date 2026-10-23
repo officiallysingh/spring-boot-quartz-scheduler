@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 import org.quartz.Trigger.TriggerState;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.spi.JobFactory;
@@ -408,7 +409,8 @@ public interface Scheduler {
    *     and removed from the store (and the new trigger is therefore not stored), otherwise the
    *     first fire time of the newly scheduled trigger is returned.
    */
-  Instant rescheduleJob(TriggerKey triggerKey, Trigger newTrigger) throws SchedulerException;
+  @Nullable Instant rescheduleJob(TriggerKey triggerKey, Trigger newTrigger)
+      throws SchedulerException;
 
   /**
    * Add the given <code>Job</code> to the Scheduler - with no associated <code>Trigger</code>. The
@@ -472,7 +474,7 @@ public interface Scheduler {
    * @param data the (possibly <code>null</code>) JobDataMap to be associated with the trigger that
    *     fires the job immediately.
    */
-  void triggerJob(JobKey jobKey, JobDataMap data) throws SchedulerException;
+  void triggerJob(JobKey jobKey, @Nullable JobDataMap data) throws SchedulerException;
 
   /**
    * Pause the <code>{@link org.quartz.JobDetail}</code> with the given key - by pausing all of its
@@ -647,7 +649,7 @@ public interface Scheduler {
    * wish to modify the JobDetail, you must re-store the JobDetail afterward (e.g. see {@link
    * #addJob(JobDetail, boolean)}).
    */
-  JobDetail getJobDetail(JobKey jobKey) throws SchedulerException;
+  @Nullable JobDetail getJobDetail(JobKey jobKey) throws SchedulerException;
 
   /**
    * Gets all the {@link org.quartz.JobDetail Jobdetails} in the matching groups.
@@ -669,7 +671,7 @@ public interface Scheduler {
    * modify the trigger, you must re-store the trigger afterward (e.g. see {@link
    * #rescheduleJob(TriggerKey, Trigger)}).
    */
-  Trigger getTrigger(TriggerKey triggerKey) throws SchedulerException;
+  @Nullable Trigger getTrigger(TriggerKey triggerKey) throws SchedulerException;
 
   /**
    * Get the current state of the identified <code>{@link Trigger}</code>.
@@ -717,7 +719,7 @@ public interface Scheduler {
   boolean deleteCalendar(String calName) throws SchedulerException;
 
   /** Get the <code>{@link Calendar}</code> instance with the given name. */
-  Calendar getCalendar(String calName) throws SchedulerException;
+  @Nullable Calendar getCalendar(String calName) throws SchedulerException;
 
   /** Get the names of all registered <code>{@link Calendar}s</code>. */
   List<String> getCalendarNames() throws SchedulerException;

@@ -25,6 +25,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.utils.LenientDateTime;
 
@@ -47,15 +48,15 @@ public class AnnualCalendar extends BaseCalendar implements Calendar, Serializab
 
   public AnnualCalendar() {}
 
-  public AnnualCalendar(Calendar baseCalendar) {
+  public AnnualCalendar(@Nullable Calendar baseCalendar) {
     super(baseCalendar);
   }
 
-  public AnnualCalendar(ZoneId timeZone) {
+  public AnnualCalendar(@Nullable ZoneId timeZone) {
     super(timeZone);
   }
 
-  public AnnualCalendar(Calendar baseCalendar, ZoneId timeZone) {
+  public AnnualCalendar(@Nullable Calendar baseCalendar, @Nullable ZoneId timeZone) {
     super(baseCalendar, timeZone);
   }
 

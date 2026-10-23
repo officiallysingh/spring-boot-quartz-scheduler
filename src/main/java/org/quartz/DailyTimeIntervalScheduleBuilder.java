@@ -23,6 +23,7 @@ import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 import org.quartz.DateBuilder.IntervalUnit;
 import org.quartz.impl.triggers.DailyTimeIntervalTriggerImpl;
 import org.quartz.spi.MutableTrigger;
@@ -71,9 +72,9 @@ public class DailyTimeIntervalScheduleBuilder extends ScheduleBuilder<DailyTimeI
 
   private int interval = 1;
   private IntervalUnit intervalUnit = IntervalUnit.MINUTE;
-  private Set<Integer> daysOfWeek;
-  private TimeOfDay startTimeOfDay;
-  private TimeOfDay endTimeOfDay;
+  private @Nullable Set<Integer> daysOfWeek;
+  private @Nullable TimeOfDay startTimeOfDay;
+  private @Nullable TimeOfDay endTimeOfDay;
   private int repeatCount = DailyTimeIntervalTrigger.REPEAT_INDEFINITELY;
 
   private int misfireInstruction = CalendarIntervalTrigger.MISFIRE_INSTRUCTION_SMART_POLICY;

@@ -20,6 +20,7 @@ package org.quartz;
 
 import java.time.Duration;
 import java.time.Instant;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A context bundle containing handles to various environment information, that is given to a <code>
@@ -58,7 +59,7 @@ public interface JobExecutionContext {
    * Get a handle to the <code>Calendar</code> referenced by the <code>Trigger</code> instance that
    * fired the <code>Job</code>.
    */
-  Calendar getCalendar();
+  @Nullable Calendar getCalendar();
 
   /**
    * If the <code>Job</code> is being re-executed because of a 'recovery' situation, this method
@@ -129,9 +130,9 @@ public interface JobExecutionContext {
    */
   Instant getScheduledFireTime();
 
-  Instant getPreviousFireTime();
+  @Nullable Instant getPreviousFireTime();
 
-  Instant getNextFireTime();
+  @Nullable Instant getNextFireTime();
 
   /**
    * Get the unique Id that identifies this particular firing instance of the trigger that triggered
@@ -152,7 +153,7 @@ public interface JobExecutionContext {
    *
    * @return Returns the result.
    */
-  Object getResult();
+  @Nullable Object getResult();
 
   /**
    * Set the result (if any) of the <code>Job</code>'s execution (the type of object set as the
@@ -162,7 +163,7 @@ public interface JobExecutionContext {
    * {@link JobListener}s</code> or <code>{@link TriggerListener}s</code> that are watching the
    * job's execution.
    */
-  void setResult(Object result);
+  void setResult(@Nullable Object result);
 
   /**
    * The amount of time the job ran for (millisecond precision). The returned value will be negative
@@ -190,5 +191,5 @@ public interface JobExecutionContext {
    *
    * @param key the key for the desired value
    */
-  Object get(Object key);
+  @Nullable Object get(Object key);
 }

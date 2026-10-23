@@ -18,6 +18,7 @@
 
 package org.quartz;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.impl.JobDetailImpl;
 import org.quartz.utils.Key;
 
@@ -58,9 +59,9 @@ import org.quartz.utils.Key;
  */
 public class JobBuilder {
 
-  private JobKey key;
-  private String description;
-  private Class<? extends Job> jobClass;
+  private @Nullable JobKey key;
+  private @Nullable String description;
+  private @Nullable Class<? extends Job> jobClass;
   private boolean durability;
   private boolean shouldRecover;
 
@@ -98,6 +99,9 @@ public class JobBuilder {
 
     JobDetailImpl job = new JobDetailImpl();
 
+    if (jobClass == null) {
+      throw new IllegalArgumentException("Job class cannot be null.");
+    }
     job.setJobClass(jobClass);
     job.setDescription(description);
     if (key == null) key = new JobKey(Key.createUniqueName(null), null);
@@ -138,7 +142,7 @@ public class JobBuilder {
    * @see JobKey
    * @see JobDetail#getKey()
    */
-  public JobBuilder withIdentity(String name, String group) {
+  public JobBuilder withIdentity(String name, @Nullable String group) {
     key = new JobKey(name, group);
     return this;
   }
@@ -166,7 +170,7 @@ public class JobBuilder {
    * @return the updated JobBuilder
    * @see JobDetail#getDescription()
    */
-  public JobBuilder withDescription(String jobDescription) {
+  public JobBuilder withDescription(@Nullable String jobDescription) {
     this.description = jobDescription;
     return this;
   }

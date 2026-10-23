@@ -15,6 +15,8 @@ package org.quartz.utils;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import org.jspecify.annotations.Nullable;
+import org.springframework.lang.Contract;
 
 /**
  * Scheduling instants are kept at millisecond precision, the precision of the original Date-based
@@ -30,7 +32,8 @@ public final class Instants {
   }
 
   /** The given instant truncated to milliseconds, or {@code null} if it is {@code null}. */
-  public static Instant toMillis(Instant instant) {
+  @Contract("null -> null; !null -> !null")
+  public static @Nullable Instant toMillis(@Nullable Instant instant) {
     return instant == null ? null : instant.truncatedTo(ChronoUnit.MILLIS);
   }
 }

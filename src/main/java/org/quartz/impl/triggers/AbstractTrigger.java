@@ -18,6 +18,7 @@
 
 package org.quartz.impl.triggers;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.CronTrigger;
 import org.quartz.JobDataMap;
@@ -61,27 +62,30 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
+  // set by the constructors or setName before the trigger is used
+  @SuppressWarnings("NullAway.Init")
   private String name;
 
   private String group = Scheduler.DEFAULT_GROUP;
 
+  @SuppressWarnings("NullAway.Init")
   private String jobName;
 
   private String jobGroup = Scheduler.DEFAULT_GROUP;
 
-  private String description;
+  private @Nullable String description;
 
-  private JobDataMap jobDataMap;
+  private @Nullable JobDataMap jobDataMap;
 
-  private String calendarName = null;
+  private @Nullable String calendarName = null;
 
-  private String fireInstanceId = null;
+  private @Nullable String fireInstanceId = null;
 
   private int misfireInstruction = MISFIRE_INSTRUCTION_SMART_POLICY;
 
   private int priority = DEFAULT_PRIORITY;
 
-  private transient TriggerKey key = null;
+  private transient @Nullable TriggerKey key = null;
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -125,7 +129,7 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
    * @param group if <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
    * @exception IllegalArgumentException if name is null or empty, or the group is an empty string.
    */
-  protected AbstractTrigger(String name, String group) {
+  protected AbstractTrigger(String name, @Nullable String group) {
     setName(name);
     setGroup(group);
   }
@@ -136,7 +140,8 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
    * @param group if <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
    * @exception IllegalArgumentException if name is null or empty, or the group is an empty string.
    */
-  protected AbstractTrigger(String name, String group, String jobName, String jobGroup) {
+  protected AbstractTrigger(
+      String name, @Nullable String group, String jobName, @Nullable String jobGroup) {
     setName(name);
     setGroup(group);
     setJobName(jobName);
@@ -181,7 +186,7 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
    * @param group if <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
    * @exception IllegalArgumentException if group is an empty string.
    */
-  public void setGroup(String group) {
+  public void setGroup(@Nullable String group) {
     if (group != null && group.trim().isEmpty()) {
       throw new IllegalArgumentException("Group name cannot be an empty string.");
     }
@@ -229,7 +234,7 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
    * @param jobGroup if <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
    * @exception IllegalArgumentException if group is an empty string.
    */
-  public void setJobGroup(String jobGroup) {
+  public void setJobGroup(@Nullable String jobGroup) {
     if (jobGroup != null && jobGroup.trim().isEmpty()) {
       throw new IllegalArgumentException("Group name cannot be null or empty.");
     }
@@ -251,6 +256,8 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
     return group + "." + name;
   }
 
+  // null only for an incomplete trigger whose name is not set yet, as in Quartz
+  @SuppressWarnings("NullAway")
   public TriggerKey getKey() {
     if (key == null) {
       if (getName() == null) return null;
@@ -260,6 +267,8 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
     return key;
   }
 
+  // null only for an incomplete trigger whose job name is not set yet, as in Quartz
+  @SuppressWarnings("NullAway")
   public JobKey getJobKey() {
     if (getJobName() == null) return null;
 
@@ -279,7 +288,7 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
    *
    * @return null if no description was set.
    */
-  public String getDescription() {
+  public @Nullable String getDescription() {
     return description;
   }
 
@@ -288,7 +297,7 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
    * remembering/displaying the purpose of the trigger, though the description has no meaning to
    * Quartz.
    */
-  public void setDescription(String description) {
+  public void setDescription(@Nullable String description) {
     this.description = description;
   }
 
@@ -297,7 +306,7 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
    *
    * @param calendarName use <code>null</code> to dis-associate a Calendar.
    */
-  public void setCalendarName(String calendarName) {
+  public void setCalendarName(@Nullable String calendarName) {
     this.calendarName = calendarName;
   }
 
@@ -306,7 +315,7 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
    *
    * @return <code>null</code> if there is no associated Calendar.
    */
-  public String getCalendarName() {
+  public @Nullable String getCalendarName() {
     return calendarName;
   }
 
@@ -324,7 +333,7 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
   }
 
   /** Set the <code>JobDataMap</code> to be associated with the <code>Trigger</code>. */
-  public void setJobDataMap(JobDataMap jobDataMap) {
+  public void setJobDataMap(@Nullable JobDataMap jobDataMap) {
     this.jobDataMap = jobDataMap;
   }
 
@@ -370,7 +379,7 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
    * @see #triggered(Calendar)
    */
   public CompletedExecutionInstruction executionComplete(
-      JobExecutionContext context, JobExecutionException result) {
+      JobExecutionContext context, @Nullable JobExecutionException result) {
     if (result != null && result.refireImmediately()) {
       return CompletedExecutionInstruction.RE_EXECUTE_JOB;
     }
@@ -461,12 +470,12 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
    * facilitate 'recognizing' instances of fired <code>Trigger</code> s as their jobs complete
    * execution.
    */
-  public void setFireInstanceId(String id) {
+  public void setFireInstanceId(@Nullable String id) {
     this.fireInstanceId = id;
   }
 
   /** This method should not be used by the Quartz client. */
-  public String getFireInstanceId() {
+  public @Nullable String getFireInstanceId() {
     return fireInstanceId;
   }
 
@@ -505,7 +514,7 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
    * @return true if the key of this Trigger equals that of the given Trigger.
    */
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (!(o instanceof Trigger)) return false;
 
     Trigger other = (Trigger) o;

@@ -20,6 +20,7 @@ package org.quartz.utils;
 
 import java.io.Serializable;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Object representing a job or trigger key.
@@ -50,7 +51,7 @@ public class Key<T> implements Serializable, Comparable<Key<T>> {
    * @param name the name
    * @param group the group
    */
-  public Key(String name, String group) {
+  public Key(String name, @Nullable String group) {
     if (name == null) throw new IllegalArgumentException("Name cannot be null.");
     this.name = name;
     if (group != null) this.group = group;
@@ -103,7 +104,7 @@ public class Key<T> implements Serializable, Comparable<Key<T>> {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (this == obj) return true;
     if (obj == null) return false;
     if (getClass() != obj.getClass()) return false;
@@ -124,7 +125,7 @@ public class Key<T> implements Serializable, Comparable<Key<T>> {
     return name.compareTo(o.getName());
   }
 
-  public static String createUniqueName(String group) {
+  public static String createUniqueName(@Nullable String group) {
     if (group == null) group = DEFAULT_GROUP;
 
     String n1 = UUID.randomUUID().toString();

@@ -19,6 +19,7 @@
 package org.quartz;
 
 import java.util.Collection;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Provides a mechanism for obtaining client-usable handles to <code>Scheduler</code> instances.
@@ -45,7 +46,7 @@ public interface SchedulerFactory {
   Scheduler getScheduler() throws SchedulerException;
 
   /** Returns a handle to the Scheduler with the given name, if it exists. */
-  Scheduler getScheduler(String schedName) throws SchedulerException;
+  @Nullable Scheduler getScheduler(String schedName) throws SchedulerException;
 
   /** Returns handles to all known Schedulers (made by any SchedulerFactory within this jvm.). */
   Collection<Scheduler> getAllSchedulers() throws SchedulerException;

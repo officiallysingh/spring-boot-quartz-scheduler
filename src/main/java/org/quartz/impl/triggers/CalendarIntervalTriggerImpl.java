@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.Year;
 import java.time.ZoneId;
+import org.jspecify.annotations.Nullable;
 import org.quartz.CalendarIntervalScheduleBuilder;
 import org.quartz.CalendarIntervalTrigger;
 import org.quartz.CronTrigger;
@@ -86,19 +87,21 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
-  private Instant startTime = null;
+  // set by the constructors or setStartTime before the trigger is used
+  @SuppressWarnings("NullAway.Init")
+  private Instant startTime;
 
-  private Instant endTime = null;
+  private @Nullable Instant endTime = null;
 
-  private Instant nextFireTime = null;
+  private @Nullable Instant nextFireTime = null;
 
-  private Instant previousFireTime = null;
+  private @Nullable Instant previousFireTime = null;
 
   private int repeatInterval = 0;
 
   private IntervalUnit repeatIntervalUnit = IntervalUnit.DAY;
 
-  private ZoneId timeZone;
+  private @Nullable ZoneId timeZone;
 
   private boolean preserveHourOfDayAcrossDaylightSavings =
       false; // false is backward-compatible with behavior
@@ -135,7 +138,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    * interval.
    */
   public CalendarIntervalTriggerImpl(
-      String name, String group, IntervalUnit intervalUnit, int repeatInterval) {
+      String name, @Nullable String group, IntervalUnit intervalUnit, int repeatInterval) {
     this(name, group, Instants.now(), null, intervalUnit, repeatInterval);
   }
 
@@ -152,7 +155,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
   public CalendarIntervalTriggerImpl(
       String name,
       Instant startTime,
-      Instant endTime,
+      @Nullable Instant endTime,
       IntervalUnit intervalUnit,
       int repeatInterval) {
     this(name, null, startTime, endTime, intervalUnit, repeatInterval);
@@ -170,9 +173,9 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    */
   public CalendarIntervalTriggerImpl(
       String name,
-      String group,
+      @Nullable String group,
       Instant startTime,
-      Instant endTime,
+      @Nullable Instant endTime,
       IntervalUnit intervalUnit,
       int repeatInterval) {
     super(name, group);
@@ -195,11 +198,11 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    */
   public CalendarIntervalTriggerImpl(
       String name,
-      String group,
+      @Nullable String group,
       String jobName,
-      String jobGroup,
+      @Nullable String jobGroup,
       Instant startTime,
-      Instant endTime,
+      @Nullable Instant endTime,
       IntervalUnit intervalUnit,
       int repeatInterval) {
     super(name, group, jobName, jobGroup);
@@ -250,7 +253,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    * @see #getFinalFireTime()
    */
   @Override
-  public Instant getEndTime() {
+  public @Nullable Instant getEndTime() {
     return endTime;
   }
 
@@ -261,7 +264,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    * @exception IllegalArgumentException if endTime is before start time.
    */
   @Override
-  public void setEndTime(Instant endTime) {
+  public void setEndTime(@Nullable Instant endTime) {
     Instant sTime = getStartTime();
     if (sTime != null && endTime != null && sTime.isAfter(endTime)) {
       throw new IllegalArgumentException("End time cannot be before start time");
@@ -319,7 +322,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    *
    * @param timeZone the desired TimeZone, or null for the system default.
    */
-  public void setTimeZone(ZoneId timeZone) {
+  public void setTimeZone(@Nullable ZoneId timeZone) {
     this.timeZone = timeZone;
   }
 
@@ -407,12 +410,12 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    * </ul>
    */
   @Override
-  public void updateAfterMisfire(org.quartz.Calendar cal) {
+  public void updateAfterMisfire(org.quartz.@Nullable Calendar cal) {
     updateAfterMisfire(cal, Instants.now());
   }
 
   @Override
-  public void updateAfterMisfire(org.quartz.Calendar cal, Instant now) {
+  public void updateAfterMisfire(org.quartz.@Nullable Calendar cal, Instant now) {
     int instr = getMisfireInstruction();
 
     if (instr == Trigger.MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY) return;
@@ -445,7 +448,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    * @see #executionComplete(JobExecutionContext, JobExecutionException)
    */
   @Override
-  public void triggered(org.quartz.Calendar calendar) {
+  public void triggered(org.quartz.@Nullable Calendar calendar) {
     timesTriggered++;
     previousFireTime = nextFireTime;
     nextFireTime = getFireTimeAfter(nextFireTime);
@@ -468,13 +471,14 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    *     java.time.Duration)
    */
   @Override
-  public void updateWithNewCalendar(org.quartz.Calendar calendar, Duration misfireThreshold) {
+  public void updateWithNewCalendar(
+      org.quartz.@Nullable Calendar calendar, Duration misfireThreshold) {
     updateWithNewCalendar(calendar, misfireThreshold, Instants.now());
   }
 
   @Override
   public void updateWithNewCalendar(
-      org.quartz.Calendar calendar, Duration misfireThreshold, Instant now) {
+      org.quartz.@Nullable Calendar calendar, Duration misfireThreshold, Instant now) {
     nextFireTime = getFireTimeAfter(previousFireTime);
 
     if (nextFireTime == null || calendar == null) {
@@ -514,7 +518,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    *     firing of the <code>Trigger</code>).
    */
   @Override
-  public Instant computeFirstFireTime(org.quartz.Calendar calendar) {
+  public @Nullable Instant computeFirstFireTime(org.quartz.@Nullable Calendar calendar) {
     nextFireTime = getStartTime();
 
     while (nextFireTime != null && calendar != null && !calendar.isTimeIncluded(nextFireTime)) {
@@ -543,7 +547,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    * been added to the scheduler.
    */
   @Override
-  public Instant getNextFireTime() {
+  public @Nullable Instant getNextFireTime() {
     return nextFireTime;
   }
 
@@ -552,7 +556,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    * has not yet fired, <code>null</code> will be returned.
    */
   @Override
-  public Instant getPreviousFireTime() {
+  public @Nullable Instant getPreviousFireTime() {
     return previousFireTime;
   }
 
@@ -561,7 +565,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    *
    * <p><b>This method should not be invoked by client code.</b>
    */
-  public void setNextFireTime(Instant nextFireTime) {
+  public void setNextFireTime(@Nullable Instant nextFireTime) {
     this.nextFireTime = Instants.toMillis(nextFireTime);
   }
 
@@ -570,7 +574,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    *
    * <p><b>This method should not be invoked by client code.</b>
    */
-  public void setPreviousFireTime(Instant previousFireTime) {
+  public void setPreviousFireTime(@Nullable Instant previousFireTime) {
     this.previousFireTime = Instants.toMillis(previousFireTime);
   }
 
@@ -579,11 +583,11 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    * time. If the trigger will not fire after the given time, <code>null</code> will be returned.
    */
   @Override
-  public Instant getFireTimeAfter(Instant afterTime) {
+  public @Nullable Instant getFireTimeAfter(@Nullable Instant afterTime) {
     return getFireTimeAfter(afterTime, false);
   }
 
-  protected Instant getFireTimeAfter(Instant afterTime, boolean ignoreEndTime) {
+  protected @Nullable Instant getFireTimeAfter(@Nullable Instant afterTime, boolean ignoreEndTime) {
     if (complete) {
       return null;
     }
@@ -723,7 +727,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
       }
     } // case of interval of a day or greater
 
-    if (!ignoreEndTime && (endMillis <= time.toEpochMilli())) {
+    if (time == null || (!ignoreEndTime && (endMillis <= time.toEpochMilli()))) {
       return null;
     }
 
@@ -751,7 +755,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    * <p>Note that the return time may be in the past.
    */
   @Override
-  public Instant getFinalFireTime() {
+  public @Nullable Instant getFinalFireTime() {
     if (complete || getEndTime() == null) {
       return null;
     }
@@ -760,6 +764,8 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
     Instant fTime = Instant.ofEpochMilli(getEndTime().toEpochMilli() - 1000L);
     // find the next fire time after that
     fTime = getFireTimeAfter(fTime, true);
+
+    if (fTime == null) return null;
 
     // the trigger fires at the end time, that's it!
     if (fTime.equals(getEndTime())) return fTime;

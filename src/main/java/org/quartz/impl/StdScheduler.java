@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
@@ -241,7 +242,7 @@ public class StdScheduler implements Scheduler {
   }
 
   /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
-  public Instant rescheduleJob(TriggerKey triggerKey, Trigger newTrigger)
+  public @Nullable Instant rescheduleJob(TriggerKey triggerKey, Trigger newTrigger)
       throws SchedulerException {
     return sched.rescheduleJob(triggerKey, newTrigger);
   }
@@ -252,7 +253,7 @@ public class StdScheduler implements Scheduler {
   }
 
   /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
-  public void triggerJob(JobKey jobKey, JobDataMap data) throws SchedulerException {
+  public void triggerJob(JobKey jobKey, @Nullable JobDataMap data) throws SchedulerException {
     sched.triggerJob(jobKey, data);
   }
 
@@ -340,7 +341,7 @@ public class StdScheduler implements Scheduler {
   }
 
   /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
-  public JobDetail getJobDetail(JobKey jobKey) throws SchedulerException {
+  public @Nullable JobDetail getJobDetail(JobKey jobKey) throws SchedulerException {
     return sched.getJobDetail(jobKey);
   }
 
@@ -350,7 +351,7 @@ public class StdScheduler implements Scheduler {
   }
 
   /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
-  public Trigger getTrigger(TriggerKey triggerKey) throws SchedulerException {
+  public @Nullable Trigger getTrigger(TriggerKey triggerKey) throws SchedulerException {
     return sched.getTrigger(triggerKey);
   }
 
@@ -389,7 +390,7 @@ public class StdScheduler implements Scheduler {
   }
 
   /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
-  public Calendar getCalendar(String calName) throws SchedulerException {
+  public @Nullable Calendar getCalendar(String calName) throws SchedulerException {
     return sched.getCalendar(calName);
   }
 

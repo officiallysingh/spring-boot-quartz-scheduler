@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.jspecify.annotations.Nullable;
 import org.quartz.SchedulerConfigException;
 import org.quartz.spi.ThreadPool;
 import org.slf4j.Logger;
@@ -64,18 +65,22 @@ public class SimpleThreadPool implements ThreadPool {
 
   private boolean makeThreadsDaemons = false;
 
+  @SuppressWarnings("NullAway.Init")
   private ThreadGroup threadGroup;
 
   private final Object nextRunnableLock = new Object();
 
+  @SuppressWarnings("NullAway.Init")
   private List<WorkerThread> workers;
+
   private final LinkedList<WorkerThread> availWorkers = new LinkedList<>();
   private final LinkedList<WorkerThread> busyWorkers = new LinkedList<>();
 
-  private String threadNamePrefix;
+  private @Nullable String threadNamePrefix;
 
   private final Logger log = LoggerFactory.getLogger(getClass());
 
+  @SuppressWarnings("NullAway.Init")
   private String schedulerInstanceName;
 
   /*
@@ -153,7 +158,7 @@ public class SimpleThreadPool implements ThreadPool {
     this.threadNamePrefix = prefix;
   }
 
-  public String getThreadNamePrefix() {
+  public @Nullable String getThreadNamePrefix() {
     return threadNamePrefix;
   }
 
@@ -440,7 +445,7 @@ public class SimpleThreadPool implements ThreadPool {
 
     private final SimpleThreadPool tp;
 
-    private Runnable runnable;
+    private @Nullable Runnable runnable;
 
     private boolean runOnce = false;
 
@@ -464,7 +469,7 @@ public class SimpleThreadPool implements ThreadPool {
         String name,
         int prio,
         boolean isDaemon,
-        Runnable runnable) {
+        @Nullable Runnable runnable) {
 
       super(threadGroup, name);
       this.tp = tp;

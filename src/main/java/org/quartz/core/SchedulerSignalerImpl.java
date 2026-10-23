@@ -20,6 +20,7 @@ package org.quartz.core;
 
 import java.time.Clock;
 import java.time.Instant;
+import org.jspecify.annotations.Nullable;
 import org.quartz.JobKey;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
@@ -92,7 +93,7 @@ public class SchedulerSignalerImpl implements SchedulerSignaler {
     sched.notifySchedulerListenersFinalized(trigger);
   }
 
-  public void signalSchedulingChange(Instant candidateNewNextFireTime) {
+  public void signalSchedulingChange(@Nullable Instant candidateNewNextFireTime) {
     schedThread.signalSchedulingChange(
         candidateNewNextFireTime == null ? 0 : candidateNewNextFireTime.toEpochMilli());
   }

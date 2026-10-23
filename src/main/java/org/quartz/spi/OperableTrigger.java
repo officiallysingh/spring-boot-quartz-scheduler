@@ -2,6 +2,7 @@ package org.quartz.spi;
 
 import java.time.Duration;
 import java.time.Instant;
+import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
@@ -19,7 +20,7 @@ public interface OperableTrigger extends MutableTrigger {
    *
    * @see #executionComplete(JobExecutionContext, JobExecutionException)
    */
-  void triggered(Calendar calendar);
+  void triggered(@Nullable Calendar calendar);
 
   /**
    * This method should not be used by the Quartz client.
@@ -35,7 +36,7 @@ public interface OperableTrigger extends MutableTrigger {
    *     is also the same value <code>getNextFireTime()</code> will return (until after the first
    *     firing of the <code>Trigger</code>).
    */
-  Instant computeFirstFireTime(Calendar calendar);
+  @Nullable Instant computeFirstFireTime(@Nullable Calendar calendar);
 
   /**
    * This method should not be used by the Quartz client.
@@ -53,7 +54,7 @@ public interface OperableTrigger extends MutableTrigger {
    * @see #triggered(Calendar)
    */
   CompletedExecutionInstruction executionComplete(
-      JobExecutionContext context, JobExecutionException result);
+      JobExecutionContext context, @Nullable JobExecutionException result);
 
   /**
    * This method should not be used by the Quartz client.
@@ -63,7 +64,7 @@ public interface OperableTrigger extends MutableTrigger {
    * <p>The implementation should update the <code>Trigger</code>'s state based on the
    * MISFIRE_INSTRUCTION_XXX that was selected when the <code>Trigger</code> was created.
    */
-  void updateAfterMisfire(Calendar cal);
+  void updateAfterMisfire(@Nullable Calendar cal);
 
   /**
    * Updates this trigger after a misfire using the scheduler's current time.
@@ -71,7 +72,7 @@ public interface OperableTrigger extends MutableTrigger {
    * <p>The default delegates to the original method for compatibility with custom trigger
    * implementations. Implementations that calculate from "now" should override this method.
    */
-  default void updateAfterMisfire(Calendar cal, Instant now) {
+  default void updateAfterMisfire(@Nullable Calendar cal, Instant now) {
     updateAfterMisfire(cal);
   }
 
@@ -86,7 +87,7 @@ public interface OperableTrigger extends MutableTrigger {
    *
    * @param cal
    */
-  void updateWithNewCalendar(Calendar cal, Duration misfireThreshold);
+  void updateWithNewCalendar(@Nullable Calendar cal, Duration misfireThreshold);
 
   /**
    * Updates this trigger after its calendar changes, using the scheduler's current time when
@@ -95,7 +96,8 @@ public interface OperableTrigger extends MutableTrigger {
    * <p>The default delegates to the original method for compatibility with custom trigger
    * implementations.
    */
-  default void updateWithNewCalendar(Calendar cal, Duration misfireThreshold, Instant now) {
+  default void updateWithNewCalendar(
+      @Nullable Calendar cal, Duration misfireThreshold, Instant now) {
     updateWithNewCalendar(cal, misfireThreshold);
   }
 
@@ -114,12 +116,12 @@ public interface OperableTrigger extends MutableTrigger {
    * facilitate 'recognizing' instances of fired <code>Trigger</code> s as their jobs complete
    * execution.
    */
-  void setFireInstanceId(String id);
+  void setFireInstanceId(@Nullable String id);
 
   /** This method should not be used by the Quartz client. */
-  String getFireInstanceId();
+  @Nullable String getFireInstanceId();
 
-  void setNextFireTime(Instant nextFireTime);
+  void setNextFireTime(@Nullable Instant nextFireTime);
 
-  void setPreviousFireTime(Instant previousFireTime);
+  void setPreviousFireTime(@Nullable Instant previousFireTime);
 }

@@ -16,6 +16,7 @@
  */
 package org.quartz.listeners;
 
+import org.jspecify.annotations.Nullable;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.JobListener;
@@ -48,5 +49,6 @@ public abstract class JobListenerSupport implements JobListener {
 
   public void jobExecutionVetoed(JobExecutionContext context) {}
 
-  public void jobWasExecuted(JobExecutionContext context, JobExecutionException jobException) {}
+  public void jobWasExecuted(
+      JobExecutionContext context, @Nullable JobExecutionException jobException) {}
 }

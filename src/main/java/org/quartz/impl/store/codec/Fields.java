@@ -30,6 +30,15 @@ final class Fields {
     return (value != null) ? value.toString() : null;
   }
 
+  /** A field every stored record has; a missing one means the record is corrupt. */
+  static String requiredString(Map<String, ?> fields, String name) {
+    String value = string(fields, name);
+    if (value == null) {
+      throw new IllegalStateException("Stored record has no '" + name + "' field");
+    }
+    return value;
+  }
+
   static @Nullable Long longValue(Map<String, ?> fields, String name) {
     Object value = fields.get(name);
     if (value == null) {

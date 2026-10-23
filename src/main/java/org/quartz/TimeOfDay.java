@@ -22,7 +22,9 @@ import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import org.jspecify.annotations.Nullable;
 import org.quartz.utils.LenientDateTime;
+import org.springframework.lang.Contract;
 
 /**
  * Represents a time in hour, minute and second of any given day.
@@ -153,7 +155,7 @@ public class TimeOfDay implements Serializable {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (!(obj instanceof TimeOfDay)) return false;
 
     TimeOfDay other = (TimeOfDay) obj;
@@ -170,7 +172,8 @@ public class TimeOfDay implements Serializable {
    * Return a time with time of day reset to this object values, in the system default time zone.
    * The millisecond value will be zero.
    */
-  public Instant getTimeOfDayForDate(Instant dateTime) {
+  @Contract("null -> null; !null -> !null")
+  public @Nullable Instant getTimeOfDayForDate(@Nullable Instant dateTime) {
     return getTimeOfDayForDate(dateTime, ZoneId.systemDefault());
   }
 
@@ -179,7 +182,8 @@ public class TimeOfDay implements Serializable {
    * millisecond value will be zero. A time of day that does not exist on that day (DST gap) moves
    * forward by the length of the gap.
    */
-  public Instant getTimeOfDayForDate(Instant dateTime, ZoneId zone) {
+  @Contract("null, _ -> null; !null, _ -> !null")
+  public @Nullable Instant getTimeOfDayForDate(@Nullable Instant dateTime, ZoneId zone) {
     if (dateTime == null) return null;
     LenientDateTime cal = new LenientDateTime(dateTime, zone);
     cal.set(LenientDateTime.HOUR_OF_DAY, hour);
@@ -204,7 +208,8 @@ public class TimeOfDay implements Serializable {
    *
    * @param dateTime The instant from which to extract Hour, Minute and Second.
    */
-  public static TimeOfDay hourAndMinuteAndSecondFromDate(Instant dateTime) {
+  @Contract("null -> null; !null -> !null")
+  public static @Nullable TimeOfDay hourAndMinuteAndSecondFromDate(@Nullable Instant dateTime) {
     return hourAndMinuteAndSecondFromDate(dateTime, null);
   }
 
@@ -215,7 +220,9 @@ public class TimeOfDay implements Serializable {
    * @param tz The time zone from which relate Hour, Minute and Second for the given date. If null,
    *     system default TimeZone will be used.
    */
-  public static TimeOfDay hourAndMinuteAndSecondFromDate(Instant dateTime, ZoneId tz) {
+  @Contract("null, _ -> null; !null, _ -> !null")
+  public static @Nullable TimeOfDay hourAndMinuteAndSecondFromDate(
+      @Nullable Instant dateTime, @Nullable ZoneId tz) {
     if (dateTime == null) return null;
     ZonedDateTime cal = dateTime.atZone(tz != null ? tz : ZoneId.systemDefault());
 
@@ -227,7 +234,8 @@ public class TimeOfDay implements Serializable {
    *
    * @param dateTime The instant from which to extract Hour and Minute.
    */
-  public static TimeOfDay hourAndMinuteFromDate(Instant dateTime) {
+  @Contract("null -> null; !null -> !null")
+  public static @Nullable TimeOfDay hourAndMinuteFromDate(@Nullable Instant dateTime) {
     return hourAndMinuteFromDate(dateTime, null);
   }
 
@@ -238,7 +246,9 @@ public class TimeOfDay implements Serializable {
    * @param tz The time zone from which relate Hour and Minute for the given date. If null, system
    *     default TimeZone will be used.
    */
-  public static TimeOfDay hourAndMinuteFromDate(Instant dateTime, ZoneId tz) {
+  @Contract("null, _ -> null; !null, _ -> !null")
+  public static @Nullable TimeOfDay hourAndMinuteFromDate(
+      @Nullable Instant dateTime, @Nullable ZoneId tz) {
     if (dateTime == null) return null;
     ZonedDateTime cal = dateTime.atZone(tz != null ? tz : ZoneId.systemDefault());
 

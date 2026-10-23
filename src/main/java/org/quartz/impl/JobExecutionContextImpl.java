@@ -21,6 +21,8 @@ package org.quartz.impl;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.Job;
 import org.quartz.JobDataMap;
@@ -54,7 +56,7 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
 
   private final transient Job job;
 
-  private final Calendar calendar;
+  private final @Nullable Calendar calendar;
 
   private boolean recovering;
 
@@ -64,13 +66,13 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
 
   private final Instant scheduledFireTime;
 
-  private final Instant prevFireTime;
+  private final @Nullable Instant prevFireTime;
 
-  private final Instant nextFireTime;
+  private final @Nullable Instant nextFireTime;
 
   private Duration jobRunTime = Duration.ofMillis(-1);
 
-  private Object result;
+  private @Nullable Object result;
 
   private final HashMap<Object, Object> data = new HashMap<>();
 
@@ -119,7 +121,7 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
   }
 
   /** {@inheritDoc} */
-  public Calendar getCalendar() {
+  public @Nullable Calendar getCalendar() {
     return calendar;
   }
 
@@ -130,8 +132,9 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
 
   public TriggerKey getRecoveringTriggerKey() {
     if (isRecovering()) {
+      // the store puts the original trigger into the data of a recovering job
       return new TriggerKey(
-          jobDataMap.getString(Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_NAME),
+          Objects.requireNonNull(jobDataMap.getString(Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_NAME)),
           jobDataMap.getString(Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_GROUP));
     } else {
       throw new IllegalStateException("Not a recovering job");
@@ -173,12 +176,12 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
   }
 
   /** {@inheritDoc} */
-  public Instant getPreviousFireTime() {
+  public @Nullable Instant getPreviousFireTime() {
     return prevFireTime;
   }
 
   /** {@inheritDoc} */
-  public Instant getNextFireTime() {
+  public @Nullable Instant getNextFireTime() {
     return nextFireTime;
   }
 
@@ -204,12 +207,12 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
   }
 
   /** {@inheritDoc} */
-  public Object getResult() {
+  public @Nullable Object getResult() {
     return result;
   }
 
   /** {@inheritDoc} */
-  public void setResult(Object result) {
+  public void setResult(@Nullable Object result) {
     this.result = result;
   }
 
@@ -231,11 +234,13 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
   }
 
   /** {@inheritDoc} */
-  public Object get(Object key) {
+  public @Nullable Object get(Object key) {
     return data.get(key);
   }
 
   /** {@inheritDoc} */
+  // set on every trigger the store fires
+  @SuppressWarnings("NullAway")
   public String getFireInstanceId() {
     return ((OperableTrigger) trigger).getFireInstanceId();
   }

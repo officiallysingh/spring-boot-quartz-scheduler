@@ -19,6 +19,7 @@
 package org.quartz;
 
 import java.time.Instant;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An interface to be implemented by objects that define spaces of time during which an associated
@@ -58,10 +59,10 @@ public interface Calendar extends java.io.Serializable, java.lang.Cloneable {
    */
 
   /** Set a new base calendar or remove the existing one. */
-  void setBaseCalendar(Calendar baseCalendar);
+  void setBaseCalendar(@Nullable Calendar baseCalendar);
 
   /** Get the base calendar. Will be null, if not set. */
-  Calendar getBaseCalendar();
+  @Nullable Calendar getBaseCalendar();
 
   /** Determine whether the given time is 'included' by the Calendar. */
   boolean isTimeIncluded(Instant timeStamp);
@@ -74,14 +75,14 @@ public interface Calendar extends java.io.Serializable, java.lang.Cloneable {
    *
    * @return null if no description was set.
    */
-  String getDescription();
+  @Nullable String getDescription();
 
   /**
    * Set a description for the <code>Calendar</code> instance - may be useful for
    * remembering/displaying the purpose of the calendar, though the description has no meaning to
    * Quartz.
    */
-  void setDescription(String description);
+  void setDescription(@Nullable String description);
 
   Object clone();
 }
