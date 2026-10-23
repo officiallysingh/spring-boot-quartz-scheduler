@@ -1,0 +1,266 @@
+{
+  "properties": [
+    {
+      "name": "spring.quartz.job-store.mongodb.database",
+      "type": "java.lang.String",
+      "description": "Removed: the store uses the application's MongoDB database.",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: the store uses the application's MongoDB database.",
+        "replacement": "spring.mongodb.database"
+      }
+    },
+    {
+      "name": "spring.quartz.plugins.job-history.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Removed: define a org.quartz.plugins.history.LoggingJobHistoryPlugin bean (its bean name is the plugin name).",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: define a org.quartz.plugins.history.LoggingJobHistoryPlugin bean (its bean name is the plugin name)."
+      }
+    },
+    {
+      "name": "spring.quartz.plugins.job-history.job-to-be-fired-message",
+      "type": "java.lang.String",
+      "description": "Removed: define a org.quartz.plugins.history.LoggingJobHistoryPlugin bean (its bean name is the plugin name).",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: define a org.quartz.plugins.history.LoggingJobHistoryPlugin bean (its bean name is the plugin name)."
+      }
+    },
+    {
+      "name": "spring.quartz.plugins.job-history.job-success-message",
+      "type": "java.lang.String",
+      "description": "Removed: define a org.quartz.plugins.history.LoggingJobHistoryPlugin bean (its bean name is the plugin name).",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: define a org.quartz.plugins.history.LoggingJobHistoryPlugin bean (its bean name is the plugin name)."
+      }
+    },
+    {
+      "name": "spring.quartz.plugins.job-history.job-failed-message",
+      "type": "java.lang.String",
+      "description": "Removed: define a org.quartz.plugins.history.LoggingJobHistoryPlugin bean (its bean name is the plugin name).",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: define a org.quartz.plugins.history.LoggingJobHistoryPlugin bean (its bean name is the plugin name)."
+      }
+    },
+    {
+      "name": "spring.quartz.plugins.job-history.job-was-vetoed-message",
+      "type": "java.lang.String",
+      "description": "Removed: define a org.quartz.plugins.history.LoggingJobHistoryPlugin bean (its bean name is the plugin name).",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: define a org.quartz.plugins.history.LoggingJobHistoryPlugin bean (its bean name is the plugin name)."
+      }
+    },
+    {
+      "name": "spring.quartz.plugins.trigger-history.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Removed: define a org.quartz.plugins.history.LoggingTriggerHistoryPlugin bean (its bean name is the plugin name).",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: define a org.quartz.plugins.history.LoggingTriggerHistoryPlugin bean (its bean name is the plugin name)."
+      }
+    },
+    {
+      "name": "spring.quartz.plugins.trigger-history.trigger-fired-message",
+      "type": "java.lang.String",
+      "description": "Removed: define a org.quartz.plugins.history.LoggingTriggerHistoryPlugin bean (its bean name is the plugin name).",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: define a org.quartz.plugins.history.LoggingTriggerHistoryPlugin bean (its bean name is the plugin name)."
+      }
+    },
+    {
+      "name": "spring.quartz.plugins.trigger-history.trigger-misfired-message",
+      "type": "java.lang.String",
+      "description": "Removed: define a org.quartz.plugins.history.LoggingTriggerHistoryPlugin bean (its bean name is the plugin name).",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: define a org.quartz.plugins.history.LoggingTriggerHistoryPlugin bean (its bean name is the plugin name)."
+      }
+    },
+    {
+      "name": "spring.quartz.plugins.trigger-history.trigger-complete-message",
+      "type": "java.lang.String",
+      "description": "Removed: define a org.quartz.plugins.history.LoggingTriggerHistoryPlugin bean (its bean name is the plugin name).",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: define a org.quartz.plugins.history.LoggingTriggerHistoryPlugin bean (its bean name is the plugin name)."
+      }
+    },
+    {
+      "name": "spring.quartz.plugins.job-interrupt-monitor.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Removed: define a org.quartz.plugins.interrupt.JobInterruptMonitorPlugin bean and call setDefaultMaxRunTime.",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: define a org.quartz.plugins.interrupt.JobInterruptMonitorPlugin bean and call setDefaultMaxRunTime."
+      }
+    },
+    {
+      "name": "spring.quartz.plugins.job-interrupt-monitor.default-max-run-time",
+      "type": "java.time.Duration",
+      "description": "Removed: define a org.quartz.plugins.interrupt.JobInterruptMonitorPlugin bean and call setDefaultMaxRunTime.",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: define a org.quartz.plugins.interrupt.JobInterruptMonitorPlugin bean and call setDefaultMaxRunTime."
+      }
+    },
+    {
+      "name": "spring.quartz.thread-pool.thread-priority",
+      "type": "java.lang.Integer",
+      "description": "Removed: the setting keeps its default, chosen for a Spring Boot application.",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: the setting keeps its default, chosen for a Spring Boot application."
+      }
+    },
+    {
+      "name": "spring.quartz.thread-pool.daemon",
+      "type": "java.lang.Boolean",
+      "description": "Removed: the setting keeps its default, chosen for a Spring Boot application.",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: the setting keeps its default, chosen for a Spring Boot application."
+      }
+    },
+    {
+      "name": "spring.quartz.thread-pool.threads-inherit-context-class-loader-of-initializing-thread",
+      "type": "java.lang.Boolean",
+      "description": "Removed: the setting keeps its default, chosen for a Spring Boot application.",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: the setting keeps its default, chosen for a Spring Boot application."
+      }
+    },
+    {
+      "name": "spring.quartz.thread-pool.threads-inherit-group-of-initializing-thread",
+      "type": "java.lang.Boolean",
+      "description": "Removed: the setting keeps its default, chosen for a Spring Boot application.",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: the setting keeps its default, chosen for a Spring Boot application."
+      }
+    },
+    {
+      "name": "spring.quartz.scheduler.make-scheduler-thread-daemon",
+      "type": "java.lang.Boolean",
+      "description": "Removed: the setting keeps its default, chosen for a Spring Boot application.",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: the setting keeps its default, chosen for a Spring Boot application."
+      }
+    },
+    {
+      "name": "spring.quartz.scheduler.threads-inherit-context-class-loader-of-initializer",
+      "type": "java.lang.Boolean",
+      "description": "Removed: the setting keeps its default, chosen for a Spring Boot application.",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: the setting keeps its default, chosen for a Spring Boot application."
+      }
+    },
+    {
+      "name": "spring.quartz.job-store.make-threads-daemons",
+      "type": "java.lang.Boolean",
+      "description": "Removed: the setting keeps its default, chosen for a Spring Boot application.",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: the setting keeps its default, chosen for a Spring Boot application."
+      }
+    },
+    {
+      "name": "spring.quartz.job-store.threads-inherit-initializers-class-load-context",
+      "type": "java.lang.Boolean",
+      "description": "Removed: the setting keeps its default, chosen for a Spring Boot application.",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: the setting keeps its default, chosen for a Spring Boot application."
+      }
+    },
+    {
+      "name": "spring.quartz.job-store.double-check-lock-misfire-handler",
+      "type": "java.lang.Boolean",
+      "description": "Removed: the setting keeps its default, chosen for a Spring Boot application.",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: the setting keeps its default, chosen for a Spring Boot application."
+      }
+    },
+    {
+      "name": "spring.quartz.job-store.acquire-triggers-within-lock",
+      "type": "java.lang.Boolean",
+      "description": "Removed: the setting keeps its default, chosen for a Spring Boot application.",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: the setting keeps its default, chosen for a Spring Boot application."
+      }
+    },
+    {
+      "name": "spring.quartz.job-store.acquire-triggers-within-lock-retry",
+      "type": "java.time.Duration",
+      "description": "Removed: the setting keeps its default, chosen for a Spring Boot application.",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: the setting keeps its default, chosen for a Spring Boot application."
+      }
+    },
+    {
+      "name": "spring.quartz.job-store.use-properties",
+      "type": "java.lang.Boolean",
+      "description": "Removed: the setting keeps its default, chosen for a Spring Boot application.",
+      "deprecation": {
+        "level": "error",
+        "reason": "Removed: the setting keeps its default, chosen for a Spring Boot application."
+      }
+    }
+  ],
+  "hints": [
+    {
+      "name": "spring.quartz.scheduler.instance-id",
+      "values": [
+        {
+          "value": "NON_CLUSTERED",
+          "description": "Fixed id of a scheduler that does not share its job store."
+        },
+        {
+          "value": "AUTO",
+          "description": "Generate a unique id for this node (host name and time) when the job store is clustered."
+        },
+        {
+          "value": "SYS_PROP",
+          "description": "Read the id from the 'org.quartz.scheduler.instanceId' system property when the job store is clustered."
+        }
+      ],
+      "providers": [
+        {
+          "name": "any"
+        }
+      ]
+    },
+    {
+      "name": "spring.quartz.job-store.type",
+      "values": [
+        {
+          "value": "mongodb",
+          "description": "MongoDB job store, using the application's MongoClient and database (spring.mongodb.*)."
+        },
+        {
+          "value": "redis",
+          "description": "Redis job store, using the application's RedisConnectionFactory (spring.data.redis.*)."
+        }
+      ]
+    },
+    {
+      "name": "spring.quartz.scheduler.context.keys",
+      "providers": [
+        {
+          "name": "any"
+        }
+      ]
+    }
+  ]
+}

@@ -41,6 +41,9 @@ import org.quartz.impl.redis.RedisJobStore;
 import org.quartz.listeners.JobListenerSupport;
 import org.quartz.listeners.SchedulerListenerSupport;
 import org.quartz.listeners.TriggerListenerSupport;
+import org.quartz.plugins.history.LoggingJobHistoryPlugin;
+import org.quartz.plugins.history.LoggingTriggerHistoryPlugin;
+import org.quartz.plugins.interrupt.JobInterruptMonitorPlugin;
 import org.quartz.simpl.SimpleThreadPool;
 import org.quartz.simpl.VirtualThreadPool;
 import org.quartz.spi.ClassLoadHelper;
@@ -58,6 +61,7 @@ import org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfigurat
 import org.springframework.boot.data.redis.autoconfigure.DataRedisConnectionDetails;
 import org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration;
 import org.springframework.boot.mongodb.autoconfigure.MongoConnectionDetails;
+import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -319,43 +323,100 @@ class QuartzAutoConfigurationIT extends AbstractMongoIT {
   }
 
   @Test
-  void builtInPluginsAreOptIn() {
-    contextRunner.run(
-        context -> {
-          Scheduler scheduler = context.getBean(Scheduler.class);
-          assertThat(scheduler.getListenerManager().getJobListener("jobHistory")).isNull();
-          assertThat(scheduler.getListenerManager().getTriggerListener("triggerHistory")).isNull();
-          assertThat(scheduler.getListenerManager().getTriggerListener("jobInterruptMonitor"))
-              .isNull();
-        });
+  void mongoStoreUsesTheDatabaseOfSpringDataMongo() {
+    contextRunner
+        .withPropertyValues("spring.mongodb.database=appdb")
+        .run(context -> assertThat(mongoDatabase(context)).isEqualTo("appdb"));
+  }
+
+  @Test
+  void mongoStoreUsesSpringMongodbDatabaseWithoutSpringData() {
+    withoutSpringData()
+        .withPropertyValues("spring.mongodb.database=jobsdb")
+        .run(context -> assertThat(mongoDatabase(context)).isEqualTo("jobsdb"));
+  }
+
+  @Test
+  void mongoStoreUsesTheDatabaseOfTheConnectionStringWithoutSpringData() {
+    withoutSpringData()
+        .run(
+            context ->
+                assertThat(mongoDatabase(context))
+                    .isEqualTo(
+                        new ConnectionString(AbstractMongoIT.connectionString()).getDatabase()));
+  }
+
+  private static ApplicationContextRunner withoutSpringData() {
+    return new ApplicationContextRunner()
+        .withConfiguration(
+            AutoConfigurations.of(MongoAutoConfiguration.class, QuartzAutoConfiguration.class))
+        .withUserConfiguration(MongoContainerConfiguration.class);
+  }
+
+  private static String mongoDatabase(AssertableApplicationContext context) {
+    assertThat(context).hasNotFailed();
+    return ((MongoJobStore) context.getBean(SchedulerFactoryBean.class).getJobStore())
+        .getDatabaseName();
+  }
+
+  @Test
+  void noPluginIsRegisteredByDefault() {
     contextRunner
         .withPropertyValues(
+            // the former yml switches are gone: they have no effect
             "spring.quartz.plugins.job-history.enabled=true",
-            "spring.quartz.plugins.trigger-history.enabled=true",
             "spring.quartz.plugins.job-interrupt-monitor.enabled=true")
         .run(
             context -> {
               Scheduler scheduler = context.getBean(Scheduler.class);
-              assertThat(scheduler.getListenerManager().getJobListener("jobHistory")).isNotNull();
-              assertThat(scheduler.getListenerManager().getTriggerListener("triggerHistory"))
-                  .isNotNull();
+              assertThat(scheduler.getListenerManager().getJobListener("jobHistory")).isNull();
               assertThat(scheduler.getListenerManager().getTriggerListener("jobInterruptMonitor"))
-                  .isNotNull();
+                  .isNull();
             });
   }
 
   @Test
-  void pluginBeanClashingWithABuiltInPluginFails() {
+  void builtInPluginsAreDefinedAsBeans() {
     contextRunner
-        .withPropertyValues("spring.quartz.plugins.job-history.enabled=true")
-        .withBean("jobHistory", SchedulerPlugin.class, RecordingPlugin::new)
+        .withUserConfiguration(BuiltInPluginsConfiguration.class)
         .run(
-            context ->
-                assertThat(context)
-                    .hasFailed()
-                    .getFailure()
-                    .rootCause()
-                    .hasMessageContaining("clashes with the built-in plugin"));
+            context -> {
+              Scheduler scheduler = context.getBean(Scheduler.class);
+              assertThat(scheduler.getListenerManager().getJobListener("jobHistory"))
+                  .isSameAs(context.getBean("jobHistory"));
+              assertThat(scheduler.getListenerManager().getTriggerListener("triggerHistory"))
+                  .isSameAs(context.getBean("triggerHistory"));
+              assertThat(scheduler.getListenerManager().getTriggerListener("jobInterruptMonitor"))
+                  .isSameAs(context.getBean("jobInterruptMonitor"));
+              assertThat(
+                      context
+                          .getBean("jobInterruptMonitor", JobInterruptMonitorPlugin.class)
+                          .getDefaultMaxRunTime())
+                  .isEqualTo(Duration.ofMinutes(10));
+            });
+  }
+
+  @Configuration(proxyBeanMethods = false)
+  static class BuiltInPluginsConfiguration {
+
+    @Bean
+    LoggingJobHistoryPlugin jobHistory() {
+      LoggingJobHistoryPlugin plugin = new LoggingJobHistoryPlugin();
+      plugin.setJobFailedMessage("Job {1}.{0} failed: {8}");
+      return plugin;
+    }
+
+    @Bean
+    LoggingTriggerHistoryPlugin triggerHistory() {
+      return new LoggingTriggerHistoryPlugin();
+    }
+
+    @Bean
+    JobInterruptMonitorPlugin jobInterruptMonitor() {
+      JobInterruptMonitorPlugin plugin = new JobInterruptMonitorPlugin();
+      plugin.setDefaultMaxRunTime(Duration.ofMinutes(10));
+      return plugin;
+    }
   }
 
   @Test

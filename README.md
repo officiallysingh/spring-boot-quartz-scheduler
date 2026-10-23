@@ -72,6 +72,34 @@ spring:
 `SchedulerPlugin` beans are registered with the scheduler; inject `Scheduler` to schedule jobs at run time.
 `SchedulerFactoryBeanCustomizer` beans can adjust the `SchedulerFactoryBean` before the scheduler is created.
 
+### Plugins
+
+Plugins are beans; the bean name is the plugin name. The built-in ones are off until you define them:
+
+```java
+@Bean // logs every job execution (MessageFormat templates; unset ones keep their defaults)
+LoggingJobHistoryPlugin jobHistory() {
+    LoggingJobHistoryPlugin plugin = new LoggingJobHistoryPlugin();
+    plugin.setJobFailedMessage("Job {1}.{0} failed at {2, date, HH:mm:ss}: {8}");
+    return plugin;
+}
+
+@Bean // logs every trigger firing, misfire and completion
+LoggingTriggerHistoryPlugin triggerHistory() {
+    return new LoggingTriggerHistoryPlugin();
+}
+
+@Bean // interrupts jobs that run longer than allowed ("MaxRunTime" job data entry, in ms, overrides it per job)
+JobInterruptMonitorPlugin jobInterruptMonitor() {
+    JobInterruptMonitorPlugin plugin = new JobInterruptMonitorPlugin();
+    plugin.setDefaultMaxRunTime(Duration.ofMinutes(10)); // default 5 minutes
+    return plugin;
+}
+```
+
+Your own `SchedulerPlugin` implementations are registered the same way; use `@Profile` or
+`@ConditionalOnProperty` on the bean method to switch one on per environment.
+
 Jobs run on a pool of `thread-count` platform threads (`SimpleThreadPool`) unless virtual threads are switched on
 for the scheduler:
 
@@ -117,8 +145,8 @@ Both stores support clustering (`spring.quartz.job-store.clustered: true`, uniqu
 
 - **MongoDB** (`spring-boot-starter-data-mongodb`) uses the application's `MongoClient`. Collections are
   `{collection-prefix}jobs`, `triggers`, `calendars`, `paused_groups`, `fired_triggers`, `schedulers`, `locks`
-  (default prefix `qrtz_`) in the application's database or `spring.quartz.job-store.mongodb.database`;
-  indexes are created on startup. On a replica set every store operation also runs in a transaction.
+  (default prefix `qrtz_`) in the application's MongoDB database: the one Spring Data MongoDB uses, otherwise
+  `spring.mongodb.database`, otherwise the database of `spring.mongodb.uri`; indexes are created on startup. On a replica set every store operation also runs in a transaction.
 - **Redis** (`spring-boot-starter-data-redis`) uses the application's `RedisConnectionFactory`. All keys of a
   scheduler are `{key-prefix}{schedulerName}:...` (default prefix `quartz:`), one hash slot, so Redis Cluster
   works; multi-key changes are Lua scripts.
@@ -147,68 +175,46 @@ Both stores support clustering (`spring.quartz.job-store.clustered: true`, uniqu
 ## Configuration reference (`application.yml`)
 
 All properties, generated from `META-INF/spring-configuration-metadata.json` (the configuration processor's
-output for this library; your IDE completes them from the same file). Durations accept `500ms`, `30s`, `10m` or
+output for this library, merged with `META-INF/additional-spring-configuration-metadata.json`; your IDE completes
+them from the same file and flags the removed ones). Thread priorities, daemon flags, class-loader inheritance and
+store-internal locking options are not properties: they keep defaults chosen for a Spring Boot application. Durations accept `500ms`, `30s`, `10m` or
 ISO-8601 (`PT30S`).
 
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `management.endpoint.quartz.access` | Access | `unrestricted` | Permitted level of access for the quartz endpoint. |
 | `management.endpoint.quartz.cache.time-to-live` | Duration | `0ms` | Maximum time that a response can be cached. |
-| `management.endpoint.quartz.roles` | Set&lt;String&gt; |  | Roles used to determine whether a user is authorized to be shown unsanitized job or trigger values. When empty, all authenticated users are authorized. |
+| `management.endpoint.quartz.roles` | Set |  | Roles used to determine whether a user is authorized to be shown unsanitized job or trigger values. When empty, all authenticated users are authorized. |
 | `management.endpoint.quartz.show-values` | Show | `never` | When to show unsanitized job or trigger values. |
-| `spring.quartz.auto-startup` | Boolean | `true` | Whether to automatically start the scheduler after initialization |
-| `spring.quartz.job-store.acquire-triggers-within-lock` | Boolean | `false` | Whether to acquire triggers while holding the store's trigger lock |
-| `spring.quartz.job-store.acquire-triggers-within-lock-retry` | Duration | `50ms` | Pause between attempts to take a store lock held by another instance |
-| `spring.quartz.job-store.cluster-checkin-interval` | Duration | `7500ms` | How often a clustered instance checks in with the others |
-| `spring.quartz.job-store.cluster-checkin-misfire-threshold` | Duration | `7500ms` | Grace period after a missed check-in before an instance is considered failed and its work is recovered |
-| `spring.quartz.job-store.clustered` | Boolean | `false` | Whether several scheduler instances share the store |
-| `spring.quartz.job-store.double-check-lock-misfire-handler` | Boolean | `true` | Whether to check for misfires before taking the lock to handle them |
-| `spring.quartz.job-store.make-threads-daemons` | Boolean | `false` | Whether the store's maintenance threads are daemon threads |
-| `spring.quartz.job-store.max-misfires-to-handle-at-a-time` | Integer | `20` | Maximum number of misfired triggers handled per pass |
-| `spring.quartz.job-store.misfire-threshold` | Duration | `60s` | How late a trigger may fire before it counts as misfired |
-| `spring.quartz.job-store.mongodb.collection-prefix` | String | `qrtz_` | Prefix of the collections the store uses |
-| `spring.quartz.job-store.mongodb.database` | String |  | Database the store uses; defaults to the application's MongoDB database |
-| `spring.quartz.job-store.mongodb.lock-timeout` | Duration | `10m` | How long a lock is held before it is considered abandoned |
-| `spring.quartz.job-store.redis.key-prefix` | String | `quartz:` | Prefix of the keys the store uses |
-| `spring.quartz.job-store.redis.lock-timeout` | Duration | `30s` | How long a lock is held before it is considered abandoned |
-| `spring.quartz.job-store.retry-interval` | Duration | `15s` | Delay before retrying after the store could not be reached |
-| `spring.quartz.job-store.threads-inherit-initializers-class-load-context` | Boolean | `false` | Whether the store's maintenance threads use the context class loader of the initializing thread |
-| `spring.quartz.job-store.type` | JobStoreType |  | Job store type; when unset, the store whose connection bean is present |
-| `spring.quartz.job-store.use-properties` | Boolean | `false` | Whether job data map values are restricted to strings |
-| `spring.quartz.overwrite-existing-jobs` | Boolean | `false` | Whether configured jobs should overwrite existing job definitions |
-| `spring.quartz.plugins.job-history.enabled` | Boolean | `false` | Whether to log job executions |
-| `spring.quartz.plugins.job-history.job-failed-message` | String |  | Message logged after a job failed |
-| `spring.quartz.plugins.job-history.job-success-message` | String |  | Message logged after a job completed |
-| `spring.quartz.plugins.job-history.job-to-be-fired-message` | String |  | Message logged before a job runs |
-| `spring.quartz.plugins.job-history.job-was-vetoed-message` | String |  | Message logged when a job execution was vetoed |
-| `spring.quartz.plugins.job-interrupt-monitor.default-max-run-time` | Duration | `5m` | Maximum run time of a job |
-| `spring.quartz.plugins.job-interrupt-monitor.enabled` | Boolean | `false` | Whether to interrupt jobs that run longer than allowed |
-| `spring.quartz.plugins.trigger-history.enabled` | Boolean | `false` | Whether to log trigger firings |
-| `spring.quartz.plugins.trigger-history.trigger-complete-message` | String |  | Message logged when a triggered job completed |
-| `spring.quartz.plugins.trigger-history.trigger-fired-message` | String |  | Message logged when a trigger fires |
-| `spring.quartz.plugins.trigger-history.trigger-misfired-message` | String |  | Message logged when a trigger misfires |
-| `spring.quartz.scheduler.batch-trigger-acquisition-fire-ahead-time-window` | Duration | `0s` | How far ahead of their fire time triggers may be acquired |
-| `spring.quartz.scheduler.batch-trigger-acquisition-max-count` | Integer | `1` | Maximum number of triggers acquired at once |
-| `spring.quartz.scheduler.context` | Map&lt;String,String&gt; |  | Initial entries of the scheduler context |
-| `spring.quartz.scheduler.idle-wait-time` | Duration | `30s` | How long the scheduler thread waits for new triggers when idle; at least 1s |
-| `spring.quartz.scheduler.instance-id` | String | `NON_CLUSTERED` | Instance id of this node; "AUTO" generates one and "SYS_PROP" reads the "org.quartz.scheduler.instanceId" system property (both only when the job store is clustered) |
-| `spring.quartz.scheduler.interrupt-jobs-on-shutdown` | Boolean | `false` | Whether to interrupt running interruptable jobs on shutdown without waiting |
-| `spring.quartz.scheduler.interrupt-jobs-on-shutdown-with-wait` | Boolean | `false` | Whether to interrupt running interruptable jobs on shutdown with waiting |
-| `spring.quartz.scheduler.make-scheduler-thread-daemon` | Boolean | `false` | Whether the scheduler thread is a daemon thread |
-| `spring.quartz.scheduler.name` | String | `quartzScheduler` | Name of the scheduler, shared by all nodes of a cluster |
-| `spring.quartz.scheduler.thread-name` | String |  | Name of the scheduler thread; defaults to the scheduler name followed by "_QuartzSchedulerThread" |
-| `spring.quartz.scheduler.threads-inherit-context-class-loader-of-initializer` | Boolean | `false` | Whether the scheduler thread uses the context class loader of the thread that creates the scheduler |
-| `spring.quartz.startup-delay` | Duration | `0s` | Delay after which the scheduler is started once initialization completes. Setting this property makes sense if no jobs should be run before the entire application has started up |
-| `spring.quartz.thread-pool.daemon` | Boolean | `false` | Whether the worker threads are daemon threads |
-| `spring.quartz.thread-pool.thread-count` | Integer | `10` | Number of worker threads, or the maximum number of concurrently running jobs with virtual threads |
-| `spring.quartz.thread-pool.thread-name-prefix` | String |  | Prefix of the worker thread names; defaults to the scheduler name followed by "_Worker" |
-| `spring.quartz.thread-pool.thread-priority` | Integer | `5` | Priority of the worker threads (1 to 9) |
-| `spring.quartz.thread-pool.threads-inherit-context-class-loader-of-initializing-thread` | Boolean | `true` | Whether the worker threads use the context class loader of the thread that initializes the pool |
-| `spring.quartz.thread-pool.threads-inherit-group-of-initializing-thread` | Boolean | `true` | Whether the worker threads join the thread group of the thread that initializes the pool |
-| `spring.quartz.thread-pool.virtual-threads` | Boolean | `false` | Whether to run each job on a new virtual thread (at most `thread-count` at a time) instead of a pool of platform threads; independent of `spring.threads.virtual.enabled` |
-| `spring.quartz.transaction.default-propagation` | Propagation | `REQUIRED` | Propagation of the transactions of jobs that are not annotated, when enabled |
-| `spring.quartz.transaction.enabled` | Boolean | `false` | Whether every job runs in a transaction of the unique or primary transaction manager, not only annotated jobs |
-| `spring.quartz.wait-for-jobs-to-complete-on-shutdown` | Boolean | `false` | Whether to wait for running jobs to complete on shutdown |
+| `spring.quartz.auto-startup` | Boolean | `true` | Whether to automatically start the scheduler after initialization. |
+| `spring.quartz.job-store.cluster-checkin-interval` | Duration | `7500ms` | How often a clustered instance checks in with the others. |
+| `spring.quartz.job-store.cluster-checkin-misfire-threshold` | Duration | `7500ms` | Grace period after a missed check-in before an instance is considered failed and its work is recovered. |
+| `spring.quartz.job-store.clustered` | Boolean | `false` | Whether several scheduler instances share the store. |
+| `spring.quartz.job-store.max-misfires-to-handle-at-a-time` | Integer | `20` | Maximum number of misfired triggers handled per pass. |
+| `spring.quartz.job-store.misfire-threshold` | Duration | `60s` | How late a trigger may fire before it counts as misfired. |
+| `spring.quartz.job-store.mongodb.collection-prefix` | String | `qrtz_` | Prefix of the collections the store uses. |
+| `spring.quartz.job-store.mongodb.lock-timeout` | Duration | `10m` | How long a lock is held before it is considered abandoned. |
+| `spring.quartz.job-store.redis.key-prefix` | String | `quartz:` | Prefix of the keys the store uses. |
+| `spring.quartz.job-store.redis.lock-timeout` | Duration | `30s` | How long a lock is held before it is considered abandoned. |
+| `spring.quartz.job-store.retry-interval` | Duration | `15s` | Delay before retrying after the store could not be reached. |
+| `spring.quartz.job-store.type` | JobStoreType |  | Job store type; when unset, the store whose connection bean is present. |
+| `spring.quartz.overwrite-existing-jobs` | Boolean | `false` | Whether configured jobs should overwrite existing job definitions. |
+| `spring.quartz.scheduler.batch-trigger-acquisition-fire-ahead-time-window` | Duration | `0s` | How far ahead of their fire time triggers may be acquired. |
+| `spring.quartz.scheduler.batch-trigger-acquisition-max-count` | Integer | `1` | Maximum number of triggers acquired at once. |
+| `spring.quartz.scheduler.context` | Map |  | Initial entries of the scheduler context. |
+| `spring.quartz.scheduler.idle-wait-time` | Duration | `30s` | How long the scheduler thread waits for new triggers when idle; at least 1s. |
+| `spring.quartz.scheduler.instance-id` | String | `NON_CLUSTERED` | Instance id of this node; "AUTO" generates one and "SYS_PROP" reads the "org.quartz.scheduler.instanceId" system property (both only when the job store is clustered). |
+| `spring.quartz.scheduler.interrupt-jobs-on-shutdown` | Boolean | `false` | Whether to interrupt running interruptable jobs on shutdown without waiting. |
+| `spring.quartz.scheduler.interrupt-jobs-on-shutdown-with-wait` | Boolean | `false` | Whether to interrupt running interruptable jobs on shutdown with waiting. |
+| `spring.quartz.scheduler.name` | String | `quartzScheduler` | Name of the scheduler, shared by all nodes of a cluster. |
+| `spring.quartz.scheduler.thread-name` | String |  | Name of the scheduler thread; defaults to the scheduler name followed by "_QuartzSchedulerThread". |
+| `spring.quartz.startup-delay` | Duration | `0s` | Delay after which the scheduler is started once initialization completes. Setting this property makes sense if no jobs should be run before the entire application has started up. |
+| `spring.quartz.thread-pool.thread-count` | Integer | `10` | Number of worker threads, or, with virtual threads, the maximum number of concurrently running jobs. |
+| `spring.quartz.thread-pool.thread-name-prefix` | String |  | Prefix of the worker thread names; defaults to the scheduler name followed by "_Worker". |
+| `spring.quartz.thread-pool.virtual-threads` | Boolean | `false` | Whether to run each job on a new virtual thread, at most thread-count at a time, instead of a pool of platform threads; independent of "spring.threads.virtual.enabled". |
+| `spring.quartz.transaction.default-propagation` | Propagation | `REQUIRED` | Propagation of the transactions of jobs that are not annotated, when enabled. |
+| `spring.quartz.transaction.enabled` | Boolean | `false` | Whether every job runs in a transaction of the unique or primary transaction manager, not only annotated jobs. |
+| `spring.quartz.wait-for-jobs-to-complete-on-shutdown` | Boolean | `false` | Whether to wait for running jobs to complete on shutdown. |
 
 Connection settings are Spring Boot's own: `spring.mongodb.*` (MongoDB) and `spring.data.redis.*` (Redis).
 
@@ -299,7 +305,7 @@ against Quartz, apart from two cron bug fixes listed in `DECISIONS.md` (D-010, D
   `org.quartz.jobStore.misfireThreshold=60000` → `spring.quartz.job-store.misfire-threshold: 60s`,
   `org.quartz.jobStore.isClustered` → `spring.quartz.job-store.clustered`. Spring Boot's flat
   `spring.quartz.scheduler-name`, `job-store-type` and free-form `spring.quartz.properties.*` are replaced by the
-  `scheduler`, `job-store`, `thread-pool` and `plugins` groups.
+  `scheduler`, `job-store`, `thread-pool` and `transaction` groups. Plugins (`org.quartz.plugin.*`) are beans.
 - **Stores:** only MongoDB and Redis. There is no JDBC store (`spring.quartz.jdbc.*`, table scripts, `DataSource`)
   and no in-memory `RAMJobStore`; jobs are always persisted, so existing data has to be re-scheduled in the new
   store (re-creating the `JobDetail` / `Trigger` beans does that on startup).

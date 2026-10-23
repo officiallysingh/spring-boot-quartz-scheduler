@@ -28,9 +28,6 @@ import org.quartz.SchedulerListener;
 import org.quartz.Trigger;
 import org.quartz.TriggerListener;
 import org.quartz.impl.config.QuartzSettings;
-import org.quartz.plugins.history.LoggingJobHistoryPlugin;
-import org.quartz.plugins.history.LoggingTriggerHistoryPlugin;
-import org.quartz.plugins.interrupt.JobInterruptMonitorPlugin;
 import org.quartz.simpl.SystemPropertyInstanceIdGenerator;
 import org.quartz.spi.InstanceIdGenerator;
 import org.quartz.spi.JobStore;
@@ -80,12 +77,6 @@ import org.springframework.context.annotation.Import;
 })
 public final class QuartzAutoConfiguration {
 
-  static final String JOB_HISTORY_PLUGIN = "jobHistory";
-
-  static final String TRIGGER_HISTORY_PLUGIN = "triggerHistory";
-
-  static final String JOB_INTERRUPT_MONITOR_PLUGIN = "jobInterruptMonitor";
-
   @Bean
   @ConditionalOnMissingBean({Scheduler.class, SchedulerFactoryBean.class})
   SchedulerFactoryBean quartzScheduler(
@@ -126,7 +117,7 @@ public final class QuartzAutoConfiguration {
       instanceIdGenerator.ifUnique(schedulerFactoryBean::setInstanceIdGenerator);
     }
     clock.ifUnique(schedulerFactoryBean::setClock);
-    schedulerFactoryBean.setPlugins(plugins(properties.plugins(), plugins));
+    schedulerFactoryBean.setPlugins(new LinkedHashMap<>(plugins));
     schedulerFactoryBean.setJobDetails(jobDetails.orderedStream().toArray(JobDetail[]::new));
     schedulerFactoryBean.setCalendars(calendars);
     schedulerFactoryBean.setTriggers(triggers.orderedStream().toArray(Trigger[]::new));
@@ -159,64 +150,5 @@ public final class QuartzAutoConfiguration {
           type, available.stream().map(JobStoreFactory::type).sorted().toList());
     }
     return candidates.get(0).create(properties);
-  }
-
-  private static Map<String, SchedulerPlugin> plugins(
-      QuartzProperties.Plugins properties, Map<String, SchedulerPlugin> pluginBeans) {
-    Map<String, SchedulerPlugin> plugins = new LinkedHashMap<>();
-    if (properties.jobHistory().enabled()) {
-      plugins.put(JOB_HISTORY_PLUGIN, jobHistoryPlugin(properties.jobHistory()));
-    }
-    if (properties.triggerHistory().enabled()) {
-      plugins.put(TRIGGER_HISTORY_PLUGIN, triggerHistoryPlugin(properties.triggerHistory()));
-    }
-    if (properties.jobInterruptMonitor().enabled()) {
-      JobInterruptMonitorPlugin plugin = new JobInterruptMonitorPlugin();
-      plugin.setDefaultMaxRunTime(properties.jobInterruptMonitor().defaultMaxRunTime());
-      plugins.put(JOB_INTERRUPT_MONITOR_PLUGIN, plugin);
-    }
-    pluginBeans.forEach(
-        (name, plugin) -> {
-          if (plugins.putIfAbsent(name, plugin) != null) {
-            throw new IllegalStateException(
-                "SchedulerPlugin bean '"
-                    + name
-                    + "' clashes with the built-in plugin of the same name enabled in 'spring.quartz.plugins'");
-          }
-        });
-    return plugins;
-  }
-
-  private static LoggingJobHistoryPlugin jobHistoryPlugin(
-      QuartzProperties.Plugins.JobHistory properties) {
-    LoggingJobHistoryPlugin plugin = new LoggingJobHistoryPlugin();
-    if (properties.jobToBeFiredMessage() != null) {
-      plugin.setJobToBeFiredMessage(properties.jobToBeFiredMessage());
-    }
-    if (properties.jobSuccessMessage() != null) {
-      plugin.setJobSuccessMessage(properties.jobSuccessMessage());
-    }
-    if (properties.jobFailedMessage() != null) {
-      plugin.setJobFailedMessage(properties.jobFailedMessage());
-    }
-    if (properties.jobWasVetoedMessage() != null) {
-      plugin.setJobWasVetoedMessage(properties.jobWasVetoedMessage());
-    }
-    return plugin;
-  }
-
-  private static LoggingTriggerHistoryPlugin triggerHistoryPlugin(
-      QuartzProperties.Plugins.TriggerHistory properties) {
-    LoggingTriggerHistoryPlugin plugin = new LoggingTriggerHistoryPlugin();
-    if (properties.triggerFiredMessage() != null) {
-      plugin.setTriggerFiredMessage(properties.triggerFiredMessage());
-    }
-    if (properties.triggerMisfiredMessage() != null) {
-      plugin.setTriggerMisfiredMessage(properties.triggerMisfiredMessage());
-    }
-    if (properties.triggerCompleteMessage() != null) {
-      plugin.setTriggerCompleteMessage(properties.triggerCompleteMessage());
-    }
-    return plugin;
   }
 }

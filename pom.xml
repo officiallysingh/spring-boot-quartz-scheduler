@@ -142,6 +142,12 @@
             <artifactId>spring-data-mongodb</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- the application's MongoDB database: spring.mongodb.* (MongoProperties, MongoConnectionDetails) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-mongodb</artifactId>
+            <optional>true</optional>
+        </dependency>
         <!-- Redis store (Phase 7) -->
         <dependency>
             <groupId>org.springframework.data</groupId>
@@ -233,11 +239,6 @@
             <scope>test</scope>
         </dependency>
         <!-- MongoDB / Redis connection auto-configuration for the Spring context ITs (@ServiceConnection) -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-mongodb</artifactId>
-            <scope>test</scope>
-        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-data-mongodb</artifactId>

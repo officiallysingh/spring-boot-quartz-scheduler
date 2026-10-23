@@ -50,11 +50,7 @@ class QuartzPropertiesTest {
     assertThat(properties.jobStore().mongodb().lockTimeout()).isEqualTo(Duration.ofMinutes(10));
     assertThat(properties.jobStore().redis().keyPrefix()).isEqualTo("quartz:");
     assertThat(properties.jobStore().redis().lockTimeout()).isEqualTo(Duration.ofSeconds(30));
-    assertThat(properties.plugins().jobHistory().enabled()).isFalse();
-    assertThat(properties.plugins().triggerHistory().enabled()).isFalse();
-    assertThat(properties.plugins().jobInterruptMonitor().enabled()).isFalse();
-    assertThat(properties.plugins().jobInterruptMonitor().defaultMaxRunTime())
-        .isEqualTo(Duration.ofMinutes(5));
+
     assertThat(properties.transaction().enabled()).isFalse();
     assertThat(properties.transaction().defaultPropagation()).isEqualTo(Propagation.REQUIRED);
   }
@@ -85,8 +81,6 @@ class QuartzPropertiesTest {
                 Map.entry("spring.quartz.job-store.cluster-checkin-misfire-threshold", "20s"),
                 Map.entry("spring.quartz.job-store.mongodb.collection-prefix", "jobs_"),
                 Map.entry("spring.quartz.job-store.redis.lock-timeout", "1m"),
-                Map.entry("spring.quartz.plugins.job-history.enabled", "true"),
-                Map.entry("spring.quartz.plugins.job-interrupt-monitor.default-max-run-time", "2h"),
                 Map.entry("spring.quartz.transaction.enabled", "true"),
                 Map.entry("spring.quartz.transaction.default-propagation", "requires-new")));
 
@@ -118,11 +112,24 @@ class QuartzPropertiesTest {
     assertThat(properties.jobStore().mongodb().collectionPrefix()).isEqualTo("jobs_");
     assertThat(properties.jobStore().redis().lockTimeout()).isEqualTo(Duration.ofMinutes(1));
 
-    assertThat(properties.plugins().jobHistory().enabled()).isTrue();
-    assertThat(properties.plugins().jobInterruptMonitor().defaultMaxRunTime())
-        .isEqualTo(Duration.ofHours(2));
     assertThat(properties.transaction().enabled()).isTrue();
     assertThat(properties.transaction().defaultPropagation()).isEqualTo(Propagation.REQUIRES_NEW);
+  }
+
+  @Test
+  void removedKeysAreNotBoundAndTheSettingsKeepTheirDefaults() {
+    QuartzProperties properties =
+        bind(
+            Map.of(
+                "spring.quartz.thread-pool.thread-priority", "9",
+                "spring.quartz.thread-pool.daemon", "true",
+                "spring.quartz.job-store.use-properties", "true",
+                "spring.quartz.job-store.acquire-triggers-within-lock", "true",
+                "spring.quartz.scheduler.make-scheduler-thread-daemon", "true"));
+
+    assertThat(properties.threadPool().toSettings()).isEqualTo(ThreadPoolSettings.defaults());
+    assertThat(properties.jobStore().toSettings()).isEqualTo(JobStoreSettings.defaults());
+    assertThat(properties.scheduler().toSettings().makeSchedulerThreadDaemon()).isFalse();
   }
 
   @Test

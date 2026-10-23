@@ -25,6 +25,8 @@ import org.quartz.spi.JobStore;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.mongodb.autoconfigure.MongoConnectionDetails;
+import org.springframework.boot.mongodb.autoconfigure.MongoProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.MongoDatabaseFactory;
@@ -50,13 +52,16 @@ final class JobStoreConfigurations {
   }
 
   @Configuration(proxyBeanMethods = false)
-  @ConditionalOnClass({MongoClient.class, MongoDatabaseFactory.class})
+  @ConditionalOnClass({MongoClient.class, MongoDatabaseFactory.class, MongoProperties.class})
   @ConditionalOnBean(MongoClient.class)
   static class MongoJobStoreConfiguration {
 
     @Bean
     JobStoreFactory quartzMongoJobStoreFactory(
-        MongoClient mongoClient, ObjectProvider<MongoDatabaseFactory> databaseFactory) {
+        MongoClient mongoClient,
+        ObjectProvider<MongoDatabaseFactory> databaseFactory,
+        ObjectProvider<MongoProperties> mongoProperties,
+        ObjectProvider<MongoConnectionDetails> connectionDetails) {
       return new JobStoreFactory() {
 
         @Override
@@ -67,16 +72,7 @@ final class JobStoreConfigurations {
         @Override
         public JobStore create(QuartzProperties properties) {
           QuartzProperties.JobStore.Mongodb mongodb = properties.jobStore().mongodb();
-          String database = mongodb.database();
-          if (database == null) {
-            MongoDatabaseFactory factory = databaseFactory.getIfAvailable();
-            if (factory == null) {
-              throw new IllegalStateException(
-                  "Set 'spring.quartz.job-store.mongodb.database' or "
-                      + "configure Spring Data MongoDB so the database is known");
-            }
-            database = factory.getMongoDatabase().getName();
-          }
+          String database = database(databaseFactory, mongoProperties, connectionDetails);
           return new MongoJobStore(
               mongoClient,
               database,
@@ -84,6 +80,34 @@ final class JobStoreConfigurations {
               new MongoJobStoreSettings(mongodb.collectionPrefix(), mongodb.lockTimeout()));
         }
       };
+    }
+
+    /**
+     * The application's MongoDB database, resolved as Spring Boot does: the {@link
+     * MongoDatabaseFactory}'s when there is one (it may be the application's own), otherwise {@code
+     * spring.mongodb.database}, otherwise the database of the connection string ({@code
+     * spring.mongodb.uri} or a service connection).
+     */
+    private static String database(
+        ObjectProvider<MongoDatabaseFactory> databaseFactory,
+        ObjectProvider<MongoProperties> mongoProperties,
+        ObjectProvider<MongoConnectionDetails> connectionDetails) {
+      MongoDatabaseFactory factory = databaseFactory.getIfAvailable();
+      if (factory != null) {
+        return factory.getMongoDatabase().getName();
+      }
+      MongoProperties properties = mongoProperties.getIfAvailable();
+      String database = (properties != null) ? properties.getDatabase() : null;
+      if (database == null) {
+        MongoConnectionDetails details = connectionDetails.getIfAvailable();
+        database = (details != null) ? details.getConnectionString().getDatabase() : null;
+      }
+      if (database == null || database.isBlank()) {
+        throw new IllegalStateException(
+            "The MongoDB job store needs a database: set 'spring.mongodb.database' or include"
+                + " the database in 'spring.mongodb.uri'");
+      }
+      return database;
     }
   }
 

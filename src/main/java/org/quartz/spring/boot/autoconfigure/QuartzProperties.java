@@ -29,19 +29,20 @@ import org.springframework.transaction.annotation.Propagation;
 /**
  * Configuration properties for the Quartz Scheduler integration. Every duration is a {@link
  * Duration}; the nested groups map onto the typed {@link SchedulerSettings}, {@link
- * ThreadPoolSettings} and {@link JobStoreSettings}.
+ * ThreadPoolSettings} and {@link JobStoreSettings}. Settings of those types without a property here
+ * keep their defaults, chosen for a Spring Boot application. Scheduler plugins are {@link
+ * org.quartz.spi.SchedulerPlugin} beans.
  *
- * @param autoStartup whether to automatically start the scheduler after initialization
- * @param startupDelay delay after which the scheduler is started once initialization completes.
+ * @param autoStartup Whether to automatically start the scheduler after initialization.
+ * @param startupDelay Delay after which the scheduler is started once initialization completes.
  *     Setting this property makes sense if no jobs should be run before the entire application has
- *     started up
- * @param waitForJobsToCompleteOnShutdown whether to wait for running jobs to complete on shutdown
- * @param overwriteExistingJobs whether configured jobs should overwrite existing job definitions
- * @param scheduler scheduler settings
- * @param threadPool worker thread pool settings
- * @param jobStore job store settings
- * @param plugins built-in scheduler plugins
- * @param transaction transactions around job executions
+ *     started up.
+ * @param waitForJobsToCompleteOnShutdown Whether to wait for running jobs to complete on shutdown.
+ * @param overwriteExistingJobs Whether configured jobs should overwrite existing job definitions.
+ * @param scheduler Scheduler settings.
+ * @param threadPool Worker thread pool settings.
+ * @param jobStore Job store settings.
+ * @param transaction Transactions around job executions.
  * @author Vedran Pavic
  * @author Stephane Nicoll
  * @since 4.0.0
@@ -55,7 +56,6 @@ public record QuartzProperties(
     @DefaultValue Scheduler scheduler,
     @DefaultValue ThreadPool threadPool,
     @DefaultValue JobStore jobStore,
-    @DefaultValue Plugins plugins,
     @DefaultValue Transaction transaction) {
 
   /** Value of {@code instance-id} that generates the id when the store is clustered. */
@@ -70,31 +70,27 @@ public record QuartzProperties(
   /**
    * Scheduler settings.
    *
-   * @param name name of the scheduler, shared by all nodes of a cluster
-   * @param instanceId instance id of this node; "AUTO" generates one and "SYS_PROP" reads the
+   * @param name Name of the scheduler, shared by all nodes of a cluster.
+   * @param instanceId Instance id of this node; "AUTO" generates one and "SYS_PROP" reads the
    *     "org.quartz.scheduler.instanceId" system property (both only when the job store is
-   *     clustered)
-   * @param threadName name of the scheduler thread; defaults to the scheduler name followed by
-   *     "_QuartzSchedulerThread"
-   * @param makeSchedulerThreadDaemon whether the scheduler thread is a daemon thread
-   * @param threadsInheritContextClassLoaderOfInitializer whether the scheduler thread uses the
-   *     context class loader of the thread that creates the scheduler
-   * @param idleWaitTime how long the scheduler thread waits for new triggers when idle; at least 1s
-   * @param batchTriggerAcquisitionFireAheadTimeWindow how far ahead of their fire time triggers may
-   *     be acquired
-   * @param batchTriggerAcquisitionMaxCount maximum number of triggers acquired at once
-   * @param interruptJobsOnShutdown whether to interrupt running interruptable jobs on shutdown
-   *     without waiting
-   * @param interruptJobsOnShutdownWithWait whether to interrupt running interruptable jobs on
-   *     shutdown with waiting
-   * @param context initial entries of the scheduler context
+   *     clustered).
+   * @param threadName Name of the scheduler thread; defaults to the scheduler name followed by
+   *     "_QuartzSchedulerThread".
+   * @param idleWaitTime How long the scheduler thread waits for new triggers when idle; at least
+   *     1s.
+   * @param batchTriggerAcquisitionFireAheadTimeWindow How far ahead of their fire time triggers may
+   *     be acquired.
+   * @param batchTriggerAcquisitionMaxCount Maximum number of triggers acquired at once.
+   * @param interruptJobsOnShutdown Whether to interrupt running interruptable jobs on shutdown
+   *     without waiting.
+   * @param interruptJobsOnShutdownWithWait Whether to interrupt running interruptable jobs on
+   *     shutdown with waiting.
+   * @param context Initial entries of the scheduler context.
    */
   public record Scheduler(
       @DefaultValue("quartzScheduler") String name,
       @DefaultValue(SchedulerSettings.DEFAULT_INSTANCE_ID) String instanceId,
       @Nullable String threadName,
-      boolean makeSchedulerThreadDaemon,
-      boolean threadsInheritContextClassLoaderOfInitializer,
       @DefaultValue("30s") Duration idleWaitTime,
       @DefaultValue("0s") Duration batchTriggerAcquisitionFireAheadTimeWindow,
       @DefaultValue("1") int batchTriggerAcquisitionMaxCount,
@@ -114,9 +110,6 @@ public record QuartzProperties(
           .instanceId(auto ? SchedulerSettings.DEFAULT_INSTANCE_ID : this.instanceId)
           .instanceIdAuto(auto)
           .threadName(this.threadName)
-          .makeSchedulerThreadDaemon(this.makeSchedulerThreadDaemon)
-          .threadsInheritContextClassLoaderOfInitializer(
-              this.threadsInheritContextClassLoaderOfInitializer)
           .idleWaitTime(this.idleWaitTime)
           .batchTriggerAcquisitionFireAheadTimeWindow(
               this.batchTriggerAcquisitionFireAheadTimeWindow)
@@ -131,39 +124,26 @@ public record QuartzProperties(
   /**
    * Worker thread pool settings.
    *
-   * @param threadCount number of worker threads, or the maximum number of concurrently running jobs
-   *     with virtual threads
-   * @param threadPriority priority of the worker threads (1 to 9)
-   * @param threadNamePrefix prefix of the worker thread names; defaults to the scheduler name
-   *     followed by "_Worker"
-   * @param daemon whether the worker threads are daemon threads
-   * @param threadsInheritContextClassLoaderOfInitializingThread whether the worker threads use the
-   *     context class loader of the thread that initializes the pool
-   * @param threadsInheritGroupOfInitializingThread whether the worker threads join the thread group
-   *     of the thread that initializes the pool
-   * @param virtualThreads whether to run each job on a new virtual thread ({@link
-   *     org.quartz.simpl.VirtualThreadPool}, at most {@code thread-count} at a time) instead of a
-   *     pool of platform threads; independent of {@code spring.threads.virtual.enabled}. Thread
-   *     priority, daemon status and thread groups do not apply to virtual threads.
+   * <p>Platform worker threads run at normal priority, are not daemon threads, join the thread
+   * group of, and use the context class loader of, the thread that initializes the pool.
+   *
+   * @param threadCount Number of worker threads, or, with virtual threads, the maximum number of
+   *     concurrently running jobs.
+   * @param threadNamePrefix Prefix of the worker thread names; defaults to the scheduler name
+   *     followed by "_Worker".
+   * @param virtualThreads Whether to run each job on a new virtual thread, at most thread-count at
+   *     a time, instead of a pool of platform threads; independent of
+   *     "spring.threads.virtual.enabled".
    */
   public record ThreadPool(
       @DefaultValue("10") int threadCount,
-      @DefaultValue("5") int threadPriority,
       @Nullable String threadNamePrefix,
-      boolean daemon,
-      @DefaultValue("true") boolean threadsInheritContextClassLoaderOfInitializingThread,
-      @DefaultValue("true") boolean threadsInheritGroupOfInitializingThread,
       boolean virtualThreads) {
 
     public ThreadPoolSettings toSettings() {
       return ThreadPoolSettings.builder()
           .threadCount(this.threadCount)
-          .threadPriority(this.threadPriority)
           .threadNamePrefix(this.threadNamePrefix)
-          .daemon(this.daemon)
-          .threadsInheritContextClassLoaderOfInitializingThread(
-              this.threadsInheritContextClassLoaderOfInitializingThread)
-          .threadsInheritGroupOfInitializingThread(this.threadsInheritGroupOfInitializingThread)
           .virtualThreads(this.virtualThreads)
           .build();
     }
@@ -172,26 +152,16 @@ public record QuartzProperties(
   /**
    * Job store settings.
    *
-   * @param type job store type; when unset, the store whose connection bean is present
-   * @param misfireThreshold how late a trigger may fire before it counts as misfired
-   * @param clustered whether several scheduler instances share the store
-   * @param clusterCheckinInterval how often a clustered instance checks in with the others
-   * @param clusterCheckinMisfireThreshold grace period after a missed check-in before an instance
-   *     is considered failed and its work is recovered
-   * @param maxMisfiresToHandleAtATime maximum number of misfired triggers handled per pass
-   * @param acquireTriggersWithinLock whether to acquire triggers while holding the store's trigger
-   *     lock
-   * @param acquireTriggersWithinLockRetry pause between attempts to take a store lock held by
-   *     another instance
-   * @param retryInterval delay before retrying after the store could not be reached
-   * @param useProperties whether job data map values are restricted to strings
-   * @param doubleCheckLockMisfireHandler whether to check for misfires before taking the lock to
-   *     handle them
-   * @param makeThreadsDaemons whether the store's maintenance threads are daemon threads
-   * @param threadsInheritInitializersClassLoadContext whether the store's maintenance threads use
-   *     the context class loader of the initializing thread
-   * @param mongodb MongoDB job store settings
-   * @param redis Redis job store settings
+   * @param type Job store type; when unset, the store whose connection bean is present.
+   * @param misfireThreshold How late a trigger may fire before it counts as misfired.
+   * @param clustered Whether several scheduler instances share the store.
+   * @param clusterCheckinInterval How often a clustered instance checks in with the others.
+   * @param clusterCheckinMisfireThreshold Grace period after a missed check-in before an instance
+   *     is considered failed and its work is recovered.
+   * @param maxMisfiresToHandleAtATime Maximum number of misfired triggers handled per pass.
+   * @param retryInterval Delay before retrying after the store could not be reached.
+   * @param mongodb MongoDB job store settings.
+   * @param redis Redis job store settings.
    */
   public record JobStore(
       @Nullable JobStoreType type,
@@ -200,13 +170,7 @@ public record QuartzProperties(
       @DefaultValue("7500ms") Duration clusterCheckinInterval,
       @DefaultValue("7500ms") Duration clusterCheckinMisfireThreshold,
       @DefaultValue("20") int maxMisfiresToHandleAtATime,
-      boolean acquireTriggersWithinLock,
-      @DefaultValue("50ms") Duration acquireTriggersWithinLockRetry,
       @DefaultValue("15s") Duration retryInterval,
-      boolean useProperties,
-      @DefaultValue("true") boolean doubleCheckLockMisfireHandler,
-      boolean makeThreadsDaemons,
-      boolean threadsInheritInitializersClassLoadContext,
       @DefaultValue Mongodb mongodb,
       @DefaultValue Redis redis) {
 
@@ -217,102 +181,39 @@ public record QuartzProperties(
           .clusterCheckinInterval(this.clusterCheckinInterval)
           .clusterCheckinMisfireThreshold(this.clusterCheckinMisfireThreshold)
           .maxMisfiresToHandleAtATime(this.maxMisfiresToHandleAtATime)
-          .acquireTriggersWithinLock(this.acquireTriggersWithinLock)
-          .acquireTriggersWithinLockRetry(this.acquireTriggersWithinLockRetry)
           .retryInterval(this.retryInterval)
-          .useProperties(this.useProperties)
-          .doubleCheckLockMisfireHandler(this.doubleCheckLockMisfireHandler)
-          .makeThreadsDaemons(this.makeThreadsDaemons)
-          .threadsInheritInitializersClassLoadContext(
-              this.threadsInheritInitializersClassLoadContext)
           .build();
     }
 
     /**
-     * MongoDB job store settings.
+     * MongoDB job store settings. The store uses the application's MongoDB database
+     * ("spring.mongodb.database", or the database of the connection string).
      *
-     * @param database database the store uses; defaults to the application's MongoDB database
-     * @param collectionPrefix prefix of the collections the store uses
-     * @param lockTimeout how long a lock is held before it is considered abandoned
+     * @param collectionPrefix Prefix of the collections the store uses.
+     * @param lockTimeout How long a lock is held before it is considered abandoned.
      */
     public record Mongodb(
-        @Nullable String database,
         @DefaultValue("qrtz_") String collectionPrefix,
         @DefaultValue("10m") Duration lockTimeout) {}
 
     /**
      * Redis job store settings.
      *
-     * @param keyPrefix prefix of the keys the store uses
-     * @param lockTimeout how long a lock is held before it is considered abandoned
+     * @param keyPrefix Prefix of the keys the store uses.
+     * @param lockTimeout How long a lock is held before it is considered abandoned.
      */
     public record Redis(
         @DefaultValue("quartz:") String keyPrefix, @DefaultValue("30s") Duration lockTimeout) {}
   }
 
   /**
-   * Built-in scheduler plugins.
-   *
-   * @param jobHistory logs job executions
-   * @param triggerHistory logs trigger firings
-   * @param jobInterruptMonitor interrupts jobs that run longer than allowed
-   */
-  public record Plugins(
-      @DefaultValue JobHistory jobHistory,
-      @DefaultValue TriggerHistory triggerHistory,
-      @DefaultValue JobInterruptMonitor jobInterruptMonitor) {
-
-    /**
-     * Job history logging plugin. Messages use {@link java.text.MessageFormat} syntax; unset
-     * messages keep the plugin's defaults.
-     *
-     * @param enabled whether to log job executions
-     * @param jobToBeFiredMessage message logged before a job runs
-     * @param jobSuccessMessage message logged after a job completed
-     * @param jobFailedMessage message logged after a job failed
-     * @param jobWasVetoedMessage message logged when a job execution was vetoed
-     */
-    public record JobHistory(
-        boolean enabled,
-        @Nullable String jobToBeFiredMessage,
-        @Nullable String jobSuccessMessage,
-        @Nullable String jobFailedMessage,
-        @Nullable String jobWasVetoedMessage) {}
-
-    /**
-     * Trigger history logging plugin. Messages use {@link java.text.MessageFormat} syntax; unset
-     * messages keep the plugin's defaults.
-     *
-     * @param enabled whether to log trigger firings
-     * @param triggerFiredMessage message logged when a trigger fires
-     * @param triggerMisfiredMessage message logged when a trigger misfires
-     * @param triggerCompleteMessage message logged when a triggered job completed
-     */
-    public record TriggerHistory(
-        boolean enabled,
-        @Nullable String triggerFiredMessage,
-        @Nullable String triggerMisfiredMessage,
-        @Nullable String triggerCompleteMessage) {}
-
-    /**
-     * Job interrupt monitor plugin. A job can override the maximum run time with a "MaxRunTime" job
-     * data entry in milliseconds.
-     *
-     * @param enabled whether to interrupt jobs that run longer than allowed
-     * @param defaultMaxRunTime maximum run time of a job
-     */
-    public record JobInterruptMonitor(
-        boolean enabled, @DefaultValue("5m") Duration defaultMaxRunTime) {}
-  }
-
-  /**
    * Transactions around job executions. Jobs annotated with {@code @ExecuteInTransaction} always
    * run in a transaction.
    *
-   * @param enabled whether every job runs in a transaction of the unique or primary transaction
-   *     manager, not only annotated jobs
-   * @param defaultPropagation propagation of the transactions of jobs that are not annotated, when
-   *     enabled
+   * @param enabled Whether every job runs in a transaction of the unique or primary transaction
+   *     manager, not only annotated jobs.
+   * @param defaultPropagation Propagation of the transactions of jobs that are not annotated, when
+   *     enabled.
    */
   public record Transaction(
       boolean enabled, @DefaultValue("REQUIRED") Propagation defaultPropagation) {}
