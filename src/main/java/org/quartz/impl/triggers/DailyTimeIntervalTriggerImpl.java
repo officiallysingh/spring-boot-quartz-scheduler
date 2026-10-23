@@ -886,13 +886,14 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
    * Set the time of day after which the trigger stops firing each day.
    *
    * @param endTimeOfDay the end time of day
-   * @throws IllegalArgumentException if it is {@code null}
+   * @throws IllegalArgumentException if it is {@code null} or before the start time of day
    */
   public void setEndTimeOfDay(TimeOfDay endTimeOfDay) {
     if (endTimeOfDay == null) throw new IllegalArgumentException("End time of day cannot be null");
 
-    TimeOfDay sTime = getStartTimeOfDay();
-    if (sTime != null && endTimeOfDay.before(endTimeOfDay)) {
+    // the field, not getStartTimeOfDay(), which would also set the default start of 00:00
+    TimeOfDay sTime = startTimeOfDay;
+    if (sTime != null && endTimeOfDay.before(sTime)) {
       throw new IllegalArgumentException("End time of day cannot be before start time of day");
     }
     this.endTimeOfDay = endTimeOfDay;

@@ -83,16 +83,24 @@ class DailyTimeIntervalTriggerImplTest {
   }
 
   @Test
-  void testValidateTimeOfDayOrder() {
-    DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl();
-    trigger.setStartTimeOfDay(new TimeOfDay(12, 0, 0));
-    trigger.setEndTimeOfDay(new TimeOfDay(8, 0, 0));
-    try {
-      trigger.validate();
-      fail("Trigger should be invalidate when time of day is not in order.");
-    } catch (SchedulerException e) {
-      // expected.
-    }
+  void testTimeOfDayOrderIsEnforcedBySetters() {
+    DailyTimeIntervalTriggerImpl endAfterStart = new DailyTimeIntervalTriggerImpl();
+    endAfterStart.setStartTimeOfDay(new TimeOfDay(12, 0, 0));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> endAfterStart.setEndTimeOfDay(new TimeOfDay(8, 0, 0)));
+    assertNull(endAfterStart.getEndTimeOfDay(), "the rejected end time is not kept");
+
+    DailyTimeIntervalTriggerImpl startBeforeEnd = new DailyTimeIntervalTriggerImpl();
+    startBeforeEnd.setEndTimeOfDay(new TimeOfDay(8, 0, 0));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> startBeforeEnd.setStartTimeOfDay(new TimeOfDay(12, 0, 0)));
+
+    DailyTimeIntervalTriggerImpl sameTime = new DailyTimeIntervalTriggerImpl();
+    sameTime.setStartTimeOfDay(new TimeOfDay(8, 0, 0));
+    sameTime.setEndTimeOfDay(new TimeOfDay(8, 0, 0));
+    assertEquals(new TimeOfDay(8, 0, 0), sameTime.getEndTimeOfDay());
   }
 
   @Test
