@@ -130,7 +130,8 @@ no other cluster node could run them) or get rejected. Its capacity is the core 
 `ThreadPoolTaskExecutor` / `ThreadPoolExecutor` (the maximum pool size if it has no queue) or the concurrency limit
 of a `SimpleAsyncTaskExecutor`. An executor that sets no limit (an unlimited `SimpleAsyncTaskExecutor`,
 `Executors.newCachedThreadPool()`, a virtual-thread-per-task executor, any other `Executor`) runs at most
-`thread-count` jobs at a time, as the startup log says; an explicit capacity, set with
+`thread-count` jobs at a time, as the startup log says; when the limit of an executor cannot be read at all (a
+JDK `Executors.newSingleThreadExecutor()`, a decorator), a warning says so. An explicit capacity, set with
 `setThreadPool(new LocalTaskExecutorThreadPool(executor, capacity))`, is used as given.
 `wait-for-jobs-to-complete-on-shutdown` waits for the jobs handed to the executor; the executor itself is not shut
 down.
@@ -147,8 +148,10 @@ Both stores support clustering (`spring.quartz.job-store.clustered: true`, uniqu
 
 - **MongoDB** (`spring-boot-starter-data-mongodb`) uses the application's `MongoClient`. Collections are
   `{collection-prefix}jobs`, `triggers`, `calendars`, `paused_groups`, `fired_triggers`, `schedulers`, `locks`
-  (default prefix `qrtz_`) in the application's MongoDB database: the one Spring Data MongoDB uses, otherwise
-  `spring.mongodb.database`, otherwise the database of `spring.mongodb.uri`; indexes are created on startup. On a replica set every store operation also runs in a transaction.
+  (default prefix `qrtz_`) in the application's MongoDB database: the one of the `MongoDatabaseFactory` (Spring
+  Data MongoDB's, or your own), otherwise `spring.mongodb.database`, otherwise the database of `spring.mongodb.uri`;
+  indexes are created on startup. An application with its own `MongoClient` and without Spring Boot's MongoDB
+  module defines a `MongoDatabaseFactory` bean to name the database. On a replica set every store operation also runs in a transaction.
 - **Redis** (`spring-boot-starter-data-redis`) uses the application's `RedisConnectionFactory`. All keys of a
   scheduler are `{key-prefix}{schedulerName}:...` (default prefix `quartz:`), one hash slot, so Redis Cluster
   works; multi-key changes are Lua scripts.
@@ -179,7 +182,11 @@ Both stores support clustering (`spring.quartz.job-store.clustered: true`, uniqu
 All properties, generated from `META-INF/spring-configuration-metadata.json` (the configuration processor's
 output for this library, merged with `META-INF/additional-spring-configuration-metadata.json`; your IDE completes
 them from the same file and flags the removed ones). Thread priorities, daemon flags, class-loader inheritance and
-store-internal locking options are not properties: they keep defaults chosen for a Spring Boot application. Durations accept `500ms`, `30s`, `10m` or
+store-internal locking options are not properties: they keep defaults chosen for a Spring Boot application.
+
+Properties removed in this version (`spring.quartz.plugins.*`, `spring.quartz.job-store.mongodb.database`, the
+thread and locking options above) fail startup with a list of what to use instead, rather than being ignored:
+ignoring `mongodb.database`, for instance, would silently point the scheduler at a different database. Durations accept `500ms`, `30s`, `10m` or
 ISO-8601 (`PT30S`).
 
 | Property | Type | Default | Description |

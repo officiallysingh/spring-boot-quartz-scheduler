@@ -1,2 +1,3 @@
 org.springframework.boot.diagnostics.FailureAnalyzer=\
-org.quartz.spring.boot.autoconfigure.JobStoreUnavailableFailureAnalyzer
+org.quartz.spring.boot.autoconfigure.JobStoreUnavailableFailureAnalyzer,\
+org.quartz.spring.boot.autoconfigure.RemovedPropertiesFailureAnalyzer

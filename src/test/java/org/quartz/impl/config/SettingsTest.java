@@ -66,6 +66,14 @@ class SettingsTest {
   }
 
   @Test
+  void theFormerThreadPoolConstructorMeansPlatformThreads() {
+    ThreadPoolSettings pool = new ThreadPoolSettings(4, 5, "w", false, true, true);
+    assertThat(pool.virtualThreads()).isFalse();
+    assertThat(pool)
+        .isEqualTo(ThreadPoolSettings.builder().threadCount(4).threadNamePrefix("w").build());
+  }
+
+  @Test
   void toBuilderRoundTrips() {
     SchedulerSettings scheduler =
         SchedulerSettings.builder()

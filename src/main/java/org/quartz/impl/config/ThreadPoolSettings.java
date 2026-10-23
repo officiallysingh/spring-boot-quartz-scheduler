@@ -65,6 +65,27 @@ public record ThreadPoolSettings(
     }
   }
 
+  /**
+   * Settings of a pool of platform threads ({@code virtualThreads} false), as before virtual
+   * threads were an option.
+   */
+  public ThreadPoolSettings(
+      int threadCount,
+      int threadPriority,
+      @Nullable String threadNamePrefix,
+      boolean daemon,
+      boolean threadsInheritContextClassLoaderOfInitializingThread,
+      boolean threadsInheritGroupOfInitializingThread) {
+    this(
+        threadCount,
+        threadPriority,
+        threadNamePrefix,
+        daemon,
+        threadsInheritContextClassLoaderOfInitializingThread,
+        threadsInheritGroupOfInitializingThread,
+        false);
+  }
+
   public static ThreadPoolSettings defaults() {
     return builder().build();
   }

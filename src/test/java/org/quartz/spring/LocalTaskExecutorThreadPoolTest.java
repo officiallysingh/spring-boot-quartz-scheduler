@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
+import org.springframework.scheduling.concurrent.ConcurrentTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 class LocalTaskExecutorThreadPoolTest {
@@ -98,6 +99,32 @@ class LocalTaskExecutorThreadPoolTest {
     LocalTaskExecutorThreadPool lambda = new LocalTaskExecutorThreadPool(executor::execute);
     lambda.setDefaultCapacity(3);
     assertThat(initialized(lambda).getPoolSize()).isEqualTo(3);
+  }
+
+  @Test
+  void capacityIsReadThroughSpringsExecutorWrappers() {
+    ExecutorService fixed = Executors.newFixedThreadPool(3);
+    try {
+      assertThat(
+              initialized(new LocalTaskExecutorThreadPool(new ConcurrentTaskExecutor(fixed)))
+                  .getPoolSize())
+          .isEqualTo(3);
+    } finally {
+      fixed.shutdown();
+    }
+  }
+
+  @Test
+  void anExecutorFailureOtherThanRejectionFreesTheSlot() {
+    LocalTaskExecutorThreadPool pool =
+        initialized(
+            new LocalTaskExecutorThreadPool(
+                runnable -> {
+                  throw new IllegalStateException("broken executor");
+                },
+                1));
+    assertThat(pool.runInThread(() -> {})).isFalse();
+    assertThat(pool.blockForAvailableThreads()).isEqualTo(1);
   }
 
   @Test

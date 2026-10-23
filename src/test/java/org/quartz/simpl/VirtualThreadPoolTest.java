@@ -108,6 +108,25 @@ class VirtualThreadPoolTest {
   }
 
   @Test
+  void aJobHandedOverAtTheLimitWaitsForASlot() {
+    VirtualThreadPool pool = initialized(new VirtualThreadPool(1), "sched");
+    CountDownLatch first = new CountDownLatch(1);
+    pool.runInThread(() -> awaitLatch(first));
+    await().atMost(Duration.ofSeconds(5)).until(() -> pool.getRunningCount() == 1);
+    AtomicReference<Boolean> secondStarted = new AtomicReference<>(false);
+
+    CompletableFuture<Boolean> handOver =
+        CompletableFuture.supplyAsync(() -> pool.runInThread(() -> secondStarted.set(true)));
+    await()
+        .during(Duration.ofMillis(200))
+        .atMost(Duration.ofSeconds(1))
+        .until(() -> !handOver.isDone() && !secondStarted.get());
+    first.countDown();
+    await().atMost(Duration.ofSeconds(5)).until(() -> handOver.isDone() && secondStarted.get());
+    assertThat(handOver.join()).isTrue();
+  }
+
+  @Test
   void aJobThatThrowsFreesItsSlot() {
     VirtualThreadPool pool = initialized(new VirtualThreadPool(1), "sched");
 

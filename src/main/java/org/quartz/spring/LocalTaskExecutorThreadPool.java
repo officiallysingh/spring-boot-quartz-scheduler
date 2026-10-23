@@ -26,7 +26,9 @@ import org.quartz.spi.ThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
+import org.springframework.scheduling.concurrent.ConcurrentTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.util.Assert;
 
 /**
@@ -133,11 +135,22 @@ public class LocalTaskExecutorThreadPool implements ThreadPool {
   public void initialize() {
     if (this.capacity == UNKNOWN) {
       int derived = capacityOf(this.taskExecutor);
-      if (derived == UNKNOWN || derived == Integer.MAX_VALUE) {
+      if (derived == Integer.MAX_VALUE) {
         this.capacity = this.defaultCapacity;
         this.capacityIsDefault = true;
         logger.info(
             "{} sets no limit on concurrent tasks: running at most {} jobs at a time",
+            this.taskExecutor.getClass().getName(),
+            this.capacity);
+      } else if (derived == UNKNOWN) {
+        this.capacity = this.defaultCapacity;
+        this.capacityIsDefault = true;
+        // a bounded executor behind a wrapper (Executors.newSingleThreadExecutor, a decorator)
+        // looks unlimited: jobs beyond its real limit would wait in its queue, already fired
+        logger.warn(
+            "The concurrency limit of {} cannot be read: running at most {} jobs at a time. If"
+                + " the executor runs fewer at once, pass its capacity explicitly"
+                + " (new LocalTaskExecutorThreadPool(executor, capacity)).",
             this.taskExecutor.getClass().getName(),
             this.capacity);
       } else {
@@ -149,6 +162,12 @@ public class LocalTaskExecutorThreadPool implements ThreadPool {
   private static int capacityOf(Executor executor) {
     if (executor instanceof ThreadPoolTaskExecutor threadPoolTaskExecutor) {
       return capacityOf(threadPoolTaskExecutor.getThreadPoolExecutor());
+    }
+    if (executor instanceof ThreadPoolTaskScheduler threadPoolTaskScheduler) {
+      return capacityOf(threadPoolTaskScheduler.getScheduledThreadPoolExecutor());
+    }
+    if (executor instanceof ConcurrentTaskExecutor concurrentTaskExecutor) {
+      return capacityOf(concurrentTaskExecutor.getConcurrentExecutor());
     }
     if (executor instanceof ThreadPoolExecutor threadPoolExecutor) {
       int size =
@@ -222,9 +241,14 @@ public class LocalTaskExecutorThreadPool implements ThreadPool {
             }
           });
       return true;
-    } catch (RejectedExecutionException ex) {
+    } catch (RuntimeException ex) {
+      // whatever execute throws, the job did not start: free its slot
       jobEnded();
-      logger.error("Task has been rejected by TaskExecutor", ex);
+      if (ex instanceof RejectedExecutionException) {
+        logger.error("Task has been rejected by TaskExecutor", ex);
+      } else {
+        logger.error("TaskExecutor failed to accept the task", ex);
+      }
       return false;
     }
   }

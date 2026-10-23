@@ -17,7 +17,6 @@
 package org.quartz.spring.boot.autoconfigure;
 
 import java.time.Clock;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.quartz.Calendar;
@@ -93,6 +92,7 @@ public final class QuartzAutoConfiguration {
       ObjectProvider<Clock> clock,
       ObjectProvider<JobStoreFactory> jobStoreFactories,
       ApplicationContext applicationContext) {
+    RemovedPropertiesException.check(applicationContext.getEnvironment());
     SchedulerFactoryBean schedulerFactoryBean = new SchedulerFactoryBean();
     schedulerFactoryBean.setJobStore(createJobStore(properties, jobStoreFactories));
     SpringBeanJobFactory jobFactory = new SpringBeanJobFactory();
@@ -117,14 +117,22 @@ public final class QuartzAutoConfiguration {
       instanceIdGenerator.ifUnique(schedulerFactoryBean::setInstanceIdGenerator);
     }
     clock.ifUnique(schedulerFactoryBean::setClock);
-    schedulerFactoryBean.setPlugins(new LinkedHashMap<>(plugins));
+    schedulerFactoryBean.setPlugins(plugins);
     schedulerFactoryBean.setJobDetails(jobDetails.orderedStream().toArray(JobDetail[]::new));
     schedulerFactoryBean.setCalendars(calendars);
     schedulerFactoryBean.setTriggers(triggers.orderedStream().toArray(Trigger[]::new));
+    // plugins that are also listeners (the built-in ones are) register themselves in initialize,
+    // with their own matchers: not again as global listeners
     schedulerFactoryBean.setGlobalJobListeners(
-        jobListeners.orderedStream().toArray(JobListener[]::new));
+        jobListeners
+            .orderedStream()
+            .filter((listener) -> !(listener instanceof SchedulerPlugin))
+            .toArray(JobListener[]::new));
     schedulerFactoryBean.setGlobalTriggerListeners(
-        triggerListeners.orderedStream().toArray(TriggerListener[]::new));
+        triggerListeners
+            .orderedStream()
+            .filter((listener) -> !(listener instanceof SchedulerPlugin))
+            .toArray(TriggerListener[]::new));
     schedulerFactoryBean.setSchedulerListeners(
         schedulerListeners.orderedStream().toArray(SchedulerListener[]::new));
     customizers.orderedStream().forEach((customizer) -> customizer.customize(schedulerFactoryBean));

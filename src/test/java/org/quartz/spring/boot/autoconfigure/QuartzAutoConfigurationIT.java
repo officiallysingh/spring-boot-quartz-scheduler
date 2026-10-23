@@ -17,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import com.mongodb.ConnectionString;
+import com.mongodb.client.MongoClient;
 import io.lettuce.core.RedisURI;
 import java.time.Duration;
 import java.util.List;
@@ -28,14 +29,18 @@ import org.quartz.Job;
 import org.quartz.JobBuilder;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
+import org.quartz.JobExecutionException;
 import org.quartz.JobKey;
+import org.quartz.JobListener;
 import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
 import org.quartz.SchedulerListener;
 import org.quartz.SchedulerMetaData;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
 import org.quartz.TriggerKey;
 import org.quartz.impl.calendar.WeeklyCalendar;
+import org.quartz.impl.matchers.KeyMatcher;
 import org.quartz.impl.mongodb.MongoJobStore;
 import org.quartz.impl.redis.RedisJobStore;
 import org.quartz.listeners.JobListenerSupport;
@@ -61,11 +66,16 @@ import org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfigurat
 import org.springframework.boot.data.redis.autoconfigure.DataRedisConnectionDetails;
 import org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration;
 import org.springframework.boot.mongodb.autoconfigure.MongoConnectionDetails;
+import org.springframework.boot.mongodb.autoconfigure.MongoProperties;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.NestedExceptionUtils;
 import org.springframework.core.annotation.Order;
+import org.springframework.data.mongodb.MongoDatabaseFactory;
+import org.springframework.data.mongodb.core.SimpleMongoClientDatabaseFactory;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -360,19 +370,121 @@ class QuartzAutoConfigurationIT extends AbstractMongoIT {
   }
 
   @Test
-  void noPluginIsRegisteredByDefault() {
+  void removedPropertiesFailStartup() {
     contextRunner
         .withPropertyValues(
-            // the former yml switches are gone: they have no effect
+            "spring.quartz.job-store.mongodb.database=quartz",
             "spring.quartz.plugins.job-history.enabled=true",
-            "spring.quartz.plugins.job-interrupt-monitor.enabled=true")
+            "spring.quartz.thread-pool.thread-priority=7")
+        .run(
+            context -> {
+              assertThat(context).hasFailed();
+              Throwable root =
+                  NestedExceptionUtils.getMostSpecificCause(context.getStartupFailure());
+              assertThat(root).isInstanceOf(RemovedPropertiesException.class);
+              RemovedPropertiesException failure = (RemovedPropertiesException) root;
+              assertThat(failure.getProperties())
+                  .containsExactly(
+                      "spring.quartz.job-store.mongodb.database",
+                      "spring.quartz.plugins",
+                      "spring.quartz.thread-pool.thread-priority");
+            });
+  }
+
+  @Test
+  void mongoStoreWorksWithoutSpringBootsMongoModuleGivenADatabaseFactory() {
+    new ApplicationContextRunner()
+        .withClassLoader(new FilteredClassLoader(MongoProperties.class))
+        .withConfiguration(AutoConfigurations.of(QuartzAutoConfiguration.class))
+        .withBean(
+            MongoClient.class,
+            AbstractMongoIT::mongoClient,
+            // the shared client: the context must not close it
+            (definition) -> definition.setDestroyMethodName(""))
+        .withBean(
+            MongoDatabaseFactory.class,
+            () ->
+                new SimpleMongoClientDatabaseFactory(
+                    AbstractMongoIT.connectionString().replaceFirst("/[^/?]*(\\?|$)", "/owndb$1")))
+        .run(context -> assertThat(mongoDatabase(context)).isEqualTo("owndb"));
+  }
+
+  @Test
+  void mongoStoreWithoutADatabaseFailsWithTheProperties() {
+    new ApplicationContextRunner()
+        .withClassLoader(new FilteredClassLoader(MongoProperties.class))
+        .withConfiguration(AutoConfigurations.of(QuartzAutoConfiguration.class))
+        .withBean(
+            MongoClient.class,
+            AbstractMongoIT::mongoClient,
+            // the shared client: the context must not close it
+            (definition) -> definition.setDestroyMethodName(""))
+        .run(
+            context ->
+                assertThat(context)
+                    .hasFailed()
+                    .getFailure()
+                    .rootCause()
+                    .hasMessageContaining("spring.mongodb.database")
+                    .hasMessageContaining("MongoDatabaseFactory"));
+  }
+
+  @Test
+  void pluginsThatAreListenersKeepTheirOwnMatchers() {
+    contextRunner
+        .withBean("selective", SchedulerPlugin.class, SelectiveListenerPlugin::new)
         .run(
             context -> {
               Scheduler scheduler = context.getBean(Scheduler.class);
-              assertThat(scheduler.getListenerManager().getJobListener("jobHistory")).isNull();
-              assertThat(scheduler.getListenerManager().getTriggerListener("jobInterruptMonitor"))
-                  .isNull();
+              assertThat(scheduler.getListenerManager().getJobListenerMatchers("selective"))
+                  .containsExactly(KeyMatcher.keyEquals(JobKey.jobKey("only-this")));
             });
+  }
+
+  /** A plugin that is also a job listener, named and registered in initialize. */
+  static class SelectiveListenerPlugin implements SchedulerPlugin, JobListener {
+
+    private String name = "";
+
+    @Override
+    public void initialize(String name, Scheduler scheduler, ClassLoadHelper loadHelper)
+        throws SchedulerException {
+      this.name = name;
+      scheduler
+          .getListenerManager()
+          .addJobListener(this, KeyMatcher.keyEquals(JobKey.jobKey("only-this")));
+    }
+
+    @Override
+    public void start() {}
+
+    @Override
+    public void shutdown() {}
+
+    @Override
+    public String getName() {
+      return this.name;
+    }
+
+    @Override
+    public void jobToBeExecuted(JobExecutionContext context) {}
+
+    @Override
+    public void jobExecutionVetoed(JobExecutionContext context) {}
+
+    @Override
+    public void jobWasExecuted(JobExecutionContext context, JobExecutionException jobException) {}
+  }
+
+  @Test
+  void noPluginIsRegisteredByDefault() {
+    contextRunner.run(
+        context -> {
+          Scheduler scheduler = context.getBean(Scheduler.class);
+          assertThat(scheduler.getListenerManager().getJobListener("jobHistory")).isNull();
+          assertThat(scheduler.getListenerManager().getTriggerListener("jobInterruptMonitor"))
+              .isNull();
+        });
   }
 
   @Test

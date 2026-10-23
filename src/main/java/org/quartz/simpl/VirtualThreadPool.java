@@ -166,9 +166,11 @@ public class VirtualThreadPool implements ThreadPool {
     }
     try {
       thread.start();
-    } catch (RuntimeException | Error ex) {
+    } catch (RuntimeException | OutOfMemoryError ex) {
+      // the job did not start: free its slot and let the scheduler treat it as not run
       jobEnded();
-      throw ex;
+      log.error("Could not start a virtual thread for the job", ex);
+      return false;
     }
     return true;
   }
