@@ -21,7 +21,9 @@ import static org.awaitility.Awaitility.await;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
@@ -69,6 +71,22 @@ class SchedulerFactoryBeanIT extends AbstractMongoIT {
         @Override
         public void execute(JobExecutionContext context) {
             RESULTS.add(service.greet(name) + " on " + Thread.currentThread().getName());
+        }
+    }
+
+    public static class BlockingJob implements Job {
+        static volatile CountDownLatch release = new CountDownLatch(1);
+
+        @Override
+        public void execute(JobExecutionContext context) {
+            RESULTS.add("started");
+            try {
+                release.await();
+            }
+            catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            }
+            RESULTS.add("finished");
         }
     }
 
@@ -213,6 +231,39 @@ class SchedulerFactoryBeanIT extends AbstractMongoIT {
             assertThat(RESULTS.get(0)).isEqualTo("hello pool on spring-executor");
         }
         finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void shutdownWaitsForJobsRunningOnTheTaskExecutor() throws Exception {
+        BlockingJob.release = new CountDownLatch(1);
+        ExecutorService executor = Executors.newCachedThreadPool();
+        try {
+            factoryBean = newFactoryBean("executorShutdown");
+            factoryBean.setTaskExecutor(executor);
+            factoryBean.setWaitForJobsToCompleteOnShutdown(true);
+            factoryBean.setTriggers(fireOnceTrigger("blocking", BlockingJob.class, Map.of()));
+            factoryBean.afterPropertiesSet();
+            factoryBean.start();
+            await().atMost(Duration.ofSeconds(10)).until(() -> RESULTS.contains("started"));
+
+            CompletableFuture<Void> shutdown = CompletableFuture.runAsync(() -> {
+                try {
+                    factoryBean.destroy();
+                }
+                catch (SchedulerException ex) {
+                    throw new IllegalStateException(ex);
+                }
+            });
+            await().during(Duration.ofMillis(300)).atMost(Duration.ofSeconds(2)).until(() -> !shutdown.isDone());
+            BlockingJob.release.countDown();
+            await().atMost(Duration.ofSeconds(10)).until(shutdown::isDone);
+            shutdown.join();
+            assertThat(RESULTS).containsExactly("started", "finished");
+        }
+        finally {
+            BlockingJob.release.countDown();
             executor.shutdownNow();
         }
     }

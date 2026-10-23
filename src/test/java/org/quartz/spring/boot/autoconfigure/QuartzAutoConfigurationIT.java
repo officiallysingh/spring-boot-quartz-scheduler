@@ -199,8 +199,10 @@ class QuartzAutoConfigurationIT extends AbstractMongoIT {
     @Test
     void virtualThreadsRunTheJobs() {
         contextRunner.withUserConfiguration(QuartzBeansConfiguration.class)
-            .withPropertyValues("spring.quartz.thread-pool.virtual-threads=true")
+            .withPropertyValues("spring.quartz.thread-pool.virtual-threads=true",
+                    "spring.quartz.thread-pool.thread-count=3")
             .run(context -> {
+                assertThat(context.getBean(Scheduler.class).getMetaData().getThreadPoolSize()).isEqualTo(3);
                 await().atMost(Duration.ofSeconds(10)).until(() -> RESULTS.stream().anyMatch(r -> r.startsWith("hello quartz")));
                 assertThat(RESULTS).contains("hello quartz on virtual thread");
             });

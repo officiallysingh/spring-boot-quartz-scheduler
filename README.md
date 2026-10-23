@@ -72,6 +72,25 @@ spring:
 `SchedulerPlugin` beans are registered with the scheduler; inject `Scheduler` to schedule jobs at run time.
 `SchedulerFactoryBeanCustomizer` beans can adjust the `SchedulerFactoryBean` before the scheduler is created.
 
+Jobs run on a pool of `thread-count` platform threads, or, with `spring.quartz.thread-pool.virtual-threads: true`,
+on a virtual thread each with at most `thread-count` running at once. To run them on an executor of your own, set
+it with a customizer:
+
+```java
+@Bean
+SchedulerFactoryBeanCustomizer quartzExecutor(ThreadPoolTaskExecutor quartzJobsExecutor) {
+    return (schedulerFactoryBean) -> schedulerFactoryBean.setTaskExecutor(quartzJobsExecutor);
+}
+```
+
+The scheduler only takes triggers when the executor has room to run them, so they never wait in its queue (where
+no other cluster node could run them) or get rejected. Its capacity is the core pool size of a
+`ThreadPoolTaskExecutor` / `ThreadPoolExecutor` (the maximum pool size if it has no queue) or the concurrency limit
+of a `SimpleAsyncTaskExecutor`; for any other executor pass it explicitly with
+`setThreadPool(new LocalTaskExecutorThreadPool(executor, capacity))`, or triggers are taken one at a time.
+`wait-for-jobs-to-complete-on-shutdown` waits for the jobs handed to the executor; the executor itself is not shut
+down.
+
 ## Job stores
 
 Jobs are always persisted: there is no in-memory store. Set `spring.quartz.job-store.type` to `mongodb` or

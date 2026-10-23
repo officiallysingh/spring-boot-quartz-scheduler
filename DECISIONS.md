@@ -341,3 +341,17 @@ With the Java 25 baseline (D-021), the per-thread state of a store operation is 
 - `MongoJobStore`: the transaction's `ClientSession` is bound around the callback in `inTransaction`; the delegate reads it as `null` when unbound.
 
 Both scoped values are instance fields, not `static`, so two stores in one JVM (clustered tests) keep separate state per thread, as the instance `ThreadLocal`s did. Nothing can now leak to the next operation on a pooled thread when a `remove()` is missed. No behaviour change; covered by the existing store, cluster and transaction ITs.
+
+## D-023 — Executor capacity and shutdown in `LocalTaskExecutorThreadPool`
+
+The adapter that runs jobs on an `Executor` (`SchedulerFactoryBean#setTaskExecutor`, and the virtual-thread option) used to report one free thread at all times and do nothing on shutdown, as in Spring. Consequences: the scheduler acquired triggers whether or not the executor had room, so fired triggers waited in the executor's queue (unrunnable by other cluster nodes) or, with a bounded queue, were rejected and their triggers set to `ERROR`; batch acquisition never applied; and `wait-for-jobs-to-complete-on-shutdown` was ignored.
+
+It now counts the jobs it has handed over that have not ended, against a capacity:
+- given in the new constructor `LocalTaskExecutorThreadPool(Executor, int capacity)`, or derived in `initialize()`;
+- `ThreadPoolTaskExecutor` / `ThreadPoolExecutor`: the core pool size, or the maximum pool size when the queue holds nothing (`SynchronousQueue`). Conservative choice: a queueing pool only grows past its core size once its queue is full, which the adapter never lets happen, so the core size is what runs at once;
+- `SimpleAsyncTaskExecutor` with a concurrency limit: that limit;
+- anything else: unknown, and the old behaviour (one trigger at a time) is kept.
+
+`blockForAvailableThreads()` waits until there is room (like `SimpleThreadPool`) and returns how much; it returns `0` when interrupted (the scheduler thread is interrupted when it halts) without keeping the interrupt flag, or when the pool shuts down. `shutdown(true)` waits for the handed-over jobs to end; the executor is the application's and is not shut down. `getPoolSize()` reports the capacity (`-1` if unknown).
+
+The virtual-thread executor built by the auto-configuration no longer has its own concurrency limit; it runs in a `LocalTaskExecutorThreadPool` with capacity `thread-count`, so the limit is applied before triggers are acquired instead of by blocking the scheduler thread in `execute`. Virtual threads stay off by default (to be revisited separately).

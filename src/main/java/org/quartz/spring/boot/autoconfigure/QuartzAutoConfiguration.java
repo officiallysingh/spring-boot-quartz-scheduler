@@ -36,6 +36,7 @@ import org.quartz.simpl.SystemPropertyInstanceIdGenerator;
 import org.quartz.spi.InstanceIdGenerator;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.SchedulerPlugin;
+import org.quartz.spring.LocalTaskExecutorThreadPool;
 import org.quartz.spring.SchedulerFactoryBean;
 import org.quartz.spring.SpringBeanJobFactory;
 
@@ -108,7 +109,8 @@ public final class QuartzAutoConfiguration {
 		schedulerFactoryBean.setTransactionalJobs(properties.transaction().enabled());
 		schedulerFactoryBean.setDefaultJobTransactionPropagation(properties.transaction().defaultPropagation());
 		if (properties.threadPool().virtualThreads()) {
-			schedulerFactoryBean.setTaskExecutor(virtualThreadExecutor(properties, settings));
+			schedulerFactoryBean.setThreadPool(new LocalTaskExecutorThreadPool(virtualThreadExecutor(settings),
+					properties.threadPool().threadCount()));
 		}
 		if (properties.scheduler().isSystemPropertyInstanceId()) {
 			schedulerFactoryBean.setInstanceIdGenerator(new SystemPropertyInstanceIdGenerator());
@@ -148,16 +150,15 @@ public final class QuartzAutoConfiguration {
 	}
 
 	/**
-	 * Virtual threads, at most {@code thread-count} jobs at a time. When the limit is
-	 * reached, handing over the next job blocks the scheduler thread until a job ends.
+	 * A virtual thread per job. The {@link LocalTaskExecutorThreadPool} it runs in limits
+	 * it to {@code thread-count} jobs at a time: the scheduler acquires no triggers while
+	 * that many run.
 	 */
-	private static SimpleAsyncTaskExecutor virtualThreadExecutor(QuartzProperties properties,
-			QuartzSettings settings) {
+	private static SimpleAsyncTaskExecutor virtualThreadExecutor(QuartzSettings settings) {
 		String prefix = settings.threadPool().threadNamePrefix();
 		SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor(
 				((prefix != null) ? prefix : settings.scheduler().name() + "_Worker") + "-");
 		executor.setVirtualThreads(true);
-		executor.setConcurrencyLimit(properties.threadPool().threadCount());
 		return executor;
 	}
 
