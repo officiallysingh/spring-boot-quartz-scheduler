@@ -38,9 +38,8 @@ import org.quartz.support.MutableClock;
 
 /**
  * Misfire detection in {@link PersistentJobStore} uses the scheduler's {@link Clock} (via the
- * signaler), so it is deterministic: nothing here depends on the wall clock (D-010). Runs the
- * engine over the in-memory test delegate; the misfire pass the handler thread would run is called
- * directly.
+ * signaler), so it is deterministic: nothing here depends on the wall clock. Runs the engine over
+ * the in-memory test delegate; the misfire pass the handler thread would run is called directly.
  */
 class PersistentJobStoreClockTest {
 

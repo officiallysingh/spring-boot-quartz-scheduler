@@ -6,8 +6,8 @@ and all scheduling data is kept in **MongoDB** or **Redis**, so several applicat
 schedule as a cluster with fail-over. Everything is configured through `application.yml` and Spring beans.
 
 This guide is for people working **on** the library: how it is built, how its parts fit together, and where to
-make a change. For **using** it, read the [README](README.md). Design decisions are recorded in
-[DECISIONS.md](DECISIONS.md) and cited here as `D-0xx` where the reason matters.
+make a change. For **using** it, read the [README](README.md). Where a design choice is not obvious, the guide says
+why.
 
 - [1. Design goals](#1-design-goals)
 - [2. Architecture](#2-architecture)
@@ -123,7 +123,7 @@ Four layers, each building on the one before:
 | `org.quartz.impl.redis` | [`RedisJobStore`](src/main/java/org/quartz/impl/redis/RedisJobStore.java), [`RedisStoreDelegate`](src/main/java/org/quartz/impl/redis/RedisStoreDelegate.java), [`RedisKeys`](src/main/java/org/quartz/impl/redis/RedisKeys.java), [`RedisScripts`](src/main/java/org/quartz/impl/redis/RedisScripts.java), [`RedisJobStoreSettings`](src/main/java/org/quartz/impl/redis/RedisJobStoreSettings.java) | |
 | `org.quartz.simpl` | [`SimpleThreadPool`](src/main/java/org/quartz/simpl/SimpleThreadPool.java), [`VirtualThreadPool`](src/main/java/org/quartz/simpl/VirtualThreadPool.java), [`SimpleInstanceIdGenerator`](src/main/java/org/quartz/simpl/SimpleInstanceIdGenerator.java), [`SystemPropertyInstanceIdGenerator`](src/main/java/org/quartz/simpl/SystemPropertyInstanceIdGenerator.java) | |
 | `org.quartz.spi` | [`JobStore`](src/main/java/org/quartz/spi/JobStore.java), [`ThreadPool`](src/main/java/org/quartz/spi/ThreadPool.java), [`JobFactory`](src/main/java/org/quartz/spi/JobFactory.java), [`SchedulerPlugin`](src/main/java/org/quartz/spi/SchedulerPlugin.java), [`InstanceIdGenerator`](src/main/java/org/quartz/spi/InstanceIdGenerator.java), [`OperableTrigger`](src/main/java/org/quartz/spi/OperableTrigger.java), [`TriggerFiredBundle`](src/main/java/org/quartz/spi/TriggerFiredBundle.java) | Extension interfaces |
-| `org.quartz.listeners`, `org.quartz.plugins.*` | [`JobListenerSupport`](src/main/java/org/quartz/listeners/JobListenerSupport.java), [`TriggerListenerSupport`](src/main/java/org/quartz/listeners/TriggerListenerSupport.java), [`SchedulerListenerSupport`](src/main/java/org/quartz/listeners/SchedulerListenerSupport.java), the broadcasters; [`LoggingJobHistoryPlugin`](src/main/java/org/quartz/plugins/history/LoggingJobHistoryPlugin.java), [`LoggingTriggerHistoryPlugin`](src/main/java/org/quartz/plugins/history/LoggingTriggerHistoryPlugin.java), [`JobInterruptMonitorPlugin`](src/main/java/org/quartz/plugins/interrupt/JobInterruptMonitorPlugin.java) | Plugins are beans (D-030) |
+| `org.quartz.listeners`, `org.quartz.plugins.*` | [`JobListenerSupport`](src/main/java/org/quartz/listeners/JobListenerSupport.java), [`TriggerListenerSupport`](src/main/java/org/quartz/listeners/TriggerListenerSupport.java), [`SchedulerListenerSupport`](src/main/java/org/quartz/listeners/SchedulerListenerSupport.java), the broadcasters; [`LoggingJobHistoryPlugin`](src/main/java/org/quartz/plugins/history/LoggingJobHistoryPlugin.java), [`LoggingTriggerHistoryPlugin`](src/main/java/org/quartz/plugins/history/LoggingTriggerHistoryPlugin.java), [`JobInterruptMonitorPlugin`](src/main/java/org/quartz/plugins/interrupt/JobInterruptMonitorPlugin.java) | Plugins are beans |
 | `org.quartz.utils` | [`Key`](src/main/java/org/quartz/utils/Key.java), [`DirtyFlagMap`](src/main/java/org/quartz/utils/DirtyFlagMap.java), [`StringKeyDirtyFlagMap`](src/main/java/org/quartz/utils/StringKeyDirtyFlagMap.java), [`LenientDateTime`](src/main/java/org/quartz/utils/LenientDateTime.java), [`Instants`](src/main/java/org/quartz/utils/Instants.java), [`InstantMessageFormat`](src/main/java/org/quartz/utils/InstantMessageFormat.java), [`ClassUtils`](src/main/java/org/quartz/utils/ClassUtils.java) | |
 | `org.quartz.spring` | [`SchedulerFactoryBean`](src/main/java/org/quartz/spring/SchedulerFactoryBean.java), [`SchedulerAccessor`](src/main/java/org/quartz/spring/SchedulerAccessor.java), [`SpringBeanJobFactory`](src/main/java/org/quartz/spring/SpringBeanJobFactory.java), [`QuartzJobBean`](src/main/java/org/quartz/spring/QuartzJobBean.java), [`LocalTaskExecutorThreadPool`](src/main/java/org/quartz/spring/LocalTaskExecutorThreadPool.java), [`SpringTransactionJobRunShell`](src/main/java/org/quartz/spring/SpringTransactionJobRunShell.java), [`SpringTransactionJobRunShellFactory`](src/main/java/org/quartz/spring/SpringTransactionJobRunShellFactory.java), [`MongoJobDataTransactions`](src/main/java/org/quartz/spring/MongoJobDataTransactions.java) | Spring integration |
 | `org.quartz.spring.boot.autoconfigure` | [`QuartzAutoConfiguration`](src/main/java/org/quartz/spring/boot/autoconfigure/QuartzAutoConfiguration.java), [`JobStoreConfigurations`](src/main/java/org/quartz/spring/boot/autoconfigure/JobStoreConfigurations.java), [`QuartzProperties`](src/main/java/org/quartz/spring/boot/autoconfigure/QuartzProperties.java), [`JobStoreUnavailableException`](src/main/java/org/quartz/spring/boot/autoconfigure/JobStoreUnavailableException.java), [`RemovedPropertiesException`](src/main/java/org/quartz/spring/boot/autoconfigure/RemovedPropertiesException.java) and their failure analyzers, [`QuartzEndpointAutoConfiguration`](src/main/java/org/quartz/spring/boot/autoconfigure/QuartzEndpointAutoConfiguration.java), [`QuartzHealthContributorAutoConfiguration`](src/main/java/org/quartz/spring/boot/autoconfigure/QuartzHealthContributorAutoConfiguration.java), [`QuartzMetricsAutoConfiguration`](src/main/java/org/quartz/spring/boot/autoconfigure/QuartzMetricsAutoConfiguration.java) | |
@@ -182,8 +182,7 @@ flowchart LR
 Points that matter when changing it:
 
 - The capacity reported by [`ThreadPool.blockForAvailableThreads()`](src/main/java/org/quartz/spi/ThreadPool.java#L68) bounds how many triggers are acquired: the
-  smaller of the free capacity and `batch-trigger-acquisition-max-count`. Pools must report real capacity
-  (D-023, D-027, D-031): an "unknown" answer serializes acquisition, an inflated one queues fired jobs where no
+  smaller of the free capacity and `batch-trigger-acquisition-max-count`. Pools must report real capacity: an "unknown" answer serializes acquisition, an inflated one queues fired jobs where no
   other node can run them.
 - [`ThreadPool.runInThread()`](src/main/java/org/quartz/spi/ThreadPool.java#L57) returning `false` puts the fired triggers into `ERROR`, so pools only refuse in
   exceptional cases.
@@ -196,8 +195,7 @@ Points that matter when changing it:
 
 [`JobRunShell.run()`](src/main/java/org/quartz/core/JobRunShell.java#L173):
 
-1. The MDC gets [`JobRunShell.MDC_JOB_KEY`](src/main/java/org/quartz/core/JobRunShell.java#L63), [`JobRunShell.MDC_TRIGGER_KEY`](src/main/java/org/quartz/core/JobRunShell.java#L66), [`JobRunShell.MDC_FIRE_INSTANCE_ID`](src/main/java/org/quartz/core/JobRunShell.java#L69)
-   (D-028).
+1. The MDC gets [`JobRunShell.MDC_JOB_KEY`](src/main/java/org/quartz/core/JobRunShell.java#L63), [`JobRunShell.MDC_TRIGGER_KEY`](src/main/java/org/quartz/core/JobRunShell.java#L66), [`JobRunShell.MDC_FIRE_INSTANCE_ID`](src/main/java/org/quartz/core/JobRunShell.java#L69).
 2. [`JobRunShell.begin()`](src/main/java/org/quartz/core/JobRunShell.java#L330) is called.
 3. Trigger and job listeners are told ([`TriggerListener.triggerFired()`](src/main/java/org/quartz/TriggerListener.java#L58), [`TriggerListener.vetoJobExecution()`](src/main/java/org/quartz/TriggerListener.java#L72),
    [`JobListener.jobToBeExecuted()`](src/main/java/org/quartz/JobListener.java#L58)); a veto skips the job.
@@ -215,7 +213,7 @@ The job instance comes from the [`JobFactory`](src/main/java/org/quartz/spi/JobF
 
 [`SchedulerFactoryBean.onApplicationEvent()`](src/main/java/org/quartz/spring/SchedulerFactoryBean.java#L660) shuts the scheduler down on its context's `ContextClosedEvent`,
 **before** the context stops its lifecycle beans, so the store's connection (`LettuceConnectionFactory`, the
-`MongoClient`) is still open while running jobs report completion (D-018). With
+`MongoClient`) is still open while running jobs report completion. With
 `spring.quartz.wait-for-jobs-to-complete-on-shutdown` the thread pool waits for running jobs. The scheduler
 thread is interrupted, which is why every store call must survive an interrupt (§13).
 
@@ -266,7 +264,7 @@ jobs, misfires, recovery and clustering. A [`StoreDelegate`](src/main/java/org/q
 - [`PersistentJobStore.inTransaction()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L195) wraps the callback in a MongoDB transaction when the deployment supports
   them ([`MongoJobStore.inTransaction()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L236)); Redis has none.
 - The per-operation state (held locks, the pending scheduling signal, the MongoDB session) is a `ScopedValue`
-  bound for the operation (D-022).
+  bound for the operation.
 
 ### 5.2 Trigger states
 
@@ -295,7 +293,7 @@ constants; [`Trigger.TriggerState`](src/main/java/org/quartz/Trigger.java#L54) i
 Next to the trigger, a **fired-trigger record** ([`FiredTriggerRecord`](src/main/java/org/quartz/impl/store/FiredTriggerRecord.java)) exists for every trigger an instance has
 acquired (`ACQUIRED`) or is executing (`EXECUTING`), naming the instance. Recovery works from these records:
 
-- **Acquisition writes the record first** (D-034). In [`PersistentJobStore.acquireNextTriggers()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L1225) the record is
+- **Acquisition writes the record first**. In [`PersistentJobStore.acquireNextTriggers()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L1225) the record is
   inserted **before** the `WAITING → ACQUIRED` change and deleted if another instance wins the trigger. A store
   without transactions performs the two writes separately; an instance that stops between them must leave a
   record, or recovery could not free the trigger. A record for a trigger that is still `WAITING` is harmless.
@@ -328,13 +326,13 @@ scheduler thread interrupted at shutdown must still give its lease back.
   `schedulers`, `locks`. Every document carries the scheduler name, so several schedulers can share them; indexes
   are created at startup (tested by [`MongoIndexesIT`](src/test/java/org/quartz/impl/mongodb/MongoIndexesIT.java)).
 - **Database:** the application's: the `MongoDatabaseFactory`'s, else `spring.mongodb.database`, else the
-  connection string's ([`JobStoreConfigurations.MongoJobStoreConfiguration`](src/main/java/org/quartz/spring/boot/autoconfigure/JobStoreConfigurations.java#L61), D-030, D-032).
+  connection string's ([`JobStoreConfigurations.MongoJobStoreConfiguration`](src/main/java/org/quartz/spring/boot/autoconfigure/JobStoreConfigurations.java#L61)).
 - **Transactions:** on a replica set or sharded cluster every store operation is a transaction, and trigger
   acquisition always takes the trigger lock ([`MongoJobStore.acquireTriggersWithinLock()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L231)) to avoid write conflicts.
   On a standalone server the store still works: each primitive is one atomic operation.
 - **Failure safety:** a failed transaction is aborted with the interrupt flag cleared, and its server session is
   killed and marked dirty ([`MongoJobStore.abort()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L263)), because the driver ignores abort errors and an open
-  transaction would hold its locks for 60 s (D-032).
+  transaction would hold its locks for 60 s.
 - **Job transactions:** with a `MongoTransactionManager` on the same `MongoClient`, the job data of a
   [`PersistJobDataAfterExecution`](src/main/java/org/quartz/PersistJobDataAfterExecution.java) job is written in the job's own transaction ([`MongoJobDataTransactions`](src/main/java/org/quartz/spring/MongoJobDataTransactions.java),
   [`MongoJobStore.updateJobData()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L130)).
@@ -372,8 +370,8 @@ names: **renaming one is a data migration**.
 | Pool | Selected by | Capacity reported | Notes |
 |---|---|---|---|
 | [`SimpleThreadPool`](src/main/java/org/quartz/simpl/SimpleThreadPool.java) | default | free worker threads | `thread-count` platform threads |
-| [`VirtualThreadPool`](src/main/java/org/quartz/simpl/VirtualThreadPool.java) | `spring.quartz.thread-pool.virtual-threads: true`, or [`ThreadPoolSettings.virtualThreads()`](src/main/java/org/quartz/impl/config/ThreadPoolSettings.java#L43) | `thread-count` minus running jobs | A new virtual thread per job; independent of `spring.threads.virtual.enabled` (D-027) |
-| [`LocalTaskExecutorThreadPool`](src/main/java/org/quartz/spring/LocalTaskExecutorThreadPool.java) | [`SchedulerFactoryBean.setTaskExecutor()`](src/main/java/org/quartz/spring/SchedulerFactoryBean.java#L175) (for example from a [`SchedulerFactoryBeanCustomizer`](src/main/java/org/quartz/spring/boot/autoconfigure/SchedulerFactoryBeanCustomizer.java)), or [`SchedulerFactoryBean.setThreadPool()`](src/main/java/org/quartz/spring/SchedulerFactoryBean.java#L183) with an explicit capacity | the executor's real limit; an executor without one is capped at `thread-count` (D-023, D-031) | Reads `ThreadPoolTaskExecutor`, `ThreadPoolExecutor`, `ThreadPoolTaskScheduler`, `ConcurrentTaskExecutor` and a limited `SimpleAsyncTaskExecutor`; warns when it cannot |
+| [`VirtualThreadPool`](src/main/java/org/quartz/simpl/VirtualThreadPool.java) | `spring.quartz.thread-pool.virtual-threads: true`, or [`ThreadPoolSettings.virtualThreads()`](src/main/java/org/quartz/impl/config/ThreadPoolSettings.java#L43) | `thread-count` minus running jobs | A new virtual thread per job; independent of `spring.threads.virtual.enabled` |
+| [`LocalTaskExecutorThreadPool`](src/main/java/org/quartz/spring/LocalTaskExecutorThreadPool.java) | [`SchedulerFactoryBean.setTaskExecutor()`](src/main/java/org/quartz/spring/SchedulerFactoryBean.java#L175) (for example from a [`SchedulerFactoryBeanCustomizer`](src/main/java/org/quartz/spring/boot/autoconfigure/SchedulerFactoryBeanCustomizer.java)), or [`SchedulerFactoryBean.setThreadPool()`](src/main/java/org/quartz/spring/SchedulerFactoryBean.java#L183) with an explicit capacity | the executor's real limit; an executor without one is capped at `thread-count` | Reads `ThreadPoolTaskExecutor`, `ThreadPoolExecutor`, `ThreadPoolTaskScheduler`, `ConcurrentTaskExecutor` and a limited `SimpleAsyncTaskExecutor`; warns when it cannot |
 
 [`StdSchedulerFactory.createThreadPool()`](src/main/java/org/quartz/impl/StdSchedulerFactory.java#L269) picks between the first two. Each pool's [`ThreadPool.describe()`](src/main/java/org/quartz/spi/ThreadPool.java#L92) appears in
 the startup summary. A new pool must implement [`ThreadPool.blockForAvailableThreads()`](src/main/java/org/quartz/spi/ThreadPool.java#L68) truthfully, free its slot on
@@ -402,11 +400,11 @@ transaction.
 - collects [`JobDetail`](src/main/java/org/quartz/JobDetail.java), [`Trigger`](src/main/java/org/quartz/Trigger.java), [`Calendar`](src/main/java/org/quartz/Calendar.java) (by bean name), [`JobListener`](src/main/java/org/quartz/JobListener.java), [`TriggerListener`](src/main/java/org/quartz/TriggerListener.java),
   [`SchedulerListener`](src/main/java/org/quartz/SchedulerListener.java) and [`SchedulerPlugin`](src/main/java/org/quartz/spi/SchedulerPlugin.java) (by bean name) beans, a unique `Clock` and [`InstanceIdGenerator`](src/main/java/org/quartz/spi/InstanceIdGenerator.java), and
   applies [`SchedulerFactoryBeanCustomizer`](src/main/java/org/quartz/spring/boot/autoconfigure/SchedulerFactoryBeanCustomizer.java) beans last; plugin beans that are also listeners register themselves,
-  so they are not added again as global listeners (D-032);
+  so they are not added again as global listeners;
 - picks the store from the [`JobStoreFactory`](src/main/java/org/quartz/spring/boot/autoconfigure/JobStoreFactory.java) beans ([`JobStoreConfigurations`](src/main/java/org/quartz/spring/boot/autoconfigure/JobStoreConfigurations.java) registers one per store whose
   client and connection bean are present) and `spring.quartz.job-store.type`, failing with
   [`JobStoreUnavailableException`](src/main/java/org/quartz/spring/boot/autoconfigure/JobStoreUnavailableException.java);
-- fails with [`RemovedPropertiesException`](src/main/java/org/quartz/spring/boot/autoconfigure/RemovedPropertiesException.java) when the environment sets a removed `spring.quartz.*` key (D-032).
+- fails with [`RemovedPropertiesException`](src/main/java/org/quartz/spring/boot/autoconfigure/RemovedPropertiesException.java) when the environment sets a removed `spring.quartz.*` key.
 
 Both exceptions have a failure analyzer ([`JobStoreUnavailableFailureAnalyzer`](src/main/java/org/quartz/spring/boot/autoconfigure/JobStoreUnavailableFailureAnalyzer.java), [`RemovedPropertiesFailureAnalyzer`](src/main/java/org/quartz/spring/boot/autoconfigure/RemovedPropertiesFailureAnalyzer.java))
 registered in [`META-INF/spring.factories`](src/main/resources/META-INF/spring.factories). The
@@ -436,8 +434,8 @@ flowchart LR
 
 - [`QuartzProperties`](src/main/java/org/quartz/spring/boot/autoconfigure/QuartzProperties.java) is the only binding target, and every duration is a `Duration`. It exposes a deliberate set
   of 29 keys; options with one sensible value in a Spring Boot application are not properties and keep the
-  defaults of the settings records (D-030). Plain Java users can still set them on the builders, for example
-  [`JobStoreSettings.Builder.useProperties()`](src/main/java/org/quartz/impl/config/JobStoreSettings.java#L233).
+  defaults of the settings records; code can still set them on the settings builders, for example
+  [`JobStoreSettings.Builder.useProperties()`](src/main/java/org/quartz/impl/config/JobStoreSettings.java#L233), from a [`SchedulerFactoryBeanCustomizer`](src/main/java/org/quartz/spring/boot/autoconfigure/SchedulerFactoryBeanCustomizer.java).
 - The settings records validate in their compact constructors and have builders; their `defaults()` equal the
   property defaults apart from the scheduler name ([`QuartzPropertiesTest.defaultsMatchTheTypedSettingsDefaults()`](src/test/java/org/quartz/spring/boot/autoconfigure/QuartzPropertiesTest.java#L36)).
 - **Metadata:** `spring-boot-configuration-processor` generates `META-INF/spring-configuration-metadata.json` from
@@ -454,7 +452,7 @@ flowchart LR
   [`LenientDateTime`](src/main/java/org/quartz/utils/LenientDateTime.java) (lenient field arithmetic with well-defined daylight-saving behaviour), and instants are kept at
   millisecond precision ([`Instants.toMillis()`](src/main/java/org/quartz/utils/Instants.java#L36)). Message templates with `{n, date, …}` elements are formatted by
   [`InstantMessageFormat.format()`](src/main/java/org/quartz/utils/InstantMessageFormat.java#L46).
-- **Nullness:** every package is `@NullMarked` (JSpecify) and **NullAway fails the build** (D-025, D-026). Mark
+- **Nullness:** every package is `@NullMarked` (JSpecify) and **NullAway fails the build**. Mark
   `@Nullable` wherever null is possible; fields set after construction take `@SuppressWarnings("NullAway.Init")`;
   any `@SuppressWarnings("NullAway")` carries a comment saying why. Null-in/null-out helpers use Spring's
   `@Contract` (see [`Instants.toMillis()`](src/main/java/org/quartz/utils/Instants.java#L36)).
@@ -462,7 +460,8 @@ flowchart LR
   Spring's own modules.
 - **Licence headers:** Apache 2.0 on every file.
 - **Logging:** SLF4J only.
-- **Decisions:** anything ambiguous gets a `DECISIONS.md` entry, with the conservative choice taken.
+- **Decisions:** when a choice is ambiguous, take the conservative option and explain it in the commit message;
+  when it shapes how the code works, explain it in this guide too.
 
 ---
 
@@ -473,9 +472,9 @@ flowchart LR
 | JDK | 25 ([`.sdkmanrc`](.sdkmanrc): Temurin 25.0.4); the enforcer requires 25 or newer |
 | Build | The Maven wrapper: `./mvnw verify` runs unit and container tests, NullAway and the dependency analysis ([`pom.xml`](pom.xml)) |
 | Formatting | `fmt-maven-plugin` (google-java-format) **rewrites the sources on every build**: commit what it produces; `-Dfmt.skip` skips it locally |
-| Static checks | Error Prone with only NullAway enabled, on the main code (D-025); [`.mvn/jvm.config`](.mvn/jvm.config) opens the `jdk.compiler` internals it needs |
+| Static checks | Error Prone with only NullAway enabled, on the main code; [`.mvn/jvm.config`](.mvn/jvm.config) opens the `jdk.compiler` internals it needs |
 | Dependencies | `dependency:analyze-only` with `failOnWarning`: declare what you use, nothing more. Store and actuator dependencies are `optional` |
-| Javadoc | `./mvnw javadoc:javadoc`. The sources and javadoc jars are built only by the `publish-artefacts` profile (D-029); check them before a release with `./mvnw -Ppublish-artefacts -Dgpg.skip -DskipTests package` |
+| Javadoc | `./mvnw javadoc:javadoc`. The sources and javadoc jars are built only by the `publish-artefacts` profile; check them before a release with `./mvnw -Ppublish-artefacts -Dgpg.skip -DskipTests package` |
 | Release | The `publish-artefacts` profile: sources, javadoc, GPG signing, `central-publishing-maven-plugin` |
 | Version | Set in `pom.xml`; the filtered [`quartz-build.properties`](src/main/resources/org/quartz/core/quartz-build.properties) carries it to [`QuartzScheduler.getVersion()`](src/main/java/org/quartz/core/QuartzScheduler.java#L246) |
 
@@ -504,7 +503,7 @@ Rules for container tests (see `.claude/CLAUDE.md`):
 - Awaitility for anything asynchronous; no `Thread.sleep`.
 - A test that gives a context the shared `MongoClient` must stop the context from closing it
   (`setDestroyMethodName("")`): a client closed under a running scheduler can leave a server-side transaction
-  that blocks the next drop for a minute (D-032).
+  that blocks the next drop for a minute.
 
 Run one test class:
 
@@ -538,8 +537,9 @@ select it in [`StdSchedulerFactory.createThreadPool()`](src/main/java/org/quartz
 **Write a plugin.** Implement [`SchedulerPlugin`](src/main/java/org/quartz/spi/SchedulerPlugin.java) (and [`JobListener`](src/main/java/org/quartz/JobListener.java) or [`TriggerListener`](src/main/java/org/quartz/TriggerListener.java) if it listens, registering
 itself in [`SchedulerPlugin.initialize()`](src/main/java/org/quartz/spi/SchedulerPlugin.java#L66) with its matchers). Applications define it as a bean.
 
-**Change a fire-time algorithm.** Expect [`GoldenBehaviourTest`](src/test/java/org/quartz/GoldenBehaviourTest.java) to fail. A deliberate change needs a
-`DECISIONS.md` entry and regenerated fixtures (D-011 is an example).
+**Change a fire-time algorithm.** Expect [`GoldenBehaviourTest`](src/test/java/org/quartz/GoldenBehaviourTest.java) to fail. A deliberate change needs a reason
+in the commit and corrected expectations; [`GoldenBehaviourTest.CORRECTED_NEXT`](src/test/java/org/quartz/GoldenBehaviourTest.java#L71) shows how the fix for the first full
+hour after a DST gap was recorded.
 
 ---
 
@@ -549,9 +549,9 @@ itself in [`SchedulerPlugin.initialize()`](src/main/java/org/quartz/spi/Schedule
   often in the middle of a store call. Lettuce and the MongoDB driver throw on interrupted threads, and a command
   may have reached the server even though the client gave up. Hence: release locks and abort transactions with the
   interrupt flag cleared ([`LeaseStoreLock.release()`](src/main/java/org/quartz/impl/store/LeaseStoreLock.java#L110), [`MongoJobStore.abort()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L263)), kill MongoDB sessions after a failed
-  transaction, and write fired-trigger records before state changes (D-032, D-034).
+  transaction, and write fired-trigger records before state changes.
 - **No unbounded concurrency.** A pool that reports more capacity than it can run makes the scheduler acquire
-  triggers that then wait in a queue, invisible to the other cluster nodes (D-023, D-031).
+  triggers that then wait in a queue, invisible to the other cluster nodes.
 - **Acquired triggers need records.** Never mark a trigger `ACQUIRED` without its [`FiredTriggerRecord`](src/main/java/org/quartz/impl/store/FiredTriggerRecord.java) existing
   first, and never free an `ACQUIRED` trigger that another instance has a record for.
 - **Stored names are a format.** Codec constants, [`RedisKeys`](src/main/java/org/quartz/impl/redis/RedisKeys.java) shapes and the MongoDB collection names are read by

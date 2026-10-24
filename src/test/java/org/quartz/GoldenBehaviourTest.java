@@ -49,14 +49,14 @@ import org.quartz.impl.triggers.SimpleTriggerImpl;
 
 /**
  * Replays scheduling results recorded from the original {@code java.util.Date}/{@code
- * GregorianCalendar} implementation (Phase 4, see DECISIONS D-010) so the java.time port provably
- * keeps fire-time semantics. Fixtures live in {@code
- * src/test/resources/org/quartz/golden/*.tsv.gz}; all instants are epoch millis. Rows recorded as
- * {@code HANG} looped forever in the original code and are covered by the DST tests instead. The
- * fixtures were recorded with {@code -Duser.timezone=UTC} and the {@code en_US} locale: the
- * original {@code getTimeBefore} for {@code W} expressions depended on the JVM defaults, so the
- * replay pins them too. {@link #CORRECTED_NEXT} replaces the recorded fire times of the rows
- * deliberately changed by D-011.
+ * GregorianCalendar} implementation, so the {@code java.time} scheduling code provably keeps those
+ * fire-time semantics. Fixtures live in {@code src/test/resources/org/quartz/golden/*.tsv.gz}; all
+ * instants are epoch millis. Rows recorded as {@code HANG} looped forever in the original code and
+ * are covered by the DST tests instead. The fixtures were recorded with {@code -Duser.timezone=UTC}
+ * and the {@code en_US} locale: the original {@code getTimeBefore} for {@code W} expressions
+ * depended on the JVM defaults, so the replay pins them too. {@link #CORRECTED_NEXT} replaces the
+ * recorded fire times of the rows changed deliberately by the fix for the first full hour after a
+ * DST gap.
  */
 class GoldenBehaviourTest {
 
@@ -64,7 +64,7 @@ class GoldenBehaviourTest {
 
   /**
    * Cron rows whose recorded {@code next} fire times skipped the first full hour after the
-   * 30-minute Australia/Lord_Howe DST gap on 2024-10-06 (02:00 -> 02:30). D-011 fixed that; these
+   * 30-minute Australia/Lord_Howe DST gap on 2024-10-06 (02:00 -> 02:30), a bug fixed since; these
    * are the exact corrected values, keyed by expression, zone and start millis. Each only gains the
    * missing 03:00 (and 03:15) local times; the earlier fire times are unchanged.
    */
@@ -119,7 +119,7 @@ class GoldenBehaviourTest {
             String before = ms(ce.getTimeBefore(start));
             // The original W handling compared against an uncleared Calendar.getInstance(), so
             // the wall-clock milliseconds at recording time could land getTimeBefore one second
-            // early. The port compares at second precision and returns the exact fire time (D-010).
+            // early. The port compares at second precision and returns the exact fire time.
             boolean nearestWeekday =
                 r[0].contains("W")
                     && !"null".equals(r[4])

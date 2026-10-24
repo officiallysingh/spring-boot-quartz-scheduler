@@ -30,9 +30,8 @@ import org.testcontainers.mongodb.MongoDBContainer;
 
 /**
  * Proves the Docker / Testcontainers wiring: starts the shared MongoDB and Redis containers and
- * pings both. No MongoDB or Redis client library is on the classpath yet (DECISIONS.md D-008), so
- * MongoDB is pinged through {@code mongosh} inside the container and Redis over a raw RESP socket
- * from the host.
+ * pings both without any client library: MongoDB through {@code mongosh} inside the container and
+ * Redis over a raw RESP socket from the host.
  */
 class ContainersSmokeIT {
 

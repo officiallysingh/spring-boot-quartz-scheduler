@@ -25,10 +25,8 @@ import org.quartz.impl.mongodb.MongoJobStoreSettings;
 
 /**
  * Builds schedulers for integration tests, stored in the shared MongoDB container (database {@value
- * #DATABASE}), with the values a {@code Properties}-configured {@code StdSchedulerFactory} used for
- * absent keys before Phase 5 (DECISIONS.md D-012): scheduler name {@code QuartzScheduler}, a 5 s
- * misfire threshold (the former in-memory store's default) and worker threads that do not inherit
- * the context class loader. Callers clean the store with {@link AbstractMongoIT} (D-016).
+ * #DATABASE}), with the defaults the tests rely on: scheduler name {@code QuartzScheduler} and a 5
+ * s misfire threshold. Callers clean the store with {@link AbstractMongoIT}.
  */
 public final class TestSchedulers {
 

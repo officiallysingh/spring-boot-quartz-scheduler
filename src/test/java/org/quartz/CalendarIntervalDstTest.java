@@ -26,7 +26,7 @@ import org.quartz.impl.triggers.CalendarIntervalTriggerImpl;
 /**
  * Calendar-interval fire times across DST transitions, with and without {@code
  * preserveHourOfDayAcrossDaylightSavings} / {@code skipDayIfHourDoesNotExist}. The expected values
- * are the original Quartz semantics (golden fixtures, D-010).
+ * are the original Quartz semantics (as in the golden fixtures).
  */
 class CalendarIntervalDstTest {
 

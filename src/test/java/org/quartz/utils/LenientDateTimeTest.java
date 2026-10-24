@@ -28,8 +28,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * {@link LenientDateTime} must reproduce the lenient {@code GregorianCalendar} semantics the
- * scheduling algorithms were written against (D-010). Random set/add/get sequences around DST
- * transitions are run on both and compared after every step.
+ * scheduling algorithms were written against. Random set/add/get sequences around DST transitions
+ * are run on both and compared after every step.
  */
 class LenientDateTimeTest {
 

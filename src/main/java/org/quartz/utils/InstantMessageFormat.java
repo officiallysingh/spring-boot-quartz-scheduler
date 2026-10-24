@@ -29,7 +29,7 @@ import java.util.Locale;
  * <p>Templates keep the familiar {@code {n, date, HH:mm:ss MM/dd/yyyy}} / {@code {n, time}} syntax:
  * each date or time element is formatted with a {@link DateTimeFormatter} built from the same
  * pattern, in the system default time zone, so {@link java.time.Instant} (or any other temporal)
- * arguments can be passed (DECISIONS.md D-010).
+ * arguments can be passed.
  */
 public final class InstantMessageFormat {
 

@@ -1125,8 +1125,8 @@ public abstract class AbstractJobStoreContractTest {
   }
 
   // ---------------------------------------------------------------------
-  // Contract cases added in Phase 7 (jobs, triggers, calendars, groups,
-  // firing, completion, blocking, job data, misfires, recovery)
+  // Contract cases: jobs, triggers, calendars, groups, firing, completion,
+  // blocking, job data, misfires, recovery
   // ---------------------------------------------------------------------
 
   private OperableTrigger simpleTrigger(

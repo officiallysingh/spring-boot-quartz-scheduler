@@ -1242,7 +1242,7 @@ public final class CronExpression implements Serializable {
           // from this occurrence instead of advancing the hour.
           // If the requested minute lies in a DST gap the calendar
           // stays where it was: advance the hour instead of looping
-          // forever (D-010).
+          // forever.
           continue;
         }
         setCalendarHour(cl, hr);
@@ -1250,7 +1250,7 @@ public final class CronExpression implements Serializable {
           // Setting the minute above landed in a DST gap that is not a
           // whole hour and moved forward by the gap; setting the hour
           // kept that minute. Re-apply the requested one so the first
-          // hour after the gap is not skipped (D-011).
+          // hour after the gap is not skipped.
           cl.set(LenientDateTime.SECOND, 0);
           cl.set(LenientDateTime.MINUTE, min);
         }
@@ -1301,7 +1301,7 @@ public final class CronExpression implements Serializable {
           day = smallestDayForWeekday.get();
 
           // the original code used an uncleared LenientDateTime.getInstance() here, so the
-          // milliseconds of "now" leaked into the comparison below (D-010)
+          // milliseconds of "now" leaked into the comparison below
           LenientDateTime tcal = new LenientDateTime(cl.toInstant(), zone);
           tcal.set(LenientDateTime.MILLISECOND, 0);
           tcal.set(LenientDateTime.SECOND, 0);

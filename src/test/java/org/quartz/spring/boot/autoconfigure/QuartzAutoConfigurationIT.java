@@ -81,8 +81,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 /**
  * {@link QuartzAutoConfiguration} on the shared MongoDB container. The runner gets {@code
  * ConnectionDetails} beans for the shared containers, as {@code @ServiceConnection} registers them,
- * but without handing the containers to the context, which would stop them when it closes (D-016).
- * Checks that need no store are in {@link QuartzAutoConfigurationTest}.
+ * but without handing the containers to the context, which would stop them when it closes. Checks
+ * that need no store are in {@link QuartzAutoConfigurationTest}.
  */
 class QuartzAutoConfigurationIT extends AbstractMongoIT {
 

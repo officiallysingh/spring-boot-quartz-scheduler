@@ -116,7 +116,7 @@ public class TriggerBuilderTest {
             .forJob("test job Instant", "test job Instant group")
             .startAt(instantTime)
             .build();
-    // trigger times keep millisecond precision, as Date.from(instant) did (D-010)
+    // trigger times keep millisecond precision, as Date.from(instant) did
     assertEquals(instantTime.truncatedTo(ChronoUnit.MILLIS), trigger.getStartTime());
     assertEquals(instantTime.truncatedTo(ChronoUnit.MILLIS), trigger.getFinalFireTime());
   }

@@ -1035,7 +1035,7 @@ public class CronExpressionTest extends SerializationTestSupport {
   @org.junit.jupiter.api.Timeout(10)
   public void testGetTimeAfterTerminatesInThirtyMinuteDstGap() throws Exception {
     // Australia/Lord_Howe jumps from 02:00 to 02:30 on 2024-10-06; the original
-    // implementation looped forever looking for 02:00 on that day (D-010).
+    // implementation looped forever looking for 02:00 on that day.
     ZoneId lordHowe = ZoneId.of("Australia/Lord_Howe");
     Instant afterTime = Instant.parse("2024-10-05T13:30:00Z");
 
@@ -1056,7 +1056,7 @@ public class CronExpressionTest extends SerializationTestSupport {
   @Test
   public void testNearestWeekdayGetTimeBeforeIsExact() throws Exception {
     // the original W handling leaked the wall-clock milliseconds into its comparison,
-    // so getTimeBefore could be one second early depending on when it ran (D-010)
+    // so getTimeBefore could be one second early depending on when it ran
     CronExpression lastWeekday = new CronExpression("0 0 0 LW * ?");
     lastWeekday.setTimeZone(ZoneId.of("UTC"));
     Instant start = Instant.parse("2024-02-28T23:59:59Z");

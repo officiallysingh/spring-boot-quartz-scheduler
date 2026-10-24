@@ -28,8 +28,7 @@ import java.time.temporal.ChronoUnit;
  * <p>Quartz's scheduling algorithms (cron, calendar-interval, daily-time-interval triggers,
  * calendars) were written against the lenient legacy Gregorian calendar of the JDK: fields are set
  * one at a time, may overflow (minute 60, day 32, month 12) and are normalized on the next read.
- * This class reproduces exactly those semantics so the algorithms keep their fire times
- * (DECISIONS.md D-010):
+ * This class reproduces exactly those semantics so the algorithms keep their fire times:
  *
  * <ul>
  *   <li>{@link #set} stores a raw value; the next {@link #get} or {@link #toInstant} normalizes all

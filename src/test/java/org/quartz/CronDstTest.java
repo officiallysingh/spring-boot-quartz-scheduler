@@ -25,8 +25,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 /**
- * Cron fire times across DST transitions (D-010): a wall time inside a spring-forward gap is
- * skipped, a wall time repeated by a fall-back fires once, at the later (standard-time) instant.
+ * Cron fire times across DST transitions: a wall time inside a spring-forward gap is skipped, a
+ * wall time repeated by a fall-back fires once, at the later (standard-time) instant.
  */
 class CronDstTest {
 
@@ -81,7 +81,7 @@ class CronDstTest {
         .extracting(t -> t.atZone(LORD_HOWE).toLocalTime())
         .doesNotContain(LocalTime.of(2, 0))
         .contains(LocalTime.of(1, 30), LocalTime.of(2, 30));
-    // The first full hour after the gap is not skipped: 02:30 is followed by 03:00 (D-011).
+    // The first full hour after the gap is not skipped: 02:30 is followed by 03:00.
     assertThat(times.get(3)).isEqualTo(Instant.parse("2024-10-05T16:00:00Z")); // 03:00
     assertThat(times.get(4)).isEqualTo(Instant.parse("2024-10-05T16:30:00Z")); // 03:30
   }

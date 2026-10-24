@@ -20,7 +20,7 @@ import org.springframework.lang.Contract;
 
 /**
  * Scheduling instants are kept at millisecond precision, the precision of the original Date-based
- * API, so fire-time arithmetic and equality are unchanged (DECISIONS.md D-010).
+ * API, so fire-time arithmetic and equality are unchanged.
  */
 public final class Instants {
 

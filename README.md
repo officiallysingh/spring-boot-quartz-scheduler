@@ -852,7 +852,7 @@ Docker must be running: the integration tests start MongoDB (`mongo:8.0`) and Re
 
 `verify` runs the unit tests (`*Test`) and the container tests (`*IT`), including [`SampleApplicationIT`](src/test/java/org/quartz/spring/boot/sample/SampleApplicationIT.java), a sample
 application run on MongoDB and Redis, single and clustered. Use JDK 25. How the library works inside is described in
-the [Developer guide](DEVELOPER_GUIDE.md); design decisions are recorded in [DECISIONS.md](DECISIONS.md).
+the [Developer guide](DEVELOPER_GUIDE.md).
 
 ## License
 

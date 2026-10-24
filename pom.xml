@@ -121,7 +121,7 @@
             <artifactId>spring-boot-autoconfigure</artifactId>
         </dependency>
 
-        <!-- MongoDB store (Phase 7): the APIs MongoJobStore and its auto-configuration compile against -->
+        <!-- MongoDB store: the APIs MongoJobStore and its auto-configuration compile against -->
         <dependency>
             <groupId>org.mongodb</groupId>
             <artifactId>mongodb-driver-sync</artifactId>
@@ -148,14 +148,14 @@
             <artifactId>spring-boot-mongodb</artifactId>
             <optional>true</optional>
         </dependency>
-        <!-- Redis store (Phase 7) -->
+        <!-- Redis store -->
         <dependency>
             <groupId>org.springframework.data</groupId>
             <artifactId>spring-data-redis</artifactId>
             <optional>true</optional>
         </dependency>
 
-        <!-- actuator endpoint, health indicator and metrics (Phase 10) -->
+        <!-- actuator endpoint, health indicator and metrics -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-actuator</artifactId>
@@ -259,7 +259,7 @@
             <artifactId>jackson-databind</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- an HTTP server for the RANDOM_PORT actuator ITs (Phase 10) -->
+        <!-- an HTTP server for the RANDOM_PORT actuator ITs -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc</artifactId>
@@ -412,7 +412,7 @@
                     </annotationProcessorPaths>
                 </configuration>
                 <executions>
-                    <!-- NullAway checks the @NullMarked main code; only that check of Error Prone runs (D-025) -->
+                    <!-- NullAway checks the @NullMarked main code; only that check of Error Prone runs -->
                     <execution>
                         <id>default-compile</id>
                         <configuration>
