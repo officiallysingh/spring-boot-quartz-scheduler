@@ -115,28 +115,44 @@ Optional extras:
 
 ## Quick start
 
-**1. Start a database.** A `compose.yaml` for local development, with MongoDB as a single-node replica set (so that
-transactions work) and Redis with AOF persistence:
+**1. Start a database.** For local development, add a `compose.yaml` to the root of **your application** (the
+library needs none of its own). It runs MongoDB as a single-node replica set, so that transactions work, and Redis
+with AOF persistence. Keep only the service of the store you use:
 
 ```yaml
 services:
   mongodb:
     image: mongo:8.0
-    command: ["--replSet", "rs0", "--bind_ip_all"]
+    command: ["--replSet", "rs0", "--bind_ip_all"]   # a replica set enables transactions
     ports: ["27017:27017"]
+    volumes: ["mongodb-data:/data/db"]
     healthcheck:
+      # initiates the replica set on the first start, then reports its status
       test: mongosh --quiet --eval "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]}).ok }"
       interval: 5s
       retries: 10
+      start_period: 10s
+
   redis:
     image: redis:7.4
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes"]  # AOF: the schedule survives Redis restarts
     ports: ["6379:6379"]
+    volumes: ["redis-data:/data"]
+
+volumes:
+  mongodb-data:
+  redis-data:
 ```
+
+Start it from the application's folder:
 
 ```bash
 docker compose up -d
 ```
+
+The replica set member is named `localhost:27017`, so connect from the host with
+`mongodb://localhost:27017/app?replicaSet=rs0`. An application that itself runs in the same compose project
+connects with `directConnection=true` instead (`mongodb://mongodb:27017/app?directConnection=true`).
 
 **2. Configure the connection and the scheduler** in `application.yml`:
 
