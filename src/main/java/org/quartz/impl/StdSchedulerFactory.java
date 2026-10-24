@@ -165,7 +165,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
               + "StdSchedulerFactory.Builder.jobStore(JobStore) (MongoJobStore or RedisJobStore)");
     }
     JobStore js = jobStore;
-    SchedulerDetailsSetter.setDetails(js, schedName, schedInstId);
 
     QuartzScheduler qs = null;
     boolean tpInited = false;
@@ -204,7 +203,8 @@ public class StdSchedulerFactory implements SchedulerFactory {
       rsrcs.setInterruptJobsOnShutdownWithWait(sched.interruptJobsOnShutdownWithWait());
       rsrcs.setClock(clock);
 
-      SchedulerDetailsSetter.setDetails(tp, schedName, schedInstId);
+      tp.setInstanceName(schedName);
+      tp.setInstanceId(schedInstId);
 
       rsrcs.setThreadPool(tp);
       tp.initialize();
