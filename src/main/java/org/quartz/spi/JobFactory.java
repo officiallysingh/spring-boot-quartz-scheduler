@@ -29,8 +29,7 @@ import org.quartz.SchedulerException;
  * injection.
  *
  * @see org.quartz.Scheduler#setJobFactory(JobFactory)
- * @see org.quartz.simpl.SimpleJobFactory
- * @see org.quartz.simpl.PropertySettingJobFactory
+ * @see org.quartz.spring.SpringBeanJobFactory
  * @author James House
  */
 public interface JobFactory {

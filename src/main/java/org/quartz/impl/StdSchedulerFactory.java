@@ -397,7 +397,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
     /**
      * Set the factory creating job instances; default {@link
-     * org.quartz.simpl.PropertySettingJobFactory}.
+     * org.quartz.spring.SpringBeanJobFactory}, which applies job data to the job's setters.
      *
      * @param jobFactory the job factory
      * @return this builder

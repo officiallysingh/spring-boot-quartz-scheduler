@@ -63,11 +63,11 @@ import org.quartz.TriggerListener;
 import org.quartz.UnableToInterruptJobException;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.listeners.SchedulerListenerSupport;
-import org.quartz.simpl.PropertySettingJobFactory;
 import org.quartz.spi.JobFactory;
 import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spi.SchedulerSignaler;
+import org.quartz.spring.SpringBeanJobFactory;
 import org.quartz.utils.Instants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -158,7 +158,7 @@ public class QuartzScheduler {
 
   private final ArrayList<SchedulerListener> internalSchedulerListeners = new ArrayList<>(10);
 
-  private JobFactory jobFactory = new PropertySettingJobFactory();
+  private JobFactory jobFactory = defaultJobFactory(context);
 
   ExecutingJobsManager jobMgr;
 
@@ -1728,6 +1728,13 @@ public class QuartzScheduler {
         getLog().error("Error while notifying SchedulerListener of JobAdded.", e);
       }
     }
+  }
+
+  /** Without an application, jobs get their job data and the scheduler context set on setters. */
+  private static JobFactory defaultJobFactory(SchedulerContext context) {
+    SpringBeanJobFactory factory = new SpringBeanJobFactory();
+    factory.setSchedulerContext(context);
+    return factory;
   }
 
   public void setJobFactory(JobFactory factory) throws SchedulerException {
