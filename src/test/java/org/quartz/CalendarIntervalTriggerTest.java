@@ -33,9 +33,6 @@ import org.quartz.impl.triggers.CalendarIntervalTriggerImpl;
 /** Unit tests for DateIntervalTrigger. */
 public class CalendarIntervalTriggerTest extends SerializationTestSupport {
 
-  // the 2.0 fixture predates the java.time migration and can no longer be read (D-010)
-  private static final String[] VERSIONS = new String[0];
-
   @Test
   void testQTZ331FireTimeAfterBoundary() {
     Calendar start = Calendar.getInstance();
@@ -518,11 +515,6 @@ public class CalendarIntervalTriggerTest extends SerializationTestSupport {
   }
 
   @Override
-  protected String[] getVersions() {
-    return VERSIONS;
-  }
-
-  @Override
   protected void verifyMatch(Object target, Object deserialized) {
     CalendarIntervalTriggerImpl targetCalTrigger = (CalendarIntervalTriggerImpl) target;
     CalendarIntervalTriggerImpl deserializedCalTrigger = (CalendarIntervalTriggerImpl) deserialized;
@@ -541,10 +533,5 @@ public class CalendarIntervalTriggerTest extends SerializationTestSupport {
     assertEquals(targetCalTrigger.getRepeatInterval(), deserializedCalTrigger.getRepeatInterval());
     assertEquals(
         targetCalTrigger.getRepeatIntervalUnit(), deserializedCalTrigger.getRepeatIntervalUnit());
-  }
-
-  // execute with version number to generate a new version's serialized form
-  public static void main(String[] args) throws Exception {
-    new CalendarIntervalTriggerTest().writeJobDataFile("2.0");
   }
 }

@@ -26,10 +26,8 @@ import java.util.TimeZone;
 import org.junit.jupiter.api.Test;
 import org.quartz.impl.triggers.SimpleTriggerImpl;
 
-/** Unit test for SimpleTrigger serialization backwards compatibility. */
+/** Unit test for SimpleTrigger serialization. */
 public class SimpleTriggerTest extends SerializationTestSupport {
-  // the 2.0 fixture predates the java.time migration and can no longer be read (D-010)
-  private static final String[] VERSIONS = new String[0];
 
   private static final ZoneId EST_TIME_ZONE = ZoneId.of("US/Eastern");
   private static final Calendar START_TIME = Calendar.getInstance();
@@ -44,10 +42,7 @@ public class SimpleTriggerTest extends SerializationTestSupport {
     END_TIME.setTimeZone(TimeZone.getTimeZone(EST_TIME_ZONE));
   }
 
-  /**
-   * Get the object to serialize when generating serialized file for future tests, and against which
-   * to validate deserialized object.
-   */
+  /** The object to serialize and compare with its deserialized copy. */
   @SuppressWarnings("deprecation")
   @Override
   protected Object getTargetObject() {
@@ -70,12 +65,6 @@ public class SimpleTriggerTest extends SerializationTestSupport {
     t.setMisfireInstruction(SimpleTrigger.MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT);
 
     return t;
-  }
-
-  /** Get the Quartz versions for which we should verify serialization backwards compatibility. */
-  @Override
-  protected String[] getVersions() {
-    return VERSIONS;
   }
 
   /** Verify that the target object and the object we just deserialized match. */
@@ -196,10 +185,5 @@ public class SimpleTriggerTest extends SerializationTestSupport {
       fail("Expected exception while setting invalid misfire instruction but did not get it.");
     } catch (Exception e) {
     }
-  }
-
-  // execute with version number to generate a new version's serialized form
-  public static void main(String[] args) throws Exception {
-    new SimpleTriggerTest().writeJobDataFile("2.0");
   }
 }

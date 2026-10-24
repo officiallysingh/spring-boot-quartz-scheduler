@@ -23,17 +23,12 @@ import java.time.ZonedDateTime;
 import org.junit.jupiter.api.Test;
 import org.quartz.impl.calendar.AnnualCalendar;
 
-/** Unit test for AnnualCalendar serialization backwards compatibility. */
+/** Unit test for AnnualCalendar serialization. */
 public class AnnualCalendarTest extends SerializationTestSupport {
-  // the 1.5.1 fixture predates the java.time migration and can no longer be read (D-010)
-  private static final String[] VERSIONS = new String[0];
 
   private static final ZoneId EST_TIME_ZONE = ZoneId.of("America/New_York");
 
-  /**
-   * Get the object to serialize when generating serialized file for future tests, and against which
-   * to validate deserialized object.
-   */
+  /** The object to serialize and compare with its deserialized copy. */
   @Override
   protected Object getTargetObject() {
     AnnualCalendar c = new AnnualCalendar();
@@ -45,12 +40,6 @@ public class AnnualCalendarTest extends SerializationTestSupport {
     c.setDayExcluded(cal, true);
 
     return c;
-  }
-
-  /** Get the Quartz versions for which we should verify serialization backwards compatibility. */
-  @Override
-  protected String[] getVersions() {
-    return VERSIONS;
   }
 
   /** Verify that the target object and the object we just deserialized match. */

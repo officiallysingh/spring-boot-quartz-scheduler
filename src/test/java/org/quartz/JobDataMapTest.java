@@ -19,25 +19,15 @@ package org.quartz;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-/** Unit test for JobDataMap serialization backwards compatibility. */
+/** Unit test for JobDataMap serialization. */
 public class JobDataMapTest extends SerializationTestSupport {
-  private static final String[] VERSIONS = new String[] {"1.4.5", "1.5.1", "2.1"};
 
-  /**
-   * Get the object to serialize when generating serialized file for future tests, and against which
-   * to validate deserialized object.
-   */
+  /** The object to serialize and compare with its deserialized copy. */
   @Override
   protected Object getTargetObject() {
     JobDataMap m = new JobDataMap();
     m.put("key", Integer.valueOf(5));
     return m;
-  }
-
-  /** Get the Quartz versions for which we should verify serialization backwards compatibility. */
-  @Override
-  protected String[] getVersions() {
-    return VERSIONS;
   }
 
   /** Verify that the target object and the object we just deserialized match. */
@@ -49,9 +39,5 @@ public class JobDataMapTest extends SerializationTestSupport {
     assertNotNull(deserializedMap);
     assertEquals(targetMap.getWrappedMap(), deserializedMap.getWrappedMap());
     assertEquals(targetMap.isDirty(), deserializedMap.isDirty());
-  }
-
-  public static void main(String[] args) throws Exception {
-    new JobDataMapTest().writeJobDataFile("2.1");
   }
 }

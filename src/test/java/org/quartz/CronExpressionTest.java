@@ -28,27 +28,16 @@ import java.util.Calendar;
 import org.junit.jupiter.api.Test;
 
 public class CronExpressionTest extends SerializationTestSupport {
-  // the 1.5.2 fixture predates the java.time migration and can no longer be read (D-010)
-  private static final String[] VERSIONS = new String[0];
 
   private static final ZoneId EST_TIME_ZONE = ZoneId.of("US/Eastern");
 
-  /**
-   * Get the object to serialize when generating serialized file for future tests, and against which
-   * to validate deserialized object.
-   */
+  /** The object to serialize and compare with its deserialized copy. */
   @Override
   protected Object getTargetObject() throws ParseException {
     CronExpression cronExpression = new CronExpression("0 15 10 * * ? 2005");
     cronExpression.setTimeZone(EST_TIME_ZONE);
 
     return cronExpression;
-  }
-
-  /** Get the Quartz versions for which we should verify serialization backwards compatibility. */
-  @Override
-  protected String[] getVersions() {
-    return VERSIONS;
   }
 
   /** Verify that the target object and the object we just deserialized match. */
@@ -1077,10 +1066,5 @@ public class CronExpressionTest extends SerializationTestSupport {
     assertEquals(
         Instant.parse("2024-01-31T00:00:00Z"),
         lastWeekday.getTimeAfter(Instant.parse("2024-01-30T23:59:59.500Z")));
-  }
-
-  // execute with version number to generate a new version's serialized form
-  public static void main(String[] args) throws Exception {
-    new CronExpressionTest().writeJobDataFile("1.5.2");
   }
 }

@@ -26,19 +26,7 @@ import org.quartz.impl.triggers.CronTriggerImpl;
 /** Unit test for CronTrigger. */
 public class CronTriggerTest extends SerializationTestSupport {
 
-  // the 2.0 fixture predates the java.time migration and can no longer be read (D-010)
-  private static final String[] VERSIONS = new String[0];
-
-  /** Get the Quartz versions for which we should verify serialization backwards compatibility. */
-  @Override
-  protected String[] getVersions() {
-    return VERSIONS;
-  }
-
-  /**
-   * Get the object to serialize when generating serialized file for future tests, and against which
-   * to validate deserialized object.
-   */
+  /** The object to serialize and compare with its deserialized copy. */
   @Override
   protected Object getTargetObject() throws Exception {
     JobDataMap jobDataMap = new JobDataMap();
@@ -156,10 +144,5 @@ public class CronTriggerTest extends SerializationTestSupport {
 
     CronTrigger copy = trigger.getTriggerBuilder().build();
     assertThat(copy.getMisfireInstruction()).isEqualTo(Trigger.MISFIRE_INSTRUCTION_SMART_POLICY);
-  }
-
-  // execute with version number to generate a new version's serialized form
-  public static void main(String[] args) throws Exception {
-    new CronTriggerTest().writeJobDataFile("2.0");
   }
 }

@@ -23,8 +23,6 @@ import org.quartz.SerializationTestSupport;
 
 /** Unit test for DailyCalendar. */
 public class DailyCalendarTest extends SerializationTestSupport {
-  // the 1.5.2 fixture predates the java.time migration and can no longer be read (D-010)
-  private static final String[] VERSIONS = new String[0];
 
   @Test
   void testStringStartEndTimes() {
@@ -45,10 +43,7 @@ public class DailyCalendarTest extends SerializationTestSupport {
     assertTrue(dailyCalendar.toString().indexOf("inverted: false") > 0);
   }
 
-  /**
-   * Get the object to serialize when generating serialized file for future tests, and against which
-   * to validate deserialized object.
-   */
+  /** The object to serialize and compare with its deserialized copy. */
   @Override
   protected Object getTargetObject() {
     DailyCalendar c = new DailyCalendar("01:20:01:456", "14:50:15:002");
@@ -56,12 +51,6 @@ public class DailyCalendarTest extends SerializationTestSupport {
     c.setInvertTimeRange(true);
 
     return c;
-  }
-
-  /** Get the Quartz versions for which we should verify serialization backwards compatibility. */
-  @Override
-  protected String[] getVersions() {
-    return VERSIONS;
   }
 
   /** Verify that the target object and the object we just deserialized match. */
