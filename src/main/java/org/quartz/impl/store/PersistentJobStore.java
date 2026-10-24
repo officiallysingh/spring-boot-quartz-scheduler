@@ -1668,11 +1668,12 @@ public abstract class PersistentJobStore implements JobStore {
   protected OperableTrigger recoveryTrigger(FiredTriggerRecord record)
       throws JobPersistenceException {
     TriggerKey original = record.triggerKey();
-    SimpleTriggerImpl trigger =
-        new SimpleTriggerImpl(
+    SimpleTriggerImpl trigger = new SimpleTriggerImpl();
+    trigger.setKey(
+        new TriggerKey(
             "recover_" + record.instanceId() + "_" + RECOVERY_COUNTER.incrementAndGet(),
-            Scheduler.DEFAULT_RECOVERY_GROUP,
-            record.scheduledTime());
+            Scheduler.DEFAULT_RECOVERY_GROUP));
+    trigger.setStartTime(record.scheduledTime());
     trigger.setJobKey(record.jobKey());
     trigger.setMisfireInstruction(SimpleTrigger.MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY);
     trigger.setPriority(record.priority());

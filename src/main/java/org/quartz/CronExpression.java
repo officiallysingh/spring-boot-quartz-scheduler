@@ -185,7 +185,7 @@ import org.quartz.utils.LenientDateTime;
  * @author Contributions from Mads Henderson
  * @author Refactoring from CronTrigger to CronExpression by Aaron Craven
  */
-public final class CronExpression implements Serializable, Cloneable {
+public final class CronExpression implements Serializable {
 
   private static final long serialVersionUID = 12423409423L;
 
@@ -1694,12 +1694,6 @@ public final class CronExpression implements Serializable, Cloneable {
       buildExpression(cronExpression);
     } catch (Exception ignore) {
     } // never happens
-  }
-
-  @Override
-  @Deprecated
-  public Object clone() {
-    return new CronExpression(this);
   }
 }
 

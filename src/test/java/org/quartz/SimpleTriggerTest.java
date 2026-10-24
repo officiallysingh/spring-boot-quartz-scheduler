@@ -50,7 +50,7 @@ public class SimpleTriggerTest extends SerializationTestSupport {
     jobDataMap.put("A", "B");
 
     SimpleTriggerImpl t =
-        new SimpleTriggerImpl(
+        simpleTrigger(
             "SimpleTrigger",
             "SimpleGroup",
             "JobName",
@@ -185,5 +185,27 @@ public class SimpleTriggerTest extends SerializationTestSupport {
       fail("Expected exception while setting invalid misfire instruction but did not get it.");
     } catch (Exception e) {
     }
+  }
+
+  /** A simple trigger for the given job, set up field by field. */
+  private static SimpleTriggerImpl simpleTrigger(
+      String name,
+      String group,
+      String jobName,
+      String jobGroup,
+      Instant startTime,
+      Instant endTime,
+      int repeatCount,
+      Duration repeatInterval) {
+    SimpleTriggerImpl trigger = new SimpleTriggerImpl();
+    trigger.setName(name);
+    trigger.setGroup(group);
+    trigger.setJobName(jobName);
+    trigger.setJobGroup(jobGroup);
+    trigger.setStartTime(startTime);
+    trigger.setEndTime(endTime);
+    trigger.setRepeatCount(repeatCount);
+    trigger.setRepeatInterval(repeatInterval);
+    return trigger;
   }
 }

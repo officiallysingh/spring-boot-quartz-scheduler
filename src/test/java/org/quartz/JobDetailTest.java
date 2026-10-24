@@ -49,7 +49,12 @@ public class JobDetailTest {
 
   public class SomeExtendedNonConcurrentPersistentJob extends SomeNonConcurrentPersistentJob {}
 
-  public class SomeStatefulJob implements StatefulJob {
+  /** Both annotations on an interface the job class implements. */
+  @DisallowConcurrentExecution
+  @PersistJobDataAfterExecution
+  public interface SomeAnnotatedJobType extends Job {}
+
+  public class SomeStatefulJob implements SomeAnnotatedJobType {
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {}
   }

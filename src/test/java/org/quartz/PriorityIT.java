@@ -35,7 +35,9 @@ class PriorityIT extends AbstractMongoIT {
   private static StringBuffer result;
 
   @SuppressWarnings("deprecation")
-  public static class TestJob implements StatefulJob {
+  @DisallowConcurrentExecution
+  @PersistJobDataAfterExecution
+  public static class TestJob implements Job {
     public void execute(JobExecutionContext context) throws JobExecutionException {
       result.append(context.getTrigger().getKey().getName());
       latch.countDown();
@@ -56,10 +58,15 @@ class PriorityIT extends AbstractMongoIT {
     Calendar cal = Calendar.getInstance();
     cal.add(Calendar.SECOND, 1);
 
-    MutableTrigger trig1 = new SimpleTriggerImpl("T1", null, cal.toInstant());
-    MutableTrigger trig2 = new SimpleTriggerImpl("T2", null, cal.toInstant());
+    MutableTrigger trig1 =
+        (SimpleTriggerImpl)
+            TriggerBuilder.newTrigger().withIdentity("T1", null).startAt(cal.toInstant()).build();
+    MutableTrigger trig2 =
+        (SimpleTriggerImpl)
+            TriggerBuilder.newTrigger().withIdentity("T2", null).startAt(cal.toInstant()).build();
 
-    JobDetail jobDetail = new JobDetailImpl("JD", null, TestJob.class);
+    JobDetail jobDetail =
+        (JobDetailImpl) JobBuilder.newJob(TestJob.class).withIdentity("JD", null).build();
 
     sched.scheduleJob(jobDetail, trig1);
 
@@ -83,13 +90,18 @@ class PriorityIT extends AbstractMongoIT {
     Calendar cal = Calendar.getInstance();
     cal.add(Calendar.SECOND, 1);
 
-    MutableTrigger trig1 = new SimpleTriggerImpl("T1", null, cal.toInstant());
+    MutableTrigger trig1 =
+        (SimpleTriggerImpl)
+            TriggerBuilder.newTrigger().withIdentity("T1", null).startAt(cal.toInstant()).build();
     trig1.setPriority(5);
 
-    MutableTrigger trig2 = new SimpleTriggerImpl("T2", null, cal.toInstant());
+    MutableTrigger trig2 =
+        (SimpleTriggerImpl)
+            TriggerBuilder.newTrigger().withIdentity("T2", null).startAt(cal.toInstant()).build();
     trig2.setPriority(10);
 
-    JobDetail jobDetail = new JobDetailImpl("JD", null, TestJob.class);
+    JobDetail jobDetail =
+        (JobDetailImpl) JobBuilder.newJob(TestJob.class).withIdentity("JD", null).build();
 
     sched.scheduleJob(jobDetail, trig1);
 

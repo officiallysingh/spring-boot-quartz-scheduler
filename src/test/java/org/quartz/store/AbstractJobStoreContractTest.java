@@ -115,7 +115,8 @@ public abstract class AbstractJobStoreContractTest {
     this.fSignaler = new SampleSignaler();
     this.fJobStore = startStore(INSTANCE_ID, this.fSignaler);
 
-    this.fJobDetail = new JobDetailImpl("job1", "jobGroup1", MyJob.class);
+    this.fJobDetail =
+        (JobDetailImpl) JobBuilder.newJob(MyJob.class).withIdentity("job1", "jobGroup1").build();
     this.fJobDetail.setDurability(true);
     this.fJobStore.storeJob(this.fJobDetail, false);
   }
@@ -158,7 +159,7 @@ public abstract class AbstractJobStoreContractTest {
     Instant triggerTime = Instant.ofEpochMilli(System.currentTimeMillis() + 86_400_000L);
     Instant schedulingTime = Instant.ofEpochMilli(triggerTime.toEpochMilli() + 300_000L);
     OperableTrigger trigger =
-        new SimpleTriggerImpl(
+        simpleTrigger(
             "brokerMisfire",
             "triggerGroup1",
             this.fJobDetail.getName(),
@@ -187,7 +188,7 @@ public abstract class AbstractJobStoreContractTest {
     long baseFireTime = baseFireTimeDate.toEpochMilli();
 
     OperableTrigger trigger1 =
-        new SimpleTriggerImpl(
+        simpleTrigger(
             "trigger1",
             "triggerGroup1",
             this.fJobDetail.getName(),
@@ -197,7 +198,7 @@ public abstract class AbstractJobStoreContractTest {
             2,
             Duration.ofMillis(2000));
     OperableTrigger trigger2 =
-        new SimpleTriggerImpl(
+        simpleTrigger(
             "trigger2",
             "triggerGroup1",
             this.fJobDetail.getName(),
@@ -207,7 +208,7 @@ public abstract class AbstractJobStoreContractTest {
             2,
             Duration.ofMillis(2000));
     OperableTrigger trigger3 =
-        new SimpleTriggerImpl(
+        simpleTrigger(
             "trigger1",
             "triggerGroup2",
             this.fJobDetail.getName(),
@@ -279,7 +280,7 @@ public abstract class AbstractJobStoreContractTest {
     long baseFireTime = System.currentTimeMillis() - 1000;
 
     OperableTrigger early =
-        new SimpleTriggerImpl(
+        simpleTrigger(
             "early",
             "triggerGroup1",
             this.fJobDetail.getName(),
@@ -289,7 +290,7 @@ public abstract class AbstractJobStoreContractTest {
             2,
             Duration.ofMillis(2000));
     OperableTrigger trigger1 =
-        new SimpleTriggerImpl(
+        simpleTrigger(
             "trigger1",
             "triggerGroup1",
             this.fJobDetail.getName(),
@@ -299,7 +300,7 @@ public abstract class AbstractJobStoreContractTest {
             2,
             Duration.ofMillis(2000));
     OperableTrigger trigger2 =
-        new SimpleTriggerImpl(
+        simpleTrigger(
             "trigger2",
             "triggerGroup1",
             this.fJobDetail.getName(),
@@ -309,7 +310,7 @@ public abstract class AbstractJobStoreContractTest {
             2,
             Duration.ofMillis(2000));
     OperableTrigger trigger3 =
-        new SimpleTriggerImpl(
+        simpleTrigger(
             "trigger3",
             "triggerGroup1",
             this.fJobDetail.getName(),
@@ -319,7 +320,7 @@ public abstract class AbstractJobStoreContractTest {
             2,
             Duration.ofMillis(2000));
     OperableTrigger trigger4 =
-        new SimpleTriggerImpl(
+        simpleTrigger(
             "trigger4",
             "triggerGroup1",
             this.fJobDetail.getName(),
@@ -330,7 +331,7 @@ public abstract class AbstractJobStoreContractTest {
             Duration.ofMillis(2000));
 
     OperableTrigger trigger10 =
-        new SimpleTriggerImpl(
+        simpleTrigger(
             "trigger10",
             "triggerGroup2",
             this.fJobDetail.getName(),
@@ -430,7 +431,7 @@ public abstract class AbstractJobStoreContractTest {
   @Test
   void testTriggerStates() throws Exception {
     OperableTrigger trigger =
-        new SimpleTriggerImpl(
+        simpleTrigger(
             "trigger1",
             "triggerGroup1",
             this.fJobDetail.getName(),
@@ -491,12 +492,18 @@ public abstract class AbstractJobStoreContractTest {
 
     String jobName = "StoreTriggerReplacesTrigger";
     String jobGroup = "StoreTriggerReplacesTriggerGroup";
-    JobDetailImpl detail = new JobDetailImpl(jobName, jobGroup, MyJob.class);
+    JobDetailImpl detail =
+        (JobDetailImpl) JobBuilder.newJob(MyJob.class).withIdentity(jobName, jobGroup).build();
     fJobStore.storeJob(detail, false);
 
     String trName = "StoreTriggerReplacesTrigger";
     String trGroup = "StoreTriggerReplacesTriggerGroup";
-    OperableTrigger tr = new SimpleTriggerImpl(trName, trGroup, Instant.now());
+    OperableTrigger tr =
+        (SimpleTriggerImpl)
+            TriggerBuilder.newTrigger()
+                .withIdentity(trName, trGroup)
+                .startAt(Instant.now())
+                .build();
     tr.setJobKey(new JobKey(jobName, jobGroup));
     tr.setCalendarName(null);
 
@@ -526,18 +533,25 @@ public abstract class AbstractJobStoreContractTest {
     final String jobName2 = "PauseJobGroupPausesNewJob2";
     final String jobGroup = "PauseJobGroupPausesNewJobGroup";
 
-    JobDetailImpl detail = new JobDetailImpl(jobName1, jobGroup, MyJob.class);
+    JobDetailImpl detail =
+        (JobDetailImpl) JobBuilder.newJob(MyJob.class).withIdentity(jobName1, jobGroup).build();
     detail.setDurability(true);
     fJobStore.storeJob(detail, false);
     fJobStore.pauseJobs(GroupMatcher.jobGroupEquals(jobGroup));
 
-    detail = new JobDetailImpl(jobName2, jobGroup, MyJob.class);
+    detail =
+        (JobDetailImpl) JobBuilder.newJob(MyJob.class).withIdentity(jobName2, jobGroup).build();
     detail.setDurability(true);
     fJobStore.storeJob(detail, false);
 
     String trName = "PauseJobGroupPausesNewJobTrigger";
     String trGroup = "PauseJobGroupPausesNewJobTriggerGroup";
-    OperableTrigger tr = new SimpleTriggerImpl(trName, trGroup, Instant.now());
+    OperableTrigger tr =
+        (SimpleTriggerImpl)
+            TriggerBuilder.newTrigger()
+                .withIdentity(trName, trGroup)
+                .startAt(Instant.now())
+                .build();
     tr.setJobKey(new JobKey(jobName2, jobGroup));
     fJobStore.storeTrigger(tr, false);
     assertEquals(TriggerState.PAUSED, fJobStore.getTriggerState(tr.getKey()));
@@ -967,7 +981,7 @@ public abstract class AbstractJobStoreContractTest {
 
     // create and store a trigger
     OperableTrigger trigger1 =
-        new SimpleTriggerImpl(
+        simpleTrigger(
             "trigger1",
             "triggerGroup1",
             this.fJobDetail.getName(),
@@ -1018,7 +1032,7 @@ public abstract class AbstractJobStoreContractTest {
   void testStoreTriggerReplaceChangesTriggerType() throws Exception {
     Instant start = Instant.now();
     OperableTrigger simple =
-        new SimpleTriggerImpl(
+        simpleTrigger(
             "typeChangeTrigger",
             "typeChangeGroup",
             this.fJobDetail.getName(),
@@ -1051,7 +1065,7 @@ public abstract class AbstractJobStoreContractTest {
 
     // Reverse direction: CRON -> SIMPLE
     OperableTrigger simpleAgain =
-        new SimpleTriggerImpl(
+        simpleTrigger(
             simple.getKey().getName(),
             simple.getKey().getGroup(),
             this.fJobDetail.getName(),
@@ -1072,7 +1086,9 @@ public abstract class AbstractJobStoreContractTest {
   @Test
   void testStoreJobReplacesJob() throws Exception {
 
-    JobDetailImpl testJob = new JobDetailImpl("testDupeJob", "testDupeGroup", MyJob.class);
+    JobDetailImpl testJob =
+        (JobDetailImpl)
+            JobBuilder.newJob(MyJob.class).withIdentity("testDupeJob", "testDupeGroup").build();
     testJob.setDescription("123abc");
     testJob.setDurability(true);
 
@@ -1086,7 +1102,9 @@ public abstract class AbstractJobStoreContractTest {
     assertEquals(testJob.getKey(), origJob.getKey());
     assertEquals(testJob.getDescription(), origJob.getDescription());
 
-    JobDetailImpl dupeJob = new JobDetailImpl("testDupeJob", "testDupeGroup", MyJob.class);
+    JobDetailImpl dupeJob =
+        (JobDetailImpl)
+            JobBuilder.newJob(MyJob.class).withIdentity("testDupeJob", "testDupeGroup").build();
     dupeJob.setDescription("123abc");
     dupeJob.setDurability(true);
 
@@ -1117,7 +1135,7 @@ public abstract class AbstractJobStoreContractTest {
   private OperableTrigger simpleTrigger(
       String name, String group, JobKey jobKey, Instant start, int repeatCount, Duration interval) {
     SimpleTriggerImpl trigger =
-        new SimpleTriggerImpl(
+        simpleTrigger(
             name, group, jobKey.getName(), jobKey.getGroup(), start, null, repeatCount, interval);
     trigger.computeFirstFireTime(null);
     return trigger;
@@ -1996,5 +2014,27 @@ public abstract class AbstractJobStoreContractTest {
     public void execute(JobExecutionContext context) throws JobExecutionException {
       //
     }
+  }
+
+  /** A simple trigger for the given job, set up field by field. */
+  protected static SimpleTriggerImpl simpleTrigger(
+      String name,
+      String group,
+      String jobName,
+      String jobGroup,
+      Instant startTime,
+      Instant endTime,
+      int repeatCount,
+      Duration repeatInterval) {
+    SimpleTriggerImpl trigger = new SimpleTriggerImpl();
+    trigger.setName(name);
+    trigger.setGroup(group);
+    trigger.setJobName(jobName);
+    trigger.setJobGroup(jobGroup);
+    trigger.setStartTime(startTime);
+    trigger.setEndTime(endTime);
+    trigger.setRepeatCount(repeatCount);
+    trigger.setRepeatInterval(repeatInterval);
+    return trigger;
   }
 }

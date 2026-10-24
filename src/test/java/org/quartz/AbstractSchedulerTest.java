@@ -44,7 +44,9 @@ public abstract class AbstractSchedulerTest {
   private static final String JOB_THREAD = "JOB_THREAD";
 
   @SuppressWarnings("deprecation")
-  public static class TestStatefulJob implements StatefulJob {
+  @DisallowConcurrentExecution
+  @PersistJobDataAfterExecution
+  public static class TestStatefulJob implements Job {
     public void execute(JobExecutionContext context) throws JobExecutionException {}
   }
 

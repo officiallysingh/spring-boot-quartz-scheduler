@@ -26,7 +26,9 @@ import org.junit.jupiter.api.Test;
 public class JobBuilderTest {
 
   @SuppressWarnings("deprecation")
-  public static class TestStatefulJob implements StatefulJob {
+  @DisallowConcurrentExecution
+  @PersistJobDataAfterExecution
+  public static class TestStatefulJob implements Job {
     public void execute(JobExecutionContext context) throws JobExecutionException {}
   }
 

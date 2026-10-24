@@ -28,7 +28,6 @@ import org.quartz.JobExecutionContext;
 import org.quartz.JobKey;
 import org.quartz.PersistJobDataAfterExecution;
 import org.quartz.Scheduler;
-import org.quartz.StatefulJob;
 import org.quartz.Trigger;
 import org.quartz.utils.ClassUtils;
 
@@ -46,7 +45,6 @@ import org.quartz.utils.ClassUtils;
  * can only point to one <code>Job</code>.
  *
  * @see Job
- * @see StatefulJob
  * @see JobDataMap
  * @see Trigger
  * @author James House
@@ -103,55 +101,6 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
    */
   public JobDetailImpl() {
     // do nothing...
-  }
-
-  /**
-   * Create a <code>JobDetail</code> with the given name, given class, default group, and the
-   * default settings of all the other properties.
-   *
-   * @exception IllegalArgumentException if name is null or empty, or the group is an empty string.
-   * @deprecated use {@link JobBuilder}
-   */
-  @Deprecated
-  public JobDetailImpl(String name, Class<? extends Job> jobClass) {
-    this(name, null, jobClass);
-  }
-
-  /**
-   * Create a <code>JobDetail</code> with the given name, group and class, and the default settings
-   * of all the other properties.
-   *
-   * @param group if <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
-   * @exception IllegalArgumentException if name is null or empty, or the group is an empty string.
-   * @deprecated use {@link JobBuilder}
-   */
-  @Deprecated
-  public JobDetailImpl(String name, @Nullable String group, Class<? extends Job> jobClass) {
-    setName(name);
-    setGroup(group);
-    setJobClass(jobClass);
-  }
-
-  /**
-   * Create a <code>JobDetail</code> with the given name, and group, and the given settings of all
-   * the other properties.
-   *
-   * @param group if <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
-   * @exception IllegalArgumentException if name is null or empty, or the group is an empty string.
-   * @deprecated use {@link JobBuilder}
-   */
-  @Deprecated
-  public JobDetailImpl(
-      String name,
-      @Nullable String group,
-      Class<? extends Job> jobClass,
-      boolean durability,
-      boolean recover) {
-    setName(name);
-    setGroup(group);
-    setJobClass(jobClass);
-    setDurability(durability);
-    setRequestsRecovery(recover);
   }
 
   /*
