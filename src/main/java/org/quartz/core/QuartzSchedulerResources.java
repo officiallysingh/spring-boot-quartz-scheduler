@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Objects;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.SchedulerPlugin;
-import org.quartz.spi.ThreadExecutor;
 import org.quartz.spi.ThreadPool;
 
 /**
@@ -69,9 +68,6 @@ public class QuartzSchedulerResources {
 
   private ClassLoader classLoader =
       Objects.requireNonNull(QuartzSchedulerResources.class.getClassLoader());
-
-  @SuppressWarnings("NullAway.Init")
-  private ThreadExecutor threadExecutor;
 
   private Duration batchTimeWindow = Duration.ZERO;
 
@@ -288,16 +284,6 @@ public class QuartzSchedulerResources {
   /** Set the application's class loader. */
   public void setClassLoader(ClassLoader classLoader) {
     this.classLoader = Objects.requireNonNull(classLoader, "classLoader");
-  }
-
-  /** Get the ThreadExecutor which runs the QuartzSchedulerThread */
-  public ThreadExecutor getThreadExecutor() {
-    return threadExecutor;
-  }
-
-  /** Set the ThreadExecutor which runs the QuartzSchedulerThread */
-  public void setThreadExecutor(ThreadExecutor threadExecutor) {
-    this.threadExecutor = threadExecutor;
   }
 
   /**

@@ -46,7 +46,6 @@ import org.quartz.spi.InstanceIdGenerator;
 import org.quartz.spi.JobFactory;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.SchedulerPlugin;
-import org.quartz.spi.ThreadExecutor;
 import org.quartz.spi.ThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,8 +94,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
   private @Nullable Scheduler scheduler;
 
-  private final @Nullable ThreadExecutor threadExecutor;
-
   private final Map<String, SchedulerPlugin> plugins;
 
   private final List<JobListener> jobListeners;
@@ -116,7 +113,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
     this.jobFactory = builder.jobFactory;
     this.instanceIdGenerator = builder.instanceIdGenerator;
     this.classLoader = builder.classLoader;
-    this.threadExecutor = builder.threadExecutor;
     this.plugins = new LinkedHashMap<>(builder.plugins);
     this.jobListeners = List.copyOf(builder.jobListeners);
     this.triggerListeners = List.copyOf(builder.triggerListeners);
@@ -171,8 +167,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
     JobStore js = jobStore;
     SchedulerDetailsSetter.setDetails(js, schedName, schedInstId);
 
-    ThreadExecutor executor = threadExecutor != null ? threadExecutor : new DefaultThreadExecutor();
-
     QuartzScheduler qs = null;
     boolean tpInited = false;
     boolean qsInited = false;
@@ -211,9 +205,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
       rsrcs.setClock(clock);
 
       SchedulerDetailsSetter.setDetails(tp, schedName, schedInstId);
-
-      rsrcs.setThreadExecutor(executor);
-      executor.initialize();
 
       rsrcs.setThreadPool(tp);
       tp.initialize();
@@ -331,9 +322,8 @@ public class StdSchedulerFactory implements SchedulerFactory {
   /**
    * Builds a {@link StdSchedulerFactory}. Everything not set falls back to its default: {@link
    * QuartzSettings#defaults()}, a {@link SimpleThreadPool} configured from the settings (a job
-   * store must be set), the thread context class loader, {@link SimpleInstanceIdGenerator}, {@link
-   * DefaultThreadExecutor}, the scheduler's default job factory, {@link StdJobRunShellFactory} and
-   * {@link Clock#systemUTC()}.
+   * store must be set), the thread context class loader, {@link SimpleInstanceIdGenerator}, the
+   * scheduler's default job factory, {@link StdJobRunShellFactory} and {@link Clock#systemUTC()}.
    */
   public static final class Builder {
     private SchedulerSettings scheduler = SchedulerSettings.defaults();
@@ -343,7 +333,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
     private @Nullable JobFactory jobFactory;
     private @Nullable InstanceIdGenerator instanceIdGenerator;
     private @Nullable ClassLoader classLoader;
-    private @Nullable ThreadExecutor threadExecutor;
     private final Map<String, SchedulerPlugin> plugins = new LinkedHashMap<>();
     private final List<JobListener> jobListeners = new ArrayList<>();
     private final List<TriggerListener> triggerListeners = new ArrayList<>();
@@ -437,17 +426,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
      */
     public Builder classLoader(ClassLoader classLoader) {
       this.classLoader = Objects.requireNonNull(classLoader, "classLoader");
-      return this;
-    }
-
-    /**
-     * Set how the scheduler thread is started; default {@link DefaultThreadExecutor}.
-     *
-     * @param threadExecutor the thread executor
-     * @return this builder
-     */
-    public Builder threadExecutor(ThreadExecutor threadExecutor) {
-      this.threadExecutor = threadExecutor;
       return this;
     }
 

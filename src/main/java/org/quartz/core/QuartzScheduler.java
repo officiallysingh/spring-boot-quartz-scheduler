@@ -68,7 +68,6 @@ import org.quartz.spi.JobFactory;
 import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spi.SchedulerSignaler;
-import org.quartz.spi.ThreadExecutor;
 import org.quartz.utils.Instants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -197,8 +196,7 @@ public class QuartzScheduler {
     }
 
     this.schedThread = new QuartzSchedulerThread(this, resources);
-    ThreadExecutor schedThreadExecutor = resources.getThreadExecutor();
-    schedThreadExecutor.execute(this.schedThread);
+    this.schedThread.start();
     if (idleWaitTime != null && idleWaitTime.toMillis() > 0) {
       this.schedThread.setIdleWaitTime(idleWaitTime);
     }
