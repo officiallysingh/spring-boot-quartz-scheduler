@@ -26,7 +26,7 @@ class ClusteredPersistentJobStoreEngineTest extends AbstractClusteredJobStoreCon
 
   @Override
   protected JobStore createJobStore(String instanceId) {
-    return new InMemoryPersistentJobStore(data, clusteredSettings());
+    return new TestPersistentJobStore(data, clusteredSettings());
   }
 
   @Override

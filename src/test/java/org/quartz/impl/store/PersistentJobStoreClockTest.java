@@ -52,7 +52,7 @@ class PersistentJobStoreClockTest {
   @BeforeEach
   void setUp() throws SchedulerException {
     store =
-        new InMemoryPersistentJobStore(
+        new TestPersistentJobStore(
             new InMemoryStoreDelegate.Data(),
             JobStoreSettings.builder().misfireThreshold(Duration.ofSeconds(5)).build());
     store.setInstanceName("ClockTest");

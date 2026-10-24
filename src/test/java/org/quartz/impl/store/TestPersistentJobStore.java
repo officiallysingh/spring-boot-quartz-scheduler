@@ -17,14 +17,14 @@ import java.time.Duration;
 import org.quartz.impl.config.JobStoreSettings;
 
 /**
- * {@link PersistentJobStore} over {@link InMemoryStoreDelegate}: exercises the engine, including
- * the lease lock, without containers.
+ * Test double, never shipped: {@link PersistentJobStore} over {@link InMemoryStoreDelegate}.
+ * Exercises the engine, including the lease lock, without containers.
  */
-class InMemoryPersistentJobStore extends PersistentJobStore {
+class TestPersistentJobStore extends PersistentJobStore {
 
   private final InMemoryStoreDelegate.Data data;
 
-  InMemoryPersistentJobStore(InMemoryStoreDelegate.Data data, JobStoreSettings settings) {
+  TestPersistentJobStore(InMemoryStoreDelegate.Data data, JobStoreSettings settings) {
     super(settings);
     this.data = data;
   }

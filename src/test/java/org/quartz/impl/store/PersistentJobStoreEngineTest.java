@@ -27,7 +27,7 @@ class PersistentJobStoreEngineTest extends AbstractJobStoreContractTest {
 
   @Override
   protected JobStore createJobStore(String instanceId) {
-    return new InMemoryPersistentJobStore(data, JobStoreSettings.defaults());
+    return new TestPersistentJobStore(data, JobStoreSettings.defaults());
   }
 
   @Override
