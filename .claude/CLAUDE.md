@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 ## Standing Rules
-- **Goal:** turn `quartz/` (core scheduler module) into a self-contained Maven library `spring-boot-quartz-scheduler` for Spring Boot 4.x only, Java 25.
+- **Goal:** this repository is `spring-boot-quartz-scheduler`, a self-contained Maven library for Spring Boot 4.x only, Java 25.
 - **Public API compatibility:** keep package `org.quartz` and the usage model unchanged — `JobBuilder`, `TriggerBuilder`, `SimpleScheduleBuilder`, `CronScheduleBuilder`, `CalendarIntervalScheduleBuilder`, `DailyTimeIntervalScheduleBuilder`, `Scheduler`, `Job`, `JobDetail`, `Trigger`, `JobExecutionContext`, listeners, `Calendar` impls, `JobKey`/`TriggerKey`. Only types change: `java.util.Date` → `java.time.Instant`, intervals/millis → `java.time.Duration`, `TimeZone` → `ZoneId`, `java.util.Calendar` → `ZonedDateTime`.
 - **Persistence:** only MongoDB and Redis `JobStore`s. No JDBC, no `RAMJobStore` in the final result.
 - **Configuration:** no `quartz.properties`, no `Properties`-driven reflection wiring. Everything via `@ConfigurationProperties` bound from `application.yml`; all durations typed as `Duration`.
