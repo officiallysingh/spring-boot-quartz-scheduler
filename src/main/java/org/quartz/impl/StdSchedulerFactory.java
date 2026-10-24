@@ -51,8 +51,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.util.ClassUtils;
 
 /**
- * An implementation of <code>{@link org.quartz.SchedulerFactory}</code> that creates a <code>
- * QuartzScheduler</code> from typed settings ({@link QuartzSettings}) and collaborator instances.
+ * A factory that creates a <code>QuartzScheduler</code> from typed settings ({@link
+ * QuartzSettings}) and collaborator instances.
  *
  * <pre>
  * Scheduler scheduler = StdSchedulerFactory.builder()
