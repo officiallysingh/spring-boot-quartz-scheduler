@@ -412,18 +412,6 @@ class SchedulerFactoryBeanIT extends AbstractMongoIT {
   }
 
   @Test
-  void anActiveSchedulerOfTheSameNameIsRejected() throws Exception {
-    factoryBean = newFactoryBean("duplicate");
-    factoryBean.setExposeSchedulerInRepository(true);
-    factoryBean.afterPropertiesSet();
-
-    SchedulerFactoryBean second = newFactoryBean("duplicate");
-    assertThatThrownBy(second::afterPropertiesSet)
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("already registered");
-  }
-
-  @Test
   void negativeStartupDelayIsRejected() {
     assertThatThrownBy(() -> new SchedulerFactoryBean().setStartupDelay(Duration.ofSeconds(-1)))
         .isInstanceOf(IllegalArgumentException.class);

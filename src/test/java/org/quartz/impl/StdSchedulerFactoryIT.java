@@ -206,8 +206,6 @@ class StdSchedulerFactoryIT extends AbstractMongoIT {
 
     Scheduler first = create(factory);
     assertThat(factory.getScheduler()).isSameAs(first);
-    assertThat(factory.getScheduler("Rebind")).isSameAs(first);
-    assertThat(factory.getAllSchedulers()).contains(first);
 
     first.shutdown();
     Scheduler second = create(factory);

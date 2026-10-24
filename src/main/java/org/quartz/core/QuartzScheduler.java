@@ -61,7 +61,6 @@ import org.quartz.Trigger.TriggerState;
 import org.quartz.TriggerKey;
 import org.quartz.TriggerListener;
 import org.quartz.UnableToInterruptJobException;
-import org.quartz.impl.SchedulerRepository;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.listeners.SchedulerListenerSupport;
 import org.quartz.simpl.PropertySettingJobFactory;
@@ -169,8 +168,6 @@ public class QuartzScheduler {
   private final SchedulerSignaler signaler;
 
   private final Random random = new Random();
-
-  private final ArrayList<Object> holdToPreventGC = new ArrayList<>(5);
 
   private volatile boolean closed = false;
   private volatile boolean shuttingDown = false;
@@ -301,10 +298,6 @@ public class QuartzScheduler {
     }
 
     return threadGroup;
-  }
-
-  public void addNoGCObject(Object obj) {
-    holdToPreventGC.add(obj);
   }
 
   /** Returns the <code>SchedulerContext</code> of the <code>Scheduler</code>. */
@@ -488,10 +481,6 @@ public class QuartzScheduler {
     resources.getJobStore().shutdown();
 
     notifySchedulerListenersShutdown();
-
-    SchedulerRepository.getInstance().remove(resources.getName());
-
-    holdToPreventGC.clear();
 
     getLog().info("Scheduler {} shutdown complete.", resources.getUniqueIdentifier());
   }

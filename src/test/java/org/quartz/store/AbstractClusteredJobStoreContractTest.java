@@ -40,7 +40,6 @@ import org.quartz.SchedulerException;
 import org.quartz.SimpleScheduleBuilder;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
-import org.quartz.impl.SchedulerRepository;
 import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.impl.config.JobStoreSettings;
 import org.quartz.impl.config.SchedulerSettings;
@@ -137,8 +136,6 @@ public abstract class AbstractClusteredJobStoreContractTest {
             .jobStore(store)
             .build()
             .getScheduler();
-    // the factory shares schedulers by name; every node here is its own instance
-    SchedulerRepository.getInstance().remove(SCHED_NAME);
     schedulers.add(scheduler);
     scheduler.start();
     return scheduler;

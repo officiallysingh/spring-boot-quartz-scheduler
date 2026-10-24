@@ -20,7 +20,6 @@ package org.quartz.impl;
 
 import java.time.Clock;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,8 +72,8 @@ import org.springframework.util.ClassUtils;
  * is supplied; a supplied instance is used as it is. The factory creates a fresh default thread
  * pool each time it instantiates a scheduler; supplied instances, plugins and listeners are reused.
  *
- * <p>Schedulers are bound by name in the {@link SchedulerRepository}: {@link #getScheduler()}
- * returns the bound scheduler while it is not shut down, and creates a new one otherwise.
+ * <p>{@link #getScheduler()} returns the scheduler this factory created while it is not shut down,
+ * and creates a new one otherwise.
  *
  * @author James House
  * @author Anthony Eden
@@ -93,6 +92,8 @@ public class StdSchedulerFactory implements SchedulerFactory {
   private final @Nullable InstanceIdGenerator instanceIdGenerator;
 
   private final @Nullable ClassLoader classLoader;
+
+  private @Nullable Scheduler scheduler;
 
   private final @Nullable ThreadExecutor threadExecutor;
 
@@ -155,8 +156,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
     SchedulerSettings sched = settings.scheduler();
     String schedName = sched.name();
     String schedInstId = sched.instanceId();
-
-    SchedulerRepository schedRep = SchedulerRepository.getInstance();
 
     ClassLoader loader =
         (classLoader != null)
@@ -270,10 +269,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
       getLog().info("Quartz scheduler version: {}", qs.getVersion());
 
-      // prevents the repository from being garbage collected
-      qs.addNoGCObject(schedRep);
-
-      schedRep.bind(scheduler);
       return scheduler;
     } catch (SchedulerException | Error | RuntimeException e) {
       shutdownFromInstantiateException(tp, qs, tpInited, qsInited);
@@ -320,37 +315,17 @@ public class StdSchedulerFactory implements SchedulerFactory {
   }
 
   /**
-   * Returns a handle to the Scheduler produced by this factory, creating it if no scheduler with
-   * the configured name is bound, or the bound one has been shut down.
+   * Returns the scheduler produced by this factory, creating it on the first call and again after
+   * it has been shut down.
    */
-  public Scheduler getScheduler() throws SchedulerException {
-    SchedulerRepository schedRep = SchedulerRepository.getInstance();
-    String schedName = settings.scheduler().name();
-
-    Scheduler sched = schedRep.lookup(schedName);
-
-    if (sched != null) {
-      if (sched.isShutdown()) {
-        schedRep.remove(schedName);
-      } else {
-        return sched;
-      }
+  @Override
+  public synchronized Scheduler getScheduler() throws SchedulerException {
+    Scheduler current = this.scheduler;
+    if (current == null || current.isShutdown()) {
+      current = instantiate();
+      this.scheduler = current;
     }
-
-    return instantiate();
-  }
-
-  /**
-   * Returns a handle to the Scheduler with the given name, if it exists (if it has already been
-   * instantiated).
-   */
-  public @Nullable Scheduler getScheduler(String schedName) throws SchedulerException {
-    return SchedulerRepository.getInstance().lookup(schedName);
-  }
-
-  /** Returns a handle to all known Schedulers (made by any StdSchedulerFactory instance.). */
-  public Collection<Scheduler> getAllSchedulers() throws SchedulerException {
-    return SchedulerRepository.getInstance().lookupAll();
+    return current;
   }
 
   /**

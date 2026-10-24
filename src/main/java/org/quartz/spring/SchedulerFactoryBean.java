@@ -26,7 +26,6 @@ import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.SchedulerFactory;
 import org.quartz.core.JobRunShellFactory;
-import org.quartz.impl.SchedulerRepository;
 import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.impl.config.QuartzSettings;
 import org.quartz.impl.config.SchedulerSettings;
@@ -130,8 +129,6 @@ public class SchedulerFactoryBean extends SchedulerAccessor
   private Duration startupDelay = Duration.ZERO;
 
   private int phase = DEFAULT_PHASE;
-
-  private boolean exposeSchedulerInRepository = false;
 
   private boolean waitForJobsToCompleteOnShutdown = false;
 
@@ -378,18 +375,6 @@ public class SchedulerFactoryBean extends SchedulerAccessor
   }
 
   /**
-   * Set whether to expose the Spring-managed {@link Scheduler} instance in the Quartz {@link
-   * SchedulerRepository}. Default is "false", since the Spring-managed Scheduler is usually
-   * exclusively intended for access within the Spring context.
-   *
-   * <p>Switch this flag to "true" in order to expose the Scheduler globally. This is not
-   * recommended unless you have an existing Spring application that relies on this behavior.
-   */
-  public void setExposeSchedulerInRepository(boolean exposeSchedulerInRepository) {
-    this.exposeSchedulerInRepository = exposeSchedulerInRepository;
-  }
-
-  /**
    * Set whether to wait for running jobs to complete on shutdown.
    *
    * <p>Default is "false". Switch this to "true" if you prefer fully completed jobs at the expense
@@ -570,24 +555,7 @@ public class SchedulerFactoryBean extends SchedulerAccessor
   protected Scheduler createScheduler(
       SchedulerFactory schedulerFactory, @Nullable String schedulerName) throws SchedulerException {
 
-    SchedulerRepository repository = SchedulerRepository.getInstance();
-    synchronized (repository) {
-      Scheduler existingScheduler =
-          (schedulerName != null ? repository.lookup(schedulerName) : null);
-      Scheduler newScheduler = schedulerFactory.getScheduler();
-      if (newScheduler == existingScheduler) {
-        throw new IllegalStateException(
-            "Active Scheduler of name '"
-                + schedulerName
-                + "' already registered "
-                + "in Quartz SchedulerRepository. Cannot create a new Spring-managed Scheduler of the same name!");
-      }
-      if (!this.exposeSchedulerInRepository) {
-        // Need to remove it in this case, since Quartz shares the Scheduler instance by default!
-        SchedulerRepository.getInstance().remove(newScheduler.getSchedulerName());
-      }
-      return newScheduler;
-    }
+    return schedulerFactory.getScheduler();
   }
 
   /**
