@@ -267,7 +267,7 @@ Options on [`JobBuilder`](src/main/java/org/quartz/JobBuilder.java):
 | [`JobBuilder.usingJobData()`](src/main/java/org/quartz/JobBuilder.java#L256) | Adds job data entries; prefer simple values (strings, numbers, booleans) |
 | [`JobBuilder.withDescription()`](src/main/java/org/quartz/JobBuilder.java#L174) | Free text, shown by the actuator endpoint |
 
-A job that should stop when asked implements [`InterruptableJob`](src/main/java/org/quartz/InterruptableJob.java): [`InterruptableJob.interrupt()`](src/main/java/org/quartz/InterruptableJob.java#L74) is called by
+A job that should stop when asked implements [`InterruptableJob`](src/main/java/org/quartz/InterruptableJob.java): [`InterruptableJob.interrupt()`](src/main/java/org/quartz/InterruptableJob.java#L73) is called by
 [`Scheduler.interrupt()`](src/main/java/org/quartz/Scheduler.java#L749) and by the [`JobInterruptMonitorPlugin`](#plugins).
 
 > [!TIP]
@@ -487,7 +487,7 @@ JobInterruptMonitorPlugin jobInterruptMonitor() {
 |---|---|
 | [`LoggingJobHistoryPlugin`](src/main/java/org/quartz/plugins/history/LoggingJobHistoryPlugin.java) | Logs each job about to run, run, failed or vetoed; message templates are `MessageFormat` patterns |
 | [`LoggingTriggerHistoryPlugin`](src/main/java/org/quartz/plugins/history/LoggingTriggerHistoryPlugin.java) | Logs each trigger fired, misfired and completed |
-| [`JobInterruptMonitorPlugin`](src/main/java/org/quartz/plugins/interrupt/JobInterruptMonitorPlugin.java) | Interrupts [`InterruptableJob`](src/main/java/org/quartz/InterruptableJob.java)s that opt in with the job data entry [`JobInterruptMonitorPlugin.AUTO_INTERRUPTIBLE`](src/main/java/org/quartz/plugins/interrupt/JobInterruptMonitorPlugin.java#L85) = `true` and run longer than the default, or than [`JobInterruptMonitorPlugin.MAX_RUN_TIME`](src/main/java/org/quartz/plugins/interrupt/JobInterruptMonitorPlugin.java#L88) (milliseconds) in their job data |
+| [`JobInterruptMonitorPlugin`](src/main/java/org/quartz/plugins/interrupt/JobInterruptMonitorPlugin.java) | Interrupts [`InterruptableJob`](src/main/java/org/quartz/InterruptableJob.java)s that opt in with the job data entry [`JobInterruptMonitorPlugin.AUTO_INTERRUPTIBLE`](src/main/java/org/quartz/plugins/interrupt/JobInterruptMonitorPlugin.java#L84) = `true` and run longer than the default, or than [`JobInterruptMonitorPlugin.MAX_RUN_TIME`](src/main/java/org/quartz/plugins/interrupt/JobInterruptMonitorPlugin.java#L87) (milliseconds) in their job data |
 
 ```java
 JobBuilder.newJob(ImportJob.class).withIdentity("import")
@@ -722,23 +722,12 @@ read, or (clustered) its own check-in is overdue; `UP` otherwise, standby includ
 ## Customizations
 
 * **[`SchedulerFactoryBeanCustomizer`](src/main/java/org/quartz/spring/boot/autoconfigure/SchedulerFactoryBeanCustomizer.java)** beans adjust the [`SchedulerFactoryBean`](src/main/java/org/quartz/spring/SchedulerFactoryBean.java) before the scheduler is created:
-  executor, thread pool, extra listeners, [`SchedulerFactoryBean.setStartupDelay()`](src/main/java/org/quartz/spring/SchedulerFactoryBean.java#L372), …
+  executor, thread pool, extra listeners, [`SchedulerFactoryBean.setStartupDelay()`](src/main/java/org/quartz/spring/SchedulerFactoryBean.java#L352), …
 * **`Clock`** bean: the scheduler's notion of time (useful in tests).
 * **[`InstanceIdGenerator`](src/main/java/org/quartz/spi/InstanceIdGenerator.java)** bean: how a clustered instance names itself.
 * **Your own scheduler**: define a [`SchedulerFactoryBean`](src/main/java/org/quartz/spring/SchedulerFactoryBean.java) (or [`Scheduler`](src/main/java/org/quartz/Scheduler.java)) bean and the auto-configuration steps
-  back. Give it a store with [`SchedulerFactoryBean.setJobStore()`](src/main/java/org/quartz/spring/SchedulerFactoryBean.java#L209), e.g. `new MongoJobStore(…)` or
+  back. Give it a store with [`SchedulerFactoryBean.setJobStore()`](src/main/java/org/quartz/spring/SchedulerFactoryBean.java#L191), e.g. `new MongoJobStore(…)` or
   `new RedisJobStore(…)`.
-* **Without Spring Boot**: [`StdSchedulerFactory.builder()`](src/main/java/org/quartz/impl/StdSchedulerFactory.java#L133) builds a scheduler from typed settings
-  ([`SchedulerSettings`](src/main/java/org/quartz/impl/config/SchedulerSettings.java), [`ThreadPoolSettings`](src/main/java/org/quartz/impl/config/ThreadPoolSettings.java), [`JobStoreSettings`](src/main/java/org/quartz/impl/config/JobStoreSettings.java)) and a store instance:
-
-```java
-Scheduler scheduler = StdSchedulerFactory.builder()
-    .scheduler(SchedulerSettings.builder().name("app").build())
-    .threadPool(ThreadPoolSettings.builder().threadCount(20).virtualThreads(true).build())
-    .jobStore(jobStore)
-    .build()
-    .getScheduler();
-```
 
 ## Configuration reference
 
