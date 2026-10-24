@@ -496,3 +496,16 @@ The library runs only inside Spring Boot applications, so the scheduler has one 
 **Instead:** `JobStore#initialize(ClassLoader, SchedulerSignaler)`; `SchedulerFactoryBean` is `BeanClassLoaderAware` and passes the bean class loader (else its application context's) to `StdSchedulerFactory.Builder#classLoader`, whose default is Spring's `ClassUtils.getDefaultClassLoader()`. `JobRunShell` makes it the context class loader of every job execution and restores the thread's own afterwards, the same on every pool (platform threads, virtual threads, an application executor); the scheduler thread and the store's threads are created with it. `JobRunShellClassLoaderIT` replaces `VirtualThreadPoolTest#jobsUseTheContextClassLoaderOfTheInitializingThread`, whose behaviour moved from the pool to `JobRunShell`.
 
 **API change:** `SchedulerPlugin#initialize(String, Scheduler)` loses its `ClassLoadHelper` parameter, which no plugin used. Custom plugins drop the argument.
+
+## D-037 — No standalone bootstrapping
+
+The library runs only inside Spring Boot applications (D-036), so the parts that let Quartz start and be found without a container go:
+
+- **`SchedulerRepository`**, the JVM-wide registry of schedulers by name, with `StdSchedulerFactory#getScheduler(String)`, `#getAllSchedulers()`, `SchedulerFactoryBean#setExposeSchedulerInRepository` and the duplicate-name check the registry needed (`SchedulerFactoryBeanIT#anActiveSchedulerOfTheSameNameIsRejected` tested only that check). `StdSchedulerFactory#getScheduler()` returns the scheduler it created until it is shut down.
+- **`ThreadExecutor` / `DefaultThreadExecutor`**: the scheduler thread is started directly (the only implementation called `thread.start()`).
+- **`SchedulerDetailsSetter`**: the pool's instance name and id are set through the `ThreadPool` methods instead of by reflection (`SchedulerDetailsSetterTest` tested only the reflection).
+- **`PropertySettingJobFactory` and `SimpleJobFactory`**: the engine's default job factory is `SpringBeanJobFactory` with the scheduler context, which sets scheduler context, job data and trigger data on the job's setters as before. `PropertySettingJobFactoryTest` (its own conversion rules) is replaced by `SpringBeanJobFactoryTest`.
+- **The `SchedulerFactory` interface**, `SchedulerFactoryBean#setSchedulerFactory` and its `createScheduler` hook: `SchedulerFactoryBean` always builds its `StdSchedulerFactory` from its own settings.
+- **The README's "Without Spring Boot" example.**
+
+`StdSchedulerFactory.Builder` stays: it is how `SchedulerFactoryBean` assembles the scheduler, and the store and engine tests use it directly.
