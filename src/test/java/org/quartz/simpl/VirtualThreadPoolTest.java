@@ -17,8 +17,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -62,27 +60,6 @@ class VirtualThreadPoolTest {
 
     await().atMost(Duration.ofSeconds(5)).until(() -> name.get() != null);
     assertThat(name.get()).isEqualTo("jobs-1");
-  }
-
-  @Test
-  void jobsUseTheContextClassLoaderOfTheInitializingThread() throws Exception {
-    ClassLoader original = Thread.currentThread().getContextClassLoader();
-    try (URLClassLoader loader = new URLClassLoader(new URL[0], original)) {
-      Thread.currentThread().setContextClassLoader(loader);
-      VirtualThreadPool pool = initialized(new VirtualThreadPool(1), "sched");
-      Thread.currentThread().setContextClassLoader(original);
-      AtomicReference<ClassLoader> seen = new AtomicReference<>();
-
-      CompletableFuture.runAsync(
-              () ->
-                  pool.runInThread(() -> seen.set(Thread.currentThread().getContextClassLoader())))
-          .join();
-
-      await().atMost(Duration.ofSeconds(5)).until(() -> seen.get() != null);
-      assertThat(seen.get()).isSameAs(loader);
-    } finally {
-      Thread.currentThread().setContextClassLoader(original);
-    }
   }
 
   @Test

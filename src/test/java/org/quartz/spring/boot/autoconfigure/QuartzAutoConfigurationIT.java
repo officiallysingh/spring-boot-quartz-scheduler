@@ -51,7 +51,6 @@ import org.quartz.plugins.history.LoggingTriggerHistoryPlugin;
 import org.quartz.plugins.interrupt.JobInterruptMonitorPlugin;
 import org.quartz.simpl.SimpleThreadPool;
 import org.quartz.simpl.VirtualThreadPool;
-import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.InstanceIdGenerator;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spring.SchedulerFactoryBean;
@@ -447,8 +446,7 @@ class QuartzAutoConfigurationIT extends AbstractMongoIT {
     private String name = "";
 
     @Override
-    public void initialize(String name, Scheduler scheduler, ClassLoadHelper loadHelper)
-        throws SchedulerException {
+    public void initialize(String name, Scheduler scheduler) throws SchedulerException {
       this.name = name;
       scheduler
           .getListenerManager()
@@ -606,7 +604,7 @@ class QuartzAutoConfigurationIT extends AbstractMongoIT {
 
   static class RecordingPlugin implements SchedulerPlugin {
     @Override
-    public void initialize(String name, Scheduler scheduler, ClassLoadHelper loadHelper) {
+    public void initialize(String name, Scheduler scheduler) {
       RESULTS.add("plugin " + name + " initialized");
     }
 

@@ -20,12 +20,10 @@ import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
 import org.quartz.JobPersistenceException;
 import org.quartz.impl.JobDetailImpl;
-import org.quartz.spi.ClassLoadHelper;
 
 /**
  * Encodes job details as store-neutral field maps; job data is encoded separately by {@link
- * JobDataCodec}. The job class is stored by name and loaded through the scheduler's {@link
- * ClassLoadHelper}.
+ * JobDataCodec}. The job class is stored by name and loaded through the scheduler's class loader.
  */
 public final class JobDetailCodec {
 
@@ -81,19 +79,18 @@ public final class JobDetailCodec {
    *
    * @param fields the stored fields
    * @param jobData the decoded job data
-   * @param loadHelper loads the job class
+   * @param classLoader loads the job class
    * @return the job
    * @throws JobPersistenceException if the job class cannot be loaded
    * @throws IllegalStateException if a required field is missing
    */
-  public static JobDetail decode(
-      Map<String, ?> fields, JobDataMap jobData, ClassLoadHelper loadHelper)
+  public static JobDetail decode(Map<String, ?> fields, JobDataMap jobData, ClassLoader classLoader)
       throws JobPersistenceException {
     String className = Fields.requiredString(fields, JOB_CLASS);
     Class<? extends Job> jobClass;
     try {
-      jobClass = loadHelper.loadClass(className, Job.class);
-    } catch (ClassNotFoundException ex) {
+      jobClass = Class.forName(className, false, classLoader).asSubclass(Job.class);
+    } catch (ClassNotFoundException | ClassCastException ex) {
       throw new JobPersistenceException(
           "Couldn't load job class " + className + ": " + ex.getMessage(), ex);
     }

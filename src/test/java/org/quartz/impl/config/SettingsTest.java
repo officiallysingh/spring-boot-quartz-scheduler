@@ -48,7 +48,6 @@ class SettingsTest {
     assertThat(s.threadPriority()).isEqualTo(Thread.NORM_PRIORITY);
     assertThat(s.threadNamePrefix()).isNull();
     assertThat(s.daemon()).isFalse();
-    assertThat(s.threadsInheritContextClassLoaderOfInitializingThread()).isTrue();
     assertThat(s.threadsInheritGroupOfInitializingThread()).isTrue();
     assertThat(s.virtualThreads()).isFalse();
   }
@@ -63,14 +62,6 @@ class SettingsTest {
     assertThat(s.maxMisfiresToHandleAtATime()).isEqualTo(20);
     assertThat(s.retryInterval()).isEqualTo(Duration.ofSeconds(15));
     assertThat(s.doubleCheckLockMisfireHandler()).isTrue();
-  }
-
-  @Test
-  void theFormerThreadPoolConstructorMeansPlatformThreads() {
-    ThreadPoolSettings pool = new ThreadPoolSettings(4, 5, "w", false, true, true);
-    assertThat(pool.virtualThreads()).isFalse();
-    assertThat(pool)
-        .isEqualTo(ThreadPoolSettings.builder().threadCount(4).threadNamePrefix("w").build());
   }
 
   @Test

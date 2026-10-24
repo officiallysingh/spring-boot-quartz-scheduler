@@ -39,7 +39,6 @@ import org.quartz.listeners.JobListenerSupport;
 import org.quartz.listeners.TriggerListenerSupport;
 import org.quartz.simpl.SimpleThreadPool;
 import org.quartz.simpl.SystemPropertyInstanceIdGenerator;
-import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spi.ThreadPool;
 import org.quartz.support.AbstractMongoIT;
@@ -126,8 +125,7 @@ class StdSchedulerFactoryIT extends AbstractMongoIT {
     StringBuilder result = new StringBuilder();
     SchedulerPlugin testPlugin =
         new SchedulerPlugin() {
-          public void initialize(String name, Scheduler scheduler, ClassLoadHelper classLoadHelper)
-              throws SchedulerException {
+          public void initialize(String name, Scheduler scheduler) throws SchedulerException {
             result.append(name).append("|").append(scheduler.getSchedulerName());
           }
 

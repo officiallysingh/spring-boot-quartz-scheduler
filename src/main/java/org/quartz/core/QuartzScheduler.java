@@ -264,6 +264,15 @@ public class QuartzScheduler {
     return VERSION_ITERATION;
   }
 
+  /**
+   * The application's class loader, the context class loader of every job execution.
+   *
+   * @return the class loader
+   */
+  public ClassLoader getClassLoader() {
+    return resources.getClassLoader();
+  }
+
   public SchedulerSignaler getSchedulerSignaler() {
     return signaler;
   }

@@ -26,7 +26,6 @@ import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.listeners.JobListenerSupport;
 import org.quartz.listeners.TriggerListenerSupport;
-import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.SchedulerPlugin;
 
 /**
@@ -62,8 +61,7 @@ public class QuartzMetrics implements SchedulerPlugin {
   }
 
   @Override
-  public void initialize(String name, Scheduler scheduler, ClassLoadHelper loadHelper)
-      throws SchedulerException {
+  public void initialize(String name, Scheduler scheduler) throws SchedulerException {
     this.schedulerName = scheduler.getSchedulerName();
     scheduler.getListenerManager().addJobListener(new JobMetrics());
     scheduler.getListenerManager().addTriggerListener(new TriggerMetrics());

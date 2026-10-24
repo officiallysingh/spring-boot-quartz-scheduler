@@ -33,7 +33,6 @@ import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
 import org.quartz.SchedulerException;
 import org.quartz.impl.config.JobStoreSettings;
-import org.quartz.simpl.DefaultClassLoadHelper;
 import org.quartz.support.AbstractMongoIT;
 import org.quartz.support.TestSchedulers;
 
@@ -50,9 +49,8 @@ class MongoTransactionInterruptIT extends AbstractMongoIT {
     store = TestSchedulers.mongoStore(JobStoreSettings.defaults());
     store.setInstanceName("InterruptTest");
     store.setInstanceId("NON_CLUSTERED");
-    DefaultClassLoadHelper loadHelper = new DefaultClassLoadHelper();
-    loadHelper.initialize();
-    store.initialize(loadHelper, null);
+    ClassLoader classLoader = getClass().getClassLoader();
+    store.initialize(classLoader, null);
   }
 
   @AfterEach

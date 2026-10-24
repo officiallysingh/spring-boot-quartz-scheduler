@@ -21,7 +21,6 @@ import org.quartz.impl.store.LeaseStoreLock;
 import org.quartz.impl.store.PersistentJobStore;
 import org.quartz.impl.store.StoreDelegate;
 import org.quartz.impl.store.StoreLock;
-import org.quartz.spi.ClassLoadHelper;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
@@ -70,9 +69,9 @@ public class RedisJobStore extends PersistentJobStore {
   }
 
   @Override
-  protected StoreDelegate createDelegate(String schedulerName, ClassLoadHelper loadHelper) {
+  protected StoreDelegate createDelegate(String schedulerName, ClassLoader classLoader) {
     keys = new RedisKeys(redisSettings.keyPrefix(), schedulerName);
-    return new RedisStoreDelegate(redis, keys, loadHelper);
+    return new RedisStoreDelegate(redis, keys, classLoader);
   }
 
   @Override

@@ -35,8 +35,6 @@ import java.util.Objects;
  * @param useProperties restrict {@link org.quartz.JobDataMap} values to strings
  * @param doubleCheckLockMisfireHandler check for misfires before taking the lock to handle them
  * @param makeThreadsDaemons run the store's maintenance threads as daemon threads
- * @param threadsInheritInitializersClassLoadContext the store's maintenance threads use the context
- *     class loader of the initializing thread
  */
 public record JobStoreSettings(
     Duration misfireThreshold,
@@ -49,8 +47,7 @@ public record JobStoreSettings(
     Duration retryInterval,
     boolean useProperties,
     boolean doubleCheckLockMisfireHandler,
-    boolean makeThreadsDaemons,
-    boolean threadsInheritInitializersClassLoadContext) {
+    boolean makeThreadsDaemons) {
 
   public static final Duration DEFAULT_MISFIRE_THRESHOLD = Duration.ofSeconds(60);
 
@@ -106,8 +103,7 @@ public record JobStoreSettings(
         .retryInterval(retryInterval)
         .useProperties(useProperties)
         .doubleCheckLockMisfireHandler(doubleCheckLockMisfireHandler)
-        .makeThreadsDaemons(makeThreadsDaemons)
-        .threadsInheritInitializersClassLoadContext(threadsInheritInitializersClassLoadContext);
+        .makeThreadsDaemons(makeThreadsDaemons);
   }
 
   private static void requirePositive(Duration value, String what) {
@@ -137,7 +133,6 @@ public record JobStoreSettings(
     private boolean useProperties;
     private boolean doubleCheckLockMisfireHandler = true;
     private boolean makeThreadsDaemons;
-    private boolean threadsInheritInitializersClassLoadContext;
 
     private Builder() {}
 
@@ -263,18 +258,6 @@ public record JobStoreSettings(
     }
 
     /**
-     * Set {@link JobStoreSettings#threadsInheritInitializersClassLoadContext()
-     * threadsInheritInitializersClassLoadContext}.
-     *
-     * @param inherit the value
-     * @return this builder
-     */
-    public Builder threadsInheritInitializersClassLoadContext(boolean inherit) {
-      this.threadsInheritInitializersClassLoadContext = inherit;
-      return this;
-    }
-
-    /**
      * The settings.
      *
      * @return the settings
@@ -292,8 +275,7 @@ public record JobStoreSettings(
           retryInterval,
           useProperties,
           doubleCheckLockMisfireHandler,
-          makeThreadsDaemons,
-          threadsInheritInitializersClassLoadContext);
+          makeThreadsDaemons);
     }
   }
 }

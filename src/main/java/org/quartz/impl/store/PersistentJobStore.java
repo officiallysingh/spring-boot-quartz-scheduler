@@ -49,7 +49,6 @@ import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.impl.matchers.StringMatcher.StringOperatorName;
 import org.quartz.impl.store.codec.JobDataCodec;
 import org.quartz.impl.triggers.SimpleTriggerImpl;
-import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.SchedulerSignaler;
@@ -134,7 +133,7 @@ public abstract class PersistentJobStore implements JobStore {
   private String instanceName;
 
   @SuppressWarnings("NullAway.Init")
-  private ClassLoadHelper classLoadHelper;
+  private ClassLoader classLoader;
 
   @SuppressWarnings("NullAway.Init")
   private SchedulerSignaler signaler;
@@ -144,8 +143,6 @@ public abstract class PersistentJobStore implements JobStore {
 
   @SuppressWarnings("NullAway.Init")
   private StoreLock lock;
-
-  private @Nullable ClassLoader initializersLoader;
 
   /**
    * The store operation the current thread is running, bound by the outermost {@link
@@ -179,7 +176,7 @@ public abstract class PersistentJobStore implements JobStore {
   // ------------------------------------------------------------------
 
   /** Creates the delegate for the given scheduler name; called from {@link #initialize}. */
-  protected abstract StoreDelegate createDelegate(String schedulerName, ClassLoadHelper loadHelper);
+  protected abstract StoreDelegate createDelegate(String schedulerName, ClassLoader classLoader);
 
   /**
    * Creates the cluster-wide lock; called from {@link #initialize} when clustered.
@@ -256,12 +253,12 @@ public abstract class PersistentJobStore implements JobStore {
   }
 
   /**
-   * How job classes are loaded; set by {@link #initialize}.
+   * The class loader of job classes and Java-serialized values; set by {@link #initialize}.
    *
-   * @return the class load helper
+   * @return the application's class loader
    */
-  protected ClassLoadHelper getClassLoadHelper() {
-    return classLoadHelper;
+  protected ClassLoader getClassLoader() {
+    return classLoader;
   }
 
   /**
@@ -296,18 +293,15 @@ public abstract class PersistentJobStore implements JobStore {
   public void setThreadPoolSize(int poolSize) {}
 
   @Override
-  public void initialize(ClassLoadHelper loadHelper, SchedulerSignaler signaler)
+  public void initialize(ClassLoader classLoader, SchedulerSignaler signaler)
       throws SchedulerConfigException {
     if (instanceName == null || instanceId == null) {
       throw new SchedulerConfigException(
           "Scheduler name and instance id must be set before initialize()");
     }
-    this.classLoadHelper = loadHelper;
+    this.classLoader = Objects.requireNonNull(classLoader, "classLoader");
     this.signaler = signaler;
-    if (settings.threadsInheritInitializersClassLoadContext()) {
-      initializersLoader = Thread.currentThread().getContextClassLoader();
-    }
-    this.delegate = createDelegate(instanceName, loadHelper);
+    this.delegate = createDelegate(instanceName, classLoader);
     if (isClustered()) {
       this.lock = createClusterLock(instanceName, instanceId + "/" + UUID.randomUUID());
       log.info(
@@ -1876,9 +1870,7 @@ public abstract class PersistentJobStore implements JobStore {
     StoreThread(String suffix) {
       setName("QuartzScheduler_" + instanceName + "-" + instanceId + "_" + suffix);
       setDaemon(settings.makeThreadsDaemons());
-      if (initializersLoader != null) {
-        setContextClassLoader(initializersLoader);
-      }
+      setContextClassLoader(classLoader);
     }
 
     void halt() {

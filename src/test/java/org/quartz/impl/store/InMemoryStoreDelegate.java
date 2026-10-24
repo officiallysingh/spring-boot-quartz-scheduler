@@ -37,7 +37,6 @@ import org.quartz.impl.store.codec.JobDataCodec;
 import org.quartz.impl.store.codec.JobDetailCodec;
 import org.quartz.impl.store.codec.SerializationCodec;
 import org.quartz.impl.store.codec.TriggerCodec;
-import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.OperableTrigger;
 
 /**
@@ -65,11 +64,11 @@ class InMemoryStoreDelegate implements StoreDelegate {
 
   private final Data data;
 
-  private final ClassLoadHelper loadHelper;
+  private final ClassLoader classLoader;
 
-  InMemoryStoreDelegate(Data data, ClassLoadHelper loadHelper) {
+  InMemoryStoreDelegate(Data data, ClassLoader classLoader) {
     this.data = data;
-    this.loadHelper = loadHelper;
+    this.classLoader = classLoader;
   }
 
   private JobDetail decodeJob(JobKey key) throws JobPersistenceException {
@@ -78,7 +77,7 @@ class InMemoryStoreDelegate implements StoreDelegate {
       return null;
     }
     return JobDetailCodec.decode(
-        fields, JobDataCodec.deserialize(data.jobData.get(key), loadHelper), loadHelper);
+        fields, JobDataCodec.deserialize(data.jobData.get(key), classLoader), classLoader);
   }
 
   @Override
@@ -172,7 +171,7 @@ class InMemoryStoreDelegate implements StoreDelegate {
     synchronized (data) {
       Map<String, Object> fields = data.triggers.get(triggerKey);
       return (fields != null)
-          ? TriggerCodec.decode(fields, selectTriggerJobData(triggerKey), loadHelper)
+          ? TriggerCodec.decode(fields, selectTriggerJobData(triggerKey), classLoader)
           : null;
     }
   }
@@ -181,7 +180,7 @@ class InMemoryStoreDelegate implements StoreDelegate {
   public JobDataMap selectTriggerJobData(TriggerKey triggerKey) throws JobPersistenceException {
     synchronized (data) {
       byte[] bytes = data.triggerData.get(triggerKey);
-      return (bytes != null) ? JobDataCodec.deserialize(bytes, loadHelper) : new JobDataMap();
+      return (bytes != null) ? JobDataCodec.deserialize(bytes, classLoader) : new JobDataMap();
     }
   }
 
@@ -402,7 +401,7 @@ class InMemoryStoreDelegate implements StoreDelegate {
     synchronized (data) {
       byte[] bytes = data.calendars.get(name);
       return (bytes != null)
-          ? SerializationCodec.deserialize(bytes, Calendar.class, loadHelper)
+          ? SerializationCodec.deserialize(bytes, Calendar.class, classLoader)
           : null;
     }
   }

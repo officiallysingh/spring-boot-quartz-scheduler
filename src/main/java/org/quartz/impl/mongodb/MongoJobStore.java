@@ -47,7 +47,6 @@ import org.quartz.impl.store.StoreLock;
 import org.quartz.impl.store.codec.JobDataCodec;
 import org.quartz.impl.store.codec.JobDetailCodec;
 import org.quartz.impl.store.codec.TriggerCodec;
-import org.quartz.spi.ClassLoadHelper;
 
 /**
  * A job store keeping all scheduling data in MongoDB.
@@ -132,21 +131,21 @@ public class MongoJobStore extends PersistentJobStore {
       throws JobPersistenceException {
     Objects.requireNonNull(database, "database");
     JobDataCodec.checkUseProperties(jobDetail.getJobDataMap(), getSettings().useProperties());
-    // updateJobData needs no class loading; the session is carried by the database handle
+    // the session is carried by the database handle
     new MongoStoreDelegate(
             getInstanceName(),
             MongoCollections.of(database, mongoSettings.collectionPrefix()),
-            null,
+            getClassLoader(),
             () -> null)
         .updateJobData(jobDetail);
   }
 
   @Override
-  protected StoreDelegate createDelegate(String schedulerName, ClassLoadHelper loadHelper) {
+  protected StoreDelegate createDelegate(String schedulerName, ClassLoader classLoader) {
     collections =
         MongoCollections.of(client.getDatabase(databaseName), mongoSettings.collectionPrefix());
     return new MongoStoreDelegate(
-        schedulerName, collections, loadHelper, () -> session.isBound() ? session.get() : null);
+        schedulerName, collections, classLoader, () -> session.isBound() ? session.get() : null);
   }
 
   @Override

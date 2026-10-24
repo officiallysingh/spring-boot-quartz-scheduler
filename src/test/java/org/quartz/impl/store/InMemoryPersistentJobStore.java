@@ -15,7 +15,6 @@ package org.quartz.impl.store;
 
 import java.time.Duration;
 import org.quartz.impl.config.JobStoreSettings;
-import org.quartz.spi.ClassLoadHelper;
 
 /**
  * {@link PersistentJobStore} over {@link InMemoryStoreDelegate}: exercises the engine, including
@@ -31,8 +30,8 @@ class InMemoryPersistentJobStore extends PersistentJobStore {
   }
 
   @Override
-  protected StoreDelegate createDelegate(String schedulerName, ClassLoadHelper loadHelper) {
-    return new InMemoryStoreDelegate(data, loadHelper);
+  protected StoreDelegate createDelegate(String schedulerName, ClassLoader classLoader) {
+    return new InMemoryStoreDelegate(data, classLoader);
   }
 
   @Override

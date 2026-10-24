@@ -73,8 +73,6 @@ import org.quartz.impl.calendar.WeeklyCalendar;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.impl.store.PersistentJobStore;
 import org.quartz.impl.triggers.SimpleTriggerImpl;
-import org.quartz.simpl.DefaultClassLoadHelper;
-import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.SchedulerSignaler;
@@ -133,9 +131,8 @@ public abstract class AbstractJobStoreContractTest {
     JobStore store = createJobStore(instanceId);
     store.setInstanceName(SCHED_NAME);
     store.setInstanceId(instanceId);
-    ClassLoadHelper loadHelper = new DefaultClassLoadHelper();
-    loadHelper.initialize();
-    store.initialize(loadHelper, signaler);
+    ClassLoader classLoader = getClass().getClassLoader();
+    store.initialize(classLoader, signaler);
     store.schedulerStarted();
     return store;
   }

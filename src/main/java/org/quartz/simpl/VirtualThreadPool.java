@@ -46,8 +46,6 @@ public class VirtualThreadPool implements ThreadPool {
 
   private @Nullable String threadNamePrefix;
 
-  private boolean inheritLoader = true;
-
   private String schedulerInstanceName = "QuartzScheduler";
 
   private final ReentrantLock lock = new ReentrantLock();
@@ -61,8 +59,6 @@ public class VirtualThreadPool implements ThreadPool {
   // created by initialize
   @SuppressWarnings("NullAway.Init")
   private ThreadFactory threadFactory;
-
-  private @Nullable ClassLoader contextClassLoader;
 
   /**
    * Create a pool running at most {@code maxConcurrency} jobs at a time.
@@ -96,23 +92,6 @@ public class VirtualThreadPool implements ThreadPool {
     this.threadNamePrefix = threadNamePrefix;
   }
 
-  /**
-   * Whether the job threads use the context class loader of the thread that initializes the pool.
-   *
-   * @return {@code true} by default
-   */
-  public boolean isThreadsInheritContextClassLoaderOfInitializingThread() {
-    return inheritLoader;
-  }
-
-  /**
-   * Whether the job threads use the context class loader of the thread that initializes the pool
-   * (default), rather than that of the scheduler thread that starts them.
-   */
-  public void setThreadsInheritContextClassLoaderOfInitializingThread(boolean inheritLoader) {
-    this.inheritLoader = inheritLoader;
-  }
-
   @Override
   public void setInstanceId(String schedInstId) {}
 
@@ -126,12 +105,6 @@ public class VirtualThreadPool implements ThreadPool {
     String prefix =
         (threadNamePrefix != null) ? threadNamePrefix : schedulerInstanceName + "_Worker";
     threadFactory = Thread.ofVirtual().name(prefix + "-", 1).factory();
-    if (inheritLoader) {
-      contextClassLoader = Thread.currentThread().getContextClassLoader();
-      log.info(
-          "Job execution threads will use class loader of thread: {}",
-          Thread.currentThread().getName());
-    }
   }
 
   /** The maximum number of concurrently running jobs. */
@@ -171,9 +144,6 @@ public class VirtualThreadPool implements ThreadPool {
                 jobEnded();
               }
             });
-    if (contextClassLoader != null) {
-      thread.setContextClassLoader(contextClassLoader);
-    }
     try {
       thread.start();
     } catch (RuntimeException | OutOfMemoryError ex) {

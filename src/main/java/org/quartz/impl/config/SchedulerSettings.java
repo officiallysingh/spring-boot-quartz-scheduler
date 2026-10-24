@@ -32,8 +32,6 @@ import org.jspecify.annotations.Nullable;
  * @param threadName the scheduler thread name; {@code null} means {@code
  *     <name>_QuartzSchedulerThread}
  * @param makeSchedulerThreadDaemon run the scheduler thread as a daemon thread
- * @param threadsInheritContextClassLoaderOfInitializer the scheduler thread (and the
- *     factory-created thread pool) use the context class loader of the creating thread
  * @param idleWaitTime how long the scheduler thread waits for new triggers when idle; at least one
  *     second
  * @param batchTriggerAcquisitionFireAheadTimeWindow how far ahead of their fire time triggers may
@@ -50,7 +48,6 @@ public record SchedulerSettings(
     boolean instanceIdAuto,
     @Nullable String threadName,
     boolean makeSchedulerThreadDaemon,
-    boolean threadsInheritContextClassLoaderOfInitializer,
     Duration idleWaitTime,
     Duration batchTriggerAcquisitionFireAheadTimeWindow,
     int batchTriggerAcquisitionMaxCount,
@@ -131,8 +128,6 @@ public record SchedulerSettings(
         .instanceIdAuto(instanceIdAuto)
         .threadName(threadName)
         .makeSchedulerThreadDaemon(makeSchedulerThreadDaemon)
-        .threadsInheritContextClassLoaderOfInitializer(
-            threadsInheritContextClassLoaderOfInitializer)
         .idleWaitTime(idleWaitTime)
         .batchTriggerAcquisitionFireAheadTimeWindow(batchTriggerAcquisitionFireAheadTimeWindow)
         .batchTriggerAcquisitionMaxCount(batchTriggerAcquisitionMaxCount)
@@ -154,7 +149,6 @@ public record SchedulerSettings(
     private boolean instanceIdAuto;
     private @Nullable String threadName;
     private boolean makeSchedulerThreadDaemon;
-    private boolean threadsInheritContextClassLoaderOfInitializer;
     private Duration idleWaitTime = DEFAULT_IDLE_WAIT_TIME;
     private Duration batchTriggerAcquisitionFireAheadTimeWindow = Duration.ZERO;
     private int batchTriggerAcquisitionMaxCount = 1;
@@ -216,18 +210,6 @@ public record SchedulerSettings(
      */
     public Builder makeSchedulerThreadDaemon(boolean makeSchedulerThreadDaemon) {
       this.makeSchedulerThreadDaemon = makeSchedulerThreadDaemon;
-      return this;
-    }
-
-    /**
-     * Set {@link SchedulerSettings#threadsInheritContextClassLoaderOfInitializer()
-     * threadsInheritContextClassLoaderOfInitializer}.
-     *
-     * @param inherit the value
-     * @return this builder
-     */
-    public Builder threadsInheritContextClassLoaderOfInitializer(boolean inherit) {
-      this.threadsInheritContextClassLoaderOfInitializer = inherit;
       return this;
     }
 
@@ -323,7 +305,6 @@ public record SchedulerSettings(
           instanceIdAuto,
           threadName,
           makeSchedulerThreadDaemon,
-          threadsInheritContextClassLoaderOfInitializer,
           idleWaitTime,
           batchTriggerAcquisitionFireAheadTimeWindow,
           batchTriggerAcquisitionMaxCount,

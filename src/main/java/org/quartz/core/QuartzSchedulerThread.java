@@ -104,12 +104,7 @@ public class QuartzSchedulerThread extends Thread {
     this.qs = qs;
     this.qsRsrcs = qsRsrcs;
     this.setDaemon(setDaemon);
-    if (qsRsrcs.isThreadsInheritInitializersClassLoadContext()) {
-      log.info(
-          "QuartzSchedulerThread Inheriting ContextClassLoader of thread: {}",
-          Thread.currentThread().getName());
-      this.setContextClassLoader(Thread.currentThread().getContextClassLoader());
-    }
+    this.setContextClassLoader(qsRsrcs.getClassLoader());
 
     this.setPriority(threadPrio);
 

@@ -22,7 +22,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.Test;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerConfigException;
-import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.SchedulerPlugin;
 
 /**
@@ -43,7 +42,7 @@ class StdSchedulerFactoryTest {
   void duplicatePluginNamesAreRejected() {
     SchedulerPlugin plugin =
         new SchedulerPlugin() {
-          public void initialize(String name, Scheduler scheduler, ClassLoadHelper loadHelper) {}
+          public void initialize(String name, Scheduler scheduler) {}
 
           public void start() {}
 

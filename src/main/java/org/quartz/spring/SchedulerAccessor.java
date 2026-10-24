@@ -32,8 +32,6 @@ import org.quartz.Trigger;
 import org.quartz.TriggerListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.ResourceLoaderAware;
-import org.springframework.core.io.ResourceLoader;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionException;
@@ -51,7 +49,7 @@ import org.springframework.transaction.TransactionStatus;
  * @author Stephane Nicoll
  * @since 2.5.6
  */
-public abstract class SchedulerAccessor implements ResourceLoaderAware {
+public abstract class SchedulerAccessor {
 
   protected final Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -70,8 +68,6 @@ public abstract class SchedulerAccessor implements ResourceLoaderAware {
   private TriggerListener @Nullable [] globalTriggerListeners;
 
   private @Nullable PlatformTransactionManager transactionManager;
-
-  protected @Nullable ResourceLoader resourceLoader;
 
   /**
    * Set whether any jobs defined on this SchedulerFactoryBean should overwrite existing job
@@ -145,11 +141,6 @@ public abstract class SchedulerAccessor implements ResourceLoaderAware {
    */
   public void setTransactionManager(PlatformTransactionManager transactionManager) {
     this.transactionManager = transactionManager;
-  }
-
-  @Override
-  public void setResourceLoader(ResourceLoader resourceLoader) {
-    this.resourceLoader = resourceLoader;
   }
 
   /** Register jobs and triggers (within a transaction, if possible). */

@@ -23,11 +23,10 @@ import java.io.ObjectStreamClass;
 import java.io.Serializable;
 import java.util.Base64;
 import org.quartz.JobPersistenceException;
-import org.quartz.spi.ClassLoadHelper;
 
 /**
  * Java serialization of values that have no structured encoding (calendars, custom triggers,
- * non-simple job data), resolving classes through the scheduler's {@link ClassLoadHelper}.
+ * non-simple job data), resolving classes through the scheduler's class loader.
  */
 public final class SerializationCodec {
 
@@ -56,19 +55,19 @@ public final class SerializationCodec {
   }
 
   /**
-   * Read a Java-serialized value, resolving its classes through the scheduler's class load helper.
+   * Read a Java-serialized value, resolving its classes through the scheduler's class loader.
    *
    * @param bytes the bytes
    * @param type the expected type
-   * @param loadHelper loads the classes
+   * @param classLoader loads the classes
    * @param <T> the expected type
    * @return the value
    * @throws JobPersistenceException if it cannot be read or is not of the expected type
    */
-  public static <T> T deserialize(byte[] bytes, Class<T> type, ClassLoadHelper loadHelper)
+  public static <T> T deserialize(byte[] bytes, Class<T> type, ClassLoader classLoader)
       throws JobPersistenceException {
     try (ObjectInputStream in =
-        new LoaderObjectInputStream(new ByteArrayInputStream(bytes), loadHelper)) {
+        new LoaderObjectInputStream(new ByteArrayInputStream(bytes), classLoader)) {
       return type.cast(in.readObject());
     } catch (IOException | ClassNotFoundException | ClassCastException ex) {
       throw new JobPersistenceException(
@@ -98,24 +97,22 @@ public final class SerializationCodec {
 
   private static final class LoaderObjectInputStream extends ObjectInputStream {
 
-    private final ClassLoadHelper loadHelper;
+    private final ClassLoader classLoader;
 
-    LoaderObjectInputStream(InputStream in, ClassLoadHelper loadHelper) throws IOException {
+    LoaderObjectInputStream(InputStream in, ClassLoader classLoader) throws IOException {
       super(in);
-      this.loadHelper = loadHelper;
+      this.classLoader = classLoader;
     }
 
     @Override
     protected Class<?> resolveClass(ObjectStreamClass desc)
         throws IOException, ClassNotFoundException {
-      if (loadHelper != null) {
-        try {
-          return Class.forName(desc.getName(), false, loadHelper.getClassLoader());
-        } catch (ClassNotFoundException ex) {
-          // fall back to the default resolution (primitives, bootstrap classes)
-        }
+      try {
+        return Class.forName(desc.getName(), false, classLoader);
+      } catch (ClassNotFoundException ex) {
+        // fall back to the default resolution (primitives, bootstrap classes)
+        return super.resolveClass(desc);
       }
-      return super.resolveClass(desc);
     }
   }
 }

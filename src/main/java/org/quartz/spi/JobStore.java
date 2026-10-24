@@ -69,8 +69,12 @@ public interface JobStore {
   /**
    * Called by the QuartzScheduler before the <code>JobStore</code> is used, in order to give the it
    * a chance to initialize.
+   *
+   * @param classLoader loads the job classes and the Java-serialized values the store reads; the
+   *     application's class loader
+   * @param signaler tells the scheduler about changes the store makes
    */
-  void initialize(ClassLoadHelper loadHelper, SchedulerSignaler signaler)
+  void initialize(ClassLoader classLoader, SchedulerSignaler signaler)
       throws SchedulerConfigException;
 
   /**

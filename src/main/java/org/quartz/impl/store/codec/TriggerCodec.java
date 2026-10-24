@@ -34,7 +34,6 @@ import org.quartz.impl.triggers.CalendarIntervalTriggerImpl;
 import org.quartz.impl.triggers.CronTriggerImpl;
 import org.quartz.impl.triggers.DailyTimeIntervalTriggerImpl;
 import org.quartz.impl.triggers.SimpleTriggerImpl;
-import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.OperableTrigger;
 
 /**
@@ -201,7 +200,7 @@ public final class TriggerCodec {
 
   /** Decodes a trigger encoded by {@link #encode}, attaching {@code jobData}. */
   public static OperableTrigger decode(
-      Map<String, ?> fields, JobDataMap jobData, ClassLoadHelper loadHelper)
+      Map<String, ?> fields, JobDataMap jobData, ClassLoader classLoader)
       throws JobPersistenceException {
     String type = Fields.string(fields, TYPE);
     OperableTrigger trigger;
@@ -216,7 +215,7 @@ public final class TriggerCodec {
                 SerializationCodec.deserialize(
                     Objects.requireNonNull(Fields.bytes(fields, BLOB), BLOB),
                     OperableTrigger.class,
-                    loadHelper);
+                    classLoader);
             case null, default ->
                 throw new JobPersistenceException("Unknown trigger type '" + type + "'");
           };

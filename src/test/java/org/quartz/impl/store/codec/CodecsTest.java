@@ -38,8 +38,6 @@ import org.quartz.TimeOfDay;
 import org.quartz.TriggerBuilder;
 import org.quartz.impl.calendar.AnnualCalendar;
 import org.quartz.impl.triggers.SimpleTriggerImpl;
-import org.quartz.simpl.DefaultClassLoadHelper;
-import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.OperableTrigger;
 
 class CodecsTest {
@@ -55,13 +53,7 @@ class CodecsTest {
     public String extra = "custom";
   }
 
-  private final ClassLoadHelper loadHelper = loadHelper();
-
-  private static ClassLoadHelper loadHelper() {
-    ClassLoadHelper helper = new DefaultClassLoadHelper();
-    helper.initialize();
-    return helper;
-  }
+  private final ClassLoader classLoader = CodecsTest.class.getClassLoader();
 
   /** What a Redis hash gives back: every value as a string, binary values base64. */
   private static Map<String, Object> asStrings(Map<String, Object> fields) {
@@ -161,9 +153,9 @@ class CodecsTest {
     for (OperableTrigger trigger : triggers()) {
       Map<String, Object> fields = TriggerCodec.encode(trigger);
       assertThat(fields).doesNotContainKey(TriggerCodec.BLOB);
-      assertSameTrigger(TriggerCodec.decode(fields, new JobDataMap(), loadHelper), trigger);
+      assertSameTrigger(TriggerCodec.decode(fields, new JobDataMap(), classLoader), trigger);
       assertSameTrigger(
-          TriggerCodec.decode(asStrings(fields), new JobDataMap(), loadHelper), trigger);
+          TriggerCodec.decode(asStrings(fields), new JobDataMap(), classLoader), trigger);
     }
   }
 
@@ -179,7 +171,7 @@ class CodecsTest {
 
     Map<String, Object> fields = TriggerCodec.encode(trigger);
     assertThat(fields.get(TriggerCodec.TYPE)).isEqualTo(TriggerCodec.TYPE_BLOB);
-    OperableTrigger decoded = TriggerCodec.decode(asStrings(fields), data, loadHelper);
+    OperableTrigger decoded = TriggerCodec.decode(asStrings(fields), data, classLoader);
 
     assertThat(decoded).isInstanceOf(CustomTrigger.class);
     assertThat(((CustomTrigger) decoded).extra).isEqualTo("kept");
@@ -200,7 +192,7 @@ class CodecsTest {
 
     for (Map<String, Object> fields :
         List.of(JobDetailCodec.encode(job), asStrings(JobDetailCodec.encode(job)))) {
-      JobDetail decoded = JobDetailCodec.decode(fields, data, loadHelper);
+      JobDetail decoded = JobDetailCodec.decode(fields, data, classLoader);
       assertThat(decoded.getKey()).isEqualTo(job.getKey());
       assertThat(decoded.getJobClass()).isEqualTo(NoOpJob.class);
       assertThat(decoded.getDescription()).isEqualTo("desc");
@@ -219,7 +211,7 @@ class CodecsTest {
                         JobDetailCodec.GROUP,
                         "g"),
                     null,
-                    loadHelper))
+                    classLoader))
         .isInstanceOf(JobPersistenceException.class);
   }
 
@@ -248,7 +240,7 @@ class CodecsTest {
     data.put("list", new ArrayList<>(List.of(1, 2)));
     data.put("float", 1.5f);
 
-    JobDataMap decoded = JobDataCodec.deserialize(JobDataCodec.serialize(data), loadHelper);
+    JobDataMap decoded = JobDataCodec.deserialize(JobDataCodec.serialize(data), classLoader);
     assertThat(decoded.get("list")).isEqualTo(List.of(1, 2));
     assertThat(decoded.get("float")).isEqualTo(1.5f);
     assertThat(decoded.isDirty()).isFalse();
@@ -270,7 +262,7 @@ class CodecsTest {
 
     AnnualCalendar decoded =
         SerializationCodec.deserialize(
-            SerializationCodec.serialize(calendar), AnnualCalendar.class, loadHelper);
+            SerializationCodec.serialize(calendar), AnnualCalendar.class, classLoader);
     assertThat(decoded.getDescription()).isEqualTo("holidays");
     assertThatThrownBy(() -> SerializationCodec.serialize(new Object()))
         .isInstanceOf(JobPersistenceException.class);

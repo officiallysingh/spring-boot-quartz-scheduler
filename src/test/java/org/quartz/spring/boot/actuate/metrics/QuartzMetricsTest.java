@@ -49,7 +49,7 @@ class QuartzMetricsTest {
     given(scheduler.getSchedulerName()).willReturn("app");
     given(scheduler.getListenerManager()).willReturn(listenerManager);
 
-    new QuartzMetrics(registry).initialize("quartzMetrics", scheduler, null);
+    new QuartzMetrics(registry).initialize("quartzMetrics", scheduler);
 
     ArgumentCaptor<JobListener> jobListeners = ArgumentCaptor.forClass(JobListener.class);
     ArgumentCaptor<TriggerListener> triggerListeners =

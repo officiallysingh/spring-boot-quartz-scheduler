@@ -175,6 +175,10 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
     MDC.put(MDC_JOB_KEY, jec.getJobDetail().getKey().toString());
     MDC.put(MDC_TRIGGER_KEY, jec.getTrigger().getKey().toString());
     MDC.put(MDC_FIRE_INSTANCE_ID, jec.getFireInstanceId());
+    // the job, its listeners and its transaction see the application's classes, on any pool
+    Thread thread = Thread.currentThread();
+    ClassLoader previousClassLoader = thread.getContextClassLoader();
+    thread.setContextClassLoader(qs.getClassLoader());
 
     try {
       OperableTrigger trigger = (OperableTrigger) jec.getTrigger();
@@ -303,6 +307,7 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
       MDC.remove(MDC_JOB_KEY);
       MDC.remove(MDC_TRIGGER_KEY);
       MDC.remove(MDC_FIRE_INSTANCE_ID);
+      thread.setContextClassLoader(previousClassLoader);
       qs.removeInternalSchedulerListener(this);
     }
   }

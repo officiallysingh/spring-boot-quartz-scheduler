@@ -35,6 +35,7 @@ import org.quartz.spi.JobFactory;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spi.ThreadPool;
+import org.springframework.beans.factory.BeanClassLoaderAware;
 import org.springframework.beans.factory.BeanNameAware;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.FactoryBean;
@@ -85,6 +86,7 @@ import org.springframework.util.Assert;
 public class SchedulerFactoryBean extends SchedulerAccessor
     implements FactoryBean<Scheduler>,
         BeanNameAware,
+        BeanClassLoaderAware,
         ApplicationContextAware,
         InitializingBean,
         DisposableBean,
@@ -136,6 +138,8 @@ public class SchedulerFactoryBean extends SchedulerAccessor
   private @Nullable String beanName;
 
   private @Nullable ApplicationContext applicationContext;
+
+  private @Nullable ClassLoader beanClassLoader;
 
   private @Nullable Scheduler scheduler;
 
@@ -402,6 +406,16 @@ public class SchedulerFactoryBean extends SchedulerAccessor
     this.beanName = name;
   }
 
+  /**
+   * The application's class loader: it loads job classes and is the context class loader of every
+   * job execution. Set by the application context; without one, the application context's class
+   * loader or else the thread context class loader is used.
+   */
+  @Override
+  public void setBeanClassLoader(ClassLoader classLoader) {
+    this.beanClassLoader = classLoader;
+  }
+
   @Override
   public void setApplicationContext(ApplicationContext applicationContext) {
     this.applicationContext = applicationContext;
@@ -413,10 +427,6 @@ public class SchedulerFactoryBean extends SchedulerAccessor
 
   @Override
   public void afterPropertiesSet() throws Exception {
-    if (this.applicationContext != null && this.resourceLoader == null) {
-      this.resourceLoader = this.applicationContext;
-    }
-
     // Initialize the Scheduler instance...
     this.scheduler = prepareScheduler(prepareSchedulerFactory());
     try {
@@ -455,8 +465,12 @@ public class SchedulerFactoryBean extends SchedulerAccessor
     StdSchedulerFactory.Builder builder =
         StdSchedulerFactory.builder()
             .settings(new QuartzSettings(schedulerSettings, base.threadPool()));
-    if (this.resourceLoader != null) {
-      builder.classLoadHelper(new ResourceLoaderClassLoadHelper(this.resourceLoader));
+    ClassLoader classLoader =
+        (this.beanClassLoader != null)
+            ? this.beanClassLoader
+            : (this.applicationContext != null) ? this.applicationContext.getClassLoader() : null;
+    if (classLoader != null) {
+      builder.classLoader(classLoader);
     }
     if (this.taskExecutor != null) {
       LocalTaskExecutorThreadPool pool = new LocalTaskExecutorThreadPool(this.taskExecutor);
@@ -556,41 +570,23 @@ public class SchedulerFactoryBean extends SchedulerAccessor
   protected Scheduler createScheduler(
       SchedulerFactory schedulerFactory, @Nullable String schedulerName) throws SchedulerException {
 
-    // Override thread context ClassLoader to work around naive Quartz ClassLoadHelper loading.
-    Thread currentThread = Thread.currentThread();
-    ClassLoader threadContextClassLoader = currentThread.getContextClassLoader();
-    ClassLoader resourceClassLoader =
-        (this.resourceLoader != null
-            ? this.resourceLoader.getClassLoader()
-            : threadContextClassLoader);
-    boolean overrideClassLoader = (resourceClassLoader != threadContextClassLoader);
-    if (overrideClassLoader) {
-      currentThread.setContextClassLoader(resourceClassLoader);
-    }
-    try {
-      SchedulerRepository repository = SchedulerRepository.getInstance();
-      synchronized (repository) {
-        Scheduler existingScheduler =
-            (schedulerName != null ? repository.lookup(schedulerName) : null);
-        Scheduler newScheduler = schedulerFactory.getScheduler();
-        if (newScheduler == existingScheduler) {
-          throw new IllegalStateException(
-              "Active Scheduler of name '"
-                  + schedulerName
-                  + "' already registered "
-                  + "in Quartz SchedulerRepository. Cannot create a new Spring-managed Scheduler of the same name!");
-        }
-        if (!this.exposeSchedulerInRepository) {
-          // Need to remove it in this case, since Quartz shares the Scheduler instance by default!
-          SchedulerRepository.getInstance().remove(newScheduler.getSchedulerName());
-        }
-        return newScheduler;
+    SchedulerRepository repository = SchedulerRepository.getInstance();
+    synchronized (repository) {
+      Scheduler existingScheduler =
+          (schedulerName != null ? repository.lookup(schedulerName) : null);
+      Scheduler newScheduler = schedulerFactory.getScheduler();
+      if (newScheduler == existingScheduler) {
+        throw new IllegalStateException(
+            "Active Scheduler of name '"
+                + schedulerName
+                + "' already registered "
+                + "in Quartz SchedulerRepository. Cannot create a new Spring-managed Scheduler of the same name!");
       }
-    } finally {
-      if (overrideClassLoader) {
-        // Reset original thread context ClassLoader.
-        currentThread.setContextClassLoader(threadContextClassLoader);
+      if (!this.exposeSchedulerInRepository) {
+        // Need to remove it in this case, since Quartz shares the Scheduler instance by default!
+        SchedulerRepository.getInstance().remove(newScheduler.getSchedulerName());
       }
+      return newScheduler;
     }
   }
 

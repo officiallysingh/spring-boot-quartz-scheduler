@@ -28,7 +28,6 @@ import org.quartz.JobPersistenceException;
 import org.quartz.TriggerBuilder;
 import org.quartz.impl.store.PersistentJobStore;
 import org.quartz.impl.store.StoreDelegate;
-import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.OperableTrigger;
 import org.quartz.store.AbstractClusteredJobStoreContractTest;
@@ -104,8 +103,8 @@ class RedisClusteredJobStoreIT extends AbstractClusteredJobStoreContractTest {
     }
 
     @Override
-    protected StoreDelegate createDelegate(String schedulerName, ClassLoadHelper loadHelper) {
-      StoreDelegate delegate = super.createDelegate(schedulerName, loadHelper);
+    protected StoreDelegate createDelegate(String schedulerName, ClassLoader classLoader) {
+      StoreDelegate delegate = super.createDelegate(schedulerName, classLoader);
       return (StoreDelegate)
           Proxy.newProxyInstance(
               StoreDelegate.class.getClassLoader(),

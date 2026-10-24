@@ -31,7 +31,6 @@ import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.Trigger.CompletedExecutionInstruction;
 import org.quartz.listeners.TriggerListenerSupport;
-import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.SchedulerPlugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -184,8 +183,7 @@ public class JobInterruptMonitorPlugin extends TriggerListenerSupport implements
   }
 
   @Override
-  public void initialize(String name, Scheduler scheduler, ClassLoadHelper helper)
-      throws SchedulerException {
+  public void initialize(String name, Scheduler scheduler) throws SchedulerException {
 
     getLog().info("Registering Job Interrupt Monitor Plugin");
     this.name = name;

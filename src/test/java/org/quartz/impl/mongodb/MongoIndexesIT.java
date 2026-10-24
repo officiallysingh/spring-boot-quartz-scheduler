@@ -21,8 +21,6 @@ import java.util.List;
 import org.bson.Document;
 import org.junit.jupiter.api.Test;
 import org.quartz.impl.config.JobStoreSettings;
-import org.quartz.simpl.DefaultClassLoadHelper;
-import org.quartz.spi.ClassLoadHelper;
 import org.quartz.store.AbstractJobStoreContractTest.SampleSignaler;
 import org.quartz.support.AbstractMongoIT;
 
@@ -50,9 +48,8 @@ class MongoIndexesIT extends AbstractMongoIT {
             new MongoJobStoreSettings("idx_", MongoJobStoreSettings.defaults().lockTimeout()));
     store.setInstanceName("IndexScheduler");
     store.setInstanceId("node-1");
-    ClassLoadHelper loadHelper = new DefaultClassLoadHelper();
-    loadHelper.initialize();
-    store.initialize(loadHelper, new SampleSignaler());
+    ClassLoader classLoader = getClass().getClassLoader();
+    store.initialize(classLoader, new SampleSignaler());
 
     MongoDatabase database = mongoClient().getDatabase("quartz_indexes");
     List<Document> triggerIndexes = indexes(database, "idx_triggers");

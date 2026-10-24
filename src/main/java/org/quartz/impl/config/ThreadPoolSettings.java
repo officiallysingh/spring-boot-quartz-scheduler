@@ -28,8 +28,6 @@ import org.jspecify.annotations.Nullable;
  * @param threadNamePrefix the worker thread name prefix; {@code null} means {@code <scheduler
  *     name>_Worker}
  * @param daemon run the worker threads as daemon threads
- * @param threadsInheritContextClassLoaderOfInitializingThread workers use the context class loader
- *     of the thread that initializes the pool
  * @param threadsInheritGroupOfInitializingThread workers join the thread group of the thread that
  *     initializes the pool
  * @param virtualThreads run each job on a new virtual thread instead of a pool of platform threads;
@@ -41,7 +39,6 @@ public record ThreadPoolSettings(
     int threadPriority,
     @Nullable String threadNamePrefix,
     boolean daemon,
-    boolean threadsInheritContextClassLoaderOfInitializingThread,
     boolean threadsInheritGroupOfInitializingThread,
     boolean virtualThreads) {
 
@@ -68,27 +65,6 @@ public record ThreadPoolSettings(
     if (threadNamePrefix != null && threadNamePrefix.isBlank()) {
       throw new IllegalArgumentException("threadNamePrefix must not be blank");
     }
-  }
-
-  /**
-   * Settings of a pool of platform threads ({@code virtualThreads} false), as before virtual
-   * threads were an option.
-   */
-  public ThreadPoolSettings(
-      int threadCount,
-      int threadPriority,
-      @Nullable String threadNamePrefix,
-      boolean daemon,
-      boolean threadsInheritContextClassLoaderOfInitializingThread,
-      boolean threadsInheritGroupOfInitializingThread) {
-    this(
-        threadCount,
-        threadPriority,
-        threadNamePrefix,
-        daemon,
-        threadsInheritContextClassLoaderOfInitializingThread,
-        threadsInheritGroupOfInitializingThread,
-        false);
   }
 
   /**
@@ -120,8 +96,6 @@ public record ThreadPoolSettings(
         .threadPriority(threadPriority)
         .threadNamePrefix(threadNamePrefix)
         .daemon(daemon)
-        .threadsInheritContextClassLoaderOfInitializingThread(
-            threadsInheritContextClassLoaderOfInitializingThread)
         .threadsInheritGroupOfInitializingThread(threadsInheritGroupOfInitializingThread)
         .virtualThreads(virtualThreads);
   }
@@ -132,7 +106,6 @@ public record ThreadPoolSettings(
     private int threadPriority = Thread.NORM_PRIORITY;
     private @Nullable String threadNamePrefix;
     private boolean daemon;
-    private boolean threadsInheritContextClassLoaderOfInitializingThread = true;
     private boolean threadsInheritGroupOfInitializingThread = true;
     private boolean virtualThreads;
 
@@ -183,18 +156,6 @@ public record ThreadPoolSettings(
     }
 
     /**
-     * Set {@link ThreadPoolSettings#threadsInheritContextClassLoaderOfInitializingThread()
-     * threadsInheritContextClassLoaderOfInitializingThread}.
-     *
-     * @param inherit the value
-     * @return this builder
-     */
-    public Builder threadsInheritContextClassLoaderOfInitializingThread(boolean inherit) {
-      this.threadsInheritContextClassLoaderOfInitializingThread = inherit;
-      return this;
-    }
-
-    /**
      * Set {@link ThreadPoolSettings#threadsInheritGroupOfInitializingThread()
      * threadsInheritGroupOfInitializingThread}.
      *
@@ -229,7 +190,6 @@ public record ThreadPoolSettings(
           threadPriority,
           threadNamePrefix,
           daemon,
-          threadsInheritContextClassLoaderOfInitializingThread,
           threadsInheritGroupOfInitializingThread,
           virtualThreads);
     }

@@ -18,7 +18,6 @@ import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.quartz.JobDataMap;
 import org.quartz.JobPersistenceException;
-import org.quartz.spi.ClassLoadHelper;
 
 /**
  * Encodes {@link JobDataMap}s. A map whose values are all {@code String}, {@code Integer}, {@code
@@ -90,13 +89,13 @@ public final class JobDataCodec {
    * Read a Java-serialized job data map; the result is not dirty.
    *
    * @param bytes the bytes
-   * @param loadHelper loads the classes of the values
+   * @param classLoader loads the classes of the values
    * @return the job data
    * @throws JobPersistenceException if the bytes cannot be read
    */
-  public static JobDataMap deserialize(byte[] bytes, ClassLoadHelper loadHelper)
+  public static JobDataMap deserialize(byte[] bytes, ClassLoader classLoader)
       throws JobPersistenceException {
-    JobDataMap data = SerializationCodec.deserialize(bytes, JobDataMap.class, loadHelper);
+    JobDataMap data = SerializationCodec.deserialize(bytes, JobDataMap.class, classLoader);
     data.clearDirtyFlag();
     return data;
   }

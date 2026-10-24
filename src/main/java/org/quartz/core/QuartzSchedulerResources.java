@@ -22,6 +22,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spi.ThreadExecutor;
@@ -66,7 +67,8 @@ public class QuartzSchedulerResources {
 
   private boolean makeSchedulerThreadDaemon = false;
 
-  private boolean threadsInheritInitializersClassLoadContext = false;
+  private ClassLoader classLoader =
+      Objects.requireNonNull(QuartzSchedulerResources.class.getClassLoader());
 
   @SuppressWarnings("NullAway.Init")
   private ThreadExecutor threadExecutor;
@@ -276,20 +278,16 @@ public class QuartzSchedulerResources {
   }
 
   /**
-   * Get whether to set the class load context of spawned threads to that of the initializing
-   * thread.
+   * The application's class loader: loads job classes, and is the context class loader of the
+   * scheduler's threads and of every job execution.
    */
-  public boolean isThreadsInheritInitializersClassLoadContext() {
-    return threadsInheritInitializersClassLoadContext;
+  public ClassLoader getClassLoader() {
+    return classLoader;
   }
 
-  /**
-   * Set whether to set the class load context of spawned threads to that of the initializing
-   * thread.
-   */
-  public void setThreadsInheritInitializersClassLoadContext(
-      boolean threadsInheritInitializersClassLoadContext) {
-    this.threadsInheritInitializersClassLoadContext = threadsInheritInitializersClassLoadContext;
+  /** Set the application's class loader. */
+  public void setClassLoader(ClassLoader classLoader) {
+    this.classLoader = Objects.requireNonNull(classLoader, "classLoader");
   }
 
   /** Get the ThreadExecutor which runs the QuartzSchedulerThread */

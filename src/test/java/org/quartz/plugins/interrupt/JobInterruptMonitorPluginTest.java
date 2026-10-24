@@ -16,7 +16,6 @@ import org.quartz.SchedulerContext;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.Trigger.CompletedExecutionInstruction;
-import org.quartz.spi.ClassLoadHelper;
 
 /**
  * Tests for {@link JobInterruptMonitorPlugin} addressing issues from <a
@@ -35,7 +34,7 @@ class JobInterruptMonitorPluginTest {
     when(scheduler.getContext()).thenReturn(schedulerContext);
     ListenerManager listenerManager = mock(ListenerManager.class);
     when(scheduler.getListenerManager()).thenReturn(listenerManager);
-    plugin.initialize("testPlugin", scheduler, mock(ClassLoadHelper.class));
+    plugin.initialize("testPlugin", scheduler);
   }
 
   // --- Bug 1: ScheduledThreadPoolExecutor memory leak ---

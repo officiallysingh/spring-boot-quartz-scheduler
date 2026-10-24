@@ -41,7 +41,6 @@ import org.quartz.impl.store.codec.JobDataCodec;
 import org.quartz.impl.store.codec.JobDetailCodec;
 import org.quartz.impl.store.codec.SerializationCodec;
 import org.quartz.impl.store.codec.TriggerCodec;
-import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.OperableTrigger;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
@@ -69,12 +68,12 @@ class RedisStoreDelegate implements StoreDelegate {
 
   private final RedisKeys keys;
 
-  private final ClassLoadHelper loadHelper;
+  private final ClassLoader classLoader;
 
-  RedisStoreDelegate(StringRedisTemplate redis, RedisKeys keys, ClassLoadHelper loadHelper) {
+  RedisStoreDelegate(StringRedisTemplate redis, RedisKeys keys, ClassLoader classLoader) {
     this.redis = redis;
     this.keys = keys;
-    this.loadHelper = loadHelper;
+    this.classLoader = classLoader;
   }
 
   private long run(RedisScript<Long> script, String routingKey, List<String> args) {
@@ -119,7 +118,7 @@ class RedisStoreDelegate implements StoreDelegate {
   private JobDataMap jobData(Map<String, String> fields) throws JobPersistenceException {
     String blob = fields.get(DATA_BLOB);
     if (blob != null) {
-      return JobDataCodec.deserialize(SerializationCodec.fromBase64(blob), loadHelper);
+      return JobDataCodec.deserialize(SerializationCodec.fromBase64(blob), classLoader);
     }
     Map<String, Object> values = new LinkedHashMap<>();
     fields.forEach(
@@ -181,7 +180,7 @@ class RedisStoreDelegate implements StoreDelegate {
   @Override
   public @Nullable JobDetail selectJob(JobKey jobKey) throws JobPersistenceException {
     Map<String, String> fields = hash(keys.job(RedisKeys.k(jobKey)));
-    return fields.isEmpty() ? null : JobDetailCodec.decode(fields, jobData(fields), loadHelper);
+    return fields.isEmpty() ? null : JobDetailCodec.decode(fields, jobData(fields), classLoader);
   }
 
   @Override
@@ -245,7 +244,7 @@ class RedisStoreDelegate implements StoreDelegate {
   public @Nullable OperableTrigger selectTrigger(TriggerKey triggerKey)
       throws JobPersistenceException {
     Map<String, String> fields = hash(keys.trigger(RedisKeys.k(triggerKey)));
-    return fields.isEmpty() ? null : TriggerCodec.decode(fields, jobData(fields), loadHelper);
+    return fields.isEmpty() ? null : TriggerCodec.decode(fields, jobData(fields), classLoader);
   }
 
   @Override
@@ -496,7 +495,7 @@ class RedisStoreDelegate implements StoreDelegate {
     Object value = redis.opsForHash().get(keys.calendars(), name);
     return (value != null)
         ? SerializationCodec.deserialize(
-            SerializationCodec.fromBase64((String) value), Calendar.class, loadHelper)
+            SerializationCodec.fromBase64((String) value), Calendar.class, classLoader)
         : null;
   }
 

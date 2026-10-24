@@ -40,11 +40,9 @@ import org.quartz.impl.config.QuartzSettings;
 import org.quartz.impl.config.SchedulerSettings;
 import org.quartz.impl.config.ThreadPoolSettings;
 import org.quartz.impl.matchers.EverythingMatcher;
-import org.quartz.simpl.DefaultClassLoadHelper;
 import org.quartz.simpl.SimpleInstanceIdGenerator;
 import org.quartz.simpl.SimpleThreadPool;
 import org.quartz.simpl.VirtualThreadPool;
-import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.InstanceIdGenerator;
 import org.quartz.spi.JobFactory;
 import org.quartz.spi.JobStore;
@@ -53,6 +51,7 @@ import org.quartz.spi.ThreadExecutor;
 import org.quartz.spi.ThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.ClassUtils;
 
 /**
  * An implementation of <code>{@link org.quartz.SchedulerFactory}</code> that creates a <code>
@@ -93,7 +92,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
   private final @Nullable InstanceIdGenerator instanceIdGenerator;
 
-  private final @Nullable ClassLoadHelper classLoadHelper;
+  private final @Nullable ClassLoader classLoader;
 
   private final @Nullable ThreadExecutor threadExecutor;
 
@@ -115,7 +114,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
     this.jobStore = builder.jobStore;
     this.jobFactory = builder.jobFactory;
     this.instanceIdGenerator = builder.instanceIdGenerator;
-    this.classLoadHelper = builder.classLoadHelper;
+    this.classLoader = builder.classLoader;
     this.threadExecutor = builder.threadExecutor;
     this.plugins = new LinkedHashMap<>(builder.plugins);
     this.jobListeners = List.copyOf(builder.jobListeners);
@@ -156,14 +155,13 @@ public class StdSchedulerFactory implements SchedulerFactory {
     SchedulerSettings sched = settings.scheduler();
     String schedName = sched.name();
     String schedInstId = sched.instanceId();
-    boolean threadsInheritInitializersClassLoader =
-        sched.threadsInheritContextClassLoaderOfInitializer();
 
     SchedulerRepository schedRep = SchedulerRepository.getInstance();
 
-    ClassLoadHelper loadHelper =
-        classLoadHelper != null ? classLoadHelper : new DefaultClassLoadHelper();
-    loadHelper.initialize();
+    ClassLoader loader =
+        (classLoader != null)
+            ? classLoader
+            : Objects.requireNonNull(ClassUtils.getDefaultClassLoader(), "class loader");
 
     ThreadPool tp = threadPool != null ? threadPool : createThreadPool(settings.threadPool());
     if (jobStore == null) {
@@ -206,7 +204,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
       rsrcs.setInstanceId(schedInstId);
       rsrcs.setJobRunShellFactory(jrsf);
       rsrcs.setMakeSchedulerThreadDaemon(sched.makeSchedulerThreadDaemon());
-      rsrcs.setThreadsInheritInitializersClassLoadContext(threadsInheritInitializersClassLoader);
+      rsrcs.setClassLoader(loader);
       rsrcs.setBatchTimeWindow(sched.batchTriggerAcquisitionFireAheadTimeWindow());
       rsrcs.setMaxBatchSize(sched.batchTriggerAcquisitionMaxCount());
       rsrcs.setInterruptJobsOnShutdown(sched.interruptJobsOnShutdown());
@@ -219,9 +217,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
       executor.initialize();
 
       rsrcs.setThreadPool(tp);
-      if (tp instanceof SimpleThreadPool && threadsInheritInitializersClassLoader) {
-        ((SimpleThreadPool) tp).setThreadsInheritContextClassLoaderOfInitializingThread(true);
-      }
       tp.initialize();
       tpInited = true;
 
@@ -245,7 +240,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
       // Initialize plugins now that we have a Scheduler instance.
       for (Map.Entry<String, SchedulerPlugin> plugin : plugins.entrySet()) {
-        plugin.getValue().initialize(plugin.getKey(), scheduler, loadHelper);
+        plugin.getValue().initialize(plugin.getKey(), scheduler);
       }
 
       // add listeners
@@ -265,7 +260,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
       js.setInstanceId(schedInstId);
       js.setInstanceName(schedName);
       js.setThreadPoolSize(tp.getPoolSize());
-      js.initialize(loadHelper, qs.getSchedulerSignaler());
+      js.initialize(loader, qs.getSchedulerSignaler());
 
       jrsf.initialize(scheduler);
 
@@ -290,8 +285,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
     if (tps.virtualThreads()) {
       VirtualThreadPool vtp = new VirtualThreadPool(tps.threadCount());
       vtp.setThreadNamePrefix(tps.threadNamePrefix());
-      vtp.setThreadsInheritContextClassLoaderOfInitializingThread(
-          tps.threadsInheritContextClassLoaderOfInitializingThread());
       return vtp;
     }
     SimpleThreadPool tp = new SimpleThreadPool(tps.threadCount(), tps.threadPriority());
@@ -299,8 +292,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
       tp.setThreadNamePrefix(tps.threadNamePrefix());
     }
     tp.setMakeThreadsDaemons(tps.daemon());
-    tp.setThreadsInheritContextClassLoaderOfInitializingThread(
-        tps.threadsInheritContextClassLoaderOfInitializingThread());
     tp.setThreadsInheritGroupOfInitializingThread(tps.threadsInheritGroupOfInitializingThread());
     return tp;
   }
@@ -365,7 +356,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
   /**
    * Builds a {@link StdSchedulerFactory}. Everything not set falls back to its default: {@link
    * QuartzSettings#defaults()}, a {@link SimpleThreadPool} configured from the settings (a job
-   * store must be set), {@link DefaultClassLoadHelper}, {@link SimpleInstanceIdGenerator}, {@link
+   * store must be set), the thread context class loader, {@link SimpleInstanceIdGenerator}, {@link
    * DefaultThreadExecutor}, the scheduler's default job factory, {@link StdJobRunShellFactory} and
    * {@link Clock#systemUTC()}.
    */
@@ -376,7 +367,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
     private @Nullable JobStore jobStore;
     private @Nullable JobFactory jobFactory;
     private @Nullable InstanceIdGenerator instanceIdGenerator;
-    private @Nullable ClassLoadHelper classLoadHelper;
+    private @Nullable ClassLoader classLoader;
     private @Nullable ThreadExecutor threadExecutor;
     private final Map<String, SchedulerPlugin> plugins = new LinkedHashMap<>();
     private final List<JobListener> jobListeners = new ArrayList<>();
@@ -462,13 +453,15 @@ public class StdSchedulerFactory implements SchedulerFactory {
     }
 
     /**
-     * Set how job classes are loaded; default {@link DefaultClassLoadHelper}.
+     * Set the application's class loader: it loads job classes and is the context class loader of
+     * the scheduler's threads and of every job execution. Default: the thread context class loader
+     * of the thread that builds the scheduler.
      *
-     * @param classLoadHelper the class load helper
+     * @param classLoader the class loader
      * @return this builder
      */
-    public Builder classLoadHelper(ClassLoadHelper classLoadHelper) {
-      this.classLoadHelper = classLoadHelper;
+    public Builder classLoader(ClassLoader classLoader) {
+      this.classLoader = Objects.requireNonNull(classLoader, "classLoader");
       return this;
     }
 
@@ -484,8 +477,8 @@ public class StdSchedulerFactory implements SchedulerFactory {
     }
 
     /**
-     * Adds a plugin; {@code name} is passed to {@link SchedulerPlugin#initialize(String, Scheduler,
-     * ClassLoadHelper)}. Plugins are initialized in the order they were added.
+     * Adds a plugin; {@code name} is passed to {@link SchedulerPlugin#initialize(String,
+     * Scheduler)}. Plugins are initialized in the order they were added.
      */
     public Builder plugin(String name, SchedulerPlugin plugin) {
       Objects.requireNonNull(name, "name");

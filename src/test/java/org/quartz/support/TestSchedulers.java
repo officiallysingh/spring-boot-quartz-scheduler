@@ -39,10 +39,7 @@ public final class TestSchedulers {
   }
 
   public static ThreadPoolSettings threadPool(int threadCount) {
-    return ThreadPoolSettings.builder()
-        .threadCount(threadCount)
-        .threadsInheritContextClassLoaderOfInitializingThread(false)
-        .build();
+    return ThreadPoolSettings.builder().threadCount(threadCount).build();
   }
 
   public static final String DATABASE = "test";
