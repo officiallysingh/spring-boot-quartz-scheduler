@@ -39,7 +39,6 @@ import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.JobPersistenceException;
 import org.quartz.Scheduler;
-import org.quartz.SchedulerFactory;
 import org.quartz.SimpleTrigger;
 import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.impl.config.JobStoreSettings;
@@ -63,7 +62,7 @@ class QTZ336_MissSchedulingChangeSignalIT extends AbstractMongoIT {
   void simpleScheduleAlwaysFiredUnder20s() throws Exception {
     // Use a custom job store to produce context switches leading to the race condition
     SlowMongoJobStore jobStore = new SlowMongoJobStore();
-    SchedulerFactory sf = StdSchedulerFactory.builder().jobStore(jobStore).build();
+    StdSchedulerFactory sf = StdSchedulerFactory.builder().jobStore(jobStore).build();
     Scheduler sched = sf.getScheduler();
     LOG.info("------- Initialization Complete -----------");
 

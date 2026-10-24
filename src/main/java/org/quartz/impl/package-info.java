@@ -13,7 +13,7 @@
  */
 
 /**
- * Implementations of the {@code SchedulerFactory}, {@code JobDetail}, {@code JobExecutionContext}
+ * The scheduler factory and the implementations of {@code JobDetail}, {@code JobExecutionContext}
  * and other interfaces required by {@link org.quartz.core.QuartzScheduler}.
  */
 @NullMarked

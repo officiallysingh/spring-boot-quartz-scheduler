@@ -36,10 +36,10 @@ import org.quartz.utils.Key;
  * executing <code>Job</code> s when their associated <code>Trigger</code> s fire (when their
  * scheduled time arrives).
  *
- * <p><code>Scheduler</code> instances are produced by a <code>{@link SchedulerFactory}</code>. A
- * scheduler that has already been created/initialized can be found and used through the same
- * factory that produced it. After a <code>Scheduler</code> has been created, it is in "stand-by"
- * mode, and must have its <code>start()</code> method called before it will fire any <code>Job
+ * <p>In a Spring Boot application the <code>Scheduler</code> is a bean, created by {@link
+ * org.quartz.spring.SchedulerFactoryBean}. After a <code>Scheduler</code> has been created, it is
+ * in "stand-by" mode, and must have its <code>start()</code> method called before it will fire any
+ * <code>Job
  * </code>s.
  *
  * <p><code>Job</code> s are to be created by the 'client program', by defining a class that

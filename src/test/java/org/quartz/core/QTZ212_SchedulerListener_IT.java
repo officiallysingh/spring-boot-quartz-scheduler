@@ -23,8 +23,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
-import org.quartz.SchedulerFactory;
 import org.quartz.SchedulerListener;
+import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.listeners.BroadcastSchedulerListener;
 import org.quartz.listeners.SchedulerListenerSupport;
 import org.quartz.support.AbstractMongoIT;
@@ -43,7 +43,7 @@ class QTZ212_SchedulerListener_IT extends AbstractMongoIT {
 
   @Test
   void stdSchedulerCallsStartingBeforeStartedTest() throws SchedulerException {
-    SchedulerFactory sf = TestSchedulers.factory(TestSchedulers.scheduler(), 1).build();
+    StdSchedulerFactory sf = TestSchedulers.factory(TestSchedulers.scheduler(), 1).build();
     Scheduler sched = sf.getScheduler();
     sched.getListenerManager().addSchedulerListener(new TestSchedulerListener());
     sched.start();
@@ -59,7 +59,7 @@ class QTZ212_SchedulerListener_IT extends AbstractMongoIT {
       throws SchedulerException {
 
     methodsCalledInSchedulerListener = new ArrayList<String>();
-    SchedulerFactory sf = TestSchedulers.factory(TestSchedulers.scheduler(), 1).build();
+    StdSchedulerFactory sf = TestSchedulers.factory(TestSchedulers.scheduler(), 1).build();
     Scheduler sched = sf.getScheduler();
     List<SchedulerListener> listeners = new ArrayList<SchedulerListener>();
     listeners.add(new TestSchedulerListener());

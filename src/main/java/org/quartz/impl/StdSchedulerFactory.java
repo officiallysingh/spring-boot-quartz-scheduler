@@ -29,7 +29,6 @@ import org.quartz.JobListener;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerConfigException;
 import org.quartz.SchedulerException;
-import org.quartz.SchedulerFactory;
 import org.quartz.TriggerListener;
 import org.quartz.core.JobRunShellFactory;
 import org.quartz.core.QuartzScheduler;
@@ -78,7 +77,7 @@ import org.springframework.util.ClassUtils;
  * @author Anthony Eden
  * @author Mohammad Rezaei
  */
-public class StdSchedulerFactory implements SchedulerFactory {
+public class StdSchedulerFactory {
 
   private final QuartzSettings settings;
 
@@ -309,7 +308,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
    * Returns the scheduler produced by this factory, creating it on the first call and again after
    * it has been shut down.
    */
-  @Override
   public synchronized Scheduler getScheduler() throws SchedulerException {
     Scheduler current = this.scheduler;
     if (current == null || current.isShutdown()) {

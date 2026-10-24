@@ -21,7 +21,6 @@ import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.quartz.Scheduler;
-import org.quartz.SchedulerFactory;
 import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.impl.config.SchedulerSettings;
 import org.quartz.support.AbstractMongoIT;
@@ -41,7 +40,7 @@ public class QuartzMongoTestSupport extends AbstractMongoIT {
 
   @BeforeEach
   public void initSchedulerBeforeTest() throws Exception {
-    SchedulerFactory sf = createSchedulerFactory();
+    StdSchedulerFactory sf = createSchedulerFactory();
     scheduler = sf.getScheduler();
     afterSchedulerInit();
   }
@@ -52,7 +51,7 @@ public class QuartzMongoTestSupport extends AbstractMongoIT {
     LOG.info("Scheduler started.");
   }
 
-  protected SchedulerFactory createSchedulerFactory() {
+  protected StdSchedulerFactory createSchedulerFactory() {
     return StdSchedulerFactory.builder()
         .scheduler(SchedulerSettings.builder().name("TestScheduler").instanceIdAuto(true).build())
         .threadPool(TestSchedulers.threadPool(12))

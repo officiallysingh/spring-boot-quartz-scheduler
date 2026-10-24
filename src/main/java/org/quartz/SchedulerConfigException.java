@@ -19,8 +19,8 @@
 package org.quartz;
 
 /**
- * An exception that is thrown to indicate that there is a misconfiguration of the <code>
- * SchedulerFactory</code>- or one of the components it configures.
+ * An exception that is thrown to indicate that the scheduler, or one of the components it is built
+ * from, is misconfigured.
  *
  * @author James House
  */

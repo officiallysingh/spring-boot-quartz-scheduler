@@ -24,7 +24,6 @@ import java.util.concurrent.Executor;
 import org.jspecify.annotations.Nullable;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
-import org.quartz.SchedulerFactory;
 import org.quartz.core.JobRunShellFactory;
 import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.impl.config.QuartzSettings;
@@ -79,7 +78,6 @@ import org.springframework.util.Assert;
  * @author Juergen Hoeller
  * @since 18.02.2004
  * @see org.quartz.Scheduler
- * @see org.quartz.SchedulerFactory
  * @see org.quartz.impl.StdSchedulerFactory
  */
 public class SchedulerFactoryBean extends SchedulerAccessor
@@ -91,8 +89,6 @@ public class SchedulerFactoryBean extends SchedulerAccessor
         DisposableBean,
         SmartLifecycle,
         ApplicationListener<ContextClosedEvent> {
-
-  private @Nullable SchedulerFactory schedulerFactory;
 
   private @Nullable String schedulerName;
 
@@ -141,27 +137,12 @@ public class SchedulerFactoryBean extends SchedulerAccessor
   private @Nullable Scheduler scheduler;
 
   /**
-   * Set an external Quartz {@link SchedulerFactory} instance to use.
-   *
-   * <p>Default is an internal {@link StdSchedulerFactory} built from the settings and collaborators
-   * configured on this bean. If this method is called, those local settings are ignored, expecting
-   * the external {@code SchedulerFactory} instance to be configured on its own.
-   *
-   * @since 4.3.15
-   */
-  public void setSchedulerFactory(SchedulerFactory schedulerFactory) {
-    this.schedulerFactory = schedulerFactory;
-  }
-
-  /**
    * Set the name of the Scheduler to create.
    *
    * <p>If not specified, the name will be taken from the {@link #setSettings settings} (if given),
    * or from the declared {@code SchedulerFactoryBean} bean name as a fallback.
    *
    * @see #setBeanName
-   * @see org.quartz.SchedulerFactory#getScheduler()
-   * @see org.quartz.SchedulerFactory#getScheduler(String)
    */
   public void setSchedulerName(String schedulerName) {
     this.schedulerName = schedulerName;
@@ -428,16 +409,11 @@ public class SchedulerFactoryBean extends SchedulerAccessor
   }
 
   /**
-   * Create the SchedulerFactory if necessary, applying the locally defined settings and
-   * collaborators to it.
+   * Create the factory of the scheduler from the settings and collaborators of this bean.
    *
-   * @return the SchedulerFactory to obtain the Scheduler from
+   * @return the factory to obtain the Scheduler from
    */
-  private SchedulerFactory prepareSchedulerFactory() {
-    if (this.schedulerFactory != null) {
-      // Assume that externally provided factory has been initialized with appropriate settings
-      return this.schedulerFactory;
-    }
+  private StdSchedulerFactory prepareSchedulerFactory() {
     Assert.state(
         this.taskExecutor == null || this.threadPool == null,
         "Specify either a 'taskExecutor' or a 'threadPool', not both");
@@ -515,9 +491,9 @@ public class SchedulerFactoryBean extends SchedulerAccessor
     return this.beanName;
   }
 
-  private Scheduler prepareScheduler(SchedulerFactory schedulerFactory) throws SchedulerException {
-    // Get Scheduler instance from SchedulerFactory.
-    Scheduler scheduler = createScheduler(schedulerFactory, this.schedulerName);
+  private Scheduler prepareScheduler(StdSchedulerFactory schedulerFactory)
+      throws SchedulerException {
+    Scheduler scheduler = schedulerFactory.getScheduler();
     populateSchedulerContext(scheduler);
 
     if (!this.jobFactorySet) {
@@ -536,26 +512,6 @@ public class SchedulerFactoryBean extends SchedulerAccessor
       scheduler.setJobFactory(this.jobFactory);
     }
     return scheduler;
-  }
-
-  /**
-   * Create the Scheduler instance for the given factory and scheduler name. Called by {@link
-   * #afterPropertiesSet}.
-   *
-   * <p>The default implementation invokes SchedulerFactory's {@code getScheduler} method. Can be
-   * overridden for custom Scheduler creation.
-   *
-   * @param schedulerFactory the factory to create the Scheduler with
-   * @param schedulerName the name of the scheduler to create
-   * @return the Scheduler instance
-   * @throws SchedulerException if thrown by Quartz methods
-   * @see #afterPropertiesSet
-   * @see org.quartz.SchedulerFactory#getScheduler
-   */
-  protected Scheduler createScheduler(
-      SchedulerFactory schedulerFactory, @Nullable String schedulerName) throws SchedulerException {
-
-    return schedulerFactory.getScheduler();
   }
 
   /**
