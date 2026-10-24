@@ -244,7 +244,6 @@ public class SchedulerFactoryBean extends SchedulerAccessor
    *
    * @param schedulerContextAsMap a Map with String keys and any objects as values (for example
    *     Spring-managed beans)
-   * @see JobDetailFactoryBean#setJobDataAsMap
    */
   public void setSchedulerContextAsMap(Map<String, ?> schedulerContextAsMap) {
     this.schedulerContextMap = schedulerContextAsMap;
@@ -266,7 +265,6 @@ public class SchedulerFactoryBean extends SchedulerAccessor
    * applied to Quartz Job instances, because Quartz itself is responsible for the lifecycle of its
    * Jobs.
    *
-   * @see JobDetailFactoryBean#setApplicationContextJobDataKey
    * @see org.springframework.context.ApplicationContext
    */
   public void setApplicationContextSchedulerContextKey(

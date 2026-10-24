@@ -30,12 +30,16 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.quartz.Job;
+import org.quartz.JobBuilder;
+import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.SchedulerMetaData;
+import org.quartz.SimpleScheduleBuilder;
 import org.quartz.SimpleTrigger;
+import org.quartz.TriggerBuilder;
 import org.quartz.impl.calendar.WeeklyCalendar;
 import org.quartz.impl.config.QuartzSettings;
 import org.quartz.impl.config.SchedulerSettings;
@@ -112,21 +116,36 @@ class SchedulerFactoryBeanIT extends AbstractMongoIT {
     context.close();
   }
 
-  private static SimpleTrigger fireOnceTrigger(
-      String name, Class<?> jobClass, Map<String, ?> jobData) {
-    JobDetailFactoryBean job = new JobDetailFactoryBean();
-    job.setBeanName(name + "Job");
-    @SuppressWarnings("unchecked")
-    Class<? extends Job> type = (Class<? extends Job>) jobClass;
-    job.setJobClass(type);
-    job.setJobDataAsMap(jobData);
-    job.afterPropertiesSet();
-    SimpleTriggerFactoryBean trigger = new SimpleTriggerFactoryBean();
-    trigger.setBeanName(name + "Trigger");
-    trigger.setJobDetail(job.getObject());
-    trigger.setRepeatCount(0);
-    trigger.afterPropertiesSet();
-    return trigger.getObject();
+  /** A durable job and a trigger that fires it once, now. */
+  private record FireOnce(JobDetail job, SimpleTrigger trigger) {}
+
+  private static FireOnce fireOnce(
+      String name, Class<? extends Job> jobClass, Map<String, ?> jobData) {
+    JobDetail job =
+        JobBuilder.newJob(jobClass)
+            .withIdentity(name + "Job")
+            .usingJobData(new JobDataMap(jobData))
+            .storeDurably()
+            .build();
+    SimpleTrigger trigger =
+        TriggerBuilder.newTrigger()
+            .withIdentity(name + "Trigger")
+            .forJob(job)
+            .startNow()
+            .withSchedule(SimpleScheduleBuilder.simpleSchedule())
+            .build();
+    return new FireOnce(job, trigger);
+  }
+
+  /** Registers a job with the factory bean, and a trigger that fires it once, now. */
+  private static void scheduleOnce(
+      SchedulerFactoryBean bean,
+      String name,
+      Class<? extends Job> jobClass,
+      Map<String, ?> jobData) {
+    FireOnce fireOnce = fireOnce(name, jobClass, jobData);
+    bean.setJobDetails(fireOnce.job());
+    bean.setTriggers(fireOnce.trigger());
   }
 
   private SchedulerFactoryBean newFactoryBean(String beanName) {
@@ -145,8 +164,7 @@ class SchedulerFactoryBeanIT extends AbstractMongoIT {
   void springBeanJobFactoryAutowiresJobsAndAppliesJobData() throws Exception {
     factoryBean = newFactoryBean("autowiring");
     factoryBean.setJobFactory(new SpringBeanJobFactory());
-    factoryBean.setTriggers(
-        fireOnceTrigger("greeting", AutowiredJob.class, Map.of("name", "quartz")));
+    scheduleOnce(factoryBean, "greeting", AutowiredJob.class, Map.of("name", "quartz"));
     factoryBean.afterPropertiesSet();
     factoryBean.start();
 
@@ -234,8 +252,7 @@ class SchedulerFactoryBeanIT extends AbstractMongoIT {
       factoryBean = newFactoryBean("executor");
       factoryBean.setTaskExecutor(executor);
       factoryBean.setJobFactory(new SpringBeanJobFactory());
-      factoryBean.setTriggers(
-          fireOnceTrigger("executor", AutowiredJob.class, Map.of("name", "pool")));
+      scheduleOnce(factoryBean, "executor", AutowiredJob.class, Map.of("name", "pool"));
       factoryBean.afterPropertiesSet();
       factoryBean.start();
 
@@ -271,7 +288,7 @@ class SchedulerFactoryBeanIT extends AbstractMongoIT {
       factoryBean = newFactoryBean("executorShutdown");
       factoryBean.setTaskExecutor(executor);
       factoryBean.setWaitForJobsToCompleteOnShutdown(true);
-      factoryBean.setTriggers(fireOnceTrigger("blocking", BlockingJob.class, Map.of()));
+      scheduleOnce(factoryBean, "blocking", BlockingJob.class, Map.of());
       factoryBean.afterPropertiesSet();
       factoryBean.start();
       await().atMost(Duration.ofSeconds(10)).until(() -> RESULTS.contains("started"));
@@ -348,16 +365,13 @@ class SchedulerFactoryBeanIT extends AbstractMongoIT {
 
   @Test
   void jobsCalendarsAndTriggersAreRegistered() throws Exception {
-    JobDetailFactoryBean job = new JobDetailFactoryBean();
-    job.setBeanName("durableJob");
-    job.setJobClass(AutowiredJob.class);
-    job.setDurability(true);
-    job.afterPropertiesSet();
-    JobDetail jobDetail = job.getObject();
-    SimpleTrigger trigger = fireOnceTrigger("registered", AutowiredJob.class, Map.of("name", "x"));
+    JobDetail jobDetail =
+        JobBuilder.newJob(AutowiredJob.class).withIdentity("durableJob").storeDurably().build();
+    FireOnce fireOnce = fireOnce("registered", AutowiredJob.class, Map.of("name", "x"));
+    SimpleTrigger trigger = fireOnce.trigger();
 
     factoryBean = newFactoryBean("registration");
-    factoryBean.setJobDetails(jobDetail);
+    factoryBean.setJobDetails(jobDetail, fireOnce.job());
     factoryBean.setCalendars(Map.of("weekdays", new WeeklyCalendar()));
     factoryBean.setTriggers(trigger);
     factoryBean.afterPropertiesSet();

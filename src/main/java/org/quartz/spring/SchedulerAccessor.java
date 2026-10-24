@@ -16,7 +16,6 @@
 
 package org.quartz.spring;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -85,18 +84,13 @@ public abstract class SchedulerAccessor implements ResourceLoaderAware {
 
   /**
    * Register a list of JobDetail objects with the Scheduler that this FactoryBean creates, to be
-   * referenced by Triggers.
-   *
-   * <p>This is not necessary when a Trigger determines the JobDetail itself: In this case, the
-   * JobDetail will be implicitly registered in combination with the Trigger.
+   * referenced by Triggers. A job without a trigger must be durable.
    *
    * @see #setTriggers
    * @see org.quartz.JobDetail
    */
   public void setJobDetails(JobDetail... jobDetails) {
-    // Use modifiable ArrayList here, to allow for further adding of
-    // JobDetail objects during autodetection of JobDetail-aware Triggers.
-    this.jobDetails = new ArrayList<>(Arrays.asList(jobDetails));
+    this.jobDetails = Arrays.asList(jobDetails);
   }
 
   /**
@@ -113,9 +107,8 @@ public abstract class SchedulerAccessor implements ResourceLoaderAware {
   /**
    * Register a list of Trigger objects with the Scheduler that this FactoryBean creates.
    *
-   * <p>If the Trigger determines the corresponding JobDetail itself, the job will be automatically
-   * registered with the Scheduler. Else, the respective JobDetail needs to be registered via the
-   * "jobDetails" property of this FactoryBean.
+   * <p>The job a trigger fires must be stored already, or be registered via the "jobDetails"
+   * property of this FactoryBean.
    *
    * @see #setJobDetails
    * @see org.quartz.JobDetail
@@ -173,9 +166,6 @@ public abstract class SchedulerAccessor implements ResourceLoaderAware {
         for (JobDetail jobDetail : this.jobDetails) {
           addJobToScheduler(jobDetail);
         }
-      } else {
-        // Create empty list for easier checks when registering triggers.
-        this.jobDetails = new ArrayList<>();
       }
 
       // Register Calendars.
@@ -248,15 +238,7 @@ public abstract class SchedulerAccessor implements ResourceLoaderAware {
       return false;
     }
 
-    // Check if the Trigger is aware of an associated JobDetail.
-    JobDetail jobDetail = (JobDetail) trigger.getJobDataMap().remove("jobDetail");
     if (triggerExists) {
-      if (jobDetail != null
-          && this.jobDetails != null
-          && !this.jobDetails.contains(jobDetail)
-          && addJobToScheduler(jobDetail)) {
-        this.jobDetails.add(jobDetail);
-      }
       try {
         getScheduler().rescheduleJob(trigger.getKey(), trigger);
       } catch (ObjectAlreadyExistsException ex) {
@@ -270,16 +252,7 @@ public abstract class SchedulerAccessor implements ResourceLoaderAware {
       }
     } else {
       try {
-        if (jobDetail != null
-            && this.jobDetails != null
-            && !this.jobDetails.contains(jobDetail)
-            && (this.overwriteExistingJobs
-                || getScheduler().getJobDetail(jobDetail.getKey()) == null)) {
-          getScheduler().scheduleJob(jobDetail, trigger);
-          this.jobDetails.add(jobDetail);
-        } else {
-          getScheduler().scheduleJob(trigger);
-        }
+        getScheduler().scheduleJob(trigger);
       } catch (ObjectAlreadyExistsException ex) {
         if (logger.isDebugEnabled()) {
           logger.debug(
