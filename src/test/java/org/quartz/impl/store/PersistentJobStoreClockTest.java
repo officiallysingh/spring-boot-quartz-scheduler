@@ -32,7 +32,7 @@ import org.quartz.JobKey;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.impl.config.JobStoreSettings;
-import org.quartz.simpl.CascadingClassLoadHelper;
+import org.quartz.simpl.DefaultClassLoadHelper;
 import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.SchedulerSignaler;
 import org.quartz.support.MutableClock;
@@ -59,7 +59,7 @@ class PersistentJobStoreClockTest {
             JobStoreSettings.builder().misfireThreshold(Duration.ofSeconds(5)).build());
     store.setInstanceName("ClockTest");
     store.setInstanceId("NON_CLUSTERED");
-    CascadingClassLoadHelper loadHelper = new CascadingClassLoadHelper();
+    DefaultClassLoadHelper loadHelper = new DefaultClassLoadHelper();
     loadHelper.initialize();
     store.initialize(loadHelper, new ClockSignaler());
   }

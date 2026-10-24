@@ -47,7 +47,7 @@ import org.quartz.impl.config.SchedulerSettings;
 import org.quartz.impl.config.ThreadPoolSettings;
 import org.quartz.impl.store.PersistentJobStore;
 import org.quartz.impl.store.SchedulerStateRecord;
-import org.quartz.simpl.CascadingClassLoadHelper;
+import org.quartz.simpl.DefaultClassLoadHelper;
 import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.JobStore;
 
@@ -154,7 +154,7 @@ public abstract class AbstractClusteredJobStoreContractTest {
         "store-level cluster checks need a PersistentJobStore");
     store.setInstanceName(SCHED_NAME);
     store.setInstanceId(instanceId);
-    ClassLoadHelper loadHelper = new CascadingClassLoadHelper();
+    ClassLoadHelper loadHelper = new DefaultClassLoadHelper();
     loadHelper.initialize();
     store.initialize(
         loadHelper, new org.quartz.store.AbstractJobStoreContractTest.SampleSignaler());

@@ -38,7 +38,7 @@ import org.quartz.TimeOfDay;
 import org.quartz.TriggerBuilder;
 import org.quartz.impl.calendar.AnnualCalendar;
 import org.quartz.impl.triggers.SimpleTriggerImpl;
-import org.quartz.simpl.CascadingClassLoadHelper;
+import org.quartz.simpl.DefaultClassLoadHelper;
 import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.OperableTrigger;
 
@@ -58,7 +58,7 @@ class CodecsTest {
   private final ClassLoadHelper loadHelper = loadHelper();
 
   private static ClassLoadHelper loadHelper() {
-    ClassLoadHelper helper = new CascadingClassLoadHelper();
+    ClassLoadHelper helper = new DefaultClassLoadHelper();
     helper.initialize();
     return helper;
   }

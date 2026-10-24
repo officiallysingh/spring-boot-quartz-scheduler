@@ -40,7 +40,7 @@ import org.quartz.impl.config.QuartzSettings;
 import org.quartz.impl.config.SchedulerSettings;
 import org.quartz.impl.config.ThreadPoolSettings;
 import org.quartz.impl.matchers.EverythingMatcher;
-import org.quartz.simpl.CascadingClassLoadHelper;
+import org.quartz.simpl.DefaultClassLoadHelper;
 import org.quartz.simpl.SimpleInstanceIdGenerator;
 import org.quartz.simpl.SimpleThreadPool;
 import org.quartz.simpl.VirtualThreadPool;
@@ -162,7 +162,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
     SchedulerRepository schedRep = SchedulerRepository.getInstance();
 
     ClassLoadHelper loadHelper =
-        classLoadHelper != null ? classLoadHelper : new CascadingClassLoadHelper();
+        classLoadHelper != null ? classLoadHelper : new DefaultClassLoadHelper();
     loadHelper.initialize();
 
     ThreadPool tp = threadPool != null ? threadPool : createThreadPool(settings.threadPool());
@@ -364,8 +364,8 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
   /**
    * Builds a {@link StdSchedulerFactory}. Everything not set falls back to its default: {@link
-   * QuartzSettings#defaults()}, a {@link SimpleThreadPool} and in-memory job store configured from
-   * the settings, {@link CascadingClassLoadHelper}, {@link SimpleInstanceIdGenerator}, {@link
+   * QuartzSettings#defaults()}, a {@link SimpleThreadPool} configured from the settings (a job
+   * store must be set), {@link DefaultClassLoadHelper}, {@link SimpleInstanceIdGenerator}, {@link
    * DefaultThreadExecutor}, the scheduler's default job factory, {@link StdJobRunShellFactory} and
    * {@link Clock#systemUTC()}.
    */
@@ -462,7 +462,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
     }
 
     /**
-     * Set how job classes are loaded; default {@link CascadingClassLoadHelper}.
+     * Set how job classes are loaded; default {@link DefaultClassLoadHelper}.
      *
      * @param classLoadHelper the class load helper
      * @return this builder
