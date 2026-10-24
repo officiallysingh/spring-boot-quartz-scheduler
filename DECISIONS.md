@@ -470,3 +470,19 @@ Found investigating an intermittent `SampleApplicationIT` failure (Redis, cluste
 **Fix.** `PersistentJobStore#acquireNextTriggersInternal` writes the fired-trigger record first, then changes the state, and deletes the record if another instance won the trigger. Stopping between the two writes now leaves a record for a trigger still `WAITING` (recovery deletes it) or a recorded `ACQUIRED` trigger (recovery frees it). Recovery frees an `ACQUIRED` trigger only when no other instance has a fired-trigger record for it: since every instance records before it acquires, a trigger a live instance holds always has that instance's record, and a record left behind (for example by an interrupted clean-up after losing the trigger) cannot make recovery take a trigger away from its holder. Acquisitions that lose a contended trigger now cost an extra insert and delete.
 
 **Test.** `RedisClusteredJobStoreIT#aTriggerWhoseAcquisitionWasCutShortIsFreedWhenTheNodeFails` makes a node's store apply the `ACQUIRED` state change and then fail (as the interrupted command did), lets the node die, and expects the other node to acquire the trigger after recovery. It fails without the fix (the trigger is never freed) and passes with it.
+
+## D-035 — Clean-up of what the finished library no longer needs
+
+Requested after the documentation rewrite; the user approved every group below.
+
+**Files.** `REFACTOR_PLAN.md` and `INVENTORY.md` are removed: they planned the refactor, which is done (git keeps them; earlier entries still name them as history). The `JobDataMap-{1.4.5,1.5.1,2.1}.ser` fixtures are removed: they checked that job data written by Quartz 1.4.5-2.1 still loads, but this library only reads data it wrote itself. `SerializationTestSupport` keeps the round trip and loses the version mechanism and the fixture writers. `.claude/settings.local.json` is no longer tracked (personal settings).
+
+**Dead code.** `ZeroSizeThreadPool` (for schedulers used only remotely, RMI is gone) and `SimpleThreadPoolTaskExecutor` (used nowhere, and it bypassed the capacity reporting of D-023/D-031).
+
+**Deprecated API.** `StatefulJob` (use `@DisallowConcurrentExecution` and `@PersistJobDataAfterExecution`), the `JobDetailImpl` and `SimpleTriggerImpl` constructors that take arguments (use `JobBuilder` / `TriggerBuilder`), and `CronExpression#clone`: `CronExpression` is no longer `Cloneable`, the copy constructor remains. The recovery trigger in `PersistentJobStore` is set up through setters.
+
+**Redundant API.** `JobDetailFactoryBean`, `CronTriggerFactoryBean` and `SimpleTriggerFactoryBean`, from Spring's XML configuration era: `@Bean` methods with the builders replace them. With them goes `SchedulerAccessor`'s lookup of a `JobDetail` in a trigger's job data (only these factory beans put one there): a trigger's job is registered through `setJobDetails` and must be durable, as the auto-configuration already required. `FactoryBeansTest` is deleted with the classes it tested.
+
+**Class loading.** `CascadingClassLoadHelper` and the four helpers it tried in turn (`LoadingLoader…`, `Simple…`, `ThreadContext…`, `InitThreadContextClassLoadHelper`) are replaced by `DefaultClassLoadHelper`: the context class loader of the thread that initializes the scheduler, falling back to the library's class loader. The cascade's other strategies were app-server workarounds (`SimpleClassLoadHelper` reflected on `ClassLoader#getCallerClassLoader`, absent from current JDKs). Inside an application context `ResourceLoaderClassLoadHelper` is used, as before.
+
+**Kept** although nothing in the library calls them: calendars, matchers, the `Broadcast*` listeners, `JobChainingJobListener` and the listener adapters, which are public API for applications.
