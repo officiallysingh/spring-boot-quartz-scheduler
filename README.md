@@ -76,7 +76,8 @@ everything, from the thread pool to the store, is configured through typed `spri
 
 ## Installation
 
-> **Current version: 1.0.0-rc1**
+> **Current version: 1.0.0-rc1**, available from
+> [Maven Central](https://central.sonatype.com/artifact/com.neolama/spring-boot-quartz-scheduler).
 
 Add the library and the Spring Boot starter of the store you use to your application.
 
