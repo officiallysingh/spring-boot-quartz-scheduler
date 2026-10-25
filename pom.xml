@@ -21,7 +21,7 @@
 
     <groupId>com.neolama</groupId>
     <artifactId>spring-boot-quartz-scheduler</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>1.0.0-rc1</version>
     <packaging>jar</packaging>
 
     <name>spring-boot-quartz-scheduler</name>
@@ -47,14 +47,14 @@
 
     <properties>
         <java.version>25</java.version>
-        <spring-boot.version>4.1.1</spring-boot.version>
+        <spring-boot.version>4.1.2</spring-boot.version>
 
         <scm.connection>scm:git:git@github.com:officiallysingh/spring-boot-quartz-scheduler.git</scm.connection>
-        <central-publishing-maven-plugin.version>0.11.0</central-publishing-maven-plugin.version>
+        <central-publishing-maven-plugin.version>0.12.0</central-publishing-maven-plugin.version>
 
         <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
         <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
-        <maven-dependency-plugin.version>3.9.0</maven-dependency-plugin.version>
+        <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
         <maven-failsafe-plugin.version>3.6.0</maven-failsafe-plugin.version>
         <maven-install-plugin.version>3.2.0</maven-install-plugin.version>
         <maven-surefire-plugin.version>3.6.0</maven-surefire-plugin.version>
@@ -68,8 +68,8 @@
         <maven-deploy-plugin.version>3.2.0</maven-deploy-plugin.version>
 
         <fmt-maven-plugin.version>2.29</fmt-maven-plugin.version>
-        <error-prone.version>2.50.0</error-prone.version>
-        <nullaway.version>0.14.2</nullaway.version>
+        <error-prone.version>2.51.0</error-prone.version>
+        <nullaway.version>0.14.3</nullaway.version>
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
