@@ -26,6 +26,7 @@
 
     <name>spring-boot-quartz-scheduler</name>
     <description>Quartz scheduler for Spring Boot 4 with MongoDB and Redis job stores</description>
+    <url>https://github.com/officiallysingh/spring-boot-quartz-scheduler</url>
 
     <licenses>
         <license>
