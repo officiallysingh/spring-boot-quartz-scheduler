@@ -1,9 +1,10 @@
 [![Java](https://img.shields.io/badge/java-25-blue.svg)](https://www.oracle.com/java/technologies/)
-[![Spring Boot](https://img.shields.io/badge/spring_boot-4.1.1-blue.svg)](https://spring.io/projects/spring-boot)
+[![Spring Boot](https://img.shields.io/badge/spring_boot-4.1.2-blue.svg)](https://spring.io/projects/spring-boot)
 [![Quartz Scheduler](https://img.shields.io/badge/quartz-scheduler-blue.svg)](https://www.quartz-scheduler.org/)
 [![Maven](https://img.shields.io/badge/maven-3.9.x-blue.svg)](https://maven.apache.org/)
 [![Docker](https://img.shields.io/badge/docker-compose-blue.svg)](https://www.docker.com/)
 [![Test Containers](https://img.shields.io/badge/testcontainers-2.0.5-blue.svg)](https://testcontainers.com/)
+[![Javadoc](https://javadoc.io/badge2/com.neolama/spring-boot-quartz-scheduler/javadoc.svg)](https://javadoc.io/doc/com.neolama/spring-boot-quartz-scheduler)
 
 # Spring Boot Quartz Scheduler
 
