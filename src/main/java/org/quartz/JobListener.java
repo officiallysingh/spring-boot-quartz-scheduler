@@ -70,6 +70,12 @@ public interface JobListener {
    * Called by the <code>{@link Scheduler}</code> after a <code>{@link org.quartz.JobDetail}</code>
    * has been executed, and be for the associated <code>Trigger</code>'s <code>triggered(xx)</code>
    * method has been called.
+   *
+   * @param context the execution
+   * @param jobException {@code null} if the job completed normally; the {@link
+   *     JobExecutionException} the job threw, unchanged; or, if the job threw anything else, a
+   *     {@code JobExecutionException} whose {@linkplain Throwable#getCause() cause} is exactly what
+   *     the job threw and whose message names the job and that throwable's class and message
    */
   void jobWasExecuted(JobExecutionContext context, @Nullable JobExecutionException jobException);
 }
