@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.quartz.*;
 
 /**
- * A integration test for Quartz In-Memory Scheduler with Cron Trigger.
+ * An integration test of a scheduler on the MongoDB store with a cron trigger.
  *
  * @author Zemian Deng
  */

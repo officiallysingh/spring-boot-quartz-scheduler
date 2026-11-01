@@ -346,8 +346,8 @@ scheduler thread interrupted at shutdown must still give its lease back.
   written in another format is dropped and re-created. Tested on a
   client with a hostile registry by [`MongoStorageFormatIT`](src/test/java/org/quartz/impl/mongodb/MongoStorageFormatIT.java).
 - **Queries:** [`MongoStoreDelegate.selectTriggers()`](src/main/java/org/quartz/impl/mongodb/MongoStoreDelegate.java#L538) and [`MongoStoreDelegate.selectJobDetails()`](src/main/java/org/quartz/impl/mongodb/MongoStoreDelegate.java#L379) answer a page with one `find` and one
-  `countDocuments`, sorted like [`StoreQueries.triggerOrder()`](src/main/java/org/quartz/impl/store/StoreQueries.java#L51) (missing fields first, ties by group and name); the other
-  stores use the [`StoreDelegate`](src/main/java/org/quartz/impl/store/StoreDelegate.java) defaults, which read every matching trigger and sort in memory.
+  `countDocuments`, sorted like [`StoreQueries.triggerOrder()`](src/main/java/org/quartz/impl/store/StoreQueries.java#L51) (missing fields first, ties by group and name); the Redis
+  store uses the [`StoreDelegate`](src/main/java/org/quartz/impl/store/StoreDelegate.java) defaults, which read the matching triggers' states and sort in memory.
 
 ### 5.6 Redis store
 

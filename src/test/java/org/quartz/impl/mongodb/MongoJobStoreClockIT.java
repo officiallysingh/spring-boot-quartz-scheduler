@@ -11,7 +11,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package org.quartz.impl.store;
+package org.quartz.impl.mongodb;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.quartz.JobBuilder.newJob;
@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.quartz.Job;
@@ -32,17 +33,20 @@ import org.quartz.JobKey;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.impl.config.JobStoreSettings;
+import org.quartz.impl.store.PersistentJobStore;
 import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.SchedulerSignaler;
 import org.quartz.spi.TriggerFiredBundle;
+import org.quartz.support.AbstractMongoIT;
 import org.quartz.support.MutableClock;
+import org.quartz.support.TestSchedulers;
 
 /**
- * Misfire detection in {@link PersistentJobStore} uses the scheduler's {@link Clock} (via the
- * signaler), so it is deterministic: nothing here depends on the wall clock. Runs the engine over
- * the in-memory test delegate; the misfire pass the handler thread would run is called directly.
+ * The MongoDB store takes scheduling time from the scheduler's {@link Clock} (via the signaler):
+ * misfire detection and firing are deterministic, nothing here depends on the wall clock. The
+ * misfire pass the handler thread would run is called directly.
  */
-class PersistentJobStoreClockTest {
+class MongoJobStoreClockIT extends AbstractMongoIT {
 
   private static final Instant T0 = Instant.parse("2030-01-01T00:00:00Z");
 
@@ -53,13 +57,17 @@ class PersistentJobStoreClockTest {
   @BeforeEach
   void setUp() throws SchedulerException {
     store =
-        new TestPersistentJobStore(
-            new InMemoryStoreDelegate.Data(),
+        TestSchedulers.mongoStore(
             JobStoreSettings.builder().misfireThreshold(Duration.ofSeconds(5)).build());
     store.setInstanceName("ClockTest");
     store.setInstanceId("NON_CLUSTERED");
     ClassLoader classLoader = getClass().getClassLoader();
     store.initialize(classLoader, new ClockSignaler());
+  }
+
+  @AfterEach
+  void tearDown() {
+    store.shutdown();
   }
 
   private List<OperableTrigger> acquireAfterMisfirePass(Instant noLaterThan) throws Exception {
