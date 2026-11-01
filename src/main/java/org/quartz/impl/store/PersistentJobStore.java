@@ -1840,9 +1840,8 @@ public abstract class PersistentJobStore implements JobStore {
   /**
    * The scheduler instances using the store. A clustered store lists every check-in record, with
    * {@code alive} computed by the rule that decides cluster recovery ({@link
-   * #isAlive(SchedulerStateRecord, Instant)}); this instance is judged by the plain rule (last
-   * check-in + interval + threshold not past), as the other instances judge it. A non-clustered
-   * store lists only this instance, alive unless the store is shut down.
+   * #isAlive(SchedulerStateRecord, Instant)}). A non-clustered store lists only this instance,
+   * alive unless the store is shut down.
    */
   @Override
   public List<SchedulerInstance> getSchedulerInstances() throws JobPersistenceException {
@@ -1853,24 +1852,13 @@ public abstract class PersistentJobStore implements JobStore {
     Instant now = CHECKIN_CLOCK.instant();
     List<SchedulerInstance> instances = new ArrayList<>();
     for (SchedulerStateRecord record : records) {
-      boolean current = record.instanceId().equals(instanceId);
-      Instant checkin = record.lastCheckin();
-      Duration interval = record.checkinInterval();
-      boolean alive;
-      if (checkin == null) {
-        alive = false;
-      } else if (current) {
-        alive =
-            !checkin
-                .plus((interval != null) ? interval : settings.clusterCheckinInterval())
-                .plus(settings.clusterCheckinMisfireThreshold())
-                .isBefore(now);
-      } else {
-        alive = isAlive(record, now);
-      }
       instances.add(
           new SchedulerInstance(
-              record.instanceId(), record.lastCheckin(), record.checkinInterval(), alive, current));
+              record.instanceId(),
+              record.lastCheckin(),
+              record.checkinInterval(),
+              isAlive(record, now),
+              record.instanceId().equals(instanceId)));
     }
     return instances;
   }
@@ -1951,23 +1939,26 @@ public abstract class PersistentJobStore implements JobStore {
   }
 
   /**
-   * Whether another instance still counts as running: its last check-in plus its check-in interval
-   * (or the time since this instance's own last check-in, if longer: a stalled instance must not
-   * declare the others dead) plus the check-in misfire threshold is not before {@code now}. The
-   * rule cluster recovery uses.
+   * Whether an instance still counts as running: its last check-in plus its check-in interval plus
+   * the check-in misfire threshold is not before {@code now}. When judging another instance, the
+   * interval is stretched to the time since this instance's own last check-in, if that is longer: a
+   * stalled instance must not declare the others dead. The one rule for cluster recovery and {@link
+   * #getSchedulerInstances()}.
    */
   private boolean isAlive(SchedulerStateRecord record, Instant now) {
-    return record.lastCheckin() != null && !failedIfAfter(record, now).isBefore(now);
-  }
-
-  private Instant failedIfAfter(SchedulerStateRecord record, Instant now) {
-    Duration sinceOwnCheckin = Duration.between(lastCheckin, now);
+    Instant checkin = record.lastCheckin();
+    if (checkin == null) {
+      return false;
+    }
     Duration interval = record.checkinInterval();
-    Duration window =
-        (interval != null && interval.compareTo(sinceOwnCheckin) > 0) ? interval : sinceOwnCheckin;
-    return Objects.requireNonNull(record.lastCheckin(), "lastCheckin")
-        .plus(window)
-        .plus(settings.clusterCheckinMisfireThreshold());
+    Duration window = (interval != null) ? interval : settings.clusterCheckinInterval();
+    if (!record.instanceId().equals(instanceId)) {
+      Duration sinceOwnCheckin = Duration.between(lastCheckin, now);
+      if (sinceOwnCheckin.compareTo(window) > 0) {
+        window = sinceOwnCheckin;
+      }
+    }
+    return !checkin.plus(window).plus(settings.clusterCheckinMisfireThreshold()).isBefore(now);
   }
 
   private List<SchedulerStateRecord> clusterCheckIn() {
