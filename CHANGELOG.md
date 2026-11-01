@@ -118,8 +118,9 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
   switch to `getSchedulerInstances()` / `getClusterExecutingJobs()`.
 - New `JobExecutionContext.getRecoveryInfo()`: `Optional<RecoveryInfo>` with the original
   trigger, fire instance id, scheduler instance id, fire time and scheduled fire time of the
-  execution a recovery run replaces (empty unless recovering). `RecoveryInfo.of(JobDataMap)`
-  reads the same from job data. The `FAILED_JOB_ORIGINAL_*` job data entries stay strings.
+  execution a recovery run replaces (empty unless recovering); every component is non-null.
+  `RecoveryInfo.of(JobDataMap)` reads the same from job data (empty unless all entries are
+  there). The `FAILED_JOB_ORIGINAL_*` job data entries stay strings.
 
 ### Trigger and job queries
 

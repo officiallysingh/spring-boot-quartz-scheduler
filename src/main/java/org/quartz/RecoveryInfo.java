@@ -27,17 +27,15 @@ import org.jspecify.annotations.Nullable;
  *
  * @param originalTrigger the trigger that fired the interrupted execution
  * @param originalFireInstanceId the interrupted execution's {@link
- *     JobExecutionContext#getFireInstanceId()}; {@code null} for recovery triggers created by
- *     versions before 1.0.0-rc2
- * @param originalSchedulerInstanceId the instance that ran it (the one that failed); {@code null}
- *     for recovery triggers created by versions before 1.0.0-rc2
+ *     JobExecutionContext#getFireInstanceId()}
+ * @param originalSchedulerInstanceId the instance that ran it (the one that failed)
  * @param firedTime when it was fired (its {@link JobExecutionContext#getFireTime()})
  * @param scheduledFireTime the fire time it was scheduled for
  */
 public record RecoveryInfo(
     TriggerKey originalTrigger,
-    @Nullable String originalFireInstanceId,
-    @Nullable String originalSchedulerInstanceId,
+    String originalFireInstanceId,
+    String originalSchedulerInstanceId,
     Instant firedTime,
     Instant scheduledFireTime) {
 
@@ -45,7 +43,7 @@ public record RecoveryInfo(
    * Reads the recovery entries of a recovery trigger's job data.
    *
    * @param data a (merged) job data map
-   * @return the recovery information, or empty if the map does not hold a recovery trigger's
+   * @return the recovery information, or empty if the map does not hold all of a recovery trigger's
    *     entries
    */
   public static Optional<RecoveryInfo> of(JobDataMap data) {
@@ -53,15 +51,21 @@ public record RecoveryInfo(
     String fired = string(data, Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME_IN_MILLISECONDS);
     String scheduled =
         string(data, Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_SCHEDULED_FIRETIME_IN_MILLISECONDS);
-    if (name == null || fired == null || scheduled == null) {
+    String fireInstanceId = string(data, Scheduler.FAILED_JOB_ORIGINAL_FIRE_INSTANCE_ID);
+    String schedulerInstanceId = string(data, Scheduler.FAILED_JOB_ORIGINAL_SCHEDULER_INSTANCE_ID);
+    if (name == null
+        || fireInstanceId == null
+        || schedulerInstanceId == null
+        || fired == null
+        || scheduled == null) {
       return Optional.empty();
     }
     try {
       return Optional.of(
           new RecoveryInfo(
               new TriggerKey(name, string(data, Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_GROUP)),
-              string(data, Scheduler.FAILED_JOB_ORIGINAL_FIRE_INSTANCE_ID),
-              string(data, Scheduler.FAILED_JOB_ORIGINAL_SCHEDULER_INSTANCE_ID),
+              fireInstanceId,
+              schedulerInstanceId,
               Instant.ofEpochMilli(Long.parseLong(fired)),
               Instant.ofEpochMilli(Long.parseLong(scheduled))));
     } catch (NumberFormatException ex) {
