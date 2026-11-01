@@ -145,4 +145,19 @@ class ManualFireIT extends AbstractMongoIT {
         .containsEntry("extra", "1")
         .doesNotContainKey(Scheduler.MANUAL_FIRE_OF_TRIGGER);
   }
+
+  @Test
+  void clusterQueriesAndInterruptsFailOnceTheSchedulerIsShutDown() throws Exception {
+    scheduler.shutdown(true);
+
+    assertThatExceptionOfType(SchedulerException.class)
+        .isThrownBy(() -> scheduler.getSchedulerInstances())
+        .withMessage("The Scheduler has been shutdown.");
+    assertThatExceptionOfType(SchedulerException.class)
+        .isThrownBy(() -> scheduler.getClusterExecutingJobs())
+        .withMessage("The Scheduler has been shutdown.");
+    assertThatExceptionOfType(SchedulerException.class)
+        .isThrownBy(() -> scheduler.interruptAnywhere("any"))
+        .withMessage("The Scheduler has been shutdown.");
+  }
 }

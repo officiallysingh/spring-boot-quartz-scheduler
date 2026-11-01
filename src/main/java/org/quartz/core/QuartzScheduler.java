@@ -906,26 +906,6 @@ public class QuartzScheduler {
     notifySchedulerListenersScheduled(trig);
   }
 
-  /** Store and schedule the identified <code>{@link org.quartz.spi.OperableTrigger}</code> */
-  public void triggerJob(OperableTrigger trig) throws SchedulerException {
-    validateState();
-
-    trig.computeFirstFireTime(null);
-
-    boolean collision = true;
-    while (collision) {
-      try {
-        resources.getJobStore().storeTrigger(trig, false);
-        collision = false;
-      } catch (ObjectAlreadyExistsException oaee) {
-        trig.setKey(new TriggerKey(newTriggerId(), Scheduler.DEFAULT_GROUP));
-      }
-    }
-
-    notifySchedulerThread(trig.getNextFireTime());
-    notifySchedulerListenersScheduled(trig);
-  }
-
   /** Pause the <code>{@link Trigger}</code> with the given name. */
   public void pauseTrigger(TriggerKey triggerKey) throws SchedulerException {
     validateState();
@@ -1888,11 +1868,13 @@ public class QuartzScheduler {
 
   /** The scheduler instances known to the job store, with their liveness. */
   public List<SchedulerInstance> getSchedulerInstances() throws SchedulerException {
+    validateState();
     return resources.getJobStore().getSchedulerInstances();
   }
 
   /** The executions in progress on every instance of the cluster; see {@link JobStore}. */
   public List<ExecutingJob> getClusterExecutingJobs() throws SchedulerException {
+    validateState();
     return resources.getJobStore().getExecutingJobs();
   }
 
@@ -1905,6 +1887,7 @@ public class QuartzScheduler {
    * @throws UnableToInterruptJobException if its job does not implement {@link InterruptableJob}
    */
   public boolean interruptAnywhere(String fireInstanceId) throws SchedulerException {
+    validateState();
     if (interrupt(fireInstanceId)) {
       return true;
     }

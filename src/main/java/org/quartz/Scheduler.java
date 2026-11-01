@@ -123,6 +123,10 @@ public interface Scheduler {
    * The <code>Trigger</code> group of the one-off triggers created by {@link #triggerJob(JobKey)},
    * {@link #triggerJob(JobKey, JobDataMap)} and {@link #triggerNow(TriggerKey)} ("MANUAL_TRIGGER");
    * clients should not use it for their own triggers.
+   *
+   * <p>Manual fires follow the pause state of this group (and of the job's group), not of {@link
+   * #DEFAULT_GROUP}: pause it, e.g. with {@code pauseTriggers(GroupMatcher.triggerGroupEquals(
+   * MANUAL_TRIGGER_GROUP))}, to hold manual fires.
    */
   String MANUAL_TRIGGER_GROUP = "MANUAL_TRIGGER";
 

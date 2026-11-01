@@ -9,6 +9,13 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
   numbers and no longer converts them at startup; it only knows BSON dates. A store written by
   1.0.0-rc1 must be dropped (its collections deleted) and re-created. Stores written by 1.0.0-rc2
   are unaffected.
+- `Scheduler.getSchedulerInstances()`, `getClusterExecutingJobs()` and `interruptAnywhere()` throw
+  the usual `SchedulerException` ("The Scheduler has been shutdown.") after shutdown, like the other
+  `Scheduler` methods, instead of using a store that may already be closed.
+- Manual fires follow the pause state of `Scheduler.MANUAL_TRIGGER_GROUP` (and of the job's
+  group), not of `DEFAULT`; pause `MANUAL_TRIGGER` to hold them (documented on the constant).
+- Removed the unused `QuartzScheduler.triggerJob(OperableTrigger)` (internal class), which still
+  re-keyed colliding triggers into `DEFAULT`.
 
 ## 1.0.0-rc2 (2026-11-01)
 
