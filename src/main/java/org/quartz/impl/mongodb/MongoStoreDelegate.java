@@ -253,10 +253,22 @@ class MongoStoreDelegate implements StoreDelegate {
     return JobDataCodec.fromNative(document.get(JOB_DATA, Document.class));
   }
 
-  /** Field map for the codecs: BSON binaries become byte arrays. */
+  /**
+   * Field map for the codecs: BSON binaries become byte arrays, stored instants (BSON dates, or
+   * epoch milliseconds in old stores) the codecs' epoch milliseconds.
+   */
   private static Map<String, Object> fields(Document document) {
     Map<String, Object> fields = new LinkedHashMap<>(document);
-    fields.replaceAll((name, value) -> (value instanceof Binary binary) ? binary.getData() : value);
+    fields.replaceAll(
+        (name, value) -> {
+          if (value instanceof Binary binary) {
+            return binary.getData();
+          }
+          if (MongoTimes.TRIGGER_TIME_FIELDS.contains(name)) {
+            return MongoTimes.requiredInstant(value, name).toEpochMilli();
+          }
+          return value;
+        });
     return fields;
   }
 
@@ -360,7 +372,14 @@ class MongoStoreDelegate implements StoreDelegate {
       throws JobPersistenceException {
     Document document = new Document(SCHED_NAME, schedName);
     Map<String, Object> fields = TriggerCodec.encode(trigger);
-    fields.replaceAll((name, value) -> (value instanceof byte[] bytes) ? new Binary(bytes) : value);
+    fields.replaceAll(
+        (name, value) ->
+            switch (value) {
+              case byte[] bytes -> new Binary(bytes);
+              case Long millis when MongoTimes.TRIGGER_TIME_FIELDS.contains(name) ->
+                  MongoTimes.date(millis);
+              default -> value;
+            });
     document.putAll(fields);
     document.put(STATE, state);
     putJobData(document, trigger.getJobDataMap());
@@ -508,12 +527,12 @@ class MongoStoreDelegate implements StoreDelegate {
         sched(
             and(
                 eq(STATE, PersistentJobStore.STATE_WAITING),
-                lte(TriggerCodec.NEXT_FIRE_TIME, noLaterThan.toEpochMilli()),
+                lte(TriggerCodec.NEXT_FIRE_TIME, MongoTimes.date(noLaterThan)),
                 or(
                     eq(
                         TriggerCodec.MISFIRE_INSTRUCTION,
                         Trigger.MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY),
-                    gte(TriggerCodec.NEXT_FIRE_TIME, misfireTime.toEpochMilli()))));
+                    gte(TriggerCodec.NEXT_FIRE_TIME, MongoTimes.date(misfireTime)))));
     return triggerKeys(
         find(collections.triggers(), filter).sort(FIRE_ORDER).limit(Math.max(maxCount, 1)));
   }
@@ -523,7 +542,7 @@ class MongoStoreDelegate implements StoreDelegate {
         and(
             eq(STATE, state),
             ne(TriggerCodec.MISFIRE_INSTRUCTION, Trigger.MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY),
-            lt(TriggerCodec.NEXT_FIRE_TIME, misfireTime.toEpochMilli())));
+            lt(TriggerCodec.NEXT_FIRE_TIME, MongoTimes.date(misfireTime))));
   }
 
   @Override
@@ -669,8 +688,8 @@ class MongoStoreDelegate implements StoreDelegate {
         .append(TriggerCodec.JOB_GROUP, record.jobKey().getGroup())
         .append(TriggerCodec.JOB_NAME, record.jobKey().getName())
         .append(STATE, record.state())
-        .append(FIRED_TIME, record.firedTime().toEpochMilli())
-        .append(SCHEDULED_TIME, record.scheduledTime().toEpochMilli())
+        .append(FIRED_TIME, MongoTimes.date(record.firedTime()))
+        .append(SCHEDULED_TIME, MongoTimes.date(record.scheduledTime()))
         .append(TriggerCodec.PRIORITY, record.priority())
         .append(JobDetailCodec.NON_CONCURRENT, record.nonConcurrent())
         .append(JobDetailCodec.REQUESTS_RECOVERY, record.requestsRecovery());
@@ -684,8 +703,8 @@ class MongoStoreDelegate implements StoreDelegate {
         new JobKey(
             document.getString(TriggerCodec.JOB_NAME), document.getString(TriggerCodec.JOB_GROUP)),
         document.getString(STATE),
-        Instant.ofEpochMilli(document.getLong(FIRED_TIME)),
-        Instant.ofEpochMilli(document.getLong(SCHEDULED_TIME)),
+        MongoTimes.requiredInstant(document.get(FIRED_TIME), FIRED_TIME),
+        MongoTimes.requiredInstant(document.get(SCHEDULED_TIME), SCHEDULED_TIME),
         document.getInteger(TriggerCodec.PRIORITY),
         document.getBoolean(JobDetailCodec.NON_CONCURRENT),
         document.getBoolean(JobDetailCodec.REQUESTS_RECOVERY),
@@ -717,7 +736,7 @@ class MongoStoreDelegate implements StoreDelegate {
         Updates.combine(
             Updates.set(INSTANCE_ID, record.instanceId()),
             Updates.set(STATE, record.state()),
-            Updates.set(FIRED_TIME, record.firedTime().toEpochMilli()),
+            Updates.set(FIRED_TIME, MongoTimes.date(record.firedTime())),
             Updates.set(TriggerCodec.JOB_GROUP, record.jobKey().getGroup()),
             Updates.set(TriggerCodec.JOB_NAME, record.jobKey().getName()),
             Updates.set(JobDetailCodec.NON_CONCURRENT, record.nonConcurrent()),
@@ -793,7 +812,8 @@ class MongoStoreDelegate implements StoreDelegate {
         sched(eq(INSTANCE_ID, instanceId)),
         new Document(SCHED_NAME, schedName)
             .append(INSTANCE_ID, instanceId)
-            .append(LAST_CHECKIN, checkin.toEpochMilli())
+            .append(LAST_CHECKIN, MongoTimes.date(checkin))
+            // a duration: explicitly int64 milliseconds (never a client-registry Duration codec)
             .append(CHECKIN_INTERVAL, checkinInterval.toMillis()));
   }
 
@@ -804,8 +824,8 @@ class MongoStoreDelegate implements StoreDelegate {
       records.add(
           new SchedulerStateRecord(
               document.getString(INSTANCE_ID),
-              Instant.ofEpochMilli(document.getLong(LAST_CHECKIN)),
-              Duration.ofMillis(document.getLong(CHECKIN_INTERVAL))));
+              MongoTimes.instant(document.get(LAST_CHECKIN)),
+              Duration.ofMillis(document.get(CHECKIN_INTERVAL, Number.class).longValue())));
     }
     return records;
   }

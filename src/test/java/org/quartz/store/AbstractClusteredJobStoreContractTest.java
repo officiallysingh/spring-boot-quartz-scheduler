@@ -41,12 +41,14 @@ import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobPersistenceException;
+import org.quartz.RecoveryInfo;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.SchedulerInstance;
 import org.quartz.SimpleScheduleBuilder;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
+import org.quartz.TriggerKey;
 import org.quartz.UnableToInterruptJobException;
 import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.impl.config.JobStoreSettings;
@@ -269,6 +271,16 @@ public abstract class AbstractClusteredJobStoreContractTest {
                     data.getString(
                         Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_SCHEDULED_FIRETIME_IN_MILLISECONDS))))
         .isEqualTo(original.getScheduledFireTime());
+    // the same, typed
+    assertThat(RECOVERY_EXECUTION.get("recoverable").getRecoveryInfo())
+        .contains(
+            new RecoveryInfo(
+                TriggerKey.triggerKey("recoverableTrigger"),
+                original.getFireInstanceId(),
+                "node-a",
+                original.getFireTime().truncatedTo(ChronoUnit.MILLIS),
+                original.getScheduledFireTime()));
+    assertThat(original.getRecoveryInfo()).isEmpty();
   }
 
   /** Runs until interrupted; records the instance it ran on. */

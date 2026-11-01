@@ -20,6 +20,7 @@ package org.quartz;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -81,6 +82,15 @@ public interface JobExecutionContext {
    * @throws IllegalStateException if this is not a recovering job.
    */
   TriggerKey getRecoveringTriggerKey() throws IllegalStateException;
+
+  /**
+   * What this recovery execution replaces: the original trigger, fire instance id, scheduler
+   * instance, fire time and scheduled fire time of the execution that was interrupted, read from
+   * the {@code FAILED_JOB_ORIGINAL_*} entries of the job data so callers need not parse them.
+   *
+   * @return the recovery information; empty unless {@link #isRecovering()}
+   */
+  Optional<RecoveryInfo> getRecoveryInfo();
 
   /**
    * How many times the job has been re-executed for this firing ({@link

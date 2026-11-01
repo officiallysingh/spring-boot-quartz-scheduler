@@ -93,3 +93,21 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
   previous fire times were already truncated by the trigger setters (`Instants.toMillis`); a
   `SimpleTrigger`'s repeat interval now is too. A trigger reports the same times before and after
   a store round-trip.
+
+### MongoDB storage format
+
+- **Breaking (storage):** the MongoDB store keeps instants as BSON `date`s instead of int64 epoch
+  milliseconds: `qrtz_triggers` `nextFireTime`, `previousFireTime`, `startTime` and `endTime`;
+  `qrtz_fired_triggers` `firedTime` and `scheduledTime`; `qrtz_schedulers` `lastCheckin`. Mongo
+  date operators (`$dateToString`, `$dateDiff`, TTL indexes) now work on them, and Compass shows
+  dates. Durations (`checkinInterval`, `repeatInterval`) stay int64 milliseconds. Every value is
+  encoded explicitly, so the format no longer depends on the client's codec registry; this also
+  fixes the lock lease's `expiresAt`, which was written through the registry's `Instant` codec.
+- Existing stores keep working: the store still reads epoch-millisecond values, and converts this
+  scheduler's documents to dates at startup. Stop every instance on an older version before
+  starting this one; older versions cannot read the dates. Code that reads these collections
+  directly must switch to `getSchedulerInstances()` / `getClusterExecutingJobs()`.
+- New `JobExecutionContext.getRecoveryInfo()`: `Optional<RecoveryInfo>` with the original
+  trigger, fire instance id, scheduler instance id, fire time and scheduled fire time of the
+  execution a recovery run replaces (empty unless recovering). `RecoveryInfo.of(JobDataMap)`
+  reads the same from job data. The `FAILED_JOB_ORIGINAL_*` job data entries stay strings.

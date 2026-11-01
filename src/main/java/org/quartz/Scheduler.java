@@ -157,6 +157,7 @@ public interface Scheduler {
    * trigger's data map in the case of a job recovering after a failed scheduler instance.
    *
    * @see org.quartz.JobDetail#requestsRecovery()
+   * @see JobExecutionContext#getRecoveryInfo()
    */
   String FAILED_JOB_ORIGINAL_FIRE_INSTANCE_ID = "QRTZ_FAILED_JOB_ORIG_FIRE_INSTANCE_ID";
 
