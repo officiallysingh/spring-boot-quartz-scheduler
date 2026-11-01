@@ -3,28 +3,6 @@
 Changes to the public API, behaviour and storage format, by release. Breaking changes are marked
 **Breaking**.
 
-## Unreleased
-
-- **Breaking (storage):** the MongoDB store no longer reads instants stored as epoch-millisecond
-  numbers and no longer converts them at startup; it only knows BSON dates. A store written by
-  1.0.0-rc1 must be dropped (its collections deleted) and re-created. Stores written by 1.0.0-rc2
-  are unaffected.
-- `Scheduler.getSchedulerInstances()`, `getClusterExecutingJobs()` and `interruptAnywhere()` throw
-  the usual `SchedulerException` ("The Scheduler has been shutdown.") after shutdown, like the other
-  `Scheduler` methods, instead of using a store that may already be closed.
-- Manual fires follow the pause state of `Scheduler.MANUAL_TRIGGER_GROUP` (and of the job's
-  group), not of `DEFAULT`; pause `MANUAL_TRIGGER` to hold them (documented on the constant).
-- Removed the unused `QuartzScheduler.triggerJob(OperableTrigger)` (internal class), which still
-  re-keyed colliding triggers into `DEFAULT`.
-- `getTriggers` on the Redis store (the generic `StoreDelegate` default) reads each matching
-  trigger's state once instead of twice, and when ordering by key loads only the page's triggers.
-- `interruptAnywhere` reads the one fired-trigger record it needs instead of all of them. SPI:
-  `JobStore.getExecutingJob(String)`, `StoreDelegate.selectFiredTriggerRecord(String)`.
-- `getSchedulerInstances()` judges every instance, the calling one included, with the single rule
-  cluster recovery uses.
-- The health indicator's reason for a missing check-in record no longer assumes another instance
-  recovered this one; failing check-ins have the same symptom.
-
 ## 1.0.0-rc2 (2026-11-01)
 
 ### Job exceptions
@@ -57,6 +35,9 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
 - **Breaking:** the one-off triggers of `triggerJob(...)` and `triggerNow(...)` are now in the
   group `Scheduler.MANUAL_TRIGGER_GROUP` (`MANUAL_TRIGGER`), not `DEFAULT`, so listeners and
   history can tell manual fires from scheduled ones. They start at the scheduler `Clock`'s now.
+  Manual fires follow the pause state of `MANUAL_TRIGGER` (and of the job's group), not of
+  `DEFAULT`: pause `MANUAL_TRIGGER` to hold them.
+- Removed `QuartzScheduler.triggerJob(OperableTrigger)` (internal class, unused).
 
 ### Interrupting jobs
 
@@ -72,28 +53,35 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
   requested).
 - New `Scheduler.interruptAnywhere(String fireInstanceId)`: interrupts the execution at once if it
   runs on this instance; otherwise flags its fired-trigger record, and the instance running it
-  interrupts it at its next cluster check-in (within `cluster-checkin-interval`).
+  interrupts it at its next cluster check-in (within `cluster-checkin-interval`). It looks up
+  only that execution's fired-trigger record.
 - New `JobDetail.isInterruptible()`: whether the job class implements `InterruptableJob`.
-- SPI: `JobStore.getExecutingJobs()`, `JobStore.requestInterrupt(String)`,
-  `SchedulerSignaler.interruptRequested(String)` (default: does nothing),
-  `StoreDelegate.selectFiredTriggerRecords()` and
+- SPI: `JobStore.getExecutingJobs()`, `JobStore.getExecutingJob(String)`,
+  `JobStore.requestInterrupt(String)`, `SchedulerSignaler.interruptRequested(String)` (default:
+  does nothing), `StoreDelegate.selectFiredTriggerRecords()`,
+  `StoreDelegate.selectFiredTriggerRecord(String)` and
   `StoreDelegate.updateFiredTriggerInterruptRequested(String)`; `FiredTriggerRecord` has a new
   `interruptRequested` component. Stores record the flag as `interruptRequested` on the
   fired-trigger document (MongoDB) or hash (Redis).
 
 ### Cluster instances
 
+- The new cluster methods (`getSchedulerInstances()`, `getClusterExecutingJobs()`,
+  `interruptAnywhere()`) throw "The Scheduler has been shutdown." after shutdown, like the other
+  `Scheduler` methods.
 - New `Scheduler.getSchedulerInstances()`: the scheduler instances known to the job store, as
   `SchedulerInstance` (instance id, last check-in, check-in interval, `alive`, `current`).
-  `alive` uses the rule the store applies before recovering an instance (last check-in +
-  interval + `cluster-checkin-misfire-threshold`), and `current` marks the calling instance. A
+  `alive` uses the one rule the store applies before recovering an instance (last check-in +
+  interval + `cluster-checkin-misfire-threshold`), for every instance including the calling one,
+  and `current` marks the calling instance. A
   store that is not clustered lists only the current instance, without check-in times. Use this
   rather than reading `qrtz_schedulers` yourself: it ships in the same release as the switch of
   stored instants to BSON dates (below), which breaks readers of the raw documents.
 - SPI: `JobStore.getSchedulerInstances()`.
 - **Breaking:** `QuartzHealthIndicator` now takes only the `Scheduler` (the `JobStore` argument
   is gone) and judges the instance with `getSchedulerInstances()`. It also reports `instances` and
-  `aliveInstances`, and is `DOWN` when another instance has already recovered this one.
+  `aliveInstances`, and is `DOWN` when this instance has no check-in record (its check-ins fail,
+  or another instance has already recovered it).
 
 ### Time
 
@@ -125,10 +113,9 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
   dates. Durations (`checkinInterval`, `repeatInterval`) stay int64 milliseconds. Every value is
   encoded explicitly, so the format no longer depends on the client's codec registry; this also
   fixes the lock lease's `expiresAt`, which was written through the registry's `Instant` codec.
-- Existing stores keep working: the store still reads epoch-millisecond values, and converts this
-  scheduler's documents to dates at startup. Stop every instance on an older version before
-  starting this one; older versions cannot read the dates. Code that reads these collections
-  directly must switch to `getSchedulerInstances()` / `getClusterExecutingJobs()`.
+- There is no migration: a MongoDB store written by 1.0.0-rc1 cannot be read. Drop its
+  collections and let the jobs be re-created. Code that reads these collections directly must
+  switch to `getSchedulerInstances()` / `getClusterExecutingJobs()`.
 - New `JobExecutionContext.getRecoveryInfo()`: `Optional<RecoveryInfo>` with the original
   trigger, fire instance id, scheduler instance id, fire time and scheduled fire time of the
   execution a recovery run replaces (empty unless recovering). `RecoveryInfo.of(JobDataMap)`
@@ -142,8 +129,9 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
   (`TriggerPage` of `TriggerWithState`, plus the total), filtered by groups and states, sorted by
   `TriggerSort` `KEY`, `NEXT_FIRE_TIME`, `PREVIOUS_FIRE_TIME` or `PRIORITY` (ties by key; missing
   times first), optionally descending. States map exactly as `getTriggerState` reports them. The
-  MongoDB store answers with one `find` (sort, skip, limit) and one `countDocuments`; the Redis
-  store reads the matching triggers and pages in memory, with the same results.
+  MongoDB store answers with one `find` (sort, skip, limit) and one `countDocuments`. The Redis
+  store reads each matching trigger's state once, then loads only the page's triggers when
+  ordering by key (every matching trigger otherwise, to sort them), with the same results.
 - New `Scheduler.getJobDetails(GroupMatcher<JobKey>, int offset, int limit)`: one page of jobs
   ordered by key (`JobDetailPage`, plus the total).
 - New MongoDB indexes on `qrtz_triggers`: `(schedName, state, group, name)` and
