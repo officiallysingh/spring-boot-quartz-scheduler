@@ -972,7 +972,9 @@ public abstract class PersistentJobStore implements JobStore {
     if (selectsNothing(states)) {
       return List.of();
     }
-    return executeWithoutLock(() -> delegate.selectTriggerKeys(matcher, storedStates(states)));
+    // unmodifiable whichever delegate answered
+    return List.copyOf(
+        executeWithoutLock(() -> delegate.selectTriggerKeys(matcher, storedStates(states))));
   }
 
   @Override

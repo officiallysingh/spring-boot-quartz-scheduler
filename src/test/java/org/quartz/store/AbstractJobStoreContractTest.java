@@ -73,6 +73,7 @@ import org.quartz.TriggerKey;
 import org.quartz.TriggerPage;
 import org.quartz.TriggerQuery;
 import org.quartz.TriggerSort;
+import org.quartz.TriggerWithState;
 import org.quartz.impl.JobDetailImpl;
 import org.quartz.impl.calendar.WeeklyCalendar;
 import org.quartz.impl.matchers.GroupMatcher;
@@ -339,6 +340,25 @@ public abstract class AbstractJobStoreContractTest {
                 .limit(15)
                 .map(Trigger::getKey)
                 .toList());
+
+    // descending key order, a middle page (the Redis default pages keys before loading)
+    TriggerPage byKeyDescending =
+        this.fJobStore.getTriggers(new TriggerQuery(any, Set.of(), TriggerSort.KEY, true, 10, 5));
+    assertThat(byKeyDescending.total()).isEqualTo(60);
+    assertThat(keys(byKeyDescending))
+        .isEqualTo(
+            triggers.stream()
+                .sorted(byKey.reversed())
+                .skip(10)
+                .limit(5)
+                .map(Trigger::getKey)
+                .toList());
+    assertThat(byKeyDescending.content())
+        .extracting(TriggerWithState::state)
+        .containsOnly(TriggerState.NORMAL); // g2.t09 .. g2.t05
+    assertThatThrownBy(
+            () -> this.fJobStore.getTriggerKeys(any, Set.of()).add(TriggerKey.triggerKey("x")))
+        .isInstanceOf(UnsupportedOperationException.class);
 
     // group matchers; a page past the end
     TriggerPage g1 =

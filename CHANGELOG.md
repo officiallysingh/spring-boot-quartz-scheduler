@@ -120,12 +120,13 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
   trigger, fire instance id, scheduler instance id, fire time and scheduled fire time of the
   execution a recovery run replaces (empty unless recovering); every component is non-null.
   `RecoveryInfo.of(JobDataMap)` reads the same from job data (empty unless all entries are
-  there). The `FAILED_JOB_ORIGINAL_*` job data entries stay strings.
+  there). `getRecoveringTriggerKey()` reads the same entries (through `getRecoveryInfo()`). The `FAILED_JOB_ORIGINAL_*` job data entries stay strings.
 
 ### Trigger and job queries
 
 - New `Scheduler.getTriggerKeys(GroupMatcher<TriggerKey>, Set<TriggerState>)`: the keys of the
-  triggers in the given states (empty set = all), ordered by key, filtered by the store.
+  triggers in the given states (empty set = all), ordered by key, filtered by the store, as an
+  unmodifiable list.
 - New `Scheduler.getTriggers(TriggerQuery)`: one page of triggers with their states
   (`TriggerPage` of `TriggerWithState`, plus the total), filtered by groups and states, sorted by
   `TriggerSort` `KEY`, `NEXT_FIRE_TIME`, `PREVIOUS_FIRE_TIME` or `PRIORITY` (ties by key; missing

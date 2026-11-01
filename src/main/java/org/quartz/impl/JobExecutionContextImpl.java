@@ -21,7 +21,6 @@ package org.quartz.impl;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
-import java.util.Objects;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
@@ -138,14 +137,16 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
   }
 
   public TriggerKey getRecoveringTriggerKey() {
-    if (isRecovering()) {
-      // the store puts the original trigger into the data of a recovering job
-      return new TriggerKey(
-          Objects.requireNonNull(jobDataMap.getString(Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_NAME)),
-          jobDataMap.getString(Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_GROUP));
-    } else {
+    if (!isRecovering()) {
       throw new IllegalStateException("Not a recovering job");
     }
+    // the store puts the original execution into the data of a recovering job
+    return getRecoveryInfo()
+        .map(RecoveryInfo::originalTrigger)
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "The recovering job's data lacks the FAILED_JOB_ORIGINAL_* entries"));
   }
 
   /** {@inheritDoc} */

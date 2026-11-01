@@ -737,7 +737,7 @@ public interface Scheduler {
    * @param matcher the trigger groups to include
    * @param states the states to include, as {@link #getTriggerState(TriggerKey)} reports them;
    *     empty for all states
-   * @return the keys, ordered by group, then name
+   * @return the keys, ordered by group, then name (an unmodifiable list)
    * @throws SchedulerException if the store cannot be read
    */
   List<TriggerKey> getTriggerKeys(GroupMatcher<TriggerKey> matcher, Set<TriggerState> states)
