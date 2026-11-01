@@ -53,8 +53,10 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
   requested).
 - New `Scheduler.interruptAnywhere(String fireInstanceId)`: interrupts the execution at once if it
   runs on this instance; otherwise flags its fired-trigger record, and the instance running it
-  interrupts it at its next cluster check-in (within `cluster-checkin-interval`). It looks up
-  only that execution's fired-trigger record.
+  interrupts it after its next cluster check-in (within `cluster-checkin-interval`), on a
+  virtual thread of its own, so a slow or failing `interrupt()` cannot delay check-ins. It looks
+  up only that execution's fired-trigger record, and records the request even when this instance
+  cannot load the job class to check it is interruptible.
 - New `JobDetail.isInterruptible()`: whether the job class implements `InterruptableJob`.
 - SPI: `JobStore.getExecutingJobs()`, `JobStore.getExecutingJob(String)`,
   `JobStore.requestInterrupt(String)`, `SchedulerSignaler.interruptRequested(String)` (default:
@@ -76,7 +78,8 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
   `SchedulerInstance` (instance id, last check-in, check-in interval, `alive`, `current`).
   `alive` uses the one rule the store applies before recovering an instance (last check-in +
   interval + `cluster-checkin-misfire-threshold`), for every instance including the calling one,
-  and `current` marks the calling instance. A
+  and as an instance that is checking in judges it, so a node that is not started yet still sees
+  a dead instance as dead. `current` marks the calling instance. A
   store that is not clustered lists only the current instance, without check-in times. Use this
   rather than reading `qrtz_schedulers` yourself: it ships in the same release as the switch of
   stored instants to BSON dates (below), which breaks readers of the raw documents.

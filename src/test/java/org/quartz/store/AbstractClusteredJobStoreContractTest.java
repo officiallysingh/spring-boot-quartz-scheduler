@@ -159,6 +159,21 @@ public abstract class AbstractClusteredJobStoreContractTest {
     return scheduler;
   }
 
+  /** Initializes a bare store without starting it: it never checks in. */
+  protected PersistentJobStore initStore(String instanceId) throws SchedulerException {
+    JobStore store = createJobStore(instanceId);
+    assumeTrue(
+        store instanceof PersistentJobStore,
+        "store-level cluster checks need a PersistentJobStore");
+    store.setInstanceName(SCHED_NAME);
+    store.setInstanceId(instanceId);
+    store.initialize(
+        getClass().getClassLoader(),
+        new org.quartz.store.AbstractJobStoreContractTest.SampleSignaler());
+    stores.add(store);
+    return (PersistentJobStore) store;
+  }
+
   /** Starts a bare store (no scheduler around it). */
   protected PersistentJobStore startStore(String instanceId) throws SchedulerException {
     JobStore store = createJobStore(instanceId);
@@ -364,6 +379,91 @@ public abstract class AbstractClusteredJobStoreContractTest {
     assertThat(InterruptibleBlockingJob.INTERRUPTED_ON.get("longRunning")).isEqualTo("node-b");
     await().atMost(Duration.ofSeconds(10)).until(() -> nodeA.getClusterExecutingJobs().isEmpty());
     assertThat(nodeA.interruptAnywhere(execution.fireInstanceId())).isFalse();
+  }
+
+  /** Its {@code interrupt()} blocks until the test releases it. */
+  public static class SlowToInterruptJob implements InterruptableJob {
+
+    static volatile CountDownLatch interruptEntered = new CountDownLatch(1);
+
+    static volatile CountDownLatch releaseInterrupt = new CountDownLatch(1);
+
+    private final CountDownLatch interrupted = new CountDownLatch(1);
+
+    @Override
+    public void execute(JobExecutionContext context) {
+      InterruptibleBlockingJob.RUNNING_ON.put("slow", safeInstanceId(context));
+      try {
+        interrupted.await(60, TimeUnit.SECONDS);
+      } catch (InterruptedException ex) {
+        Thread.currentThread().interrupt();
+      }
+    }
+
+    @Override
+    public void interrupt() {
+      interruptEntered.countDown();
+      try {
+        releaseInterrupt.await(60, TimeUnit.SECONDS);
+      } catch (InterruptedException ex) {
+        Thread.currentThread().interrupt();
+      }
+      interrupted.countDown();
+    }
+  }
+
+  @Test
+  void aSlowInterruptDoesNotStopTheRunningNodeFromCheckingIn() throws Exception {
+    InterruptibleBlockingJob.RUNNING_ON.clear();
+    SlowToInterruptJob.interruptEntered = new CountDownLatch(1);
+    SlowToInterruptJob.releaseInterrupt = new CountDownLatch(1);
+    Scheduler nodeB = startScheduler("node-b");
+    nodeB.scheduleJob(
+        JobBuilder.newJob(SlowToInterruptJob.class).withIdentity("slow").build(),
+        TriggerBuilder.newTrigger().startNow().build());
+    await()
+        .atMost(Duration.ofSeconds(30))
+        .until(() -> InterruptibleBlockingJob.RUNNING_ON.containsKey("slow"));
+    Scheduler nodeA = startScheduler("node-a");
+    try {
+      String fireInstanceId = nodeA.getClusterExecutingJobs().getFirst().fireInstanceId();
+      assertThat(nodeA.interruptAnywhere(fireInstanceId)).isTrue();
+      assertThat(SlowToInterruptJob.interruptEntered.await(10, TimeUnit.SECONDS)).isTrue();
+      Instant blockedSince = Instant.now();
+
+      // node-b's interrupt() is blocked, yet it keeps checking in and stays alive
+      await()
+          .atMost(Duration.ofSeconds(10))
+          .until(
+              () ->
+                  nodeA.getSchedulerInstances().stream()
+                      .filter(instance -> instance.instanceId().equals("node-b"))
+                      .anyMatch(
+                          instance ->
+                              instance.alive()
+                                  && instance.lastCheckin() != null
+                                  && instance
+                                      .lastCheckin()
+                                      .isAfter(blockedSince.plus(Duration.ofSeconds(1)))));
+    } finally {
+      SlowToInterruptJob.releaseInterrupt.countDown();
+    }
+    await().atMost(Duration.ofSeconds(10)).until(() -> nodeA.getClusterExecutingJobs().isEmpty());
+  }
+
+  @Test
+  void anInstanceThatDoesNotCheckInItselfStillSeesADeadInstanceAsDead() throws Exception {
+    PersistentJobStore observer = initStore("observer"); // never started: never checks in
+    PersistentJobStore dying = startStore("node-c");
+    dying.shutdown(); // stops checking in; nobody recovers it, so its record stays
+
+    await()
+        .atMost(Duration.ofSeconds(20))
+        .until(
+            () ->
+                observer.getSchedulerInstances().stream()
+                    .filter(instance -> instance.instanceId().equals("node-c"))
+                    .anyMatch(instance -> !instance.alive()));
   }
 
   @Test

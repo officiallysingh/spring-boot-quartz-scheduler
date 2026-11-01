@@ -1897,7 +1897,19 @@ public class QuartzScheduler {
     if (executing == null) {
       return false;
     }
-    JobDetail jobDetail = store.retrieveJob(executing.jobKey());
+    JobDetail jobDetail;
+    try {
+      jobDetail = store.retrieveJob(executing.jobKey());
+    } catch (JobPersistenceException ex) {
+      // e.g. the job class is not on this instance's class path: let the instance running it
+      // decide (it logs a job that cannot be interrupted)
+      getLog()
+          .debug(
+              "Cannot load job {} to check it is interruptible; recording the request anyway",
+              executing.jobKey(),
+              ex);
+      jobDetail = null;
+    }
     if (jobDetail != null && !jobDetail.isInterruptible()) {
       throw notInterruptible(jobDetail);
     }

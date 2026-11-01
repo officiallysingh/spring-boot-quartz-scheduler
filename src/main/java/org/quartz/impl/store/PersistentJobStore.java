@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
@@ -179,8 +180,8 @@ public abstract class PersistentJobStore implements JobStore {
 
   private volatile Instant lastCheckin = CHECKIN_CLOCK.instant();
 
-  /** Interrupt requests already handed to the scheduler (cluster manager thread only). */
-  private final Set<String> deliveredInterrupts = new HashSet<>();
+  /** Interrupt requests handed to the scheduler, or being handed to it right now. */
+  private final Set<String> deliveredInterrupts = ConcurrentHashMap.newKeySet();
 
   /**
    * Create a store.
@@ -1815,21 +1816,33 @@ public abstract class PersistentJobStore implements JobStore {
   /**
    * Hands this instance's executions flagged by {@link #requestInterrupt} to the scheduler, once
    * each; an execution the scheduler does not know yet (still starting) is offered again next time.
-   * Called by the cluster manager after each check-in.
+   * Called by the cluster manager after each check-in. Each request is delivered on its own virtual
+   * thread: {@code InterruptableJob.interrupt()} is application code, and if it is slow or fails it
+   * must not delay this instance's check-ins (other instances would then think it has failed and
+   * recover its jobs while they still run).
    */
   private void deliverInterruptRequests() throws JobPersistenceException {
-    List<String> requested =
-        executeWithoutLock(
-            () ->
-                delegate.selectFiredTriggerRecordsForInstance(instanceId).stream()
-                    .filter(FiredTriggerRecord::interruptRequested)
-                    .map(FiredTriggerRecord::fireInstanceId)
-                    .toList());
+    Set<String> requested =
+        executeWithoutLock(() -> delegate.selectInterruptRequestedFireInstanceIds(instanceId));
     deliveredInterrupts.retainAll(requested);
     for (String fireInstanceId : requested) {
-      if (!deliveredInterrupts.contains(fireInstanceId)
-          && signaler.interruptRequested(fireInstanceId)) {
-        deliveredInterrupts.add(fireInstanceId);
+      if (deliveredInterrupts.add(fireInstanceId)) {
+        Thread.ofVirtual()
+            .name("QuartzScheduler_" + instanceName + "-" + instanceId + "_Interrupt")
+            .start(() -> deliverInterruptRequest(fireInstanceId));
+      }
+    }
+  }
+
+  private void deliverInterruptRequest(String fireInstanceId) {
+    boolean handled = true;
+    try {
+      handled = signaler.interruptRequested(fireInstanceId);
+    } catch (RuntimeException ex) {
+      log.error("Interrupting execution {} as requested failed", fireInstanceId, ex);
+    } finally {
+      if (!handled) {
+        deliveredInterrupts.remove(fireInstanceId); // not running here yet: offer it again
       }
     }
   }
@@ -1841,8 +1854,8 @@ public abstract class PersistentJobStore implements JobStore {
   /**
    * The scheduler instances using the store. A clustered store lists every check-in record, with
    * {@code alive} computed by the rule that decides cluster recovery ({@link
-   * #isAlive(SchedulerStateRecord, Instant)}). A non-clustered store lists only this instance,
-   * alive unless the store is shut down.
+   * #isAlive(SchedulerStateRecord, Instant, boolean)}), as an instance that is checking in judges
+   * it. A non-clustered store lists only this instance, alive unless the store is shut down.
    */
   @Override
   public List<SchedulerInstance> getSchedulerInstances() throws JobPersistenceException {
@@ -1858,7 +1871,7 @@ public abstract class PersistentJobStore implements JobStore {
               record.instanceId(),
               record.lastCheckin(),
               record.checkinInterval(),
-              isAlive(record, now),
+              isAlive(record, now, false),
               record.instanceId().equals(instanceId)));
     }
     return instances;
@@ -1918,7 +1931,7 @@ public abstract class PersistentJobStore implements JobStore {
           // recover what a previous run of this instance left behind
           failed.add(record);
         }
-      } else if (!isAlive(record, now)) {
+      } else if (!isAlive(record, now, true)) {
         failed.add(record);
       }
     }
@@ -1941,19 +1954,22 @@ public abstract class PersistentJobStore implements JobStore {
 
   /**
    * Whether an instance still counts as running: its last check-in plus its check-in interval plus
-   * the check-in misfire threshold is not before {@code now}. When judging another instance, the
-   * interval is stretched to the time since this instance's own last check-in, if that is longer: a
-   * stalled instance must not declare the others dead. The one rule for cluster recovery and {@link
-   * #getSchedulerInstances()}.
+   * the check-in misfire threshold is not before {@code now}. The one rule for cluster recovery and
+   * {@link #getSchedulerInstances()}.
+   *
+   * @param forRecovery whether this instance is deciding to recover the other one: then the
+   *     interval is stretched to the time since this instance's own last check-in, if longer, so a
+   *     stalled instance does not declare the others dead. Reporting does not stretch: an instance
+   *     that is not checking in itself (not started yet, say) must still see a dead one as dead.
    */
-  private boolean isAlive(SchedulerStateRecord record, Instant now) {
+  private boolean isAlive(SchedulerStateRecord record, Instant now, boolean forRecovery) {
     Instant checkin = record.lastCheckin();
     if (checkin == null) {
       return false;
     }
     Duration interval = record.checkinInterval();
     Duration window = (interval != null) ? interval : settings.clusterCheckinInterval();
-    if (!record.instanceId().equals(instanceId)) {
+    if (forRecovery && !record.instanceId().equals(instanceId)) {
       Duration sinceOwnCheckin = Duration.between(lastCheckin, now);
       if (sinceOwnCheckin.compareTo(window) > 0) {
         window = sinceOwnCheckin;

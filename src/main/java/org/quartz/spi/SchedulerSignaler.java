@@ -83,7 +83,8 @@ public interface SchedulerSignaler {
   /**
    * Interrupts an execution of this instance that {@link
    * org.quartz.Scheduler#interruptAnywhere(String)} asked to interrupt (possibly on another
-   * instance of the cluster); called by a clustered store when it checks in.
+   * instance of the cluster); called by a clustered store after it checks in, on a thread of its
+   * own for each request.
    *
    * <p>The default does nothing.
    *
