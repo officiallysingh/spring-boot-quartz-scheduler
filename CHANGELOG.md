@@ -58,3 +58,17 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
   `StoreDelegate.updateFiredTriggerInterruptRequested(String)`; `FiredTriggerRecord` has a new
   `interruptRequested` component. Stores record the flag as `interruptRequested` on the
   fired-trigger document (MongoDB) or hash (Redis).
+
+### Cluster instances
+
+- New `Scheduler.getSchedulerInstances()`: the scheduler instances known to the job store, as
+  `SchedulerInstance` (instance id, last check-in, check-in interval, `alive`, `current`).
+  `alive` uses the rule the store applies before recovering an instance (last check-in +
+  interval + `cluster-checkin-misfire-threshold`), and `current` marks the calling instance. A
+  store that is not clustered lists only the current instance, without check-in times. Use this
+  rather than reading `qrtz_schedulers` yourself: it ships in the same release as the switch of
+  stored instants to BSON dates (below), which breaks readers of the raw documents.
+- SPI: `JobStore.getSchedulerInstances()`.
+- **Breaking:** `QuartzHealthIndicator` now takes only the `Scheduler` (the `JobStore` argument
+  is gone) and judges the instance with `getSchedulerInstances()`. It also reports `instances` and
+  `aliveInstances`, and is `DOWN` when another instance has already recovered this one.

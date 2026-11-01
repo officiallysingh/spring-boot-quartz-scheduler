@@ -15,6 +15,7 @@ package org.quartz.store;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -42,6 +43,7 @@ import org.quartz.JobExecutionContext;
 import org.quartz.JobPersistenceException;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
+import org.quartz.SchedulerInstance;
 import org.quartz.SimpleScheduleBuilder;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
@@ -370,6 +372,41 @@ public abstract class AbstractClusteredJobStoreContractTest {
         .isThrownBy(() -> nodeA.interruptAnywhere(fireInstanceId))
         .withMessageContaining("DEFAULT.plain");
     assertThat(nodeA.getClusterExecutingJobs().getFirst().interruptRequested()).isFalse();
+  }
+
+  @Test
+  void schedulerInstancesReportLivenessAndTheCallingInstance() throws Exception {
+    Scheduler nodeA = startScheduler("node-a");
+    Scheduler nodeB = startScheduler("node-b");
+
+    assertThat(nodeA.getSchedulerInstances())
+        .extracting(
+            SchedulerInstance::instanceId, SchedulerInstance::alive, SchedulerInstance::current)
+        .containsExactlyInAnyOrder(tuple("node-a", true, true), tuple("node-b", true, false));
+    assertThat(nodeB.getSchedulerInstances())
+        .filteredOn(SchedulerInstance::current)
+        .singleElement()
+        .satisfies(
+            instance -> {
+              assertThat(instance.instanceId()).isEqualTo("node-b");
+              assertThat(instance.lastCheckin()).isNotNull();
+              assertThat(instance.checkinInterval()).isEqualTo(Duration.ofMillis(500));
+            });
+
+    // a third instance stops checking in: node-b sees it dead, then recovers (removes) it
+    PersistentJobStore storeC = startStore("node-c");
+    storeC.shutdown();
+    await()
+        .atMost(Duration.ofSeconds(20))
+        .until(
+            () ->
+                nodeB.getSchedulerInstances().stream()
+                    .filter(instance -> instance.instanceId().equals("node-c"))
+                    .noneMatch(SchedulerInstance::alive));
+    assertThat(nodeB.getSchedulerInstances())
+        .filteredOn(SchedulerInstance::alive)
+        .extracting(SchedulerInstance::instanceId)
+        .containsExactlyInAnyOrder("node-a", "node-b");
   }
 
   @Test

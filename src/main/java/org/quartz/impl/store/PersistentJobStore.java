@@ -40,6 +40,7 @@ import org.quartz.ObjectAlreadyExistsException;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerConfigException;
 import org.quartz.SchedulerException;
+import org.quartz.SchedulerInstance;
 import org.quartz.SimpleTrigger;
 import org.quartz.Trigger;
 import org.quartz.Trigger.CompletedExecutionInstruction;
@@ -1750,6 +1751,44 @@ public abstract class PersistentJobStore implements JobStore {
   // clustering
   // ------------------------------------------------------------------
 
+  /**
+   * The scheduler instances using the store. A clustered store lists every check-in record, with
+   * {@code alive} computed by the rule that decides cluster recovery ({@link
+   * #isAlive(SchedulerStateRecord, Instant)}); this instance is judged by the plain rule (last
+   * check-in + interval + threshold not past), as the other instances judge it. A non-clustered
+   * store lists only this instance, alive unless the store is shut down.
+   */
+  @Override
+  public List<SchedulerInstance> getSchedulerInstances() throws JobPersistenceException {
+    if (!isClustered()) {
+      return List.of(new SchedulerInstance(instanceId, null, null, !shutdown, true));
+    }
+    List<SchedulerStateRecord> records = executeWithoutLock(delegate::selectSchedulerStateRecords);
+    Instant now = Instant.now();
+    List<SchedulerInstance> instances = new ArrayList<>();
+    for (SchedulerStateRecord record : records) {
+      boolean current = record.instanceId().equals(instanceId);
+      Instant checkin = record.lastCheckin();
+      Duration interval = record.checkinInterval();
+      boolean alive;
+      if (checkin == null) {
+        alive = false;
+      } else if (current) {
+        alive =
+            !checkin
+                .plus((interval != null) ? interval : settings.clusterCheckinInterval())
+                .plus(settings.clusterCheckinMisfireThreshold())
+                .isBefore(now);
+      } else {
+        alive = isAlive(record, now);
+      }
+      instances.add(
+          new SchedulerInstance(
+              record.instanceId(), record.lastCheckin(), record.checkinInterval(), alive, current));
+    }
+    return instances;
+  }
+
   /** The check-in records of all instances (for tests and diagnostics). */
   public List<SchedulerStateRecord> getSchedulerStates() throws JobPersistenceException {
     return executeWithoutLock(delegate::selectSchedulerStateRecords);
@@ -1804,7 +1843,7 @@ public abstract class PersistentJobStore implements JobStore {
           // recover what a previous run of this instance left behind
           failed.add(record);
         }
-      } else if (failedIfAfter(record, now).isBefore(now)) {
+      } else if (!isAlive(record, now)) {
         failed.add(record);
       }
     }
@@ -1823,6 +1862,16 @@ public abstract class PersistentJobStore implements JobStore {
           instanceId);
     }
     return failed;
+  }
+
+  /**
+   * Whether another instance still counts as running: its last check-in plus its check-in interval
+   * (or the time since this instance's own last check-in, if longer: a stalled instance must not
+   * declare the others dead) plus the check-in misfire threshold is not before {@code now}. The
+   * rule cluster recovery uses.
+   */
+  private boolean isAlive(SchedulerStateRecord record, Instant now) {
+    return record.lastCheckin() != null && !failedIfAfter(record, now).isBefore(now);
   }
 
   private Instant failedIfAfter(SchedulerStateRecord record, Instant now) {

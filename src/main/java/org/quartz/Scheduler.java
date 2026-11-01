@@ -333,6 +333,22 @@ public interface Scheduler {
   List<JobExecutionContext> getCurrentlyExecutingJobs() throws SchedulerException;
 
   /**
+   * The scheduler instances known to the job store, with their liveness, read in one store query.
+   *
+   * <p>With a clustered store: every instance that has checked in and has not been recovered
+   * (removed) by another instance yet. {@link SchedulerInstance#alive()} is computed with the rule
+   * the store itself uses to decide that an instance has failed, so an instance that is not alive
+   * is, or is about to be, recovered, and its running executions will not complete normally. With a
+   * store that is not clustered: this instance only, without check-in times.
+   *
+   * <p>Use this rather than reading the store's records directly; their format is internal.
+   *
+   * @return the instances, in no particular order
+   * @throws SchedulerException if the store cannot be read
+   */
+  List<SchedulerInstance> getSchedulerInstances() throws SchedulerException;
+
+  /**
    * The job executions in progress on every instance of the cluster, read from the job store's
    * fired-trigger records in one query (only this instance's when the store is not clustered).
    *

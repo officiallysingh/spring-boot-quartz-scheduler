@@ -34,6 +34,7 @@ import org.quartz.JobPersistenceException;
 import org.quartz.ObjectAlreadyExistsException;
 import org.quartz.SchedulerConfigException;
 import org.quartz.SchedulerException;
+import org.quartz.SchedulerInstance;
 import org.quartz.Trigger;
 import org.quartz.Trigger.CompletedExecutionInstruction;
 import org.quartz.Trigger.TriggerState;
@@ -625,6 +626,15 @@ public interface JobStore {
    * @throws JobPersistenceException if the store cannot be read
    */
   List<ExecutingJob> getExecutingJobs() throws JobPersistenceException;
+
+  /**
+   * The scheduler instances using the store, with their liveness; see {@link
+   * org.quartz.Scheduler#getSchedulerInstances()}.
+   *
+   * @return the instances, in no particular order
+   * @throws JobPersistenceException if the store cannot be read
+   */
+  List<SchedulerInstance> getSchedulerInstances() throws JobPersistenceException;
 
   /**
    * Records a request to interrupt an execution in progress; the scheduler instance running it

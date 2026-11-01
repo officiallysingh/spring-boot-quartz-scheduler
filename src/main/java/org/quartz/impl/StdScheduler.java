@@ -33,6 +33,7 @@ import org.quartz.ListenerManager;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerContext;
 import org.quartz.SchedulerException;
+import org.quartz.SchedulerInstance;
 import org.quartz.SchedulerMetaData;
 import org.quartz.Trigger;
 import org.quartz.Trigger.TriggerState;
@@ -447,6 +448,11 @@ public class StdScheduler implements Scheduler {
   /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
   public boolean interruptAnywhere(String fireInstanceId) throws SchedulerException {
     return sched.interruptAnywhere(fireInstanceId);
+  }
+
+  /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
+  public List<SchedulerInstance> getSchedulerInstances() throws SchedulerException {
+    return sched.getSchedulerInstances();
   }
 
   /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */

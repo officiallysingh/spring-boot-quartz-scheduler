@@ -18,26 +18,24 @@ package org.quartz.spring.boot.actuate.health;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import org.jspecify.annotations.Nullable;
+import java.util.List;
 import org.quartz.Scheduler;
+import org.quartz.SchedulerInstance;
 import org.quartz.SchedulerMetaData;
-import org.quartz.impl.config.JobStoreSettings;
-import org.quartz.impl.store.PersistentJobStore;
-import org.quartz.spi.JobStore;
 import org.springframework.boot.health.contributor.AbstractHealthIndicator;
 import org.springframework.boot.health.contributor.Health;
 
 /**
  * Health of a Quartz {@link Scheduler}: {@code DOWN} when it is shut down, when its job store
- * cannot be read, or when a clustered instance has not checked in for longer than the other
- * instances wait before recovering it ({@code cluster-checkin-interval} + {@code
- * cluster-checkin-misfire-threshold}); {@code UP} otherwise, including in standby.
+ * cannot be read, or when a clustered instance no longer counts as alive for the cluster ({@link
+ * Scheduler#getSchedulerInstances()}: it has not checked in for longer than {@code
+ * cluster-checkin-interval} + {@code cluster-checkin-misfire-threshold}, or another instance has
+ * already recovered it); {@code UP} otherwise, including in standby. A clustered scheduler also
+ * reports how many instances there are and how many are alive.
  */
 public class QuartzHealthIndicator extends AbstractHealthIndicator {
 
   private final Scheduler scheduler;
-
-  private final @Nullable JobStore jobStore;
 
   private final Clock clock;
 
@@ -45,16 +43,14 @@ public class QuartzHealthIndicator extends AbstractHealthIndicator {
    * Create a health indicator for the scheduler.
    *
    * @param scheduler the scheduler
-   * @param jobStore its job store, if known: enables the cluster check-in check
    */
-  public QuartzHealthIndicator(Scheduler scheduler, @Nullable JobStore jobStore) {
-    this(scheduler, jobStore, Clock.systemUTC());
+  public QuartzHealthIndicator(Scheduler scheduler) {
+    this(scheduler, Clock.systemUTC());
   }
 
-  QuartzHealthIndicator(Scheduler scheduler, @Nullable JobStore jobStore, Clock clock) {
+  QuartzHealthIndicator(Scheduler scheduler, Clock clock) {
     super("Quartz health check failed");
     this.scheduler = scheduler;
-    this.jobStore = jobStore;
     this.clock = clock;
   }
 
@@ -76,24 +72,34 @@ public class QuartzHealthIndicator extends AbstractHealthIndicator {
     this.scheduler.getJobGroupNames();
     builder.up();
     // clustered stores check in from start on, in standby too
-    if (metaData.isJobStoreClustered()
-        && metaData.isStarted()
-        && this.jobStore instanceof PersistentJobStore persistentStore) {
-      checkIn(builder, persistentStore);
+    if (metaData.isJobStoreClustered() && metaData.isStarted()) {
+      checkIn(builder, this.scheduler.getSchedulerInstances());
     }
   }
 
-  private void checkIn(Health.Builder builder, PersistentJobStore store) {
-    Instant lastCheckin = store.getLastCheckin();
-    Duration age = Duration.between(lastCheckin, this.clock.instant());
-    JobStoreSettings settings = store.getSettings();
-    Duration limit =
-        settings.clusterCheckinInterval().plus(settings.clusterCheckinMisfireThreshold());
-    builder.withDetail("lastCheckin", lastCheckin).withDetail("checkinAge", age);
-    if (age.compareTo(limit) > 0) {
+  private void checkIn(Health.Builder builder, List<SchedulerInstance> instances) {
+    builder
+        .withDetail("instances", instances.size())
+        .withDetail("aliveInstances", instances.stream().filter(SchedulerInstance::alive).count());
+    SchedulerInstance current =
+        instances.stream().filter(SchedulerInstance::current).findFirst().orElse(null);
+    if (current == null) {
       builder
           .down()
-          .withDetail("reason", "no cluster check-in for " + age + " (limit " + limit + ")");
+          .withDetail("reason", "no cluster check-in record: recovered by another instance");
+      return;
+    }
+    Instant lastCheckin = current.lastCheckin();
+    if (lastCheckin != null) {
+      Duration age = Duration.between(lastCheckin, this.clock.instant());
+      builder.withDetail("lastCheckin", lastCheckin).withDetail("checkinAge", age);
+      if (!current.alive()) {
+        builder
+            .down()
+            .withDetail(
+                "reason",
+                "no cluster check-in for " + age + ": the other instances consider it failed");
+      }
     }
   }
 }

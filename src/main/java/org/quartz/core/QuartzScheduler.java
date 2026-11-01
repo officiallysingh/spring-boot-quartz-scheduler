@@ -55,6 +55,7 @@ import org.quartz.ObjectAlreadyExistsException;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerContext;
 import org.quartz.SchedulerException;
+import org.quartz.SchedulerInstance;
 import org.quartz.SchedulerListener;
 import org.quartz.SchedulerMetaData;
 import org.quartz.Trigger;
@@ -1863,6 +1864,11 @@ public class QuartzScheduler {
             + jobDetail.getKey()
             + " can not be interrupted, since it does not implement "
             + InterruptableJob.class.getName());
+  }
+
+  /** The scheduler instances known to the job store, with their liveness. */
+  public List<SchedulerInstance> getSchedulerInstances() throws SchedulerException {
+    return resources.getJobStore().getSchedulerInstances();
   }
 
   /** The executions in progress on every instance of the cluster; see {@link JobStore}. */
