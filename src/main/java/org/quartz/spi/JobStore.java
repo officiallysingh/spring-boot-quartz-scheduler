@@ -668,6 +668,14 @@ public interface JobStore {
   List<SchedulerInstance> getSchedulerInstances() throws JobPersistenceException;
 
   /**
+   * The execution in progress with that fire instance id, on any instance sharing the store.
+   *
+   * @return the execution, or {@code null} if none with that id is executing
+   * @throws JobPersistenceException if the store cannot be read
+   */
+  @Nullable ExecutingJob getExecutingJob(String fireInstanceId) throws JobPersistenceException;
+
+  /**
    * Records a request to interrupt an execution in progress; the scheduler instance running it
    * picks the request up when it next checks in with the cluster.
    *

@@ -858,6 +858,12 @@ class MongoStoreDelegate implements StoreDelegate {
   }
 
   @Override
+  public @Nullable FiredTriggerRecord selectFiredTriggerRecord(String fireInstanceId) {
+    Document document = first(collections.firedTriggers(), fired(fireInstanceId));
+    return (document != null) ? toFiredRecord(document) : null;
+  }
+
+  @Override
   public List<FiredTriggerRecord> selectFiredTriggerRecords() {
     return firedRecords(sched());
   }

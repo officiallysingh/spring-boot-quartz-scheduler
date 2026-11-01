@@ -276,6 +276,9 @@ public interface StoreDelegate {
 
   int deleteFiredTriggers(String instanceId);
 
+  /** The fired-trigger entry with that id, or {@code null}. */
+  @Nullable FiredTriggerRecord selectFiredTriggerRecord(String fireInstanceId);
+
   /** All fired-trigger entries of the scheduler, on every instance. */
   List<FiredTriggerRecord> selectFiredTriggerRecords();
 

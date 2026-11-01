@@ -1895,12 +1895,7 @@ public class QuartzScheduler {
     if (!store.isClustered()) {
       return false;
     }
-    ExecutingJob executing = null;
-    for (ExecutingJob job : store.getExecutingJobs()) {
-      if (job.fireInstanceId().equals(fireInstanceId)) {
-        executing = job;
-      }
-    }
+    ExecutingJob executing = store.getExecutingJob(fireInstanceId);
     if (executing == null) {
       return false;
     }

@@ -1780,18 +1780,30 @@ public abstract class PersistentJobStore implements JobStore {
         () ->
             delegate.selectFiredTriggerRecords().stream()
                 .filter(record -> STATE_EXECUTING.equals(record.state()))
-                .map(
-                    record ->
-                        new ExecutingJob(
-                            record.fireInstanceId(),
-                            record.instanceId(),
-                            record.jobKey(),
-                            record.triggerKey(),
-                            record.firedTime(),
-                            record.scheduledTime(),
-                            record.requestsRecovery(),
-                            record.interruptRequested()))
+                .map(PersistentJobStore::toExecutingJob)
                 .toList());
+  }
+
+  @Override
+  public @Nullable ExecutingJob getExecutingJob(String fireInstanceId)
+      throws JobPersistenceException {
+    FiredTriggerRecord record =
+        executeWithoutLock(() -> delegate.selectFiredTriggerRecord(fireInstanceId));
+    return (record != null && STATE_EXECUTING.equals(record.state()))
+        ? toExecutingJob(record)
+        : null;
+  }
+
+  private static ExecutingJob toExecutingJob(FiredTriggerRecord record) {
+    return new ExecutingJob(
+        record.fireInstanceId(),
+        record.instanceId(),
+        record.jobKey(),
+        record.triggerKey(),
+        record.firedTime(),
+        record.scheduledTime(),
+        record.requestsRecovery(),
+        record.interruptRequested());
   }
 
   @Override

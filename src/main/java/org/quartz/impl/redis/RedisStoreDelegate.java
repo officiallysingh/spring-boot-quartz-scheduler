@@ -670,6 +670,12 @@ class RedisStoreDelegate implements StoreDelegate {
   }
 
   @Override
+  public @Nullable FiredTriggerRecord selectFiredTriggerRecord(String fireInstanceId) {
+    Map<String, String> fields = hash(keys.fired(fireInstanceId));
+    return fields.isEmpty() ? null : toFiredRecord(fields);
+  }
+
+  @Override
   public List<FiredTriggerRecord> selectFiredTriggerRecords() {
     return firedRecords(keys.firedIds());
   }

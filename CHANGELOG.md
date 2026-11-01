@@ -18,6 +18,8 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
   re-keyed colliding triggers into `DEFAULT`.
 - `getTriggers` on the Redis store (the generic `StoreDelegate` default) reads each matching
   trigger's state once instead of twice, and when ordering by key loads only the page's triggers.
+- `interruptAnywhere` reads the one fired-trigger record it needs instead of all of them. SPI:
+  `JobStore.getExecutingJob(String)`, `StoreDelegate.selectFiredTriggerRecord(String)`.
 
 ## 1.0.0-rc2 (2026-11-01)
 

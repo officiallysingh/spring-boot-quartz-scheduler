@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
@@ -523,6 +524,13 @@ class InMemoryStoreDelegate implements StoreDelegate {
       }
       data.fired.put(fireInstanceId, withInterruptRequested(record));
       return true;
+    }
+  }
+
+  @Override
+  public @Nullable FiredTriggerRecord selectFiredTriggerRecord(String fireInstanceId) {
+    synchronized (data) {
+      return data.fired.get(fireInstanceId);
     }
   }
 
