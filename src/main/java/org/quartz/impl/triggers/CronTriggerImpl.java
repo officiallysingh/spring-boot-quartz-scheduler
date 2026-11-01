@@ -285,7 +285,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
     }
 
     if (getStartTime().isAfter(afterTime)) {
-      afterTime = Instant.ofEpochMilli(getStartTime().toEpochMilli() - 1000L);
+      afterTime = getStartTime().minusSeconds(1);
     }
 
     if (getEndTime() != null && (afterTime.compareTo(getEndTime()) >= 0)) {
@@ -310,7 +310,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
   public @Nullable Instant getFinalFireTime() {
     Instant resultTime;
     if (getEndTime() != null) {
-      resultTime = getTimeBefore(Instant.ofEpochMilli(getEndTime().toEpochMilli() + 1000L));
+      resultTime = getTimeBefore(getEndTime().plusSeconds(1));
     } else {
       resultTime = (cronEx == null) ? null : cronEx.getFinalFireTime();
     }
@@ -503,7 +503,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    */
   @Override
   public @Nullable Instant computeFirstFireTime(org.quartz.@Nullable Calendar calendar) {
-    nextFireTime = getFireTimeAfter(Instant.ofEpochMilli(getStartTime().toEpochMilli() - 1000L));
+    nextFireTime = getFireTimeAfter(getStartTime().minusSeconds(1));
 
     while (nextFireTime != null && calendar != null && !calendar.isTimeIncluded(nextFireTime)) {
       nextFireTime = getFireTimeAfter(nextFireTime);

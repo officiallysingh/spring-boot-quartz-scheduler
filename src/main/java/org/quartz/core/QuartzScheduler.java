@@ -332,7 +332,7 @@ public class QuartzScheduler {
     notifySchedulerListenersStarting();
 
     if (initialStart == null) {
-      initialStart = Instants.now();
+      initialStart = Instants.toMillis(resources.getClock().instant());
       this.resources.getJobStore().schedulerStarted();
       startPlugins();
     } else {
@@ -388,7 +388,7 @@ public class QuartzScheduler {
 
   public @Nullable Instant runningSince() {
     if (initialStart == null) return null;
-    return Instant.ofEpochMilli(initialStart.toEpochMilli());
+    return initialStart;
   }
 
   public int numJobsExecuted() {

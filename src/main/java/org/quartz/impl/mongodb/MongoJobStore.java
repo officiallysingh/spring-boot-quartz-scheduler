@@ -31,6 +31,7 @@ import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.Updates;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.InstantSource;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -326,7 +327,8 @@ public class MongoJobStore extends PersistentJobStore {
 
     @Override
     protected boolean tryAcquire(String lockName, String owner, Duration leaseTime) {
-      Instant now = Instant.now();
+      // leases are compared across instances: the system clock, not the scheduling clock
+      Instant now = InstantSource.system().instant();
       Instant expiresAt = now.plus(leaseTime);
       try {
         Document lock =

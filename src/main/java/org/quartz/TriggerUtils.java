@@ -124,7 +124,7 @@ public class TriggerUtils {
 
     if (endTime == null) return null;
 
-    endTime = Instant.ofEpochMilli(endTime.toEpochMilli() + 1000L);
+    endTime = endTime.plusSeconds(1);
 
     return endTime;
   }

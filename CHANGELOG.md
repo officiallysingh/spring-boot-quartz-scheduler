@@ -72,3 +72,15 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
 - **Breaking:** `QuartzHealthIndicator` now takes only the `Scheduler` (the `JobStore` argument
   is gone) and judges the instance with `getSchedulerInstances()`. It also reports `instances` and
   `aliveInstances`, and is `DOWN` when another instance has already recovered this one.
+
+### Time
+
+- Every scheduling "now" comes from the scheduler's `Clock`: the fired-trigger record times (see
+  Recovery), the start of manual-fire triggers, the scheduler's `runningSince()`. Cluster check-ins,
+  liveness (`getSchedulerInstances()`) and lock leases deliberately stay on the system clock:
+  instances compare these times with each other, and under a fixed or offset `Clock` check-ins would
+  stop advancing. `Instants.now()` (the default "now" of triggers built or computed outside a
+  scheduler, e.g. `TriggerBuilder.startNow()`) is the system clock too.
+- Instant arithmetic no longer goes through epoch milliseconds (`plusSeconds`/`minusSeconds`
+  instead of `Instant.ofEpochMilli(x.toEpochMilli() ± 1000)`), in the cron, calendar-interval and
+  daily-time-interval triggers, `TriggerUtils` and `DailyTimeIntervalScheduleBuilder`.

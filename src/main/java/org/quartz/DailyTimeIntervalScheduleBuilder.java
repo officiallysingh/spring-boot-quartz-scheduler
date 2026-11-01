@@ -340,10 +340,9 @@ public class DailyTimeIntervalScheduleBuilder extends ScheduleBuilder<DailyTimeI
           "The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
 
     long incrementInMillis = (count - 1) * intervalInMillis;
-    Instant endTimeOfDayDate =
-        Instant.ofEpochMilli(startTimeOfDayDate.toEpochMilli() + incrementInMillis);
+    Instant endTimeOfDayDate = startTimeOfDayDate.plusMillis(incrementInMillis);
 
-    if (endTimeOfDayDate.toEpochMilli() > maxEndTimeOfDayDate.toEpochMilli())
+    if (endTimeOfDayDate.isAfter(maxEndTimeOfDayDate))
       throw new IllegalArgumentException(
           "The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
 

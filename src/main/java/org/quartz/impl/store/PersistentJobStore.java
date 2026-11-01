@@ -19,6 +19,7 @@ package org.quartz.impl.store;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.InstantSource;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -79,8 +80,10 @@ import org.slf4j.LoggerFactory;
  *
  * Compound operations run under the {@value #LOCK_TRIGGER_ACCESS} lock (and {@value
  * #LOCK_STATE_ACCESS} for cluster recovery); trigger acquisition without the lock relies on the
- * delegate's conditional {@code WAITING -> ACQUIRED} update. Scheduling time comes from {@link
- * SchedulerSignaler#getCurrentTime()}; check-ins and lock leases use the wall clock.
+ * delegate's conditional {@code WAITING -> ACQUIRED} update. Scheduling time (fire times,
+ * fired-trigger records, misfires) comes from {@link SchedulerSignaler#getCurrentTime()}, that is
+ * the scheduler's {@link java.time.Clock}; cluster check-ins and lock leases use the system clock,
+ * because instances compare them with each other.
  *
  * @author James House (JobStoreSupport)
  */
@@ -163,7 +166,15 @@ public abstract class PersistentJobStore implements JobStore {
 
   private volatile boolean firstCheckIn = true;
 
-  private volatile Instant lastCheckin = Instant.now();
+  /**
+   * The clock of cluster check-ins (and liveness): always the system clock, never the scheduler's
+   * {@link java.time.Clock}. Check-in times written by different instances are compared with each
+   * other, so they must share one timeline; under a fixed or offset scheduling clock, check-ins
+   * would stop advancing and every instance would look alive (or dead) forever.
+   */
+  private static final InstantSource CHECKIN_CLOCK = InstantSource.system();
+
+  private volatile Instant lastCheckin = CHECKIN_CLOCK.instant();
 
   /** Interrupt requests already handed to the scheduler (cluster manager thread only). */
   private final Set<String> deliveredInterrupts = new HashSet<>();
@@ -1293,7 +1304,7 @@ public abstract class PersistentJobStore implements JobStore {
                 triggerKey,
                 nextTrigger.getJobKey(),
                 STATE_ACQUIRED,
-                Instant.now(),
+                Instants.toMillis(getSchedulingTime()),
                 nextFireTime,
                 nextTrigger.getPriority(),
                 false,
@@ -1764,7 +1775,7 @@ public abstract class PersistentJobStore implements JobStore {
       return List.of(new SchedulerInstance(instanceId, null, null, !shutdown, true));
     }
     List<SchedulerStateRecord> records = executeWithoutLock(delegate::selectSchedulerStateRecords);
-    Instant now = Instant.now();
+    Instant now = CHECKIN_CLOCK.instant();
     List<SchedulerInstance> instances = new ArrayList<>();
     for (SchedulerStateRecord record : records) {
       boolean current = record.instanceId().equals(instanceId);
@@ -1834,7 +1845,7 @@ public abstract class PersistentJobStore implements JobStore {
   private List<SchedulerStateRecord> findFailedInstances() {
     List<SchedulerStateRecord> failed = new ArrayList<>();
     boolean foundThisScheduler = false;
-    Instant now = Instant.now();
+    Instant now = CHECKIN_CLOCK.instant();
     List<SchedulerStateRecord> states = delegate.selectSchedulerStateRecords();
     for (SchedulerStateRecord record : states) {
       if (record.instanceId().equals(instanceId)) {
@@ -1886,7 +1897,7 @@ public abstract class PersistentJobStore implements JobStore {
 
   private List<SchedulerStateRecord> clusterCheckIn() {
     List<SchedulerStateRecord> failed = findFailedInstances();
-    lastCheckin = Instant.now();
+    lastCheckin = CHECKIN_CLOCK.instant();
     delegate.upsertSchedulerState(instanceId, lastCheckin, settings.clusterCheckinInterval());
     return failed;
   }
@@ -2022,7 +2033,7 @@ public abstract class PersistentJobStore implements JobStore {
     @Override
     public void run() {
       while (!halted) {
-        long start = System.currentTimeMillis();
+        long start = System.nanoTime();
         MisfireResult result = manage();
         if (result.processedMisfiredTriggerCount() > 0) {
           signaler.signalSchedulingChange(result.earliestNewTime());
@@ -2032,7 +2043,9 @@ public abstract class PersistentJobStore implements JobStore {
         }
         long sleep = 50L; // at least a short pause to help balance threads
         if (!result.hasMoreMisfiredTriggers()) {
-          sleep = settings.misfireThreshold().toMillis() - (System.currentTimeMillis() - start);
+          sleep =
+              settings.misfireThreshold().toMillis()
+                  - Duration.ofNanos(System.nanoTime() - start).toMillis();
           if (sleep <= 0) {
             sleep = 50L;
           }
@@ -2085,7 +2098,7 @@ public abstract class PersistentJobStore implements JobStore {
       while (!halted) {
         long sleep =
             settings.clusterCheckinInterval().toMillis()
-                - Duration.between(lastCheckin, Instant.now()).toMillis();
+                - Duration.between(lastCheckin, CHECKIN_CLOCK.instant()).toMillis();
         if (sleep <= 0) {
           sleep = 100L;
         }
