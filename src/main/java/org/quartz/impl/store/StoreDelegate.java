@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
@@ -125,24 +126,15 @@ public interface StoreDelegate {
    */
   default List<TriggerKey> selectTriggerKeys(
       GroupMatcher<TriggerKey> matcher, Collection<String> states) {
-    List<TriggerKey> keys = new ArrayList<>();
-    for (String group : StoreQueries.matchingGroups(selectTriggerGroups(), matcher)) {
-      for (TriggerKey key : selectTriggerKeys(group)) {
-        String state = selectTriggerState(key);
-        if (state != null && (states.isEmpty() || states.contains(state))) {
-          keys.add(key);
-        }
-      }
-    }
-    keys.sort(StoreQueries.keyOrder());
-    return keys;
+    return selectTriggerStates(matcher, states).stream().map(Map.Entry::getKey).toList();
   }
 
   /**
    * One page of the triggers in the matching groups whose stored state is one of {@code states}
    * (all states if empty), in {@link StoreQueries#triggerOrder} order, with the number of matching
-   * triggers. The default reads every matching trigger; stores with a query language override it
-   * with one query and one count.
+   * triggers. The default reads each matching trigger's state once; ordered by key it then loads
+   * only the page's triggers, otherwise every matching trigger, to sort them. Stores with a query
+   * language override it with one query and one count.
    */
   default StorePage<StoredTrigger> selectTriggers(
       GroupMatcher<TriggerKey> matcher,
@@ -152,17 +144,47 @@ public interface StoreDelegate {
       int offset,
       int limit)
       throws JobPersistenceException {
-    List<StoredTrigger> triggers = new ArrayList<>();
-    for (TriggerKey key : selectTriggerKeys(matcher, states)) {
-      OperableTrigger trigger = selectTrigger(key);
-      String state = selectTriggerState(key);
-      if (trigger != null && state != null) {
-        triggers.add(new StoredTrigger(trigger, state));
+    List<Map.Entry<TriggerKey, String>> matching = selectTriggerStates(matcher, states);
+    if (sort == TriggerSort.KEY) {
+      if (descending) {
+        matching = matching.reversed();
+      }
+      return new StorePage<>(
+          load(StorePage.of(matching, offset, limit).content()), matching.size());
+    }
+    List<StoredTrigger> triggers = load(matching);
+    triggers.sort(
+        Comparator.comparing(StoredTrigger::trigger, StoreQueries.triggerOrder(sort, descending)));
+    return new StorePage<>(StorePage.of(triggers, offset, limit).content(), matching.size());
+  }
+
+  /** The key and stored state of each matching trigger, ordered by key. */
+  private List<Map.Entry<TriggerKey, String>> selectTriggerStates(
+      GroupMatcher<TriggerKey> matcher, Collection<String> states) {
+    List<Map.Entry<TriggerKey, String>> matching = new ArrayList<>();
+    for (String group : StoreQueries.matchingGroups(selectTriggerGroups(), matcher)) {
+      for (TriggerKey key : selectTriggerKeys(group)) {
+        String state = selectTriggerState(key);
+        if (state != null && (states.isEmpty() || states.contains(state))) {
+          matching.add(Map.entry(key, state));
+        }
       }
     }
-    Comparator<OperableTrigger> order = StoreQueries.triggerOrder(sort, descending);
-    triggers.sort(Comparator.comparing(StoredTrigger::trigger, order));
-    return StorePage.of(triggers, offset, limit);
+    matching.sort(Map.Entry.comparingByKey(StoreQueries.keyOrder()));
+    return matching;
+  }
+
+  /** The triggers of the keys, with the given states; triggers deleted meanwhile are left out. */
+  private List<StoredTrigger> load(List<Map.Entry<TriggerKey, String>> keyStates)
+      throws JobPersistenceException {
+    List<StoredTrigger> triggers = new ArrayList<>();
+    for (Map.Entry<TriggerKey, String> keyState : keyStates) {
+      OperableTrigger trigger = selectTrigger(keyState.getKey());
+      if (trigger != null) {
+        triggers.add(new StoredTrigger(trigger, keyState.getValue()));
+      }
+    }
+    return triggers;
   }
 
   int updateTriggerState(TriggerKey triggerKey, String newState);

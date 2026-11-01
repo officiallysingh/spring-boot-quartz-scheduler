@@ -16,6 +16,8 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
   group), not of `DEFAULT`; pause `MANUAL_TRIGGER` to hold them (documented on the constant).
 - Removed the unused `QuartzScheduler.triggerJob(OperableTrigger)` (internal class), which still
   re-keyed colliding triggers into `DEFAULT`.
+- `getTriggers` on the Redis store (the generic `StoreDelegate` default) reads each matching
+  trigger's state once instead of twice, and when ordering by key loads only the page's triggers.
 
 ## 1.0.0-rc2 (2026-11-01)
 
