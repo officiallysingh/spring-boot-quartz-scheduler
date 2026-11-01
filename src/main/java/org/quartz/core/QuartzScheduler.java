@@ -1844,8 +1844,6 @@ public class QuartzScheduler {
     }
     try {
       job.interrupt();
-    } catch (UnableToInterruptJobException ex) {
-      throw ex;
     } catch (RuntimeException ex) {
       UnableToInterruptJobException failure =
           new UnableToInterruptJobException(

@@ -22,6 +22,8 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
   `JobStore.getExecutingJob(String)`, `StoreDelegate.selectFiredTriggerRecord(String)`.
 - `getSchedulerInstances()` judges every instance, the calling one included, with the single rule
   cluster recovery uses.
+- The health indicator's reason for a missing check-in record no longer assumes another instance
+  recovered this one; failing check-ins have the same symptom.
 
 ## 1.0.0-rc2 (2026-11-01)
 

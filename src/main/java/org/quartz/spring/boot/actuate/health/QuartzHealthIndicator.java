@@ -86,7 +86,10 @@ public class QuartzHealthIndicator extends AbstractHealthIndicator {
     if (current == null) {
       builder
           .down()
-          .withDetail("reason", "no cluster check-in record: recovered by another instance");
+          .withDetail(
+              "reason",
+              "no cluster check-in record for this instance: its check-ins fail, or another"
+                  + " instance recovered it");
       return;
     }
     Instant lastCheckin = current.lastCheckin();

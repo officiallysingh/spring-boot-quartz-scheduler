@@ -15,7 +15,6 @@
  */
 package org.quartz;
 
-import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Set;
 import org.quartz.Trigger.TriggerState;
@@ -54,7 +53,7 @@ public record TriggerQuery(
   public TriggerQuery {
     Objects.requireNonNull(matcher, "matcher");
     Objects.requireNonNull(sort, "sort");
-    states = states.isEmpty() ? Set.of() : Set.copyOf(EnumSet.copyOf(states));
+    states = Set.copyOf(states);
     if (offset < 0) {
       throw new IllegalArgumentException("offset must not be negative: " + offset);
     }

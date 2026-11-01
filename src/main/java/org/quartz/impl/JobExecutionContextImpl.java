@@ -148,11 +148,12 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
     }
   }
 
-  /** Count one more re-execution of the job for this firing. */
+  /** {@inheritDoc} */
   public Optional<RecoveryInfo> getRecoveryInfo() {
     return isRecovering() ? RecoveryInfo.of(jobDataMap) : Optional.empty();
   }
 
+  /** Count one more re-execution of the job for this firing. */
   public void incrementRefireCount() {
     numRefires++;
   }
