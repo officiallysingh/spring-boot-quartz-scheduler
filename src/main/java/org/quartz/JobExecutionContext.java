@@ -182,13 +182,15 @@ public interface JobExecutionContext {
   void setResult(@Nullable Object result);
 
   /**
-   * The amount of time the job ran for (millisecond precision). The returned value will be negative
-   * (-1 ms) until the job has actually completed (or thrown an exception), and is therefore
-   * generally only useful to <code>JobListener</code>s and <code>TriggerListener</code>s.
+   * The amount of time the job ran for, measured with a monotonic clock ({@link
+   * System#nanoTime()}), so it is never negative, even when the wall clock is changed during the
+   * run. It is {@code null} until the job has actually completed (or thrown an exception), and is
+   * therefore generally only useful to <code>JobListener</code>s and <code>TriggerListener</code>s
+   * once the job was executed.
    *
-   * @return Returns the jobRunTime.
+   * @return the job's run time, or {@code null} while it has not finished
    */
-  Duration getJobRunTime();
+  @Nullable Duration getJobRunTime();
 
   /**
    * Put the specified value into the context's data map with the given key. Possibly useful for

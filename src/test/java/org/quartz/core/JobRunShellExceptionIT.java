@@ -42,6 +42,8 @@ class JobRunShellExceptionIT extends AbstractMongoIT {
 
   static final Map<String, JobExecutionException> SEEN_BY_JOB_LISTENER = new ConcurrentHashMap<>();
 
+  static final Map<String, Duration> RUN_TIMES = new ConcurrentHashMap<>();
+
   static final Map<String, SchedulerException> SEEN_BY_SCHEDULER_LISTENER =
       new ConcurrentHashMap<>();
 
@@ -64,6 +66,7 @@ class JobRunShellExceptionIT extends AbstractMongoIT {
   @BeforeEach
   void setUp() throws Exception {
     SEEN_BY_JOB_LISTENER.clear();
+    RUN_TIMES.clear();
     SEEN_BY_SCHEDULER_LISTENER.clear();
     scheduler = TestSchedulers.create(TestSchedulers.scheduler().name("exceptions"), 2);
     scheduler
@@ -78,6 +81,10 @@ class JobRunShellExceptionIT extends AbstractMongoIT {
               @Override
               public void jobWasExecuted(
                   JobExecutionContext context, JobExecutionException jobException) {
+                Duration runTime = context.getJobRunTime();
+                if (runTime != null) {
+                  RUN_TIMES.put(context.getJobDetail().getKey().getName(), runTime);
+                }
                 if (jobException != null) {
                   SEEN_BY_JOB_LISTENER.put(context.getJobDetail().getKey().getName(), jobException);
                 }
@@ -120,6 +127,8 @@ class JobRunShellExceptionIT extends AbstractMongoIT {
             "Job auction.123 threw an unhandled exception: java.lang.IllegalStateException: "
                 + "Auction must be published before starting");
     assertThat(seen.refireImmediately()).isFalse();
+    // a failed run has its (monotonic, never negative) run time too
+    assertThat(RUN_TIMES.get("123")).isNotNull().isGreaterThanOrEqualTo(Duration.ZERO);
 
     // scheduler listeners still get the execution context with the job's throwable
     await()

@@ -84,3 +84,8 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
 - Instant arithmetic no longer goes through epoch milliseconds (`plusSeconds`/`minusSeconds`
   instead of `Instant.ofEpochMilli(x.toEpochMilli() ± 1000)`), in the cron, calendar-interval and
   daily-time-interval triggers, `TriggerUtils` and `DailyTimeIntervalScheduleBuilder`.
+- **Breaking:** `JobExecutionContext.getJobRunTime()` is `@Nullable`: `null` until the job has
+  finished, instead of the old `-1 ms` sentinel. Replace `getJobRunTime().isNegative()` checks with
+  null checks. `QuartzMetrics` skips the timer when it is `null`.
+- The run time is measured with `System.nanoTime()` (nanosecond `Duration`), so a wall-clock step
+  during a run can no longer make it wrong or negative.

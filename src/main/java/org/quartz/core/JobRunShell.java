@@ -226,20 +226,21 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
           break;
         }
 
-        long startTime = System.currentTimeMillis();
-        long endTime;
+        // elapsed time, immune to wall-clock steps (NTP, manual changes) during the run
+        long startNanos = System.nanoTime();
+        long endNanos;
 
         // execute the job
         try {
           log.debug("Calling execute on job {}", jobDetail.getKey());
           executeJob(job, jec);
-          endTime = System.currentTimeMillis();
+          endNanos = System.nanoTime();
         } catch (JobExecutionException jee) {
-          endTime = System.currentTimeMillis();
+          endNanos = System.nanoTime();
           jobExEx = jee;
           getLog().info("Job {} threw a JobExecutionException: ", jobDetail.getKey(), jobExEx);
         } catch (Throwable e) {
-          endTime = System.currentTimeMillis();
+          endNanos = System.nanoTime();
           getLog().error("Job {} threw an unhandled Exception: ", jobDetail.getKey(), e);
           qs.notifySchedulerListenersError(
               "Job " + jec.getJobDetail().getKey() + " threw an exception.",
@@ -247,7 +248,7 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
           jobExEx = unhandledJobException(jobDetail, e);
         }
 
-        jec.setJobRunTime(Duration.ofMillis(endTime - startTime));
+        jec.setJobRunTime(Duration.ofNanos(endNanos - startNanos));
 
         // notify all job listeners
         if (!notifyJobListenersComplete(jec, jobExEx)) {

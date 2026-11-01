@@ -20,6 +20,7 @@ import static org.mockito.Mockito.verify;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -98,6 +99,20 @@ class QuartzMetricsTest {
   }
 
   @Test
+  void anExecutionWithoutRunTimeIsCountedButNotTimed() {
+    jobListener.jobWasExecuted(execution("reports", null), null);
+
+    assertThat(
+            registry
+                .get("quartz.jobs.executed")
+                .tags("scheduler", "app", "job.group", "reports")
+                .counter()
+                .count())
+        .isEqualTo(1);
+    assertThat(registry.find("quartz.jobs.duration").timer()).isNull();
+  }
+
+  @Test
   void misfiresAreCounted() {
     Trigger trigger = mock(Trigger.class);
     given(trigger.getKey()).willReturn(TriggerKey.triggerKey("nightly", "batch"));
@@ -114,7 +129,7 @@ class QuartzMetricsTest {
         .isEqualTo(2);
   }
 
-  private static JobExecutionContext execution(String group, Duration runTime) {
+  private static JobExecutionContext execution(String group, @Nullable Duration runTime) {
     JobExecutionContext context = mock(JobExecutionContext.class);
     JobDetail detail = mock(JobDetail.class);
     given(detail.getKey()).willReturn(JobKey.jobKey("job", group));

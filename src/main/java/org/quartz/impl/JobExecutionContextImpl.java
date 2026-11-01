@@ -75,7 +75,7 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
 
   private final @Nullable Instant nextFireTime;
 
-  private Duration jobRunTime = Duration.ofMillis(-1);
+  private @Nullable Duration jobRunTime;
 
   private @Nullable Object result;
 
@@ -223,7 +223,7 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
   }
 
   /** {@inheritDoc} */
-  public Duration getJobRunTime() {
+  public @Nullable Duration getJobRunTime() {
     return jobRunTime;
   }
 
