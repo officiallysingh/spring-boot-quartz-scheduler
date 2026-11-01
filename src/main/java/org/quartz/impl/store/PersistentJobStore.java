@@ -31,6 +31,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
+import org.quartz.ExecutingJob;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
 import org.quartz.JobKey;
@@ -162,6 +163,9 @@ public abstract class PersistentJobStore implements JobStore {
   private volatile boolean firstCheckIn = true;
 
   private volatile Instant lastCheckin = Instant.now();
+
+  /** Interrupt requests already handed to the scheduler (cluster manager thread only). */
+  private final Set<String> deliveredInterrupts = new HashSet<>();
 
   /**
    * Create a store.
@@ -1692,6 +1696,57 @@ public abstract class PersistentJobStore implements JobStore {
   }
 
   // ------------------------------------------------------------------
+  // executions in progress
+  // ------------------------------------------------------------------
+
+  @Override
+  public List<ExecutingJob> getExecutingJobs() throws JobPersistenceException {
+    return executeWithoutLock(
+        () ->
+            delegate.selectFiredTriggerRecords().stream()
+                .filter(record -> STATE_EXECUTING.equals(record.state()))
+                .map(
+                    record ->
+                        new ExecutingJob(
+                            record.fireInstanceId(),
+                            record.instanceId(),
+                            record.jobKey(),
+                            record.triggerKey(),
+                            record.firedTime(),
+                            record.scheduledTime(),
+                            record.requestsRecovery(),
+                            record.interruptRequested()))
+                .toList());
+  }
+
+  @Override
+  public boolean requestInterrupt(String fireInstanceId) throws JobPersistenceException {
+    return executeWithoutLock(() -> delegate.updateFiredTriggerInterruptRequested(fireInstanceId));
+  }
+
+  /**
+   * Hands this instance's executions flagged by {@link #requestInterrupt} to the scheduler, once
+   * each; an execution the scheduler does not know yet (still starting) is offered again next time.
+   * Called by the cluster manager after each check-in.
+   */
+  private void deliverInterruptRequests() throws JobPersistenceException {
+    List<String> requested =
+        executeWithoutLock(
+            () ->
+                delegate.selectFiredTriggerRecordsForInstance(instanceId).stream()
+                    .filter(FiredTriggerRecord::interruptRequested)
+                    .map(FiredTriggerRecord::fireInstanceId)
+                    .toList());
+    deliveredInterrupts.retainAll(requested);
+    for (String fireInstanceId : requested) {
+      if (!deliveredInterrupts.contains(fireInstanceId)
+          && signaler.interruptRequested(fireInstanceId)) {
+        deliveredInterrupts.add(fireInstanceId);
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------
   // clustering
   // ------------------------------------------------------------------
 
@@ -1966,6 +2021,12 @@ public abstract class PersistentJobStore implements JobStore {
           log.error("ClusterManager: Error managing cluster: {}", ex.getMessage(), ex);
         }
         numFails++;
+        return recovered;
+      }
+      try {
+        deliverInterruptRequests();
+      } catch (Exception ex) {
+        log.error("ClusterManager: Error delivering interrupt requests: {}", ex.getMessage(), ex);
       }
       return recovered;
     }

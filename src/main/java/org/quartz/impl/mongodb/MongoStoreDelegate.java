@@ -82,6 +82,7 @@ class MongoStoreDelegate implements StoreDelegate {
   static final String SCHEDULED_TIME = "scheduledTime";
   static final String LAST_CHECKIN = "lastCheckin";
   static final String CHECKIN_INTERVAL = "checkinInterval";
+  static final String INTERRUPT_REQUESTED = "interruptRequested";
 
   static final String KIND_TRIGGER = "trigger";
   static final String KIND_JOB = "job";
@@ -687,7 +688,8 @@ class MongoStoreDelegate implements StoreDelegate {
         Instant.ofEpochMilli(document.getLong(SCHEDULED_TIME)),
         document.getInteger(TriggerCodec.PRIORITY),
         document.getBoolean(JobDetailCodec.NON_CONCURRENT),
-        document.getBoolean(JobDetailCodec.REQUESTS_RECOVERY));
+        document.getBoolean(JobDetailCodec.REQUESTS_RECOVERY),
+        document.getBoolean(INTERRUPT_REQUESTED, false));
   }
 
   private Bson fired(String fireInstanceId) {
@@ -723,6 +725,18 @@ class MongoStoreDelegate implements StoreDelegate {
   }
 
   @Override
+  public boolean updateFiredTriggerInterruptRequested(String fireInstanceId) {
+    Bson filter = and(fired(fireInstanceId), eq(STATE, PersistentJobStore.STATE_EXECUTING));
+    Bson update = Updates.set(INTERRUPT_REQUESTED, true);
+    ClientSession s = session.get();
+    return ((s != null)
+                ? collections.firedTriggers().updateOne(s, filter, update)
+                : collections.firedTriggers().updateOne(filter, update))
+            .getMatchedCount()
+        > 0;
+  }
+
+  @Override
   public void deleteFiredTrigger(String fireInstanceId) {
     deleteOne(collections.firedTriggers(), fired(fireInstanceId));
   }
@@ -735,6 +749,11 @@ class MongoStoreDelegate implements StoreDelegate {
   @Override
   public int deleteFiredTriggers(String instanceId) {
     return (int) deleteMany(collections.firedTriggers(), sched(eq(INSTANCE_ID, instanceId)));
+  }
+
+  @Override
+  public List<FiredTriggerRecord> selectFiredTriggerRecords() {
+    return firedRecords(sched());
   }
 
   @Override

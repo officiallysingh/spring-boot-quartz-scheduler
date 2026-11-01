@@ -39,6 +39,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
+import org.quartz.ExecutingJob;
 import org.quartz.InterruptableJob;
 import org.quartz.Job;
 import org.quartz.JobDataMap;
@@ -65,6 +66,7 @@ import org.quartz.UnableToInterruptJobException;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.listeners.SchedulerListenerSupport;
 import org.quartz.spi.JobFactory;
+import org.quartz.spi.JobStore;
 import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spi.SchedulerSignaler;
@@ -1778,38 +1780,42 @@ public class QuartzScheduler {
 
   /**
    * Interrupt all instances of the identified InterruptableJob executing in this Scheduler
-   * instance.
+   * instance. Every instance is attempted; the failures are reported together at the end.
    *
    * <p>This method is not cluster aware. That is, it will only interrupt instances of the
    * identified InterruptableJob currently executing in this Scheduler instance, not across the
    * entire cluster.
    */
   public boolean interrupt(JobKey jobKey) throws UnableToInterruptJobException {
-
-    List<JobExecutionContext> jobs = getCurrentlyExecutingJobs();
-
-    JobDetail jobDetail;
-    Job job;
-
+    List<UnableToInterruptJobException> failures = new ArrayList<>();
+    int attempted = 0;
     boolean interrupted = false;
-
-    for (JobExecutionContext jec : jobs) {
-      jobDetail = jec.getJobDetail();
-      if (jobKey.equals(jobDetail.getKey())) {
-        job = jec.getJobInstance();
-        if (job instanceof InterruptableJob) {
-          ((InterruptableJob) job).interrupt();
-          interrupted = true;
-        } else {
-          throw new UnableToInterruptJobException(
-              "Job "
-                  + jobDetail.getKey()
-                  + " can not be interrupted, since it does not implement "
-                  + InterruptableJob.class.getName());
-        }
+    for (JobExecutionContext jec : getCurrentlyExecutingJobs()) {
+      if (!jobKey.equals(jec.getJobDetail().getKey())) {
+        continue;
+      }
+      attempted++;
+      try {
+        interruptExecution(jec);
+        interrupted = true;
+      } catch (UnableToInterruptJobException ex) {
+        failures.add(ex);
       }
     }
-
+    if (!failures.isEmpty()) {
+      UnableToInterruptJobException failure =
+          new UnableToInterruptJobException(
+              "Could not interrupt "
+                  + failures.size()
+                  + " of "
+                  + attempted
+                  + " executions of job "
+                  + jobKey
+                  + ": "
+                  + failures.getFirst().getMessage());
+      failures.forEach(failure::addSuppressed);
+      throw failure;
+    }
     return interrupted;
   }
 
@@ -1821,27 +1827,79 @@ public class QuartzScheduler {
    * entire cluster.
    */
   public boolean interrupt(String fireInstanceId) throws UnableToInterruptJobException {
-    List<JobExecutionContext> jobs = getCurrentlyExecutingJobs();
-
-    Job job;
-
-    for (JobExecutionContext jec : jobs) {
+    for (JobExecutionContext jec : getCurrentlyExecutingJobs()) {
       if (jec.getFireInstanceId().equals(fireInstanceId)) {
-        job = jec.getJobInstance();
-        if (job instanceof InterruptableJob) {
-          ((InterruptableJob) job).interrupt();
-          return true;
-        } else {
-          throw new UnableToInterruptJobException(
-              "Job "
-                  + jec.getJobDetail().getKey()
-                  + " can not be interrupted, since it does not implement "
-                  + InterruptableJob.class.getName());
-        }
+        interruptExecution(jec);
+        return true;
       }
     }
-
     return false;
+  }
+
+  private static void interruptExecution(JobExecutionContext jec)
+      throws UnableToInterruptJobException {
+    if (!(jec.getJobInstance() instanceof InterruptableJob job)) {
+      throw notInterruptible(jec.getJobDetail());
+    }
+    try {
+      job.interrupt();
+    } catch (UnableToInterruptJobException ex) {
+      throw ex;
+    } catch (RuntimeException ex) {
+      UnableToInterruptJobException failure =
+          new UnableToInterruptJobException(
+              "Job "
+                  + jec.getJobDetail().getKey()
+                  + " threw while being interrupted: "
+                  + ex.getMessage());
+      failure.initCause(ex);
+      throw failure;
+    }
+  }
+
+  private static UnableToInterruptJobException notInterruptible(JobDetail jobDetail) {
+    return new UnableToInterruptJobException(
+        "Job "
+            + jobDetail.getKey()
+            + " can not be interrupted, since it does not implement "
+            + InterruptableJob.class.getName());
+  }
+
+  /** The executions in progress on every instance of the cluster; see {@link JobStore}. */
+  public List<ExecutingJob> getClusterExecutingJobs() throws SchedulerException {
+    return resources.getJobStore().getExecutingJobs();
+  }
+
+  /**
+   * Interrupt an execution running on any instance of the cluster: at once if it runs here,
+   * otherwise by flagging it in the store for the instance running it, which interrupts it when it
+   * next checks in.
+   *
+   * @return whether the execution was found (interrupted here, or flagged)
+   * @throws UnableToInterruptJobException if its job does not implement {@link InterruptableJob}
+   */
+  public boolean interruptAnywhere(String fireInstanceId) throws SchedulerException {
+    if (interrupt(fireInstanceId)) {
+      return true;
+    }
+    JobStore store = resources.getJobStore();
+    if (!store.isClustered()) {
+      return false;
+    }
+    ExecutingJob executing = null;
+    for (ExecutingJob job : store.getExecutingJobs()) {
+      if (job.fireInstanceId().equals(fireInstanceId)) {
+        executing = job;
+      }
+    }
+    if (executing == null) {
+      return false;
+    }
+    JobDetail jobDetail = store.retrieveJob(executing.jobKey());
+    if (jobDetail != null && !jobDetail.isInterruptible()) {
+      throw notInterruptible(jobDetail);
+    }
+    return store.requestInterrupt(fireInstanceId);
   }
 
   private void shutdownPlugins() {

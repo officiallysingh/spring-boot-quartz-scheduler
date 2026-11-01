@@ -24,6 +24,7 @@ import org.jspecify.annotations.Nullable;
 import org.quartz.JobKey;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
+import org.quartz.UnableToInterruptJobException;
 import org.quartz.spi.SchedulerSignaler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -111,6 +112,21 @@ public class SchedulerSignalerImpl implements SchedulerSignaler {
       return Instant.ofEpochMilli(clock.millis());
     } catch (RuntimeException e) {
       throw new SchedulerException("Clock failed to supply the scheduling time", e);
+    }
+  }
+
+  @Override
+  public boolean interruptRequested(String fireInstanceId) {
+    try {
+      boolean found = sched.interrupt(fireInstanceId);
+      if (found) {
+        log.info("Interrupted execution {} as requested through the job store.", fireInstanceId);
+      }
+      return found;
+    } catch (UnableToInterruptJobException ex) {
+      log.warn(
+          "Could not interrupt execution {} as requested: {}", fireInstanceId, ex.getMessage());
+      return true;
     }
   }
 

@@ -162,14 +162,27 @@ public interface StoreDelegate {
 
   void insertFiredTrigger(FiredTriggerRecord record);
 
-  /** Updates state, job flags and fire time of an existing entry. */
+  /**
+   * Updates state, job flags and fire time of an existing entry; leaves its {@link
+   * FiredTriggerRecord#interruptRequested()} flag as it is.
+   */
   void updateFiredTrigger(FiredTriggerRecord record);
+
+  /**
+   * Flags an {@code EXECUTING} entry as asked to be interrupted.
+   *
+   * @return whether an executing entry with that id exists (flagged before or now)
+   */
+  boolean updateFiredTriggerInterruptRequested(String fireInstanceId);
 
   void deleteFiredTrigger(String fireInstanceId);
 
   int deleteFiredTriggers();
 
   int deleteFiredTriggers(String instanceId);
+
+  /** All fired-trigger entries of the scheduler, on every instance. */
+  List<FiredTriggerRecord> selectFiredTriggerRecords();
 
   List<FiredTriggerRecord> selectFiredTriggerRecordsForInstance(String instanceId);
 

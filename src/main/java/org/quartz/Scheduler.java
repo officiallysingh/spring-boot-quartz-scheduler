@@ -322,7 +322,7 @@ public interface Scheduler {
    * executing Jobs in this Scheduler instance.
    *
    * <p>This method is not cluster aware. That is, it will only return Jobs currently executing in
-   * this Scheduler instance, not across the entire cluster.
+   * this Scheduler instance, not across the entire cluster; see {@link #getClusterExecutingJobs()}.
    *
    * <p>Note that the list returned is an 'instantaneous' snap-shot, and that as soon as it's
    * returned, the true list of executing jobs may be different. Also please read the doc associated
@@ -331,6 +331,20 @@ public interface Scheduler {
    * @see JobExecutionContext
    */
   List<JobExecutionContext> getCurrentlyExecutingJobs() throws SchedulerException;
+
+  /**
+   * The job executions in progress on every instance of the cluster, read from the job store's
+   * fired-trigger records in one query (only this instance's when the store is not clustered).
+   *
+   * <p>Like {@link #getCurrentlyExecutingJobs()}, the list is a snapshot. An execution is listed
+   * from the moment its trigger fires until it completes; the job instance and its context are only
+   * available on the instance running it.
+   *
+   * @return the executions, in no particular order
+   * @throws SchedulerException if the store cannot be read
+   * @see #interruptAnywhere(String)
+   */
+  List<ExecutingJob> getClusterExecutingJobs() throws SchedulerException;
 
   /**
    * Set the <code>JobFactory</code> that will be responsible for producing instances of <code>Job
@@ -785,21 +799,23 @@ public interface Scheduler {
    * </code> interface.
    *
    * <p>If more than one instance of the identified job is currently executing, the <code>
-   * InterruptableJob#interrupt()</code> method will be called on each instance. However, there is a
-   * limitation that in the case that <code>interrupt()</code> on one instances throws an exception,
-   * all remaining instances (that have not yet been interrupted) will not have their <code>
-   * interrupt()</code> method called.
+   * InterruptableJob#interrupt()</code> method is called on each instance, even when interrupting
+   * an earlier one fails. If any instance could not be interrupted (its job does not implement
+   * <code>InterruptableJob</code>, or <code>interrupt()</code> threw), an <code>
+   * UnableToInterruptJobException</code> is thrown once all were attempted, with the individual
+   * failures as {@linkplain Throwable#getSuppressed() suppressed} exceptions.
    *
    * <p>This method is not cluster aware. That is, it will only interrupt instances of the
    * identified InterruptableJob currently executing in this Scheduler instance, not across the
    * entire cluster.
    *
    * @return true if at least one instance of the identified job was found and interrupted.
-   * @throws UnableToInterruptJobException if the job does not implement <code>InterruptableJob
-   *     </code>, or there is an exception while interrupting the job.
+   * @throws UnableToInterruptJobException if at least one executing instance could not be
+   *     interrupted (the others were).
    * @see InterruptableJob#interrupt()
    * @see #getCurrentlyExecutingJobs()
    * @see #interrupt(String)
+   * @see JobDetail#isInterruptible()
    */
   boolean interrupt(JobKey jobKey) throws UnableToInterruptJobException;
 
@@ -822,6 +838,28 @@ public interface Scheduler {
    * @see #interrupt(JobKey)
    */
   boolean interrupt(String fireInstanceId) throws UnableToInterruptJobException;
+
+  /**
+   * Request the interruption of the identified executing <code>Job</code> instance on whichever
+   * instance of the cluster runs it; its job must implement <code>InterruptableJob</code>.
+   *
+   * <p>An execution running on this instance is interrupted at once, as by {@link
+   * #interrupt(String)}. Otherwise the request is recorded on the execution's fired-trigger record
+   * in the job store ({@link ExecutingJob#interruptRequested()}), and the instance running it calls
+   * <code>InterruptableJob#interrupt()</code> when it next checks in with the cluster, so delivery
+   * takes up to {@code cluster-checkin-interval}. When the store is not clustered this is {@link
+   * #interrupt(String)}.
+   *
+   * @param fireInstanceId the execution's fire instance id ({@link
+   *     JobExecutionContext#getFireInstanceId()}, {@link ExecutingJob#fireInstanceId()})
+   * @return true if the execution was found: interrupted here, or the request recorded for the
+   *     instance running it; false if no such execution is in progress.
+   * @throws UnableToInterruptJobException if the job does not implement <code>InterruptableJob
+   *     </code>, or interrupting it here failed.
+   * @throws SchedulerException if the store cannot be read or written
+   * @see #getClusterExecutingJobs()
+   */
+  boolean interruptAnywhere(String fireInstanceId) throws SchedulerException;
 
   /**
    * Determine whether a {@link Job} with the given identifier already exists within the scheduler.

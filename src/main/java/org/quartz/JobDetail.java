@@ -63,6 +63,16 @@ public interface JobDetail extends Serializable, Cloneable {
    */
   Class<? extends Job> getJobClass();
 
+  /**
+   * Whether executions of the job can be interrupted, that is whether its class implements {@link
+   * InterruptableJob}; UIs can use it to offer an interrupt action.
+   *
+   * @return {@code true} if {@link Scheduler#interrupt(JobKey)} can interrupt the job's executions
+   */
+  default boolean isInterruptible() {
+    return InterruptableJob.class.isAssignableFrom(getJobClass());
+  }
+
   /** Get the <code>JobDataMap</code> that is associated with the <code>Job</code>. */
   JobDataMap getJobDataMap();
 

@@ -31,6 +31,10 @@ import org.quartz.TriggerKey;
  * @param priority the trigger's priority
  * @param nonConcurrent whether the job disallows concurrent execution (only known once executing)
  * @param requestsRecovery whether the job requests recovery (only known once executing)
+ * @param interruptRequested whether {@link org.quartz.Scheduler#interruptAnywhere(String)} asked
+ *     for the execution to be interrupted; written only by {@link
+ *     StoreDelegate#updateFiredTriggerInterruptRequested(String)}, never by {@link
+ *     StoreDelegate#updateFiredTrigger(FiredTriggerRecord)}
  */
 public record FiredTriggerRecord(
     String fireInstanceId,
@@ -42,4 +46,32 @@ public record FiredTriggerRecord(
     Instant scheduledTime,
     int priority,
     boolean nonConcurrent,
-    boolean requestsRecovery) {}
+    boolean requestsRecovery,
+    boolean interruptRequested) {
+
+  /** An entry without an interrupt request. */
+  public FiredTriggerRecord(
+      String fireInstanceId,
+      String instanceId,
+      TriggerKey triggerKey,
+      JobKey jobKey,
+      String state,
+      Instant firedTime,
+      Instant scheduledTime,
+      int priority,
+      boolean nonConcurrent,
+      boolean requestsRecovery) {
+    this(
+        fireInstanceId,
+        instanceId,
+        triggerKey,
+        jobKey,
+        state,
+        firedTime,
+        scheduledTime,
+        priority,
+        nonConcurrent,
+        requestsRecovery,
+        false);
+  }
+}

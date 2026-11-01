@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
+import org.quartz.ExecutingJob;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
@@ -441,5 +442,15 @@ public class StdScheduler implements Scheduler {
 
   public boolean interrupt(String fireInstanceId) throws UnableToInterruptJobException {
     return sched.interrupt(fireInstanceId);
+  }
+
+  /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
+  public boolean interruptAnywhere(String fireInstanceId) throws SchedulerException {
+    return sched.interruptAnywhere(fireInstanceId);
+  }
+
+  /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
+  public List<ExecutingJob> getClusterExecutingJobs() throws SchedulerException {
+    return sched.getClusterExecutingJobs();
   }
 }

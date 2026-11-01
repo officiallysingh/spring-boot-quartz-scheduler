@@ -205,6 +205,19 @@ final class RedisScripts {
             return 1
             """);
 
+  /**
+   * ARGV: prefix, id, state field, executing state, flag field. Sets the flag of an executing
+   * entry; returns 1 if the entry is executing.
+   */
+  static final RedisScript<Long> REQUEST_INTERRUPT_FIRED =
+      script(
+          """
+            local h = ARGV[1] .. 'fired:' .. ARGV[2]
+            if redis.call('HGET', h, ARGV[3]) ~= ARGV[4] then return 0 end
+            redis.call('HSET', h, ARGV[5], 'true')
+            return 1
+            """);
+
   private static final String DELETE_FIRED_FUNCTION =
       """
             local function deleteFired(P, id)

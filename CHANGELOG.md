@@ -35,3 +35,26 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
 - **Breaking:** the one-off triggers of `triggerJob(...)` and `triggerNow(...)` are now in the
   group `Scheduler.MANUAL_TRIGGER_GROUP` (`MANUAL_TRIGGER`), not `DEFAULT`, so listeners and
   history can tell manual fires from scheduled ones. They start at the scheduler `Clock`'s now.
+
+### Interrupting jobs
+
+- `Scheduler.interrupt(JobKey)` now attempts every executing instance of the job. If any could
+  not be interrupted (not an `InterruptableJob`, or `interrupt()` threw), it throws one
+  `UnableToInterruptJobException` at the end, with each failure as a suppressed exception. Before,
+  it stopped at the first instance that could not be interrupted. An exception thrown by
+  `InterruptableJob.interrupt()` is now reported as an `UnableToInterruptJobException` with that
+  exception as its cause.
+- New `Scheduler.getClusterExecutingJobs()`: the executions in progress on every instance of the
+  cluster, from the store's fired-trigger records, as `ExecutingJob` (fire instance id, scheduler
+  instance id, job key, trigger key, fired time, scheduled fire time, requests recovery, interrupt
+  requested).
+- New `Scheduler.interruptAnywhere(String fireInstanceId)`: interrupts the execution at once if it
+  runs on this instance; otherwise flags its fired-trigger record, and the instance running it
+  interrupts it at its next cluster check-in (within `cluster-checkin-interval`).
+- New `JobDetail.isInterruptible()`: whether the job class implements `InterruptableJob`.
+- SPI: `JobStore.getExecutingJobs()`, `JobStore.requestInterrupt(String)`,
+  `SchedulerSignaler.interruptRequested(String)` (default: does nothing),
+  `StoreDelegate.selectFiredTriggerRecords()` and
+  `StoreDelegate.updateFiredTriggerInterruptRequested(String)`; `FiredTriggerRecord` has a new
+  `interruptRequested` component. Stores record the flag as `interruptRequested` on the
+  fired-trigger document (MongoDB) or hash (Redis).

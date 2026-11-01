@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
+import org.quartz.ExecutingJob;
 import org.quartz.Job;
 import org.quartz.JobDetail;
 import org.quartz.JobKey;
@@ -615,6 +616,25 @@ public interface JobStore {
    */
   void triggeredJobComplete(
       OperableTrigger trigger, JobDetail jobDetail, CompletedExecutionInstruction triggerInstCode);
+
+  /**
+   * The job executions in progress on every scheduler instance sharing the store (only this
+   * instance when not clustered), from the store's fired-trigger records.
+   *
+   * @return the executions, in no particular order
+   * @throws JobPersistenceException if the store cannot be read
+   */
+  List<ExecutingJob> getExecutingJobs() throws JobPersistenceException;
+
+  /**
+   * Records a request to interrupt an execution in progress; the scheduler instance running it
+   * picks the request up when it next checks in with the cluster.
+   *
+   * @param fireInstanceId the execution's fire instance id
+   * @return whether an execution in progress with that id exists
+   * @throws JobPersistenceException if the store cannot be written
+   */
+  boolean requestInterrupt(String fireInstanceId) throws JobPersistenceException;
 
   /**
    * Inform the <code>JobStore</code> of the Scheduler instance's Id, prior to initialize being
