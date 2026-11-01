@@ -89,3 +89,7 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
   null checks. `QuartzMetrics` skips the timer when it is `null`.
 - The run time is measured with `System.nanoTime()` (nanosecond `Duration`), so a wall-clock step
   during a run can no longer make it wrong or negative.
+- Scheduling times have millisecond precision, the stores' precision: trigger start, end, next and
+  previous fire times were already truncated by the trigger setters (`Instants.toMillis`); a
+  `SimpleTrigger`'s repeat interval now is too. A trigger reports the same times before and after
+  a store round-trip.

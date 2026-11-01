@@ -178,6 +178,56 @@ public abstract class AbstractJobStoreContractTest {
   }
 
   @SuppressWarnings("deprecation")
+  @TestFactory
+  Stream<DynamicTest> subMillisecondTimesSurviveAStoreRoundTripUnchanged() {
+    Instant start = Instant.parse("2036-01-01T00:00:00.123456789Z");
+    Instant end = Instant.parse("2037-01-01T00:00:00.987654321Z");
+    Map<String, TriggerBuilder<? extends Trigger>> builders =
+        Map.of(
+            "simple",
+            TriggerBuilder.newTrigger()
+                .withSchedule(
+                    SimpleScheduleBuilder.simpleSchedule()
+                        .withInterval(Duration.ofSeconds(10).plusNanos(1_500_000))
+                        .repeatForever()),
+            "cron",
+            TriggerBuilder.newTrigger()
+                .withSchedule(CronScheduleBuilder.cronSchedule("0 0 * * * ?")),
+            "calendarInterval",
+            TriggerBuilder.newTrigger()
+                .withSchedule(CalendarIntervalScheduleBuilder.calendarIntervalSchedule()),
+            "dailyTimeInterval",
+            TriggerBuilder.newTrigger()
+                .withSchedule(DailyTimeIntervalScheduleBuilder.dailyTimeIntervalSchedule()));
+    return builders.entrySet().stream()
+        .map(
+            entry ->
+                dynamicTest(
+                    entry.getKey(),
+                    () -> {
+                      OperableTrigger trigger =
+                          (OperableTrigger)
+                              entry
+                                  .getValue()
+                                  .withIdentity("precision-" + entry.getKey(), "precision")
+                                  .forJob(this.fJobDetail)
+                                  .startAt(start)
+                                  .endAt(end)
+                                  .build();
+                      trigger.computeFirstFireTime(null);
+                      this.fJobStore.storeTrigger(trigger, false);
+
+                      OperableTrigger stored = this.fJobStore.retrieveTrigger(trigger.getKey());
+                      // millisecond precision (cron triggers also drop the milliseconds)
+                      assertThat(trigger.getStartTime().getNano() % 1_000_000).isZero();
+                      assertThat(stored.getStartTime()).isEqualTo(trigger.getStartTime());
+                      assertThat(stored.getEndTime()).isEqualTo(trigger.getEndTime());
+                      assertThat(stored.getNextFireTime()).isEqualTo(trigger.getNextFireTime());
+                      assertThat(stored.getFireTimeAfter(stored.getNextFireTime()))
+                          .isEqualTo(trigger.getFireTimeAfter(trigger.getNextFireTime()));
+                    }));
+  }
+
   @Test
   void testAcquireNextTrigger() throws Exception {
 
