@@ -15,7 +15,9 @@ package org.quartz.impl.store;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
@@ -25,6 +27,8 @@ import org.quartz.JobDetail;
 import org.quartz.JobKey;
 import org.quartz.JobPersistenceException;
 import org.quartz.TriggerKey;
+import org.quartz.TriggerSort;
+import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.spi.OperableTrigger;
 
 /**
@@ -59,6 +63,28 @@ public interface StoreDelegate {
 
   Set<JobKey> selectJobKeys(String group);
 
+  /**
+   * One page of the jobs in the matching groups, ordered by group, then name, with the number of
+   * matching jobs. The default reads the keys, then only the page's jobs; stores with a query
+   * language override it with one query and one count.
+   */
+  default StorePage<JobDetail> selectJobDetails(GroupMatcher<JobKey> matcher, int offset, int limit)
+      throws JobPersistenceException {
+    List<JobKey> keys = new ArrayList<>();
+    for (String group : StoreQueries.matchingGroups(selectJobGroups(), matcher)) {
+      keys.addAll(selectJobKeys(group));
+    }
+    keys.sort(StoreQueries.keyOrder());
+    List<JobDetail> jobs = new ArrayList<>();
+    for (JobKey key : StorePage.of(keys, offset, limit).content()) {
+      JobDetail job = selectJob(key);
+      if (job != null) {
+        jobs.add(job);
+      }
+    }
+    return new StorePage<>(jobs, keys.size());
+  }
+
   // triggers
 
   void insertTrigger(OperableTrigger trigger, String state) throws JobPersistenceException;
@@ -91,6 +117,53 @@ public interface StoreDelegate {
   List<TriggerKey> selectTriggerKeysForCalendar(String calendarName);
 
   List<TriggerKey> selectTriggerKeysInState(String state);
+
+  /**
+   * Keys of the triggers in the matching groups whose stored state is one of {@code states} (all
+   * states if empty), ordered by group, then name. The default reads each trigger's state; stores
+   * with a query language override it with one query.
+   */
+  default List<TriggerKey> selectTriggerKeys(
+      GroupMatcher<TriggerKey> matcher, Collection<String> states) {
+    List<TriggerKey> keys = new ArrayList<>();
+    for (String group : StoreQueries.matchingGroups(selectTriggerGroups(), matcher)) {
+      for (TriggerKey key : selectTriggerKeys(group)) {
+        String state = selectTriggerState(key);
+        if (state != null && (states.isEmpty() || states.contains(state))) {
+          keys.add(key);
+        }
+      }
+    }
+    keys.sort(StoreQueries.keyOrder());
+    return keys;
+  }
+
+  /**
+   * One page of the triggers in the matching groups whose stored state is one of {@code states}
+   * (all states if empty), in {@link StoreQueries#triggerOrder} order, with the number of matching
+   * triggers. The default reads every matching trigger; stores with a query language override it
+   * with one query and one count.
+   */
+  default StorePage<StoredTrigger> selectTriggers(
+      GroupMatcher<TriggerKey> matcher,
+      Collection<String> states,
+      TriggerSort sort,
+      boolean descending,
+      int offset,
+      int limit)
+      throws JobPersistenceException {
+    List<StoredTrigger> triggers = new ArrayList<>();
+    for (TriggerKey key : selectTriggerKeys(matcher, states)) {
+      OperableTrigger trigger = selectTrigger(key);
+      String state = selectTriggerState(key);
+      if (trigger != null && state != null) {
+        triggers.add(new StoredTrigger(trigger, state));
+      }
+    }
+    Comparator<OperableTrigger> order = StoreQueries.triggerOrder(sort, descending);
+    triggers.sort(Comparator.comparing(StoredTrigger::trigger, order));
+    return StorePage.of(triggers, offset, limit);
+  }
 
   int updateTriggerState(TriggerKey triggerKey, String newState);
 
@@ -162,14 +235,27 @@ public interface StoreDelegate {
 
   void insertFiredTrigger(FiredTriggerRecord record);
 
-  /** Updates state, job flags and fire time of an existing entry. */
+  /**
+   * Updates state, job flags and fire time of an existing entry; leaves its {@link
+   * FiredTriggerRecord#interruptRequested()} flag as it is.
+   */
   void updateFiredTrigger(FiredTriggerRecord record);
+
+  /**
+   * Flags an {@code EXECUTING} entry as asked to be interrupted.
+   *
+   * @return whether an executing entry with that id exists (flagged before or now)
+   */
+  boolean updateFiredTriggerInterruptRequested(String fireInstanceId);
 
   void deleteFiredTrigger(String fireInstanceId);
 
   int deleteFiredTriggers();
 
   int deleteFiredTriggers(String instanceId);
+
+  /** All fired-trigger entries of the scheduler, on every instance. */
+  List<FiredTriggerRecord> selectFiredTriggerRecords();
 
   List<FiredTriggerRecord> selectFiredTriggerRecordsForInstance(String instanceId);
 

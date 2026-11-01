@@ -19,6 +19,7 @@ package org.quartz.impl.store;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.InstantSource;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -31,19 +32,25 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
+import org.quartz.ExecutingJob;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
+import org.quartz.JobDetailPage;
 import org.quartz.JobKey;
 import org.quartz.JobPersistenceException;
 import org.quartz.ObjectAlreadyExistsException;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerConfigException;
 import org.quartz.SchedulerException;
+import org.quartz.SchedulerInstance;
 import org.quartz.SimpleTrigger;
 import org.quartz.Trigger;
 import org.quartz.Trigger.CompletedExecutionInstruction;
 import org.quartz.Trigger.TriggerState;
 import org.quartz.TriggerKey;
+import org.quartz.TriggerPage;
+import org.quartz.TriggerQuery;
+import org.quartz.TriggerWithState;
 import org.quartz.impl.config.JobStoreSettings;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.impl.matchers.StringMatcher.StringOperatorName;
@@ -54,7 +61,7 @@ import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.SchedulerSignaler;
 import org.quartz.spi.TriggerFiredBundle;
 import org.quartz.spi.TriggerFiredResult;
-import org.quartz.utils.Key;
+import org.quartz.utils.Instants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,8 +83,10 @@ import org.slf4j.LoggerFactory;
  *
  * Compound operations run under the {@value #LOCK_TRIGGER_ACCESS} lock (and {@value
  * #LOCK_STATE_ACCESS} for cluster recovery); trigger acquisition without the lock relies on the
- * delegate's conditional {@code WAITING -> ACQUIRED} update. Scheduling time comes from {@link
- * SchedulerSignaler#getCurrentTime()}; check-ins and lock leases use the wall clock.
+ * delegate's conditional {@code WAITING -> ACQUIRED} update. Scheduling time (fire times,
+ * fired-trigger records, misfires) comes from {@link SchedulerSignaler#getCurrentTime()}, that is
+ * the scheduler's {@link java.time.Clock}; cluster check-ins and lock leases use the system clock,
+ * because instances compare them with each other.
  *
  * @author James House (JobStoreSupport)
  */
@@ -160,7 +169,18 @@ public abstract class PersistentJobStore implements JobStore {
 
   private volatile boolean firstCheckIn = true;
 
-  private volatile Instant lastCheckin = Instant.now();
+  /**
+   * The clock of cluster check-ins (and liveness): always the system clock, never the scheduler's
+   * {@link java.time.Clock}. Check-in times written by different instances are compared with each
+   * other, so they must share one timeline; under a fixed or offset scheduling clock, check-ins
+   * would stop advancing and every instance would look alive (or dead) forever.
+   */
+  private static final InstantSource CHECKIN_CLOCK = InstantSource.system();
+
+  private volatile Instant lastCheckin = CHECKIN_CLOCK.instant();
+
+  /** Interrupt requests already handed to the scheduler (cluster manager thread only). */
+  private final Set<String> deliveredInterrupts = new HashSet<>();
 
   /**
    * Create a store.
@@ -682,7 +702,7 @@ public abstract class PersistentJobStore implements JobStore {
 
   private Set<JobKey> jobKeys(GroupMatcher<JobKey> matcher) {
     Set<JobKey> keys = new LinkedHashSet<>();
-    for (String group : matchingGroups(delegate.selectJobGroups(), matcher)) {
+    for (String group : StoreQueries.matchingGroups(delegate.selectJobGroups(), matcher)) {
       keys.addAll(delegate.selectJobKeys(group));
     }
     return keys;
@@ -691,16 +711,6 @@ public abstract class PersistentJobStore implements JobStore {
   @Override
   public List<String> getJobGroupNames() throws JobPersistenceException {
     return executeWithoutLock(delegate::selectJobGroups);
-  }
-
-  private static <K extends Key<K>> List<String> matchingGroups(
-      List<String> groups, GroupMatcher<K> matcher) {
-    StringOperatorName operator = matcher.getCompareWithOperator();
-    String value = matcher.getCompareToValue();
-    if (operator == StringOperatorName.EQUALS) {
-      return groups.contains(value) ? List.of(value) : List.of();
-    }
-    return groups.stream().filter(group -> operator.evaluate(group, value)).toList();
   }
 
   // ------------------------------------------------------------------
@@ -868,7 +878,7 @@ public abstract class PersistentJobStore implements JobStore {
 
   private Set<TriggerKey> triggerKeys(GroupMatcher<TriggerKey> matcher) {
     Set<TriggerKey> keys = new LinkedHashSet<>();
-    for (String group : matchingGroups(delegate.selectTriggerGroups(), matcher)) {
+    for (String group : StoreQueries.matchingGroups(delegate.selectTriggerGroups(), matcher)) {
       keys.addAll(delegate.selectTriggerKeys(group));
     }
     return keys;
@@ -917,17 +927,86 @@ public abstract class PersistentJobStore implements JobStore {
     return executeWithoutLock(
         () -> {
           String state = delegate.selectTriggerState(triggerKey);
-          if (state == null) {
-            return TriggerState.NONE;
-          }
-          return switch (state) {
-            case STATE_COMPLETE -> TriggerState.COMPLETE;
-            case STATE_PAUSED, STATE_PAUSED_BLOCKED -> TriggerState.PAUSED;
-            case STATE_ERROR -> TriggerState.ERROR;
-            case STATE_BLOCKED -> TriggerState.BLOCKED;
-            default -> TriggerState.NORMAL;
-          };
+          return (state != null) ? toTriggerState(state) : TriggerState.NONE;
         });
+  }
+
+  /** The public state of a stored trigger state. */
+  protected static TriggerState toTriggerState(String state) {
+    return switch (state) {
+      case STATE_COMPLETE -> TriggerState.COMPLETE;
+      case STATE_PAUSED, STATE_PAUSED_BLOCKED -> TriggerState.PAUSED;
+      case STATE_ERROR -> TriggerState.ERROR;
+      case STATE_BLOCKED -> TriggerState.BLOCKED;
+      default -> TriggerState.NORMAL;
+    };
+  }
+
+  /**
+   * The stored states behind public states, the inverse of {@link #toTriggerState(String)}: empty
+   * for "all states" when {@code states} is empty. {@link TriggerState#NONE} has none.
+   */
+  private static Set<String> storedStates(Set<TriggerState> states) {
+    Set<String> stored = new LinkedHashSet<>();
+    for (TriggerState state : states) {
+      switch (state) {
+        case NORMAL -> stored.addAll(List.of(STATE_WAITING, STATE_ACQUIRED));
+        case PAUSED -> stored.addAll(List.of(STATE_PAUSED, STATE_PAUSED_BLOCKED));
+        case COMPLETE -> stored.add(STATE_COMPLETE);
+        case ERROR -> stored.add(STATE_ERROR);
+        case BLOCKED -> stored.add(STATE_BLOCKED);
+        case NONE -> {}
+      }
+    }
+    return stored;
+  }
+
+  /** Whether the states select nothing at all (only {@link TriggerState#NONE}). */
+  private static boolean selectsNothing(Set<TriggerState> states) {
+    return !states.isEmpty() && storedStates(states).isEmpty();
+  }
+
+  @Override
+  public List<TriggerKey> getTriggerKeys(GroupMatcher<TriggerKey> matcher, Set<TriggerState> states)
+      throws JobPersistenceException {
+    if (selectsNothing(states)) {
+      return List.of();
+    }
+    return executeWithoutLock(() -> delegate.selectTriggerKeys(matcher, storedStates(states)));
+  }
+
+  @Override
+  public TriggerPage getTriggers(TriggerQuery query) throws JobPersistenceException {
+    if (selectsNothing(query.states())) {
+      return new TriggerPage(List.of(), 0);
+    }
+    StorePage<StoredTrigger> page =
+        executeWithoutLock(
+            () ->
+                delegate.selectTriggers(
+                    query.matcher(),
+                    storedStates(query.states()),
+                    query.sort(),
+                    query.descending(),
+                    query.offset(),
+                    query.limit()));
+    return new TriggerPage(
+        page.content().stream()
+            .map(stored -> new TriggerWithState(stored.trigger(), toTriggerState(stored.state())))
+            .toList(),
+        page.total());
+  }
+
+  @Override
+  public JobDetailPage getJobDetails(GroupMatcher<JobKey> matcher, int offset, int limit)
+      throws JobPersistenceException {
+    if (offset < 0 || limit < 1) {
+      throw new IllegalArgumentException(
+          "offset must not be negative and limit positive: " + offset + ", " + limit);
+    }
+    StorePage<JobDetail> page =
+        executeWithoutLock(() -> delegate.selectJobDetails(matcher, offset, limit));
+    return new JobDetailPage(page.content(), page.total());
   }
 
   @Override
@@ -1036,7 +1115,8 @@ public abstract class PersistentJobStore implements JobStore {
   }
 
   private Set<String> pauseTriggerGroups(GroupMatcher<TriggerKey> matcher) {
-    List<String> groups = new ArrayList<>(matchingGroups(delegate.selectTriggerGroups(), matcher));
+    List<String> groups =
+        new ArrayList<>(StoreQueries.matchingGroups(delegate.selectTriggerGroups(), matcher));
     // an exact match also pauses a group that does not exist yet
     if (matcher.getCompareWithOperator() == StringOperatorName.EQUALS
         && !groups.contains(matcher.getCompareToValue())) {
@@ -1072,7 +1152,7 @@ public abstract class PersistentJobStore implements JobStore {
         LOCK_TRIGGER_ACCESS,
         () -> {
           List<String> groups =
-              new ArrayList<>(matchingGroups(delegate.selectJobGroups(), matcher));
+              new ArrayList<>(StoreQueries.matchingGroups(delegate.selectJobGroups(), matcher));
           // an exact match also pauses jobs added to the group later (as Quartz's in-memory store
           // did)
           if (matcher.getCompareWithOperator() == StringOperatorName.EQUALS
@@ -1287,7 +1367,7 @@ public abstract class PersistentJobStore implements JobStore {
                 triggerKey,
                 nextTrigger.getJobKey(),
                 STATE_ACQUIRED,
-                Instant.now(),
+                Instants.toMillis(getSchedulingTime()),
                 nextFireTime,
                 nextTrigger.getPriority(),
                 false,
@@ -1374,6 +1454,9 @@ public abstract class PersistentJobStore implements JobStore {
         return null;
       }
     }
+    // one fire time for the fired-trigger record and the execution context, so a recovery
+    // trigger's FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME matches the interrupted execution's fire time
+    Instant fireTime = Instants.toMillis(getSchedulingTime());
     // an acquired trigger has its fire instance id and next fire time
     delegate.updateFiredTrigger(
         new FiredTriggerRecord(
@@ -1382,7 +1465,7 @@ public abstract class PersistentJobStore implements JobStore {
             trigger.getKey(),
             job.getKey(),
             STATE_EXECUTING,
-            Instant.now(),
+            fireTime,
             Objects.requireNonNull(trigger.getNextFireTime()),
             trigger.getPriority(),
             job.isConcurrentExecutionDisallowed(),
@@ -1414,7 +1497,7 @@ public abstract class PersistentJobStore implements JobStore {
         trigger,
         calendar,
         trigger.getKey().getGroup().equals(Scheduler.DEFAULT_RECOVERY_GROUP),
-        getSchedulingTime(),
+        fireTime,
         // the time it has just been fired for
         Objects.requireNonNull(trigger.getPreviousFireTime()),
         prevFireTime,
@@ -1674,6 +1757,8 @@ public abstract class PersistentJobStore implements JobStore {
     JobDataMap data = delegate.selectTriggerJobData(original);
     data.put(Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_NAME, original.getName());
     data.put(Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_GROUP, original.getGroup());
+    data.put(Scheduler.FAILED_JOB_ORIGINAL_FIRE_INSTANCE_ID, record.fireInstanceId());
+    data.put(Scheduler.FAILED_JOB_ORIGINAL_SCHEDULER_INSTANCE_ID, record.instanceId());
     data.put(
         Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME_IN_MILLISECONDS,
         String.valueOf(record.firedTime().toEpochMilli()));
@@ -1686,8 +1771,97 @@ public abstract class PersistentJobStore implements JobStore {
   }
 
   // ------------------------------------------------------------------
+  // executions in progress
+  // ------------------------------------------------------------------
+
+  @Override
+  public List<ExecutingJob> getExecutingJobs() throws JobPersistenceException {
+    return executeWithoutLock(
+        () ->
+            delegate.selectFiredTriggerRecords().stream()
+                .filter(record -> STATE_EXECUTING.equals(record.state()))
+                .map(
+                    record ->
+                        new ExecutingJob(
+                            record.fireInstanceId(),
+                            record.instanceId(),
+                            record.jobKey(),
+                            record.triggerKey(),
+                            record.firedTime(),
+                            record.scheduledTime(),
+                            record.requestsRecovery(),
+                            record.interruptRequested()))
+                .toList());
+  }
+
+  @Override
+  public boolean requestInterrupt(String fireInstanceId) throws JobPersistenceException {
+    return executeWithoutLock(() -> delegate.updateFiredTriggerInterruptRequested(fireInstanceId));
+  }
+
+  /**
+   * Hands this instance's executions flagged by {@link #requestInterrupt} to the scheduler, once
+   * each; an execution the scheduler does not know yet (still starting) is offered again next time.
+   * Called by the cluster manager after each check-in.
+   */
+  private void deliverInterruptRequests() throws JobPersistenceException {
+    List<String> requested =
+        executeWithoutLock(
+            () ->
+                delegate.selectFiredTriggerRecordsForInstance(instanceId).stream()
+                    .filter(FiredTriggerRecord::interruptRequested)
+                    .map(FiredTriggerRecord::fireInstanceId)
+                    .toList());
+    deliveredInterrupts.retainAll(requested);
+    for (String fireInstanceId : requested) {
+      if (!deliveredInterrupts.contains(fireInstanceId)
+          && signaler.interruptRequested(fireInstanceId)) {
+        deliveredInterrupts.add(fireInstanceId);
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------
   // clustering
   // ------------------------------------------------------------------
+
+  /**
+   * The scheduler instances using the store. A clustered store lists every check-in record, with
+   * {@code alive} computed by the rule that decides cluster recovery ({@link
+   * #isAlive(SchedulerStateRecord, Instant)}); this instance is judged by the plain rule (last
+   * check-in + interval + threshold not past), as the other instances judge it. A non-clustered
+   * store lists only this instance, alive unless the store is shut down.
+   */
+  @Override
+  public List<SchedulerInstance> getSchedulerInstances() throws JobPersistenceException {
+    if (!isClustered()) {
+      return List.of(new SchedulerInstance(instanceId, null, null, !shutdown, true));
+    }
+    List<SchedulerStateRecord> records = executeWithoutLock(delegate::selectSchedulerStateRecords);
+    Instant now = CHECKIN_CLOCK.instant();
+    List<SchedulerInstance> instances = new ArrayList<>();
+    for (SchedulerStateRecord record : records) {
+      boolean current = record.instanceId().equals(instanceId);
+      Instant checkin = record.lastCheckin();
+      Duration interval = record.checkinInterval();
+      boolean alive;
+      if (checkin == null) {
+        alive = false;
+      } else if (current) {
+        alive =
+            !checkin
+                .plus((interval != null) ? interval : settings.clusterCheckinInterval())
+                .plus(settings.clusterCheckinMisfireThreshold())
+                .isBefore(now);
+      } else {
+        alive = isAlive(record, now);
+      }
+      instances.add(
+          new SchedulerInstance(
+              record.instanceId(), record.lastCheckin(), record.checkinInterval(), alive, current));
+    }
+    return instances;
+  }
 
   /** The check-in records of all instances (for tests and diagnostics). */
   public List<SchedulerStateRecord> getSchedulerStates() throws JobPersistenceException {
@@ -1734,7 +1908,7 @@ public abstract class PersistentJobStore implements JobStore {
   private List<SchedulerStateRecord> findFailedInstances() {
     List<SchedulerStateRecord> failed = new ArrayList<>();
     boolean foundThisScheduler = false;
-    Instant now = Instant.now();
+    Instant now = CHECKIN_CLOCK.instant();
     List<SchedulerStateRecord> states = delegate.selectSchedulerStateRecords();
     for (SchedulerStateRecord record : states) {
       if (record.instanceId().equals(instanceId)) {
@@ -1743,7 +1917,7 @@ public abstract class PersistentJobStore implements JobStore {
           // recover what a previous run of this instance left behind
           failed.add(record);
         }
-      } else if (failedIfAfter(record, now).isBefore(now)) {
+      } else if (!isAlive(record, now)) {
         failed.add(record);
       }
     }
@@ -1764,6 +1938,16 @@ public abstract class PersistentJobStore implements JobStore {
     return failed;
   }
 
+  /**
+   * Whether another instance still counts as running: its last check-in plus its check-in interval
+   * (or the time since this instance's own last check-in, if longer: a stalled instance must not
+   * declare the others dead) plus the check-in misfire threshold is not before {@code now}. The
+   * rule cluster recovery uses.
+   */
+  private boolean isAlive(SchedulerStateRecord record, Instant now) {
+    return record.lastCheckin() != null && !failedIfAfter(record, now).isBefore(now);
+  }
+
   private Instant failedIfAfter(SchedulerStateRecord record, Instant now) {
     Duration sinceOwnCheckin = Duration.between(lastCheckin, now);
     Duration interval = record.checkinInterval();
@@ -1776,7 +1960,7 @@ public abstract class PersistentJobStore implements JobStore {
 
   private List<SchedulerStateRecord> clusterCheckIn() {
     List<SchedulerStateRecord> failed = findFailedInstances();
-    lastCheckin = Instant.now();
+    lastCheckin = CHECKIN_CLOCK.instant();
     delegate.upsertSchedulerState(instanceId, lastCheckin, settings.clusterCheckinInterval());
     return failed;
   }
@@ -1912,7 +2096,7 @@ public abstract class PersistentJobStore implements JobStore {
     @Override
     public void run() {
       while (!halted) {
-        long start = System.currentTimeMillis();
+        long start = System.nanoTime();
         MisfireResult result = manage();
         if (result.processedMisfiredTriggerCount() > 0) {
           signaler.signalSchedulingChange(result.earliestNewTime());
@@ -1922,7 +2106,9 @@ public abstract class PersistentJobStore implements JobStore {
         }
         long sleep = 50L; // at least a short pause to help balance threads
         if (!result.hasMoreMisfiredTriggers()) {
-          sleep = settings.misfireThreshold().toMillis() - (System.currentTimeMillis() - start);
+          sleep =
+              settings.misfireThreshold().toMillis()
+                  - Duration.ofNanos(System.nanoTime() - start).toMillis();
           if (sleep <= 0) {
             sleep = 50L;
           }
@@ -1960,6 +2146,12 @@ public abstract class PersistentJobStore implements JobStore {
           log.error("ClusterManager: Error managing cluster: {}", ex.getMessage(), ex);
         }
         numFails++;
+        return recovered;
+      }
+      try {
+        deliverInterruptRequests();
+      } catch (Exception ex) {
+        log.error("ClusterManager: Error delivering interrupt requests: {}", ex.getMessage(), ex);
       }
       return recovered;
     }
@@ -1969,7 +2161,7 @@ public abstract class PersistentJobStore implements JobStore {
       while (!halted) {
         long sleep =
             settings.clusterCheckinInterval().toMillis()
-                - Duration.between(lastCheckin, Instant.now()).toMillis();
+                - Duration.between(lastCheckin, CHECKIN_CLOCK.instant()).toMillis();
         if (sleep <= 0) {
           sleep = 100L;
         }

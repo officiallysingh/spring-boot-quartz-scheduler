@@ -39,20 +39,24 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
+import org.quartz.ExecutingJob;
 import org.quartz.InterruptableJob;
 import org.quartz.Job;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
+import org.quartz.JobDetailPage;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.JobKey;
 import org.quartz.JobListener;
+import org.quartz.JobPersistenceException;
 import org.quartz.ListenerManager;
 import org.quartz.Matcher;
 import org.quartz.ObjectAlreadyExistsException;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerContext;
 import org.quartz.SchedulerException;
+import org.quartz.SchedulerInstance;
 import org.quartz.SchedulerListener;
 import org.quartz.SchedulerMetaData;
 import org.quartz.Trigger;
@@ -60,10 +64,13 @@ import org.quartz.Trigger.CompletedExecutionInstruction;
 import org.quartz.Trigger.TriggerState;
 import org.quartz.TriggerKey;
 import org.quartz.TriggerListener;
+import org.quartz.TriggerPage;
+import org.quartz.TriggerQuery;
 import org.quartz.UnableToInterruptJobException;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.listeners.SchedulerListenerSupport;
 import org.quartz.spi.JobFactory;
+import org.quartz.spi.JobStore;
 import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spi.SchedulerSignaler;
@@ -328,7 +335,7 @@ public class QuartzScheduler {
     notifySchedulerListenersStarting();
 
     if (initialStart == null) {
-      initialStart = Instants.now();
+      initialStart = Instants.toMillis(resources.getClock().instant());
       this.resources.getJobStore().schedulerStarted();
       startPlugins();
     } else {
@@ -384,7 +391,7 @@ public class QuartzScheduler {
 
   public @Nullable Instant runningSince() {
     if (initialStart == null) return null;
-    return Instant.ofEpochMilli(initialStart.toEpochMilli());
+    return initialStart;
   }
 
   public int numJobsExecuted() {
@@ -844,23 +851,46 @@ public class QuartzScheduler {
   }
 
   /**
-   * Trigger the identified <code>{@link org.quartz.Job}</code> (execute it now) - with a
-   * non-volatile trigger.
+   * Trigger the identified <code>{@link org.quartz.Job}</code> (execute it now), with a one-off
+   * trigger in the {@value Scheduler#MANUAL_TRIGGER_GROUP} group.
    */
-  @SuppressWarnings("deprecation")
   public void triggerJob(JobKey jobKey, @Nullable JobDataMap data) throws SchedulerException {
     validateState();
+    storeManualTrigger(jobKey, (data != null) ? data : new JobDataMap(), Trigger.DEFAULT_PRIORITY);
+  }
 
+  /**
+   * Fire the job of the identified trigger now, once, with a copy of the trigger's job data and its
+   * priority; the trigger itself is not changed. The one-off trigger is in the {@value
+   * Scheduler#MANUAL_TRIGGER_GROUP} group and carries {@value Scheduler#MANUAL_FIRE_OF_TRIGGER}.
+   *
+   * @throws JobPersistenceException if the trigger does not exist
+   */
+  public void triggerNow(TriggerKey triggerKey) throws SchedulerException {
+    validateState();
+    OperableTrigger source = resources.getJobStore().retrieveTrigger(triggerKey);
+    if (source == null) {
+      throw new JobPersistenceException(
+          "Cannot fire trigger " + triggerKey + " now: the trigger does not exist.");
+    }
+    JobDataMap data = new JobDataMap(source.getJobDataMap());
+    data.put(Scheduler.MANUAL_FIRE_OF_TRIGGER, triggerKey.toString());
+    storeManualTrigger(source.getJobKey(), data, source.getPriority());
+  }
+
+  /** Stores a trigger firing the job once, now (by the scheduler's clock). */
+  private void storeManualTrigger(JobKey jobKey, JobDataMap data, int priority)
+      throws SchedulerException {
     OperableTrigger trig =
         (OperableTrigger)
             newTrigger()
-                .withIdentity(newTriggerId(), Scheduler.DEFAULT_GROUP)
+                .withIdentity(newTriggerId(), Scheduler.MANUAL_TRIGGER_GROUP)
                 .forJob(jobKey)
+                .withPriority(priority)
+                .startAt(resources.getClock().instant())
                 .build();
+    trig.setJobDataMap(data);
     trig.computeFirstFireTime(null);
-    if (data != null) {
-      trig.setJobDataMap(data);
-    }
 
     boolean collision = true;
     while (collision) {
@@ -868,7 +898,7 @@ public class QuartzScheduler {
         resources.getJobStore().storeTrigger(trig, false);
         collision = false;
       } catch (ObjectAlreadyExistsException oaee) {
-        trig.setKey(new TriggerKey(newTriggerId(), Scheduler.DEFAULT_GROUP));
+        trig.setKey(new TriggerKey(newTriggerId(), Scheduler.MANUAL_TRIGGER_GROUP));
       }
     }
 
@@ -1113,6 +1143,23 @@ public class QuartzScheduler {
     validateState();
 
     return resources.getJobStore().retrieveJob(jobKey);
+  }
+
+  public List<TriggerKey> getTriggerKeys(GroupMatcher<TriggerKey> matcher, Set<TriggerState> states)
+      throws SchedulerException {
+    validateState();
+    return resources.getJobStore().getTriggerKeys(matcher, states);
+  }
+
+  public TriggerPage getTriggers(TriggerQuery query) throws SchedulerException {
+    validateState();
+    return resources.getJobStore().getTriggers(query);
+  }
+
+  public JobDetailPage getJobDetails(GroupMatcher<JobKey> matcher, int offset, int limit)
+      throws SchedulerException {
+    validateState();
+    return resources.getJobStore().getJobDetails(matcher, offset, limit);
   }
 
   public List<JobDetail> getJobDetails(GroupMatcher<JobKey> matcher) throws SchedulerException {
@@ -1754,38 +1801,42 @@ public class QuartzScheduler {
 
   /**
    * Interrupt all instances of the identified InterruptableJob executing in this Scheduler
-   * instance.
+   * instance. Every instance is attempted; the failures are reported together at the end.
    *
    * <p>This method is not cluster aware. That is, it will only interrupt instances of the
    * identified InterruptableJob currently executing in this Scheduler instance, not across the
    * entire cluster.
    */
   public boolean interrupt(JobKey jobKey) throws UnableToInterruptJobException {
-
-    List<JobExecutionContext> jobs = getCurrentlyExecutingJobs();
-
-    JobDetail jobDetail;
-    Job job;
-
+    List<UnableToInterruptJobException> failures = new ArrayList<>();
+    int attempted = 0;
     boolean interrupted = false;
-
-    for (JobExecutionContext jec : jobs) {
-      jobDetail = jec.getJobDetail();
-      if (jobKey.equals(jobDetail.getKey())) {
-        job = jec.getJobInstance();
-        if (job instanceof InterruptableJob) {
-          ((InterruptableJob) job).interrupt();
-          interrupted = true;
-        } else {
-          throw new UnableToInterruptJobException(
-              "Job "
-                  + jobDetail.getKey()
-                  + " can not be interrupted, since it does not implement "
-                  + InterruptableJob.class.getName());
-        }
+    for (JobExecutionContext jec : getCurrentlyExecutingJobs()) {
+      if (!jobKey.equals(jec.getJobDetail().getKey())) {
+        continue;
+      }
+      attempted++;
+      try {
+        interruptExecution(jec);
+        interrupted = true;
+      } catch (UnableToInterruptJobException ex) {
+        failures.add(ex);
       }
     }
-
+    if (!failures.isEmpty()) {
+      UnableToInterruptJobException failure =
+          new UnableToInterruptJobException(
+              "Could not interrupt "
+                  + failures.size()
+                  + " of "
+                  + attempted
+                  + " executions of job "
+                  + jobKey
+                  + ": "
+                  + failures.getFirst().getMessage());
+      failures.forEach(failure::addSuppressed);
+      throw failure;
+    }
     return interrupted;
   }
 
@@ -1797,27 +1848,84 @@ public class QuartzScheduler {
    * entire cluster.
    */
   public boolean interrupt(String fireInstanceId) throws UnableToInterruptJobException {
-    List<JobExecutionContext> jobs = getCurrentlyExecutingJobs();
-
-    Job job;
-
-    for (JobExecutionContext jec : jobs) {
+    for (JobExecutionContext jec : getCurrentlyExecutingJobs()) {
       if (jec.getFireInstanceId().equals(fireInstanceId)) {
-        job = jec.getJobInstance();
-        if (job instanceof InterruptableJob) {
-          ((InterruptableJob) job).interrupt();
-          return true;
-        } else {
-          throw new UnableToInterruptJobException(
-              "Job "
-                  + jec.getJobDetail().getKey()
-                  + " can not be interrupted, since it does not implement "
-                  + InterruptableJob.class.getName());
-        }
+        interruptExecution(jec);
+        return true;
       }
     }
-
     return false;
+  }
+
+  private static void interruptExecution(JobExecutionContext jec)
+      throws UnableToInterruptJobException {
+    if (!(jec.getJobInstance() instanceof InterruptableJob job)) {
+      throw notInterruptible(jec.getJobDetail());
+    }
+    try {
+      job.interrupt();
+    } catch (UnableToInterruptJobException ex) {
+      throw ex;
+    } catch (RuntimeException ex) {
+      UnableToInterruptJobException failure =
+          new UnableToInterruptJobException(
+              "Job "
+                  + jec.getJobDetail().getKey()
+                  + " threw while being interrupted: "
+                  + ex.getMessage());
+      failure.initCause(ex);
+      throw failure;
+    }
+  }
+
+  private static UnableToInterruptJobException notInterruptible(JobDetail jobDetail) {
+    return new UnableToInterruptJobException(
+        "Job "
+            + jobDetail.getKey()
+            + " can not be interrupted, since it does not implement "
+            + InterruptableJob.class.getName());
+  }
+
+  /** The scheduler instances known to the job store, with their liveness. */
+  public List<SchedulerInstance> getSchedulerInstances() throws SchedulerException {
+    return resources.getJobStore().getSchedulerInstances();
+  }
+
+  /** The executions in progress on every instance of the cluster; see {@link JobStore}. */
+  public List<ExecutingJob> getClusterExecutingJobs() throws SchedulerException {
+    return resources.getJobStore().getExecutingJobs();
+  }
+
+  /**
+   * Interrupt an execution running on any instance of the cluster: at once if it runs here,
+   * otherwise by flagging it in the store for the instance running it, which interrupts it when it
+   * next checks in.
+   *
+   * @return whether the execution was found (interrupted here, or flagged)
+   * @throws UnableToInterruptJobException if its job does not implement {@link InterruptableJob}
+   */
+  public boolean interruptAnywhere(String fireInstanceId) throws SchedulerException {
+    if (interrupt(fireInstanceId)) {
+      return true;
+    }
+    JobStore store = resources.getJobStore();
+    if (!store.isClustered()) {
+      return false;
+    }
+    ExecutingJob executing = null;
+    for (ExecutingJob job : store.getExecutingJobs()) {
+      if (job.fireInstanceId().equals(fireInstanceId)) {
+        executing = job;
+      }
+    }
+    if (executing == null) {
+      return false;
+    }
+    JobDetail jobDetail = store.retrieveJob(executing.jobKey());
+    if (jobDetail != null && !jobDetail.isInterruptible()) {
+      throw notInterruptible(jobDetail);
+    }
+    return store.requestInterrupt(fireInstanceId);
   }
 
   private void shutdownPlugins() {

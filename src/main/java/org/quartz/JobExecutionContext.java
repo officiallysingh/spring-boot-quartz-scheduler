@@ -20,6 +20,7 @@ package org.quartz;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -81,6 +82,15 @@ public interface JobExecutionContext {
    * @throws IllegalStateException if this is not a recovering job.
    */
   TriggerKey getRecoveringTriggerKey() throws IllegalStateException;
+
+  /**
+   * What this recovery execution replaces: the original trigger, fire instance id, scheduler
+   * instance, fire time and scheduled fire time of the execution that was interrupted, read from
+   * the {@code FAILED_JOB_ORIGINAL_*} entries of the job data so callers need not parse them.
+   *
+   * @return the recovery information; empty unless {@link #isRecovering()}
+   */
+  Optional<RecoveryInfo> getRecoveryInfo();
 
   /**
    * How many times the job has been re-executed for this firing ({@link
@@ -182,13 +192,15 @@ public interface JobExecutionContext {
   void setResult(@Nullable Object result);
 
   /**
-   * The amount of time the job ran for (millisecond precision). The returned value will be negative
-   * (-1 ms) until the job has actually completed (or thrown an exception), and is therefore
-   * generally only useful to <code>JobListener</code>s and <code>TriggerListener</code>s.
+   * The amount of time the job ran for, measured with a monotonic clock ({@link
+   * System#nanoTime()}), so it is never negative, even when the wall clock is changed during the
+   * run. It is {@code null} until the job has actually completed (or thrown an exception), and is
+   * therefore generally only useful to <code>JobListener</code>s and <code>TriggerListener</code>s
+   * once the job was executed.
    *
-   * @return Returns the jobRunTime.
+   * @return the job's run time, or {@code null} while it has not finished
    */
-  Duration getJobRunTime();
+  @Nullable Duration getJobRunTime();
 
   /**
    * Put the specified value into the context's data map with the given key. Possibly useful for

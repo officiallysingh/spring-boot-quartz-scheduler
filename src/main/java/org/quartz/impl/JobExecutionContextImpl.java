@@ -22,12 +22,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Objects;
+import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.Job;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
+import org.quartz.RecoveryInfo;
 import org.quartz.Scheduler;
 import org.quartz.Trigger;
 import org.quartz.TriggerKey;
@@ -75,7 +77,7 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
 
   private final @Nullable Instant nextFireTime;
 
-  private Duration jobRunTime = Duration.ofMillis(-1);
+  private @Nullable Duration jobRunTime;
 
   private @Nullable Object result;
 
@@ -147,6 +149,10 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
   }
 
   /** Count one more re-execution of the job for this firing. */
+  public Optional<RecoveryInfo> getRecoveryInfo() {
+    return isRecovering() ? RecoveryInfo.of(jobDataMap) : Optional.empty();
+  }
+
   public void incrementRefireCount() {
     numRefires++;
   }
@@ -223,7 +229,7 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
   }
 
   /** {@inheritDoc} */
-  public Duration getJobRunTime() {
+  public @Nullable Duration getJobRunTime() {
     return jobRunTime;
   }
 

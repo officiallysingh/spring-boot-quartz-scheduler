@@ -762,7 +762,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
     }
 
     // back up a second from end time
-    Instant fTime = Instant.ofEpochMilli(getEndTime().toEpochMilli() - 1000L);
+    Instant fTime = getEndTime().minusSeconds(1);
     // find the next fire time after that
     fTime = getFireTimeAfter(fTime, true);
 

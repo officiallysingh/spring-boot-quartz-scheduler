@@ -34,6 +34,7 @@ import org.quartz.Trigger;
 import org.quartz.impl.config.JobStoreSettings;
 import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.SchedulerSignaler;
+import org.quartz.spi.TriggerFiredBundle;
 import org.quartz.support.MutableClock;
 
 /**
@@ -87,6 +88,33 @@ class PersistentJobStoreClockTest {
         .singleElement()
         .extracting(Trigger::getNextFireTime)
         .isEqualTo(T0.plus(Duration.ofMinutes(10)));
+  }
+
+  @Test
+  void firingUsesTheClockForTheFireTimeTheFiredRecordAndTheNextFireTime() throws Exception {
+    Instant fireAt = T0.plus(Duration.ofMinutes(10));
+    store(
+        newTrigger()
+            .withIdentity("repeating")
+            .startAt(fireAt)
+            .withSchedule(simpleSchedule().withInterval(Duration.ofMinutes(1)).repeatForever())
+            .build());
+    clock.advance(Duration.ofMinutes(10).plusMillis(250)); // 2030: nowhere near the wall clock
+
+    List<OperableTrigger> acquired = store.acquireNextTriggers(clock.instant(), 1, Duration.ZERO);
+    TriggerFiredBundle bundle = store.triggersFired(acquired).getFirst().getTriggerFiredBundle();
+
+    Instant now = clock.instant();
+    assertThat(bundle.getFireTime()).isEqualTo(now);
+    assertThat(bundle.getScheduledFireTime()).isEqualTo(fireAt);
+    assertThat(bundle.getNextFireTime()).isEqualTo(fireAt.plus(Duration.ofMinutes(1)));
+    assertThat(store.getExecutingJobs())
+        .singleElement()
+        .satisfies(
+            executing -> {
+              assertThat(executing.firedTime()).isEqualTo(now);
+              assertThat(executing.scheduledFireTime()).isEqualTo(fireAt);
+            });
   }
 
   @Test

@@ -16,9 +16,7 @@
 package org.quartz.spring.boot.autoconfigure;
 
 import org.quartz.Scheduler;
-import org.quartz.spring.SchedulerFactoryBean;
 import org.quartz.spring.boot.actuate.health.QuartzHealthIndicator;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -50,11 +48,8 @@ public final class QuartzHealthContributorAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(name = "quartzHealthIndicator")
-    QuartzHealthIndicator quartzHealthIndicator(
-        Scheduler scheduler, ObjectProvider<SchedulerFactoryBean> schedulerFactoryBean) {
-      SchedulerFactoryBean factoryBean = schedulerFactoryBean.getIfUnique();
-      return new QuartzHealthIndicator(
-          scheduler, (factoryBean != null) ? factoryBean.getJobStore() : null);
+    QuartzHealthIndicator quartzHealthIndicator(Scheduler scheduler) {
+      return new QuartzHealthIndicator(scheduler);
     }
   }
 }

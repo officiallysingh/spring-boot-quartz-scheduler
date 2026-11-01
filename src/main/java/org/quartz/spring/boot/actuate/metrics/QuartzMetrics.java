@@ -18,6 +18,7 @@ package org.quartz.spring.boot.actuate.metrics;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import java.time.Duration;
 import org.jspecify.annotations.Nullable;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
@@ -89,6 +90,10 @@ public class QuartzMetrics implements SchedulerPlugin {
       if (failed) {
         counter("quartz.jobs.failed", "Quartz job executions that failed", group).increment();
       }
+      Duration runTime = context.getJobRunTime();
+      if (runTime == null) {
+        return; // only a context that never ran has none
+      }
       Timer.builder("quartz.jobs.duration")
           .description("Quartz job execution time")
           .tags(
@@ -99,7 +104,7 @@ public class QuartzMetrics implements SchedulerPlugin {
               "result",
               failed ? "failure" : "success")
           .register(registry)
-          .record(context.getJobRunTime());
+          .record(runTime);
     }
 
     private Counter counter(String name, String description, String group) {

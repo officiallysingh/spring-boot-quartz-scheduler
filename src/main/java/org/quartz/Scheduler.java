@@ -120,6 +120,20 @@ public interface Scheduler {
   String DEFAULT_FAIL_OVER_GROUP = "FAILED_OVER_JOBS";
 
   /**
+   * The <code>Trigger</code> group of the one-off triggers created by {@link #triggerJob(JobKey)},
+   * {@link #triggerJob(JobKey, JobDataMap)} and {@link #triggerNow(TriggerKey)} ("MANUAL_TRIGGER");
+   * clients should not use it for their own triggers.
+   */
+  String MANUAL_TRIGGER_GROUP = "MANUAL_TRIGGER";
+
+  /**
+   * A constant <code>JobDataMap</code> key holding, in the data of the one-off trigger created by
+   * {@link #triggerNow(TriggerKey)}, the key ({@code group.name}) of the trigger whose job was
+   * fired.
+   */
+  String MANUAL_FIRE_OF_TRIGGER = "QRTZ_MANUAL_FIRE_OF_TRIGGER";
+
+  /**
    * A constant <code>JobDataMap</code> key that can be used to retrieve the name of the original
    * <code>Trigger</code> from a recovery trigger's data map in the case of a job recovering after a
    * failed scheduler instance.
@@ -136,6 +150,25 @@ public interface Scheduler {
    * @see org.quartz.JobDetail#requestsRecovery()
    */
   String FAILED_JOB_ORIGINAL_TRIGGER_GROUP = "QRTZ_FAILED_JOB_ORIG_TRIGGER_GROUP";
+
+  /**
+   * A constant <code>JobDataMap</code> key that can be used to retrieve the fire instance id of the
+   * original execution (its {@link JobExecutionContext#getFireInstanceId()}) from a recovery
+   * trigger's data map in the case of a job recovering after a failed scheduler instance.
+   *
+   * @see org.quartz.JobDetail#requestsRecovery()
+   * @see JobExecutionContext#getRecoveryInfo()
+   */
+  String FAILED_JOB_ORIGINAL_FIRE_INSTANCE_ID = "QRTZ_FAILED_JOB_ORIG_FIRE_INSTANCE_ID";
+
+  /**
+   * A constant <code>JobDataMap</code> key that can be used to retrieve the id of the scheduler
+   * instance that ran the original execution (the instance that failed) from a recovery trigger's
+   * data map in the case of a job recovering after a failed scheduler instance.
+   *
+   * @see org.quartz.JobDetail#requestsRecovery()
+   */
+  String FAILED_JOB_ORIGINAL_SCHEDULER_INSTANCE_ID = "QRTZ_FAILED_JOB_ORIG_SCHEDULER_INSTANCE_ID";
 
   /**
    * A constant <code>JobDataMap</code> key that can be used to retrieve the fire time of the
@@ -290,7 +323,7 @@ public interface Scheduler {
    * executing Jobs in this Scheduler instance.
    *
    * <p>This method is not cluster aware. That is, it will only return Jobs currently executing in
-   * this Scheduler instance, not across the entire cluster.
+   * this Scheduler instance, not across the entire cluster; see {@link #getClusterExecutingJobs()}.
    *
    * <p>Note that the list returned is an 'instantaneous' snap-shot, and that as soon as it's
    * returned, the true list of executing jobs may be different. Also please read the doc associated
@@ -299,6 +332,36 @@ public interface Scheduler {
    * @see JobExecutionContext
    */
   List<JobExecutionContext> getCurrentlyExecutingJobs() throws SchedulerException;
+
+  /**
+   * The scheduler instances known to the job store, with their liveness, read in one store query.
+   *
+   * <p>With a clustered store: every instance that has checked in and has not been recovered
+   * (removed) by another instance yet. {@link SchedulerInstance#alive()} is computed with the rule
+   * the store itself uses to decide that an instance has failed, so an instance that is not alive
+   * is, or is about to be, recovered, and its running executions will not complete normally. With a
+   * store that is not clustered: this instance only, without check-in times.
+   *
+   * <p>Use this rather than reading the store's records directly; their format is internal.
+   *
+   * @return the instances, in no particular order
+   * @throws SchedulerException if the store cannot be read
+   */
+  List<SchedulerInstance> getSchedulerInstances() throws SchedulerException;
+
+  /**
+   * The job executions in progress on every instance of the cluster, read from the job store's
+   * fired-trigger records in one query (only this instance's when the store is not clustered).
+   *
+   * <p>Like {@link #getCurrentlyExecutingJobs()}, the list is a snapshot. An execution is listed
+   * from the moment its trigger fires until it completes; the job instance and its context are only
+   * available on the instance running it.
+   *
+   * @return the executions, in no particular order
+   * @throws SchedulerException if the store cannot be read
+   * @see #interruptAnywhere(String)
+   */
+  List<ExecutingJob> getClusterExecutingJobs() throws SchedulerException;
 
   /**
    * Set the <code>JobFactory</code> that will be responsible for producing instances of <code>Job
@@ -465,16 +528,39 @@ public interface Scheduler {
    */
   boolean deleteJobs(List<JobKey> jobKeys) throws SchedulerException;
 
-  /** Trigger the identified <code>{@link org.quartz.JobDetail}</code> (execute it now). */
+  /**
+   * Trigger the identified <code>{@link org.quartz.JobDetail}</code> (execute it now), with a
+   * one-off trigger in the {@value #MANUAL_TRIGGER_GROUP} group and no job data of its own.
+   *
+   * @see #triggerNow(TriggerKey)
+   */
   void triggerJob(JobKey jobKey) throws SchedulerException;
 
   /**
-   * Trigger the identified <code>{@link org.quartz.JobDetail}</code> (execute it now).
+   * Trigger the identified <code>{@link org.quartz.JobDetail}</code> (execute it now), with a
+   * one-off trigger in the {@value #MANUAL_TRIGGER_GROUP} group.
    *
    * @param data the (possibly <code>null</code>) JobDataMap to be associated with the trigger that
    *     fires the job immediately.
    */
   void triggerJob(JobKey jobKey, @Nullable JobDataMap data) throws SchedulerException;
+
+  /**
+   * Fire the job of the identified trigger now, once, with a copy of that trigger's job data (and
+   * its priority). The identified trigger itself is not modified: its state, next fire time and job
+   * data stay as they are.
+   *
+   * <p>The job runs through a one-off trigger in the {@value #MANUAL_TRIGGER_GROUP} group whose job
+   * data also holds {@value #MANUAL_FIRE_OF_TRIGGER} = the identified trigger's key ({@code
+   * group.name}), so listeners and history can tell a manual re-fire from a scheduled one. The
+   * usual scheduler, trigger and job listener callbacks are made. Use it to re-fire a trigger that
+   * misfired or failed.
+   *
+   * @param triggerKey the trigger whose job and job data to use
+   * @throws JobPersistenceException if the trigger does not exist
+   * @throws SchedulerException if the job cannot be scheduled
+   */
+  void triggerNow(TriggerKey triggerKey) throws SchedulerException;
 
   /**
    * Pause the <code>{@link org.quartz.JobDetail}</code> with the given key - by pausing all of its
@@ -639,6 +725,32 @@ public interface Scheduler {
    */
   Set<TriggerKey> getTriggerKeys(GroupMatcher<TriggerKey> matcher) throws SchedulerException;
 
+  /**
+   * Get the keys of the triggers in the matching groups that are in any of the given states,
+   * filtered by the store (the MongoDB store in one query) rather than by reading each trigger's
+   * state.
+   *
+   * @param matcher the trigger groups to include
+   * @param states the states to include, as {@link #getTriggerState(TriggerKey)} reports them;
+   *     empty for all states
+   * @return the keys, ordered by group, then name
+   * @throws SchedulerException if the store cannot be read
+   */
+  List<TriggerKey> getTriggerKeys(GroupMatcher<TriggerKey> matcher, Set<TriggerState> states)
+      throws SchedulerException;
+
+  /**
+   * Get one page of triggers with their states: those in the query's groups and states, in its
+   * order, from offset {@code offset}, at most {@code limit} of them, with the number of matching
+   * triggers. The MongoDB store answers with one query and one count; the Redis store reads the
+   * matching triggers and pages in memory.
+   *
+   * @param query which triggers, in which order, which page
+   * @return the page and the total
+   * @throws SchedulerException if the store cannot be read
+   */
+  TriggerPage getTriggers(TriggerQuery query) throws SchedulerException;
+
   /** Get the names of all <code>{@link Trigger}</code> groups that are paused. */
   Set<String> getPausedTriggerGroups() throws SchedulerException;
 
@@ -663,6 +775,20 @@ public interface Scheduler {
    * @throws SchedulerException On error
    */
   List<JobDetail> getJobDetails(GroupMatcher<JobKey> matcher) throws SchedulerException;
+
+  /**
+   * Get one page of the jobs in the matching groups, ordered by group, then name, with the number
+   * of matching jobs. The MongoDB store answers with one query and one count.
+   *
+   * @param matcher the job groups to include
+   * @param offset how many matching jobs to skip, at least 0
+   * @param limit the page size, at least 1
+   * @return the page and the total
+   * @throws SchedulerException if the store cannot be read
+   * @throws IllegalArgumentException if {@code offset} or {@code limit} is out of range
+   */
+  JobDetailPage getJobDetails(GroupMatcher<JobKey> matcher, int offset, int limit)
+      throws SchedulerException;
 
   /**
    * Get the <code>{@link Trigger}</code> instance with the given key.
@@ -730,21 +856,23 @@ public interface Scheduler {
    * </code> interface.
    *
    * <p>If more than one instance of the identified job is currently executing, the <code>
-   * InterruptableJob#interrupt()</code> method will be called on each instance. However, there is a
-   * limitation that in the case that <code>interrupt()</code> on one instances throws an exception,
-   * all remaining instances (that have not yet been interrupted) will not have their <code>
-   * interrupt()</code> method called.
+   * InterruptableJob#interrupt()</code> method is called on each instance, even when interrupting
+   * an earlier one fails. If any instance could not be interrupted (its job does not implement
+   * <code>InterruptableJob</code>, or <code>interrupt()</code> threw), an <code>
+   * UnableToInterruptJobException</code> is thrown once all were attempted, with the individual
+   * failures as {@linkplain Throwable#getSuppressed() suppressed} exceptions.
    *
    * <p>This method is not cluster aware. That is, it will only interrupt instances of the
    * identified InterruptableJob currently executing in this Scheduler instance, not across the
    * entire cluster.
    *
    * @return true if at least one instance of the identified job was found and interrupted.
-   * @throws UnableToInterruptJobException if the job does not implement <code>InterruptableJob
-   *     </code>, or there is an exception while interrupting the job.
+   * @throws UnableToInterruptJobException if at least one executing instance could not be
+   *     interrupted (the others were).
    * @see InterruptableJob#interrupt()
    * @see #getCurrentlyExecutingJobs()
    * @see #interrupt(String)
+   * @see JobDetail#isInterruptible()
    */
   boolean interrupt(JobKey jobKey) throws UnableToInterruptJobException;
 
@@ -767,6 +895,28 @@ public interface Scheduler {
    * @see #interrupt(JobKey)
    */
   boolean interrupt(String fireInstanceId) throws UnableToInterruptJobException;
+
+  /**
+   * Request the interruption of the identified executing <code>Job</code> instance on whichever
+   * instance of the cluster runs it; its job must implement <code>InterruptableJob</code>.
+   *
+   * <p>An execution running on this instance is interrupted at once, as by {@link
+   * #interrupt(String)}. Otherwise the request is recorded on the execution's fired-trigger record
+   * in the job store ({@link ExecutingJob#interruptRequested()}), and the instance running it calls
+   * <code>InterruptableJob#interrupt()</code> when it next checks in with the cluster, so delivery
+   * takes up to {@code cluster-checkin-interval}. When the store is not clustered this is {@link
+   * #interrupt(String)}.
+   *
+   * @param fireInstanceId the execution's fire instance id ({@link
+   *     JobExecutionContext#getFireInstanceId()}, {@link ExecutingJob#fireInstanceId()})
+   * @return true if the execution was found: interrupted here, or the request recorded for the
+   *     instance running it; false if no such execution is in progress.
+   * @throws UnableToInterruptJobException if the job does not implement <code>InterruptableJob
+   *     </code>, or interrupting it here failed.
+   * @throws SchedulerException if the store cannot be read or written
+   * @see #getClusterExecutingJobs()
+   */
+  boolean interruptAnywhere(String fireInstanceId) throws SchedulerException;
 
   /**
    * Determine whether a {@link Job} with the given identifier already exists within the scheduler.

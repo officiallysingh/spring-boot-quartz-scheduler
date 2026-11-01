@@ -24,18 +24,23 @@ import java.util.Map;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
+import org.quartz.ExecutingJob;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
+import org.quartz.JobDetailPage;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobKey;
 import org.quartz.ListenerManager;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerContext;
 import org.quartz.SchedulerException;
+import org.quartz.SchedulerInstance;
 import org.quartz.SchedulerMetaData;
 import org.quartz.Trigger;
 import org.quartz.Trigger.TriggerState;
 import org.quartz.TriggerKey;
+import org.quartz.TriggerPage;
+import org.quartz.TriggerQuery;
 import org.quartz.UnableToInterruptJobException;
 import org.quartz.core.QuartzScheduler;
 import org.quartz.impl.matchers.GroupMatcher;
@@ -259,6 +264,11 @@ public class StdScheduler implements Scheduler {
   }
 
   /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
+  public void triggerNow(TriggerKey triggerKey) throws SchedulerException {
+    sched.triggerNow(triggerKey);
+  }
+
+  /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
   public void pauseTrigger(TriggerKey triggerKey) throws SchedulerException {
     sched.pauseTrigger(triggerKey);
   }
@@ -352,6 +362,23 @@ public class StdScheduler implements Scheduler {
   }
 
   /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
+  public JobDetailPage getJobDetails(GroupMatcher<JobKey> matcher, int offset, int limit)
+      throws SchedulerException {
+    return sched.getJobDetails(matcher, offset, limit);
+  }
+
+  /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
+  public List<TriggerKey> getTriggerKeys(GroupMatcher<TriggerKey> matcher, Set<TriggerState> states)
+      throws SchedulerException {
+    return sched.getTriggerKeys(matcher, states);
+  }
+
+  /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
+  public TriggerPage getTriggers(TriggerQuery query) throws SchedulerException {
+    return sched.getTriggers(query);
+  }
+
+  /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
   public @Nullable Trigger getTrigger(TriggerKey triggerKey) throws SchedulerException {
     return sched.getTrigger(triggerKey);
   }
@@ -436,5 +463,20 @@ public class StdScheduler implements Scheduler {
 
   public boolean interrupt(String fireInstanceId) throws UnableToInterruptJobException {
     return sched.interrupt(fireInstanceId);
+  }
+
+  /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
+  public boolean interruptAnywhere(String fireInstanceId) throws SchedulerException {
+    return sched.interruptAnywhere(fireInstanceId);
+  }
+
+  /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
+  public List<SchedulerInstance> getSchedulerInstances() throws SchedulerException {
+    return sched.getSchedulerInstances();
+  }
+
+  /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
+  public List<ExecutingJob> getClusterExecutingJobs() throws SchedulerException {
+    return sched.getClusterExecutingJobs();
   }
 }

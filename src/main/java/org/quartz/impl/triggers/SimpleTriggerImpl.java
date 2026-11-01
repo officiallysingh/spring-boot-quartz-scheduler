@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.Year;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
@@ -192,7 +193,9 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger>
   }
 
   /**
-   * Set the time interval at which the <code>SimpleTrigger</code> should repeat.
+   * Set the time interval at which the <code>SimpleTrigger</code> should repeat. Like all
+   * scheduling times, it has millisecond precision: a finer part is dropped, so the trigger behaves
+   * the same before and after a store round-trip.
    *
    * @exception IllegalArgumentException if repeatInterval is &lt; 0
    */
@@ -201,7 +204,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger>
       throw new IllegalArgumentException("Repeat interval must be >= 0");
     }
 
-    this.repeatInterval = repeatInterval;
+    this.repeatInterval = repeatInterval.truncatedTo(ChronoUnit.MILLIS);
   }
 
   /** Get the number of times the <code>SimpleTrigger</code> has already fired. */

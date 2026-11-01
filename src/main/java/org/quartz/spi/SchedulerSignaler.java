@@ -81,6 +81,22 @@ public interface SchedulerSignaler {
   }
 
   /**
+   * Interrupts an execution of this instance that {@link
+   * org.quartz.Scheduler#interruptAnywhere(String)} asked to interrupt (possibly on another
+   * instance of the cluster); called by a clustered store when it checks in.
+   *
+   * <p>The default does nothing.
+   *
+   * @param fireInstanceId the execution's fire instance id
+   * @return {@code true} once the request is dealt with (the execution was interrupted, or cannot
+   *     be); {@code false} if the execution is not (yet) running here, to be asked again at the
+   *     next check-in
+   */
+  default boolean interruptRequested(String fireInstanceId) {
+    return false;
+  }
+
+  /**
    * Tell the scheduler listeners about an error in the job store.
    *
    * @param string a description of what failed

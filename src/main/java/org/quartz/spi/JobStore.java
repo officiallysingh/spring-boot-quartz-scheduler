@@ -26,17 +26,22 @@ import java.util.Map;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
+import org.quartz.ExecutingJob;
 import org.quartz.Job;
 import org.quartz.JobDetail;
+import org.quartz.JobDetailPage;
 import org.quartz.JobKey;
 import org.quartz.JobPersistenceException;
 import org.quartz.ObjectAlreadyExistsException;
 import org.quartz.SchedulerConfigException;
 import org.quartz.SchedulerException;
+import org.quartz.SchedulerInstance;
 import org.quartz.Trigger;
 import org.quartz.Trigger.CompletedExecutionInstruction;
 import org.quartz.Trigger.TriggerState;
 import org.quartz.TriggerKey;
+import org.quartz.TriggerPage;
+import org.quartz.TriggerQuery;
 import org.quartz.impl.matchers.GroupMatcher;
 
 /**
@@ -615,6 +620,62 @@ public interface JobStore {
    */
   void triggeredJobComplete(
       OperableTrigger trigger, JobDetail jobDetail, CompletedExecutionInstruction triggerInstCode);
+
+  /**
+   * The job executions in progress on every scheduler instance sharing the store (only this
+   * instance when not clustered), from the store's fired-trigger records.
+   *
+   * @return the executions, in no particular order
+   * @throws JobPersistenceException if the store cannot be read
+   */
+  List<ExecutingJob> getExecutingJobs() throws JobPersistenceException;
+
+  /**
+   * Keys of the triggers in the matching groups that are in one of the given states (all states if
+   * empty), ordered by group, then name, read without loading the triggers.
+   *
+   * @return the keys
+   * @throws JobPersistenceException if the store cannot be read
+   */
+  List<TriggerKey> getTriggerKeys(GroupMatcher<TriggerKey> matcher, Set<TriggerState> states)
+      throws JobPersistenceException;
+
+  /**
+   * One page of triggers with their states; see {@link
+   * org.quartz.Scheduler#getTriggers(TriggerQuery)}.
+   *
+   * @return the page
+   * @throws JobPersistenceException if the store cannot be read
+   */
+  TriggerPage getTriggers(TriggerQuery query) throws JobPersistenceException;
+
+  /**
+   * One page of the jobs in the matching groups, ordered by group, then name.
+   *
+   * @return the page
+   * @throws JobPersistenceException if the store cannot be read
+   */
+  JobDetailPage getJobDetails(GroupMatcher<JobKey> matcher, int offset, int limit)
+      throws JobPersistenceException;
+
+  /**
+   * The scheduler instances using the store, with their liveness; see {@link
+   * org.quartz.Scheduler#getSchedulerInstances()}.
+   *
+   * @return the instances, in no particular order
+   * @throws JobPersistenceException if the store cannot be read
+   */
+  List<SchedulerInstance> getSchedulerInstances() throws JobPersistenceException;
+
+  /**
+   * Records a request to interrupt an execution in progress; the scheduler instance running it
+   * picks the request up when it next checks in with the cluster.
+   *
+   * @param fireInstanceId the execution's fire instance id
+   * @return whether an execution in progress with that id exists
+   * @throws JobPersistenceException if the store cannot be written
+   */
+  boolean requestInterrupt(String fireInstanceId) throws JobPersistenceException;
 
   /**
    * Inform the <code>JobStore</code> of the Scheduler instance's Id, prior to initialize being

@@ -537,7 +537,7 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
   @Override
   public @Nullable Instant computeFirstFireTime(org.quartz.@Nullable Calendar calendar) {
 
-    nextFireTime = getFireTimeAfter(Instant.ofEpochMilli(getStartTime().toEpochMilli() - 1000L));
+    nextFireTime = getFireTimeAfter(getStartTime().minusSeconds(1));
 
     // Check calendar for date-time exclusion
     while (nextFireTime != null && calendar != null && !calendar.isTimeIncluded(nextFireTime)) {
@@ -620,9 +620,9 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
 
     // a. Increment afterTime by a second, so that we are comparing against a time after it!
     if (afterTime == null) {
-      afterTime = Instant.ofEpochMilli(System.currentTimeMillis() + 1000L);
+      afterTime = Instants.now().plusSeconds(1);
     } else {
-      afterTime = Instant.ofEpochMilli(afterTime.toEpochMilli() + 1000L);
+      afterTime = afterTime.plusSeconds(1);
     }
 
     // make sure afterTime is at least startTime

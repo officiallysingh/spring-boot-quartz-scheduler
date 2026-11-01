@@ -14,11 +14,14 @@
 package org.quartz.store;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -30,16 +33,23 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.quartz.ExecutingJob;
+import org.quartz.InterruptableJob;
 import org.quartz.Job;
 import org.quartz.JobBuilder;
+import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobPersistenceException;
+import org.quartz.RecoveryInfo;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
+import org.quartz.SchedulerInstance;
 import org.quartz.SimpleScheduleBuilder;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
+import org.quartz.TriggerKey;
+import org.quartz.UnableToInterruptJobException;
 import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.impl.config.JobStoreSettings;
 import org.quartz.impl.config.SchedulerSettings;
@@ -67,6 +77,12 @@ public abstract class AbstractClusteredJobStoreContractTest {
   static final Map<String, AtomicInteger> EXECUTIONS = new ConcurrentHashMap<>();
 
   static final Map<String, String> RECOVERED_ON = new ConcurrentHashMap<>();
+
+  /** The interrupted execution of a recoverable job, by job name. */
+  static final Map<String, JobExecutionContext> ORIGINAL_EXECUTION = new ConcurrentHashMap<>();
+
+  /** The recovery execution of a recoverable job, by job name. */
+  static final Map<String, JobExecutionContext> RECOVERY_EXECUTION = new ConcurrentHashMap<>();
 
   static volatile CountDownLatch blockedJobStarted = new CountDownLatch(1);
 
@@ -100,6 +116,8 @@ public abstract class AbstractClusteredJobStoreContractTest {
     cleanStore();
     EXECUTIONS.clear();
     RECOVERED_ON.clear();
+    ORIGINAL_EXECUTION.clear();
+    RECOVERY_EXECUTION.clear();
     blockedJobStarted = new CountDownLatch(1);
     releaseBlockedJob = new CountDownLatch(1);
   }
@@ -170,23 +188,18 @@ public abstract class AbstractClusteredJobStoreContractTest {
   public static class BlockingRecoverableJob implements Job {
     @Override
     public void execute(JobExecutionContext context) {
+      String name = context.getJobDetail().getKey().getName();
       if (context.isRecovering()) {
-        RECOVERED_ON.put(context.getJobDetail().getKey().getName(), safeInstanceId(context));
+        RECOVERY_EXECUTION.put(name, context);
+        RECOVERED_ON.put(name, safeInstanceId(context));
         return;
       }
+      ORIGINAL_EXECUTION.put(name, context);
       blockedJobStarted.countDown();
       try {
         releaseBlockedJob.await(60, TimeUnit.SECONDS);
       } catch (InterruptedException ex) {
         Thread.currentThread().interrupt();
-      }
-    }
-
-    private static String safeInstanceId(JobExecutionContext context) {
-      try {
-        return context.getScheduler().getSchedulerInstanceId();
-      } catch (SchedulerException ex) {
-        return "unknown";
       }
     }
   }
@@ -236,6 +249,176 @@ public abstract class AbstractClusteredJobStoreContractTest {
 
     await().atMost(Duration.ofSeconds(30)).until(() -> RECOVERED_ON.containsKey("recoverable"));
     assertThat(RECOVERED_ON.get("recoverable")).isEqualTo("node-b");
+
+    // the recovery run identifies the execution it replaces
+    JobExecutionContext original = ORIGINAL_EXECUTION.get("recoverable");
+    JobDataMap data = RECOVERY_EXECUTION.get("recoverable").getMergedJobDataMap();
+    assertThat(data.getString(Scheduler.FAILED_JOB_ORIGINAL_FIRE_INSTANCE_ID))
+        .isEqualTo(original.getFireInstanceId());
+    assertThat(data.getString(Scheduler.FAILED_JOB_ORIGINAL_SCHEDULER_INSTANCE_ID))
+        .isEqualTo("node-a");
+    assertThat(data.getString(Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_NAME))
+        .isEqualTo("recoverableTrigger");
+    assertThat(
+            Instant.ofEpochMilli(
+                Long.parseLong(
+                    data.getString(
+                        Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME_IN_MILLISECONDS))))
+        .isEqualTo(original.getFireTime().truncatedTo(ChronoUnit.MILLIS));
+    assertThat(
+            Instant.ofEpochMilli(
+                Long.parseLong(
+                    data.getString(
+                        Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_SCHEDULED_FIRETIME_IN_MILLISECONDS))))
+        .isEqualTo(original.getScheduledFireTime());
+    // the same, typed
+    assertThat(RECOVERY_EXECUTION.get("recoverable").getRecoveryInfo())
+        .contains(
+            new RecoveryInfo(
+                TriggerKey.triggerKey("recoverableTrigger"),
+                original.getFireInstanceId(),
+                "node-a",
+                original.getFireTime().truncatedTo(ChronoUnit.MILLIS),
+                original.getScheduledFireTime()));
+    assertThat(original.getRecoveryInfo()).isEmpty();
+  }
+
+  /** Runs until interrupted; records the instance it ran on. */
+  public static class InterruptibleBlockingJob implements InterruptableJob {
+
+    static final Map<String, String> RUNNING_ON = new ConcurrentHashMap<>();
+
+    static final Map<String, String> INTERRUPTED_ON = new ConcurrentHashMap<>();
+
+    private final CountDownLatch interrupted = new CountDownLatch(1);
+
+    @Override
+    public void execute(JobExecutionContext context) {
+      String name = context.getJobDetail().getKey().getName();
+      RUNNING_ON.put(name, safeInstanceId(context));
+      try {
+        if (interrupted.await(60, TimeUnit.SECONDS)) {
+          INTERRUPTED_ON.put(name, safeInstanceId(context));
+        }
+      } catch (InterruptedException ex) {
+        Thread.currentThread().interrupt();
+      }
+    }
+
+    @Override
+    public void interrupt() {
+      interrupted.countDown();
+    }
+  }
+
+  private static String safeInstanceId(JobExecutionContext context) {
+    try {
+      return context.getScheduler().getSchedulerInstanceId();
+    } catch (SchedulerException ex) {
+      return "unknown";
+    }
+  }
+
+  @Test
+  void anInterruptRequestedOnOneNodeReachesTheJobRunningOnAnother() throws Exception {
+    InterruptibleBlockingJob.RUNNING_ON.clear();
+    InterruptibleBlockingJob.INTERRUPTED_ON.clear();
+    Scheduler nodeB = startScheduler("node-b");
+    JobDetail job =
+        JobBuilder.newJob(InterruptibleBlockingJob.class)
+            .withIdentity("longRunning")
+            .requestRecovery()
+            .build();
+    assertThat(job.isInterruptible()).isTrue();
+    nodeB.scheduleJob(
+        job, TriggerBuilder.newTrigger().withIdentity("longRunningTrigger").startNow().build());
+    await()
+        .atMost(Duration.ofSeconds(30))
+        .until(() -> InterruptibleBlockingJob.RUNNING_ON.containsKey("longRunning"));
+    Scheduler nodeA = startScheduler("node-a");
+
+    // node-a sees node-b's execution
+    List<ExecutingJob> executing = nodeA.getClusterExecutingJobs();
+    assertThat(executing).hasSize(1);
+    ExecutingJob execution = executing.getFirst();
+    assertThat(execution.schedulerInstanceId()).isEqualTo("node-b");
+    assertThat(execution.jobKey()).isEqualTo(job.getKey());
+    assertThat(execution.triggerKey().getName()).isEqualTo("longRunningTrigger");
+    assertThat(execution.requestsRecovery()).isTrue();
+    assertThat(execution.interruptRequested()).isFalse();
+    assertThat(execution.fireInstanceId())
+        .isEqualTo(nodeB.getCurrentlyExecutingJobs().getFirst().getFireInstanceId());
+    assertThat(execution.firedTime())
+        .isEqualTo(nodeB.getCurrentlyExecutingJobs().getFirst().getFireTime());
+    assertThat(nodeA.getCurrentlyExecutingJobs()).isEmpty();
+
+    // and interrupts it through the store
+    assertThat(nodeA.interruptAnywhere(execution.fireInstanceId())).isTrue();
+    assertThat(nodeA.getClusterExecutingJobs())
+        .singleElement()
+        .extracting(ExecutingJob::interruptRequested)
+        .isEqualTo(true);
+    await()
+        .atMost(Duration.ofSeconds(10))
+        .until(() -> InterruptibleBlockingJob.INTERRUPTED_ON.containsKey("longRunning"));
+    assertThat(InterruptibleBlockingJob.INTERRUPTED_ON.get("longRunning")).isEqualTo("node-b");
+    await().atMost(Duration.ofSeconds(10)).until(() -> nodeA.getClusterExecutingJobs().isEmpty());
+    assertThat(nodeA.interruptAnywhere(execution.fireInstanceId())).isFalse();
+  }
+
+  @Test
+  void aJobThatIsNotInterruptibleCannotBeInterruptedFromAnotherNode() throws Exception {
+    Scheduler nodeB = startScheduler("node-b");
+    JobDetail job =
+        JobBuilder.newJob(BlockingRecoverableJob.class)
+            .withIdentity("plain")
+            .storeDurably()
+            .build();
+    assertThat(job.isInterruptible()).isFalse();
+    nodeB.scheduleJob(job, TriggerBuilder.newTrigger().forJob(job).startNow().build());
+    assertThat(blockedJobStarted.await(30, TimeUnit.SECONDS)).isTrue();
+    Scheduler nodeA = startScheduler("node-a");
+
+    String fireInstanceId = nodeA.getClusterExecutingJobs().getFirst().fireInstanceId();
+    assertThatExceptionOfType(UnableToInterruptJobException.class)
+        .isThrownBy(() -> nodeA.interruptAnywhere(fireInstanceId))
+        .withMessageContaining("DEFAULT.plain");
+    assertThat(nodeA.getClusterExecutingJobs().getFirst().interruptRequested()).isFalse();
+  }
+
+  @Test
+  void schedulerInstancesReportLivenessAndTheCallingInstance() throws Exception {
+    Scheduler nodeA = startScheduler("node-a");
+    Scheduler nodeB = startScheduler("node-b");
+
+    assertThat(nodeA.getSchedulerInstances())
+        .extracting(
+            SchedulerInstance::instanceId, SchedulerInstance::alive, SchedulerInstance::current)
+        .containsExactlyInAnyOrder(tuple("node-a", true, true), tuple("node-b", true, false));
+    assertThat(nodeB.getSchedulerInstances())
+        .filteredOn(SchedulerInstance::current)
+        .singleElement()
+        .satisfies(
+            instance -> {
+              assertThat(instance.instanceId()).isEqualTo("node-b");
+              assertThat(instance.lastCheckin()).isNotNull();
+              assertThat(instance.checkinInterval()).isEqualTo(Duration.ofMillis(500));
+            });
+
+    // a third instance stops checking in: node-b sees it dead, then recovers (removes) it
+    PersistentJobStore storeC = startStore("node-c");
+    storeC.shutdown();
+    await()
+        .atMost(Duration.ofSeconds(20))
+        .until(
+            () ->
+                nodeB.getSchedulerInstances().stream()
+                    .filter(instance -> instance.instanceId().equals("node-c"))
+                    .noneMatch(SchedulerInstance::alive));
+    assertThat(nodeB.getSchedulerInstances())
+        .filteredOn(SchedulerInstance::alive)
+        .extracting(SchedulerInstance::instanceId)
+        .containsExactlyInAnyOrder("node-a", "node-b");
   }
 
   @Test

@@ -77,8 +77,10 @@ everything, from the thread pool to the store, is configured through typed `spri
 
 ## Installation
 
-> **Current version: 1.0.0-rc1**, available from
+> **Current version: 1.0.0-rc2**, available from
 > [Maven Central](https://central.sonatype.com/artifact/com.neolama/spring-boot-quartz-scheduler).
+> Upgrading from 1.0.0-rc1? Read the [changelog](CHANGELOG.md) first: it lists the breaking changes, including
+> the MongoDB storage format (stop all 1.0.0-rc1 instances before starting 1.0.0-rc2).
 
 Add the library and the Spring Boot starter of the store you use to your application.
 
@@ -87,7 +89,7 @@ Maven
 <dependency>
     <groupId>com.neolama</groupId>
     <artifactId>spring-boot-quartz-scheduler</artifactId>
-    <version>1.0.0-rc1</version>
+    <version>1.0.0-rc2</version>
 </dependency>
 
 <!-- MongoDB store -->
@@ -103,7 +105,7 @@ Maven
 ```
 Gradle
 ```groovy
-implementation 'com.neolama:spring-boot-quartz-scheduler:1.0.0-rc1'
+implementation 'com.neolama:spring-boot-quartz-scheduler:1.0.0-rc2'
 implementation 'org.springframework.boot:spring-boot-starter-data-mongodb' // or spring-boot-starter-data-redis
 ```
 
@@ -248,7 +250,7 @@ public class SendInvoiceJob implements Job {
 ```
 
 Extend [`QuartzJobBean`](src/main/java/org/quartz/spring/QuartzJobBean.java) instead to implement [`QuartzJobBean.executeInternal()`](src/main/java/org/quartz/spring/QuartzJobBean.java#L79); it applies the job data to its own bean
-properties. Job data is read with [`JobExecutionContext.getMergedJobDataMap()`](src/main/java/org/quartz/JobExecutionContext.java#L109) (the job's entries overridden by the
+properties. Job data is read with [`JobExecutionContext.getMergedJobDataMap()`](src/main/java/org/quartz/JobExecutionContext.java#L119) (the job's entries overridden by the
 trigger's).
 
 Annotations on the job class:
@@ -270,7 +272,7 @@ Options on [`JobBuilder`](src/main/java/org/quartz/JobBuilder.java):
 | [`JobBuilder.withDescription()`](src/main/java/org/quartz/JobBuilder.java#L174) | Free text, shown by the actuator endpoint |
 
 A job that should stop when asked implements [`InterruptableJob`](src/main/java/org/quartz/InterruptableJob.java): [`InterruptableJob.interrupt()`](src/main/java/org/quartz/InterruptableJob.java#L73) is called by
-[`Scheduler.interrupt()`](src/main/java/org/quartz/Scheduler.java#L749) and by the [`JobInterruptMonitorPlugin`](#plugins).
+[`Scheduler.interrupt()`](src/main/java/org/quartz/Scheduler.java#L877) and by the [`JobInterruptMonitorPlugin`](#plugins).
 
 > [!TIP]
 > Keep job data small and simple: strings, numbers and booleans are stored as typed fields. Anything else makes the
@@ -370,7 +372,7 @@ Trigger payrollTrigger() {
 | [`CronCalendar`](src/main/java/org/quartz/impl/calendar/CronCalendar.java) | The times a cron expression matches |
 
 Calendars can be chained: pass one calendar to another's constructor and both apply. At run time,
-[`Scheduler.addCalendar()`](src/main/java/org/quartz/Scheduler.java#L706) adds or replaces one.
+[`Scheduler.addCalendar()`](src/main/java/org/quartz/Scheduler.java#L832) adds or replaces one.
 
 ## Scheduling at run time
 
@@ -409,16 +411,34 @@ Frequently used [`Scheduler`](src/main/java/org/quartz/Scheduler.java) methods:
 
 | Method | Does |
 |---|---|
-| [`Scheduler.scheduleJob()`](src/main/java/org/quartz/Scheduler.java#L344) | Stores a job with its trigger, or a trigger for a stored job |
-| [`Scheduler.addJob()`](src/main/java/org/quartz/Scheduler.java#L428) | Stores a (durable) job without a trigger |
-| [`Scheduler.triggerJob()`](src/main/java/org/quartz/Scheduler.java#L469) | Runs a stored job now, optionally with extra [`JobDataMap`](src/main/java/org/quartz/JobDataMap.java) entries |
-| [`Scheduler.rescheduleJob()`](src/main/java/org/quartz/Scheduler.java#L412) | Replaces a trigger, e.g. to change a cron expression |
-| [`Scheduler.unscheduleJob()`](src/main/java/org/quartz/Scheduler.java#L385) / [`Scheduler.deleteJob()`](src/main/java/org/quartz/Scheduler.java#L453) | Removes a trigger / a job with its triggers |
-| [`Scheduler.pauseJob()`](src/main/java/org/quartz/Scheduler.java#L485), [`Scheduler.pauseTriggers()`](src/main/java/org/quartz/Scheduler.java#L537), [`Scheduler.pauseAll()`](src/main/java/org/quartz/Scheduler.java#L595) (and the `resume…` methods) | Pauses and resumes, by key or by group ([`GroupMatcher.groupEquals()`](src/main/java/org/quartz/impl/matchers/GroupMatcher.java#L44)) |
-| [`Scheduler.checkExists()`](src/main/java/org/quartz/Scheduler.java#L778) | Whether a job or trigger is stored |
-| [`Scheduler.getJobKeys()`](src/main/java/org/quartz/Scheduler.java#L618), [`Scheduler.getTriggersOfJob()`](src/main/java/org/quartz/Scheduler.java#L628) | Lists what is stored |
-| [`Scheduler.getCurrentlyExecutingJobs()`](src/main/java/org/quartz/Scheduler.java#L301) | Executions running on this instance |
-| [`Scheduler.interrupt()`](src/main/java/org/quartz/Scheduler.java#L749) | Asks a running [`InterruptableJob`](src/main/java/org/quartz/InterruptableJob.java) to stop |
+| [`Scheduler.scheduleJob()`](src/main/java/org/quartz/Scheduler.java#L407) | Stores a job with its trigger, or a trigger for a stored job |
+| [`Scheduler.addJob()`](src/main/java/org/quartz/Scheduler.java#L491) | Stores a (durable) job without a trigger |
+| [`Scheduler.triggerJob()`](src/main/java/org/quartz/Scheduler.java#L537) | Runs a stored job now, optionally with extra [`JobDataMap`](src/main/java/org/quartz/JobDataMap.java) entries |
+| [`Scheduler.triggerNow()`](src/main/java/org/quartz/Scheduler.java#L563) | Runs a trigger's job now, once, with the trigger's job data and priority; the trigger is unchanged. Use it to re-fire a missed or failed trigger |
+| [`Scheduler.rescheduleJob()`](src/main/java/org/quartz/Scheduler.java#L475) | Replaces a trigger, e.g. to change a cron expression |
+| [`Scheduler.unscheduleJob()`](src/main/java/org/quartz/Scheduler.java#L448) / [`Scheduler.deleteJob()`](src/main/java/org/quartz/Scheduler.java#L516) | Removes a trigger / a job with its triggers |
+| [`Scheduler.pauseJob()`](src/main/java/org/quartz/Scheduler.java#L571), [`Scheduler.pauseTriggers()`](src/main/java/org/quartz/Scheduler.java#L623), [`Scheduler.pauseAll()`](src/main/java/org/quartz/Scheduler.java#L681) (and the `resume…` methods) | Pauses and resumes, by key or by group ([`GroupMatcher.groupEquals()`](src/main/java/org/quartz/impl/matchers/GroupMatcher.java#L44)) |
+| [`Scheduler.checkExists()`](src/main/java/org/quartz/Scheduler.java#L928) | Whether a job or trigger is stored |
+| [`Scheduler.getJobKeys()`](src/main/java/org/quartz/Scheduler.java#L704), [`Scheduler.getTriggersOfJob()`](src/main/java/org/quartz/Scheduler.java#L714) | Lists what is stored |
+| [`Scheduler.getTriggers()`](src/main/java/org/quartz/Scheduler.java#L752), [`Scheduler.getJobDetails()`](src/main/java/org/quartz/Scheduler.java#L790) | One page of triggers with their states ([`TriggerQuery`](src/main/java/org/quartz/TriggerQuery.java): groups, states, sort, page), or of jobs, with the total |
+| [`Scheduler.getTriggerKeys()`](src/main/java/org/quartz/Scheduler.java#L739) with states | The keys of the triggers in some states, e.g. `Set.of(TriggerState.ERROR)` |
+| [`Scheduler.getCurrentlyExecutingJobs()`](src/main/java/org/quartz/Scheduler.java#L334) | Executions running on this instance |
+| [`Scheduler.getClusterExecutingJobs()`](src/main/java/org/quartz/Scheduler.java#L364) | Executions running on any instance of the cluster ([`ExecutingJob`](src/main/java/org/quartz/ExecutingJob.java)) |
+| [`Scheduler.interrupt()`](src/main/java/org/quartz/Scheduler.java#L877) | Asks a running [`InterruptableJob`](src/main/java/org/quartz/InterruptableJob.java) to stop ([`JobDetail.isInterruptible()`](src/main/java/org/quartz/JobDetail.java#L72) tells whether it is one) |
+| [`Scheduler.interruptAnywhere()`](src/main/java/org/quartz/Scheduler.java#L919) | The same, for an execution on any instance of the cluster |
+| [`Scheduler.getSchedulerInstances()`](src/main/java/org/quartz/Scheduler.java#L350) | The cluster's instances, with whether each is alive ([`SchedulerInstance`](src/main/java/org/quartz/SchedulerInstance.java)) |
+
+For an operations view, page through the triggers in one store query instead of reading each trigger and state:
+
+```java
+// the 20 triggers that fire next, with their states
+TriggerPage next = scheduler.getTriggers(new TriggerQuery(
+    GroupMatcher.anyTriggerGroup(), Set.of(), TriggerSort.NEXT_FIRE_TIME, false, 0, 20));
+// all triggers in error, re-fired once with their job data
+for (TriggerKey key : scheduler.getTriggerKeys(GroupMatcher.anyTriggerGroup(), Set.of(TriggerState.ERROR))) {
+    scheduler.triggerNow(key);
+}
+```
 
 > [!NOTE]
 > Every change is written to the store at once and is seen by all instances of a cluster. Jobs created at run time
@@ -454,8 +474,14 @@ class FailedJobAlerting extends JobListenerSupport {
 }
 ```
 
+`failure` is `null` when the job completed. When the job threw a [`JobExecutionException`](src/main/java/org/quartz/JobExecutionException.java), it is that
+exception; when it threw anything else, `failure.getCause()` is exactly what the job threw, and the message reads
+`Job reports.daily threw an unhandled exception: java.lang.IllegalStateException: …`.
+[`JobExecutionContext.getJobRunTime()`](src/main/java/org/quartz/JobExecutionContext.java#L203) is the run time (`null` until the job has finished), and a recovery run
+tells what it replaces through [`JobExecutionContext.getRecoveryInfo()`](src/main/java/org/quartz/JobExecutionContext.java#L93).
+
 A [`TriggerListener`](src/main/java/org/quartz/TriggerListener.java) can veto an execution ([`TriggerListener.vetoJobExecution()`](src/main/java/org/quartz/TriggerListener.java#L72)). To listen only to some jobs,
-register the listener with matchers at run time through [`Scheduler.getListenerManager()`](src/main/java/org/quartz/Scheduler.java#L326), e.g.
+register the listener with matchers at run time through [`Scheduler.getListenerManager()`](src/main/java/org/quartz/Scheduler.java#L389), e.g.
 [`ListenerManager.addJobListener()`](src/main/java/org/quartz/ListenerManager.java#L49) with [`GroupMatcher.jobGroupEquals()`](src/main/java/org/quartz/impl/matchers/GroupMatcher.java#L49). [`JobChainingJobListener`](src/main/java/org/quartz/listeners/JobChainingJobListener.java) runs a job after
 another one completes.
 
@@ -574,7 +600,11 @@ spring:
 * **Use a replica set** (a single-node replica set is enough) or a sharded cluster: every store operation then runs
   in a transaction, all or nothing, even when an instance crashes halfway. The store also works on a standalone
   server, where each single write is atomic; the startup log says which mode is used.
-* Tested with MongoDB 8.0. If you build your own `MongoClient`, keep the driver's default codec registry.
+* Instants are stored as BSON dates and durations as int64 milliseconds, encoded by the store itself, so the
+  application's codecs (custom `Instant`, `Duration` or `OffsetDateTime` codecs) do not change the format. Stores
+  written before 1.0.0-rc2 (instants as numbers) are converted at startup; stop older instances first.
+* Tested with MongoDB 8.0. If you build your own `MongoClient`, its codec registry must include the driver's
+  default registry (your codecs may come first).
 
 ### Redis
 
@@ -623,7 +653,15 @@ spring:
 * A lock held by a crashed instance is released after `spring.quartz.job-store.{mongodb,redis}.lock-timeout`.
 * `instance-id: SYS_PROP` reads the id from the `org.quartz.scheduler.instanceId` system property instead; an
   [`InstanceIdGenerator`](src/main/java/org/quartz/spi/InstanceIdGenerator.java) bean generates it in code.
-* Keep the instances' clocks in sync (NTP).
+* Keep the instances' clocks in sync (NTP). Check-ins use the system clock even when a `Clock` bean drives
+  scheduling, because the instances compare them.
+* [`Scheduler.getSchedulerInstances()`](src/main/java/org/quartz/Scheduler.java#L350) lists the instances; `alive` uses the same rule as recovery, so an instance that is not
+  alive is being (or is about to be) recovered. Use it rather than reading `qrtz_schedulers`.
+* [`Scheduler.getClusterExecutingJobs()`](src/main/java/org/quartz/Scheduler.java#L364) lists what runs on every instance; [`Scheduler.interruptAnywhere()`](src/main/java/org/quartz/Scheduler.java#L919) interrupts an
+  execution wherever it runs: at once on this instance, otherwise through the store, delivered when the instance
+  running it next checks in (within `cluster-checkin-interval`).
+* A recovery run's [`JobExecutionContext.getRecoveryInfo()`](src/main/java/org/quartz/JobExecutionContext.java#L93) names the execution it replaces: original trigger, fire
+  instance id, failed instance, fire time and scheduled fire time.
 
 To spread acquisition work under high load, let each instance take several due triggers at a time:
 
@@ -707,7 +745,8 @@ management.endpoints.web.exposure.include: health,quartz
 Job data values are masked unless `management.endpoint.quartz.show-values` allows them (`roles` restricts who).
 
 **Health indicator `quartz`** ([`QuartzHealthIndicator`](src/main/java/org/quartz/spring/boot/actuate/health/QuartzHealthIndicator.java)): `DOWN` when the scheduler is shut down, its store cannot be
-read, or (clustered) its own check-in is overdue; `UP` otherwise, standby included.
+read, or (clustered) the instance is no longer alive for the cluster (check-in overdue, or already recovered by
+another instance); `UP` otherwise, standby included. Clustered, it also shows `instances` and `aliveInstances`.
 `management.health.quartz.enabled: false` turns it off.
 
 **Metrics** ([`QuartzMetrics`](src/main/java/org/quartz/spring/boot/actuate/metrics/QuartzMetrics.java), with a `MeterRegistry`), tagged with `scheduler` and the job or trigger group:
@@ -811,7 +850,7 @@ For Redis use `@ServiceConnection(name = "redis") static GenericContainer<?> red
 
 Tips:
 * `spring.quartz.auto-startup: false` keeps the scheduler in standby, so only what a test triggers runs; call
-  [`Scheduler.start()`](src/main/java/org/quartz/Scheduler.java#L203) when needed.
+  [`Scheduler.start()`](src/main/java/org/quartz/Scheduler.java#L236) when needed.
 * A `Clock` bean controls the time the scheduler sees.
 * Await results (Awaitility) instead of sleeping: jobs run on the scheduler's threads.
 
@@ -821,12 +860,13 @@ The `org.quartz` packages and the builder API are the same; types moved to `java
 
 | Before | Now | For example |
 |---|---|---|
-| `java.util.Date` | `java.time.Instant` | [`TriggerBuilder.startAt()`](src/main/java/org/quartz/TriggerBuilder.java#L211), [`Trigger.getNextFireTime()`](src/main/java/org/quartz/Trigger.java#L210), [`JobExecutionContext.getFireTime()`](src/main/java/org/quartz/JobExecutionContext.java#L128), [`CronExpression.getNextValidTimeAfter()`](src/main/java/org/quartz/CronExpression.java#L335), [`DateBuilder`](src/main/java/org/quartz/DateBuilder.java) |
-| `long` milliseconds | `java.time.Duration` | [`SimpleScheduleBuilder.withInterval()`](src/main/java/org/quartz/SimpleScheduleBuilder.java#L275), [`SimpleTrigger.getRepeatInterval()`](src/main/java/org/quartz/SimpleTrigger.java#L117), [`JobExecutionContext.getJobRunTime()`](src/main/java/org/quartz/JobExecutionContext.java#L191) |
+| `java.util.Date` | `java.time.Instant` | [`TriggerBuilder.startAt()`](src/main/java/org/quartz/TriggerBuilder.java#L211), [`Trigger.getNextFireTime()`](src/main/java/org/quartz/Trigger.java#L210), [`JobExecutionContext.getFireTime()`](src/main/java/org/quartz/JobExecutionContext.java#L138), [`CronExpression.getNextValidTimeAfter()`](src/main/java/org/quartz/CronExpression.java#L335), [`DateBuilder`](src/main/java/org/quartz/DateBuilder.java) |
+| `long` milliseconds | `java.time.Duration` | [`SimpleScheduleBuilder.withInterval()`](src/main/java/org/quartz/SimpleScheduleBuilder.java#L275), [`SimpleTrigger.getRepeatInterval()`](src/main/java/org/quartz/SimpleTrigger.java#L117), [`JobExecutionContext.getJobRunTime()`](src/main/java/org/quartz/JobExecutionContext.java#L203) |
 | `java.util.TimeZone` | `java.time.ZoneId` | [`CronScheduleBuilder.inTimeZone()`](src/main/java/org/quartz/CronScheduleBuilder.java#L258), [`CalendarIntervalScheduleBuilder.inTimeZone()`](src/main/java/org/quartz/CalendarIntervalScheduleBuilder.java#L271), [`BaseCalendar`](src/main/java/org/quartz/impl/calendar/BaseCalendar.java) |
 | `java.util.Calendar` | `java.time.ZonedDateTime` | [`AnnualCalendar.setDayExcluded()`](src/main/java/org/quartz/impl/calendar/AnnualCalendar.java#L150), [`DailyCalendar`](src/main/java/org/quartz/impl/calendar/DailyCalendar.java) |
 | `@ExecuteInJTATransaction` | [`@ExecuteInTransaction`](src/main/java/org/quartz/ExecuteInTransaction.java) | see [Transactions](#transactions) |
 | `TimeBroker` | `java.time.Clock` bean | |
+| `-1` "not run yet" | `null` | [`JobExecutionContext.getJobRunTime()`](src/main/java/org/quartz/JobExecutionContext.java#L203) |
 
 Configuration moves from `quartz.properties` to `spring.quartz.*`, for example:
 

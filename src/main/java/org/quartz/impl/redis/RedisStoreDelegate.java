@@ -61,6 +61,7 @@ class RedisStoreDelegate implements StoreDelegate {
   private static final String TRIGGER_GROUP = "triggerGroup";
   private static final String TRIGGER_NAME = "triggerName";
   private static final String STATE = "state";
+  private static final String INTERRUPT_REQUESTED = "interruptRequested";
   private static final String FIRED_TIME = "firedTime";
   private static final String SCHEDULED_TIME = "scheduledTime";
 
@@ -594,7 +595,8 @@ class RedisStoreDelegate implements StoreDelegate {
         Instant.ofEpochMilli(Long.parseLong(fields.get(SCHEDULED_TIME))),
         Integer.parseInt(fields.get(TriggerCodec.PRIORITY)),
         Boolean.parseBoolean(fields.get(JobDetailCodec.NON_CONCURRENT)),
-        Boolean.parseBoolean(fields.get(JobDetailCodec.REQUESTS_RECOVERY)));
+        Boolean.parseBoolean(fields.get(JobDetailCodec.REQUESTS_RECOVERY)),
+        Boolean.parseBoolean(fields.get(INTERRUPT_REQUESTED)));
   }
 
   @Override
@@ -617,6 +619,20 @@ class RedisStoreDelegate implements StoreDelegate {
     List<String> args = new ArrayList<>(List.of(keys.prefix(), record.fireInstanceId()));
     addPairs(args, firedFields(record));
     run(RedisScripts.UPDATE_FIRED, keys.fired(record.fireInstanceId()), args);
+  }
+
+  @Override
+  public boolean updateFiredTriggerInterruptRequested(String fireInstanceId) {
+    return run(
+            RedisScripts.REQUEST_INTERRUPT_FIRED,
+            keys.fired(fireInstanceId),
+            List.of(
+                keys.prefix(),
+                fireInstanceId,
+                STATE,
+                PersistentJobStore.STATE_EXECUTING,
+                INTERRUPT_REQUESTED))
+        > 0;
   }
 
   @Override
@@ -651,6 +667,11 @@ class RedisStoreDelegate implements StoreDelegate {
       }
     }
     return records;
+  }
+
+  @Override
+  public List<FiredTriggerRecord> selectFiredTriggerRecords() {
+    return firedRecords(keys.firedIds());
   }
 
   @Override

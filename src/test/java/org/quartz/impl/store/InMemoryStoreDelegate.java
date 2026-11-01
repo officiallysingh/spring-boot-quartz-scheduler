@@ -493,8 +493,42 @@ class InMemoryStoreDelegate implements StoreDelegate {
   @Override
   public void updateFiredTrigger(FiredTriggerRecord record) {
     synchronized (data) {
-      data.fired.replace(record.fireInstanceId(), record);
+      data.fired.computeIfPresent(
+          record.fireInstanceId(),
+          (id, old) -> old.interruptRequested() ? withInterruptRequested(record) : record);
     }
+  }
+
+  private static FiredTriggerRecord withInterruptRequested(FiredTriggerRecord r) {
+    return new FiredTriggerRecord(
+        r.fireInstanceId(),
+        r.instanceId(),
+        r.triggerKey(),
+        r.jobKey(),
+        r.state(),
+        r.firedTime(),
+        r.scheduledTime(),
+        r.priority(),
+        r.nonConcurrent(),
+        r.requestsRecovery(),
+        true);
+  }
+
+  @Override
+  public boolean updateFiredTriggerInterruptRequested(String fireInstanceId) {
+    synchronized (data) {
+      FiredTriggerRecord record = data.fired.get(fireInstanceId);
+      if (record == null || !PersistentJobStore.STATE_EXECUTING.equals(record.state())) {
+        return false;
+      }
+      data.fired.put(fireInstanceId, withInterruptRequested(record));
+      return true;
+    }
+  }
+
+  @Override
+  public List<FiredTriggerRecord> selectFiredTriggerRecords() {
+    return fired(r -> true);
   }
 
   @Override

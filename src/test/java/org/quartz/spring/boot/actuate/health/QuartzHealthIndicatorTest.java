@@ -15,17 +15,20 @@ package org.quartz.spring.boot.actuate.health;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.quartz.JobPersistenceException;
 import org.quartz.Scheduler;
+import org.quartz.SchedulerInstance;
 import org.quartz.SchedulerMetaData;
-import org.quartz.impl.config.JobStoreSettings;
 import org.quartz.impl.store.PersistentJobStore;
 import org.quartz.simpl.SimpleThreadPool;
 import org.springframework.boot.health.contributor.Health;
@@ -37,10 +40,8 @@ class QuartzHealthIndicatorTest {
 
   private final Scheduler scheduler = mock(Scheduler.class);
 
-  private final PersistentJobStore store = mock(PersistentJobStore.class);
-
   private final QuartzHealthIndicator indicator =
-      new QuartzHealthIndicator(scheduler, store, Clock.fixed(NOW, ZoneOffset.UTC));
+      new QuartzHealthIndicator(scheduler, Clock.fixed(NOW, ZoneOffset.UTC));
 
   private void metaData(boolean started, boolean standby, boolean shutdown, boolean clustered)
       throws Exception {
@@ -112,22 +113,24 @@ class QuartzHealthIndicatorTest {
   }
 
   @Test
-  void recentClusterCheckinIsUp() throws Exception {
+  void aliveClusterInstanceIsUp() throws Exception {
     metaData(true, false, false, true);
-    clusterSettings(NOW.minusSeconds(10));
+    instances(current(NOW.minusSeconds(10), true), other(true), other(false));
 
     Health health = indicator.health();
 
     assertThat(health.getStatus()).isEqualTo(Status.UP);
     assertThat(health.getDetails())
         .containsEntry("lastCheckin", NOW.minusSeconds(10))
-        .containsEntry("checkinAge", Duration.ofSeconds(10));
+        .containsEntry("checkinAge", Duration.ofSeconds(10))
+        .containsEntry("instances", 3)
+        .containsEntry("aliveInstances", 2L);
   }
 
   @Test
-  void staleClusterCheckinIsDown() throws Exception {
+  void clusterInstanceThatIsNoLongerAliveIsDown() throws Exception {
     metaData(true, false, false, true);
-    clusterSettings(NOW.minusSeconds(36)); // limit: 15 s interval + 20 s threshold
+    instances(current(NOW.minusSeconds(36), false), other(true));
 
     Health health = indicator.health();
 
@@ -138,24 +141,38 @@ class QuartzHealthIndicatorTest {
   }
 
   @Test
+  void clusterInstanceRecoveredByAnotherIsDown() throws Exception {
+    metaData(true, false, false, true);
+    instances(other(true));
+
+    Health health = indicator.health();
+
+    assertThat(health.getStatus()).isEqualTo(Status.DOWN);
+    assertThat(health.getDetails()).containsEntry("instances", 1).containsKey("reason");
+  }
+
+  @Test
   void checkinIsNotJudgedBeforeTheSchedulerStarts() throws Exception {
     metaData(false, true, false, true);
-    clusterSettings(NOW.minusSeconds(3600));
+    instances(current(NOW.minusSeconds(3600), false));
 
     Health health = indicator.health();
 
     assertThat(health.getStatus()).isEqualTo(Status.UP);
     assertThat(health.getDetails()).doesNotContainKey("lastCheckin");
+    then(scheduler).should(never()).getSchedulerInstances();
   }
 
-  private void clusterSettings(Instant lastCheckin) {
-    given(store.getLastCheckin()).willReturn(lastCheckin);
-    given(store.getSettings())
-        .willReturn(
-            JobStoreSettings.builder()
-                .clustered(true)
-                .clusterCheckinInterval(Duration.ofSeconds(15))
-                .clusterCheckinMisfireThreshold(Duration.ofSeconds(20))
-                .build());
+  private void instances(SchedulerInstance... instances) throws Exception {
+    given(scheduler.getSchedulerInstances()).willReturn(List.of(instances));
+  }
+
+  private static SchedulerInstance current(Instant lastCheckin, boolean alive) {
+    return new SchedulerInstance("node-1", lastCheckin, Duration.ofSeconds(15), alive, true);
+  }
+
+  private static SchedulerInstance other(boolean alive) {
+    return new SchedulerInstance(
+        "node-" + (alive ? "up" : "down"), NOW, Duration.ofSeconds(15), alive, false);
   }
 }

@@ -226,28 +226,29 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
           break;
         }
 
-        long startTime = System.currentTimeMillis();
-        long endTime;
+        // elapsed time, immune to wall-clock steps (NTP, manual changes) during the run
+        long startNanos = System.nanoTime();
+        long endNanos;
 
         // execute the job
         try {
           log.debug("Calling execute on job {}", jobDetail.getKey());
           executeJob(job, jec);
-          endTime = System.currentTimeMillis();
+          endNanos = System.nanoTime();
         } catch (JobExecutionException jee) {
-          endTime = System.currentTimeMillis();
+          endNanos = System.nanoTime();
           jobExEx = jee;
           getLog().info("Job {} threw a JobExecutionException: ", jobDetail.getKey(), jobExEx);
         } catch (Throwable e) {
-          endTime = System.currentTimeMillis();
+          endNanos = System.nanoTime();
           getLog().error("Job {} threw an unhandled Exception: ", jobDetail.getKey(), e);
-          SchedulerException se = new JobExecutionProcessException(jec, e);
           qs.notifySchedulerListenersError(
-              "Job " + jec.getJobDetail().getKey() + " threw an exception.", se);
-          jobExEx = new JobExecutionException(se, false);
+              "Job " + jec.getJobDetail().getKey() + " threw an exception.",
+              new JobExecutionProcessException(jec, e));
+          jobExEx = unhandledJobException(jobDetail, e);
         }
 
-        jec.setJobRunTime(Duration.ofMillis(endTime - startTime));
+        jec.setJobRunTime(Duration.ofNanos(endNanos - startNanos));
 
         // notify all job listeners
         if (!notifyJobListenersComplete(jec, jobExEx)) {
@@ -310,6 +311,20 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
       thread.setContextClassLoader(previousClassLoader);
       qs.removeInternalSchedulerListener(this);
     }
+  }
+
+  /**
+   * The exception the job and trigger listeners see when a job throws something other than a {@link
+   * JobExecutionException}: the job's throwable is its direct cause, and its message names the job
+   * and the throwable's class and message.
+   *
+   * @param jobDetail the job that threw
+   * @param thrown what it threw
+   * @return the exception reported as the execution's outcome
+   */
+  static JobExecutionException unhandledJobException(JobDetail jobDetail, Throwable thrown) {
+    return new JobExecutionException(
+        "Job " + jobDetail.getKey() + " threw an unhandled exception: " + thrown, thrown, false);
   }
 
   /**
