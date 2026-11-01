@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.quartz.Job;
 import org.quartz.JobBuilder;
+import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobPersistenceException;
@@ -68,6 +70,12 @@ public abstract class AbstractClusteredJobStoreContractTest {
 
   static final Map<String, String> RECOVERED_ON = new ConcurrentHashMap<>();
 
+  /** The interrupted execution of a recoverable job, by job name. */
+  static final Map<String, JobExecutionContext> ORIGINAL_EXECUTION = new ConcurrentHashMap<>();
+
+  /** The recovery execution of a recoverable job, by job name. */
+  static final Map<String, JobExecutionContext> RECOVERY_EXECUTION = new ConcurrentHashMap<>();
+
   static volatile CountDownLatch blockedJobStarted = new CountDownLatch(1);
 
   static volatile CountDownLatch releaseBlockedJob = new CountDownLatch(1);
@@ -100,6 +108,8 @@ public abstract class AbstractClusteredJobStoreContractTest {
     cleanStore();
     EXECUTIONS.clear();
     RECOVERED_ON.clear();
+    ORIGINAL_EXECUTION.clear();
+    RECOVERY_EXECUTION.clear();
     blockedJobStarted = new CountDownLatch(1);
     releaseBlockedJob = new CountDownLatch(1);
   }
@@ -170,10 +180,13 @@ public abstract class AbstractClusteredJobStoreContractTest {
   public static class BlockingRecoverableJob implements Job {
     @Override
     public void execute(JobExecutionContext context) {
+      String name = context.getJobDetail().getKey().getName();
       if (context.isRecovering()) {
-        RECOVERED_ON.put(context.getJobDetail().getKey().getName(), safeInstanceId(context));
+        RECOVERY_EXECUTION.put(name, context);
+        RECOVERED_ON.put(name, safeInstanceId(context));
         return;
       }
+      ORIGINAL_EXECUTION.put(name, context);
       blockedJobStarted.countDown();
       try {
         releaseBlockedJob.await(60, TimeUnit.SECONDS);
@@ -236,6 +249,28 @@ public abstract class AbstractClusteredJobStoreContractTest {
 
     await().atMost(Duration.ofSeconds(30)).until(() -> RECOVERED_ON.containsKey("recoverable"));
     assertThat(RECOVERED_ON.get("recoverable")).isEqualTo("node-b");
+
+    // the recovery run identifies the execution it replaces
+    JobExecutionContext original = ORIGINAL_EXECUTION.get("recoverable");
+    JobDataMap data = RECOVERY_EXECUTION.get("recoverable").getMergedJobDataMap();
+    assertThat(data.getString(Scheduler.FAILED_JOB_ORIGINAL_FIRE_INSTANCE_ID))
+        .isEqualTo(original.getFireInstanceId());
+    assertThat(data.getString(Scheduler.FAILED_JOB_ORIGINAL_SCHEDULER_INSTANCE_ID))
+        .isEqualTo("node-a");
+    assertThat(data.getString(Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_NAME))
+        .isEqualTo("recoverableTrigger");
+    assertThat(
+            Instant.ofEpochMilli(
+                Long.parseLong(
+                    data.getString(
+                        Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME_IN_MILLISECONDS))))
+        .isEqualTo(original.getFireTime().truncatedTo(ChronoUnit.MILLIS));
+    assertThat(
+            Instant.ofEpochMilli(
+                Long.parseLong(
+                    data.getString(
+                        Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_SCHEDULED_FIRETIME_IN_MILLISECONDS))))
+        .isEqualTo(original.getScheduledFireTime());
   }
 
   @Test

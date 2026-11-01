@@ -138,6 +138,24 @@ public interface Scheduler {
   String FAILED_JOB_ORIGINAL_TRIGGER_GROUP = "QRTZ_FAILED_JOB_ORIG_TRIGGER_GROUP";
 
   /**
+   * A constant <code>JobDataMap</code> key that can be used to retrieve the fire instance id of the
+   * original execution (its {@link JobExecutionContext#getFireInstanceId()}) from a recovery
+   * trigger's data map in the case of a job recovering after a failed scheduler instance.
+   *
+   * @see org.quartz.JobDetail#requestsRecovery()
+   */
+  String FAILED_JOB_ORIGINAL_FIRE_INSTANCE_ID = "QRTZ_FAILED_JOB_ORIG_FIRE_INSTANCE_ID";
+
+  /**
+   * A constant <code>JobDataMap</code> key that can be used to retrieve the id of the scheduler
+   * instance that ran the original execution (the instance that failed) from a recovery trigger's
+   * data map in the case of a job recovering after a failed scheduler instance.
+   *
+   * @see org.quartz.JobDetail#requestsRecovery()
+   */
+  String FAILED_JOB_ORIGINAL_SCHEDULER_INSTANCE_ID = "QRTZ_FAILED_JOB_ORIG_SCHEDULER_INSTANCE_ID";
+
+  /**
    * A constant <code>JobDataMap</code> key that can be used to retrieve the fire time of the
    * original <code>Trigger</code> from a recovery trigger's data map in the case of a job
    * recovering after a failed scheduler instance.

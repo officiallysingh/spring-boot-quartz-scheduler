@@ -54,6 +54,7 @@ import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.SchedulerSignaler;
 import org.quartz.spi.TriggerFiredBundle;
 import org.quartz.spi.TriggerFiredResult;
+import org.quartz.utils.Instants;
 import org.quartz.utils.Key;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1374,6 +1375,9 @@ public abstract class PersistentJobStore implements JobStore {
         return null;
       }
     }
+    // one fire time for the fired-trigger record and the execution context, so a recovery
+    // trigger's FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME matches the interrupted execution's fire time
+    Instant fireTime = Instants.toMillis(getSchedulingTime());
     // an acquired trigger has its fire instance id and next fire time
     delegate.updateFiredTrigger(
         new FiredTriggerRecord(
@@ -1382,7 +1386,7 @@ public abstract class PersistentJobStore implements JobStore {
             trigger.getKey(),
             job.getKey(),
             STATE_EXECUTING,
-            Instant.now(),
+            fireTime,
             Objects.requireNonNull(trigger.getNextFireTime()),
             trigger.getPriority(),
             job.isConcurrentExecutionDisallowed(),
@@ -1414,7 +1418,7 @@ public abstract class PersistentJobStore implements JobStore {
         trigger,
         calendar,
         trigger.getKey().getGroup().equals(Scheduler.DEFAULT_RECOVERY_GROUP),
-        getSchedulingTime(),
+        fireTime,
         // the time it has just been fired for
         Objects.requireNonNull(trigger.getPreviousFireTime()),
         prevFireTime,
@@ -1674,6 +1678,8 @@ public abstract class PersistentJobStore implements JobStore {
     JobDataMap data = delegate.selectTriggerJobData(original);
     data.put(Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_NAME, original.getName());
     data.put(Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_GROUP, original.getGroup());
+    data.put(Scheduler.FAILED_JOB_ORIGINAL_FIRE_INSTANCE_ID, record.fireInstanceId());
+    data.put(Scheduler.FAILED_JOB_ORIGINAL_SCHEDULER_INSTANCE_ID, record.instanceId());
     data.put(
         Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME_IN_MILLISECONDS,
         String.valueOf(record.firedTime().toEpochMilli()));

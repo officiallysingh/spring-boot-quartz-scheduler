@@ -15,3 +15,13 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
   listeners still get the `JobExecutionProcessException` (with the execution context) through
   `schedulerError`. A `JobExecutionException` thrown by the job is passed on unchanged, as before.
   **Breaking** for listeners that unwrapped two levels of causes.
+
+### Recovery
+
+- New job-data keys on recovery triggers: `Scheduler.FAILED_JOB_ORIGINAL_FIRE_INSTANCE_ID` (the
+  `getFireInstanceId()` of the interrupted execution) and
+  `Scheduler.FAILED_JOB_ORIGINAL_SCHEDULER_INSTANCE_ID` (the instance that ran it).
+- An execution's fire time and its fired-trigger record now share one instant, taken from the
+  scheduler's `Clock` and truncated to milliseconds, so a recovery trigger's
+  `FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME_IN_MILLISECONDS` equals the interrupted execution's
+  `getFireTime()`. Before, the record used a separate `Instant.now()`.
