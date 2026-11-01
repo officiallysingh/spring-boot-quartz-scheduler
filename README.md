@@ -79,6 +79,8 @@ everything, from the thread pool to the store, is configured through typed `spri
 
 > **Current version: 1.0.0-rc2**, available from
 > [Maven Central](https://central.sonatype.com/artifact/com.neolama/spring-boot-quartz-scheduler).
+> Upgrading from 1.0.0-rc1? Read the [changelog](CHANGELOG.md) first: it lists the breaking changes, including
+> the MongoDB storage format (stop all 1.0.0-rc1 instances before starting 1.0.0-rc2).
 
 Add the library and the Spring Boot starter of the store you use to your application.
 
