@@ -265,7 +265,7 @@ jobs, misfires, recovery and clustering. A [`StoreDelegate`](src/main/java/org/q
 - The lock is a [`JvmStoreLock`](src/main/java/org/quartz/impl/store/JvmStoreLock.java) (in-process) for a non-clustered store, and a [`LeaseStoreLock`](src/main/java/org/quartz/impl/store/LeaseStoreLock.java) in the database
   for a clustered one ([`PersistentJobStore.createClusterLock()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L206)).
 - [`PersistentJobStore.inTransaction()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L215) wraps the callback in a MongoDB transaction when the deployment supports
-  them ([`MongoJobStore.inTransaction()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L286)); Redis has none.
+  them ([`MongoJobStore.inTransaction()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L251)); Redis has none.
 - The per-operation state (held locks, the pending scheduling signal, the MongoDB session) is a `ScopedValue`
   bound for the operation.
 
@@ -331,19 +331,19 @@ scheduler thread interrupted at shutdown must still give its lease back.
 - **Database:** the application's: the `MongoDatabaseFactory`'s, else `spring.mongodb.database`, else the
   connection string's ([`JobStoreConfigurations.MongoJobStoreConfiguration`](src/main/java/org/quartz/spring/boot/autoconfigure/JobStoreConfigurations.java#L61)).
 - **Transactions:** on a replica set or sharded cluster every store operation is a transaction, and trigger
-  acquisition always takes the trigger lock ([`MongoJobStore.acquireTriggersWithinLock()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L281)) to avoid write conflicts.
+  acquisition always takes the trigger lock ([`MongoJobStore.acquireTriggersWithinLock()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L246)) to avoid write conflicts.
   On a standalone server the store still works: each primitive is one atomic operation.
 - **Failure safety:** a failed transaction is aborted with the interrupt flag cleared, and its server session is
-  killed and marked dirty ([`MongoJobStore.abort()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L313)), because the driver ignores abort errors and an open
+  killed and marked dirty ([`MongoJobStore.abort()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L278)), because the driver ignores abort errors and an open
   transaction would hold its locks for 60 s.
 - **Job transactions:** with a `MongoTransactionManager` on the same `MongoClient`, the job data of a
   [`PersistJobDataAfterExecution`](src/main/java/org/quartz/PersistJobDataAfterExecution.java) job is written in the job's own transaction ([`MongoJobDataTransactions`](src/main/java/org/quartz/spring/MongoJobDataTransactions.java),
-  [`MongoJobStore.updateJobData()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L142)).
+  [`MongoJobStore.updateJobData()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L135)).
 - **Lease locks** are documents in `locks` with an `expiresAt` (also under a TTL index as a safety net).
 - **Value encoding:** instants are BSON dates, durations int64 milliseconds, always written as explicit BSON values
   ([`MongoTimes`](src/main/java/org/quartz/impl/mongodb/MongoTimes.java)), never handed to the client's codec registry: applications register their own `java.time`
-  codecs, which would otherwise change the stored format. Reads also accept the epoch-millisecond numbers of
-  stores written before 1.0.0-rc2, and [`MongoJobStore.migrateEpochMillisToDates()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L252) converts them at startup. Tested on a
+  codecs, which would otherwise change the stored format. There is no migration from older formats: a store
+  written in another format is dropped and re-created. Tested on a
   client with a hostile registry by [`MongoStorageFormatIT`](src/test/java/org/quartz/impl/mongodb/MongoStorageFormatIT.java).
 - **Queries:** [`MongoStoreDelegate.selectTriggers()`](src/main/java/org/quartz/impl/mongodb/MongoStoreDelegate.java#L534) and [`MongoStoreDelegate.selectJobDetails()`](src/main/java/org/quartz/impl/mongodb/MongoStoreDelegate.java#L375) answer a page with one `find` and one
   `countDocuments`, sorted like [`StoreQueries.triggerOrder()`](src/main/java/org/quartz/impl/store/StoreQueries.java#L51) (missing fields first, ties by group and name); the other
@@ -560,7 +560,7 @@ hour after a DST gap was recorded.
 - **Interrupts at shutdown.** The scheduler, misfire and cluster threads are interrupted when the scheduler halts,
   often in the middle of a store call. Lettuce and the MongoDB driver throw on interrupted threads, and a command
   may have reached the server even though the client gave up. Hence: release locks and abort transactions with the
-  interrupt flag cleared ([`LeaseStoreLock.release()`](src/main/java/org/quartz/impl/store/LeaseStoreLock.java#L110), [`MongoJobStore.abort()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L313)), kill MongoDB sessions after a failed
+  interrupt flag cleared ([`LeaseStoreLock.release()`](src/main/java/org/quartz/impl/store/LeaseStoreLock.java#L110), [`MongoJobStore.abort()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L278)), kill MongoDB sessions after a failed
   transaction, and write fired-trigger records before state changes.
 - **No unbounded concurrency.** A pool that reports more capacity than it can run makes the scheduler acquire
   triggers that then wait in a queue, invisible to the other cluster nodes.

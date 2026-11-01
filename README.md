@@ -79,8 +79,8 @@ everything, from the thread pool to the store, is configured through typed `spri
 
 > **Current version: 1.0.0-rc2**, available from
 > [Maven Central](https://central.sonatype.com/artifact/com.neolama/spring-boot-quartz-scheduler).
-> Upgrading from 1.0.0-rc1? Read the [changelog](CHANGELOG.md) first: it lists the breaking changes, including
-> the MongoDB storage format (stop all 1.0.0-rc1 instances before starting 1.0.0-rc2).
+> Upgrading? Read the [changelog](CHANGELOG.md) first: it lists the breaking changes. MongoDB stores written by
+> 1.0.0-rc1 are not readable by later versions: drop the store's collections and let the jobs be re-created.
 
 Add the library and the Spring Boot starter of the store you use to your application.
 
@@ -601,8 +601,7 @@ spring:
   in a transaction, all or nothing, even when an instance crashes halfway. The store also works on a standalone
   server, where each single write is atomic; the startup log says which mode is used.
 * Instants are stored as BSON dates and durations as int64 milliseconds, encoded by the store itself, so the
-  application's codecs (custom `Instant`, `Duration` or `OffsetDateTime` codecs) do not change the format. Stores
-  written before 1.0.0-rc2 (instants as numbers) are converted at startup; stop older instances first.
+  application's codecs (custom `Instant`, `Duration` or `OffsetDateTime` codecs) do not change the format.
 * Tested with MongoDB 8.0. If you build your own `MongoClient`, its codec registry must include the driver's
   default registry (your codecs may come first).
 

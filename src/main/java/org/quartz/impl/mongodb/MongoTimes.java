@@ -24,8 +24,7 @@ import org.quartz.impl.store.codec.TriggerCodec;
 /**
  * How the MongoDB store keeps instants: BSON dates (millisecond precision), written as {@link
  * BsonDateTime} values so the format never depends on the client's codec registry (an application
- * registry may encode {@link Instant} differently). Reads also accept the epoch-millisecond numbers
- * of stores written before 1.0.0-rc2; {@link MongoJobStore} converts those at startup.
+ * registry may encode {@link Instant} differently).
  */
 final class MongoTimes {
 
@@ -50,8 +49,7 @@ final class MongoTimes {
   }
 
   /**
-   * The instant a stored value holds: a BSON date (decoded as {@code java.util.Date}) or, in a
-   * store written before 1.0.0-rc2, epoch milliseconds.
+   * The instant a stored BSON date holds (decoded as {@code java.util.Date}).
    *
    * @throws IllegalArgumentException for any other value
    */
@@ -60,8 +58,6 @@ final class MongoTimes {
       case null -> null;
       case java.util.Date date -> Instant.ofEpochMilli(date.getTime());
       case BsonDateTime date -> Instant.ofEpochMilli(date.getValue());
-      case Instant instant -> instant;
-      case Number millis -> Instant.ofEpochMilli(millis.longValue());
       default ->
           throw new IllegalArgumentException(
               "Not a stored instant: " + value + " (" + value.getClass().getName() + ")");

@@ -50,8 +50,7 @@ import org.quartz.support.AbstractMongoIT;
 
 /**
  * The MongoDB store keeps instants as BSON dates and durations as int64 milliseconds, whatever the
- * client's codec registry does with {@code java.time} types, and converts stores written with
- * epoch-millisecond numbers at startup.
+ * client's codec registry does with {@code java.time} types.
  */
 class MongoStorageFormatIT extends AbstractMongoIT {
 
@@ -214,73 +213,5 @@ class MongoStorageFormatIT extends AbstractMongoIT {
               assertThat(instance.alive()).isTrue();
               assertThat(instance.checkinInterval()).isEqualTo(Duration.ofSeconds(1));
             });
-  }
-
-  @Test
-  void epochMillisecondStoresAreReadAndConvertedAtStartup() throws Exception {
-    long next = Instant.parse("2036-01-01T00:00:00Z").toEpochMilli();
-    MongoDatabase database = database();
-    // the job, written by the store; the trigger and check-in below in the old number format
-    startStore()
-        .storeJob(
-            JobBuilder.newJob(NoOpJob.class).withIdentity("job").storeDurably().build(), false);
-    store.shutdown();
-    store = null;
-    database
-        .getCollection("fmt_triggers")
-        .insertOne(
-            new Document("schedName", SCHED)
-                .append("name", "legacy")
-                .append("group", "DEFAULT")
-                .append("jobName", "job")
-                .append("jobGroup", "DEFAULT")
-                .append("type", "SIMPLE")
-                .append("nextFireTime", next)
-                .append("startTime", next)
-                .append("priority", 5)
-                .append("misfireInstruction", 0)
-                .append("repeatCount", 0)
-                .append("repeatInterval", 0L)
-                .append("timesTriggered", 0)
-                .append("state", "WAITING")
-                .append("jobData", new Document()));
-    database
-        .getCollection("fmt_schedulers")
-        .insertOne(
-            new Document("schedName", SCHED)
-                .append("instanceId", "old-node")
-                .append("lastCheckin", next)
-                .append("checkinInterval", 7500L));
-    // another scheduler's documents are left alone
-    database
-        .getCollection("fmt_triggers")
-        .insertOne(new Document("schedName", "Other").append("nextFireTime", next));
-
-    PersistentJobStore store = startStore();
-
-    OperableTrigger trigger = store.retrieveTrigger(TriggerKey.triggerKey("legacy"));
-    assertThat(trigger.getNextFireTime()).isEqualTo(Instant.ofEpochMilli(next));
-    Document converted =
-        database.getCollection("fmt_triggers").find(new Document("name", "legacy")).first();
-    assertThat(converted.get("nextFireTime")).isEqualTo(new Date(next));
-    assertThat(converted.get("startTime")).isEqualTo(new Date(next));
-    assertThat(
-            database
-                .getCollection("fmt_schedulers")
-                .find(new Document("instanceId", "old-node"))
-                .first()
-                .get("lastCheckin"))
-        .isEqualTo(new Date(next));
-    assertThat(
-            database
-                .getCollection("fmt_triggers")
-                .find(new Document("schedName", "Other"))
-                .first()
-                .get("nextFireTime"))
-        .isEqualTo(next);
-    // the converted trigger is found by the date-typed acquisition query
-    assertThat(store.acquireNextTriggers(Instant.ofEpochMilli(next), 1, Duration.ZERO))
-        .extracting(OperableTrigger::getKey)
-        .containsExactly(TriggerKey.triggerKey("legacy"));
   }
 }

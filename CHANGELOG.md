@@ -3,6 +3,13 @@
 Changes to the public API, behaviour and storage format, by release. Breaking changes are marked
 **Breaking**.
 
+## Unreleased
+
+- **Breaking (storage):** the MongoDB store no longer reads instants stored as epoch-millisecond
+  numbers and no longer converts them at startup; it only knows BSON dates. A store written by
+  1.0.0-rc1 must be dropped (its collections deleted) and re-created. Stores written by 1.0.0-rc2
+  are unaffected.
+
 ## 1.0.0-rc2 (2026-11-01)
 
 ### Job exceptions

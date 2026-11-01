@@ -23,9 +23,6 @@ import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.model.Aggregates;
-import com.mongodb.client.model.Field;
-import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.IndexModel;
 import com.mongodb.client.model.IndexOptions;
@@ -38,7 +35,6 @@ import java.time.InstantSource;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-import org.bson.BsonType;
 import org.bson.Document;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
@@ -69,10 +65,7 @@ import org.quartz.impl.store.codec.TriggerCodec;
  *
  * <p>Instants (fire, start and end times, fired and check-in times, lock expiry) are stored as BSON
  * dates with millisecond precision, and durations as int64 milliseconds. The store encodes every
- * value explicitly, so the format does not depend on the client's codec registry. Stores written
- * before 1.0.0-rc2 kept instants as epoch-millisecond numbers; those are still read, and are
- * converted to dates when the store starts. Stop all instances running an older version before
- * starting this one: an older version cannot read the dates.
+ * value explicitly, so the format does not depend on the client's codec registry.
  */
 public class MongoJobStore extends PersistentJobStore {
 
@@ -174,7 +167,6 @@ public class MongoJobStore extends PersistentJobStore {
   protected void initializeStore() throws JobPersistenceException {
     try {
       createIndexes();
-      migrateEpochMillisToDates();
       transactional = supportsTransactions();
       log.info(
           "MongoDB job store on database '{}' (prefix '{}'): transactions {}.",
@@ -243,33 +235,6 @@ public class MongoJobStore extends PersistentJobStore {
         .createIndex(
             Indexes.ascending(MongoLeaseLock.EXPIRES_AT),
             new IndexOptions().expireAfter(0L, TimeUnit.SECONDS));
-  }
-
-  /**
-   * Converts the instants of a store written before 1.0.0-rc2 (epoch-millisecond numbers) to BSON
-   * dates, in place. Idempotent; only touches this scheduler's documents.
-   */
-  private void migrateEpochMillisToDates() {
-    long converted = 0;
-    for (String field : MongoTimes.TRIGGER_TIME_FIELDS) {
-      converted += toDates(collections.triggers(), field);
-    }
-    converted += toDates(collections.firedTriggers(), MongoStoreDelegate.FIRED_TIME);
-    converted += toDates(collections.firedTriggers(), MongoStoreDelegate.SCHEDULED_TIME);
-    converted += toDates(collections.schedulers(), MongoStoreDelegate.LAST_CHECKIN);
-    if (converted > 0) {
-      log.info("Converted {} epoch-millisecond instants to BSON dates.", converted);
-    }
-  }
-
-  private long toDates(MongoCollection<Document> collection, String field) {
-    return collection
-        .updateMany(
-            and(
-                eq(MongoStoreDelegate.SCHED_NAME, getInstanceName()),
-                Filters.type(field, BsonType.INT64)),
-            List.of(Aggregates.set(new Field<>(field, new Document("$toDate", "$" + field)))))
-        .getModifiedCount();
   }
 
   private boolean supportsTransactions() {

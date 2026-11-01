@@ -261,8 +261,8 @@ class MongoStoreDelegate implements StoreDelegate {
   }
 
   /**
-   * Field map for the codecs: BSON binaries become byte arrays, stored instants (BSON dates, or
-   * epoch milliseconds in old stores) the codecs' epoch milliseconds.
+   * Field map for the codecs: BSON binaries become byte arrays, stored instants (BSON dates) the
+   * codecs' epoch milliseconds.
    */
   private static Map<String, Object> fields(Document document) {
     Map<String, Object> fields = new LinkedHashMap<>(document);
