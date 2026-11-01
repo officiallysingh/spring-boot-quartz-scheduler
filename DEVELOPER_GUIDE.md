@@ -196,14 +196,17 @@ Points that matter when changing it:
 [`JobRunShell.run()`](src/main/java/org/quartz/core/JobRunShell.java#L173):
 
 1. The MDC gets [`JobRunShell.MDC_JOB_KEY`](src/main/java/org/quartz/core/JobRunShell.java#L63), [`JobRunShell.MDC_TRIGGER_KEY`](src/main/java/org/quartz/core/JobRunShell.java#L66), [`JobRunShell.MDC_FIRE_INSTANCE_ID`](src/main/java/org/quartz/core/JobRunShell.java#L69).
-2. [`JobRunShell.begin()`](src/main/java/org/quartz/core/JobRunShell.java#L330) is called.
+2. [`JobRunShell.begin()`](src/main/java/org/quartz/core/JobRunShell.java#L345) is called.
 3. Trigger and job listeners are told ([`TriggerListener.triggerFired()`](src/main/java/org/quartz/TriggerListener.java#L58), [`TriggerListener.vetoJobExecution()`](src/main/java/org/quartz/TriggerListener.java#L72),
    [`JobListener.jobToBeExecuted()`](src/main/java/org/quartz/JobListener.java#L58)); a veto skips the job.
-4. [`JobRunShell.executeJob()`](src/main/java/org/quartz/core/JobRunShell.java#L320) runs the job. [`SpringTransactionJobRunShell`](src/main/java/org/quartz/spring/SpringTransactionJobRunShell.java) overrides it to run the job in a Spring
+4. [`JobRunShell.executeJob()`](src/main/java/org/quartz/core/JobRunShell.java#L335) runs the job. [`SpringTransactionJobRunShell`](src/main/java/org/quartz/spring/SpringTransactionJobRunShell.java) overrides it to run the job in a Spring
    transaction when the job class has [`ExecuteInTransaction`](src/main/java/org/quartz/ExecuteInTransaction.java) or `spring.quartz.transaction.enabled` is set.
-5. [`JobListener.jobWasExecuted()`](src/main/java/org/quartz/JobListener.java#L74), then [`OperableTrigger.executionComplete()`](src/main/java/org/quartz/spi/OperableTrigger.java#L60) returns a
+   The run time is measured with `System.nanoTime()`. A throwable other than a `JobExecutionException` becomes
+   a `JobExecutionException` whose cause is that throwable ([`JobRunShell.unhandledJobException()`](src/main/java/org/quartz/core/JobRunShell.java#L325)); scheduler
+   listeners get a [`JobExecutionProcessException`](src/main/java/org/quartz/core/JobExecutionProcessException.java) with the context instead.
+5. [`JobListener.jobWasExecuted()`](src/main/java/org/quartz/JobListener.java#L80), then [`OperableTrigger.executionComplete()`](src/main/java/org/quartz/spi/OperableTrigger.java#L60) returns a
    [`Trigger.CompletedExecutionInstruction`](src/main/java/org/quartz/Trigger.java#L79), then [`TriggerListener.triggerComplete()`](src/main/java/org/quartz/TriggerListener.java#L96).
-6. `RE_EXECUTE_JOB` runs the job again; otherwise [`JobStore.triggeredJobComplete()`](src/main/java/org/quartz/spi/JobStore.java#L616) stores the outcome.
+6. `RE_EXECUTE_JOB` runs the job again; otherwise [`JobStore.triggeredJobComplete()`](src/main/java/org/quartz/spi/JobStore.java#L621) stores the outcome.
 7. The MDC keys are removed (pool threads are reused).
 
 The job instance comes from the [`JobFactory`](src/main/java/org/quartz/spi/JobFactory.java): with Spring, [`SpringBeanJobFactory`](src/main/java/org/quartz/spring/SpringBeanJobFactory.java) autowires the job and applies
@@ -257,12 +260,12 @@ classDiagram
 [`PersistentJobStore`](src/main/java/org/quartz/impl/store/PersistentJobStore.java) implements every scheduling rule: trigger states, paused groups, blocking of non-concurrent
 jobs, misfires, recovery and clustering. A [`StoreDelegate`](src/main/java/org/quartz/impl/store/StoreDelegate.java) only reads and writes, and each of its methods must be
 **atomic on its own** (one conditional update, one Lua script). Compound operations run in
-[`PersistentJobStore.executeInLock()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L464):
+[`PersistentJobStore.executeInLock()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L484):
 
 - The lock is a [`JvmStoreLock`](src/main/java/org/quartz/impl/store/JvmStoreLock.java) (in-process) for a non-clustered store, and a [`LeaseStoreLock`](src/main/java/org/quartz/impl/store/LeaseStoreLock.java) in the database
-  for a clustered one ([`PersistentJobStore.createClusterLock()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L186)).
-- [`PersistentJobStore.inTransaction()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L195) wraps the callback in a MongoDB transaction when the deployment supports
-  them ([`MongoJobStore.inTransaction()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L236)); Redis has none.
+  for a clustered one ([`PersistentJobStore.createClusterLock()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L206)).
+- [`PersistentJobStore.inTransaction()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L215) wraps the callback in a MongoDB transaction when the deployment supports
+  them ([`MongoJobStore.inTransaction()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L286)); Redis has none.
 - The per-operation state (held locks, the pending scheduling signal, the MongoDB session) is a `ScopedValue`
   bound for the operation.
 
@@ -287,28 +290,28 @@ stateDiagram-v2
   COMPLETE --> [*]: removed
 ```
 
-The stored values are the [`PersistentJobStore.STATE_WAITING`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L87) … [`PersistentJobStore.STATE_PAUSED_BLOCKED`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L108)
+The stored values are the [`PersistentJobStore.STATE_WAITING`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L96) … [`PersistentJobStore.STATE_PAUSED_BLOCKED`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L117)
 constants; [`Trigger.TriggerState`](src/main/java/org/quartz/Trigger.java#L54) is what the API reports.
 
 Next to the trigger, a **fired-trigger record** ([`FiredTriggerRecord`](src/main/java/org/quartz/impl/store/FiredTriggerRecord.java)) exists for every trigger an instance has
 acquired (`ACQUIRED`) or is executing (`EXECUTING`), naming the instance. Recovery works from these records:
 
-- **Acquisition writes the record first**. In [`PersistentJobStore.acquireNextTriggers()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L1225) the record is
+- **Acquisition writes the record first**. In [`PersistentJobStore.acquireNextTriggers()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L1305) the record is
   inserted **before** the `WAITING → ACQUIRED` change and deleted if another instance wins the trigger. A store
   without transactions performs the two writes separately; an instance that stops between them must leave a
   record, or recovery could not free the trigger. A record for a trigger that is still `WAITING` is harmless.
 - **Recovery** of a failed instance frees its `ACQUIRED` triggers (unless another instance has a record for
-  them), re-schedules jobs with [`JobDetail.requestsRecovery()`](src/main/java/org/quartz/JobDetail.java#L107) that were executing, unblocks non-concurrent jobs, and
+  them), re-schedules jobs with [`JobDetail.requestsRecovery()`](src/main/java/org/quartz/JobDetail.java#L117) that were executing, unblocks non-concurrent jobs, and
   deletes its records.
 
 ### 5.3 Background threads
 
 | Thread | When | What |
 |---|---|---|
-| misfire handler | always | Applies misfire instructions to triggers whose next fire time is older than `now − misfire-threshold` ([`PersistentJobStore.recoverMisfiredJobs()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L1533)), at most `max-misfires-to-handle-at-a-time` per pass; a pass runs every `misfire-threshold`, sooner when the last one left triggers over |
-| cluster manager | clustered | Checks in every `cluster-checkin-interval` ([`SchedulerStateRecord`](src/main/java/org/quartz/impl/store/SchedulerStateRecord.java)), detects instances whose check-in is older than interval + `cluster-checkin-misfire-threshold`, and recovers them under the [`PersistentJobStore.LOCK_STATE_ACCESS`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L114) and [`PersistentJobStore.LOCK_TRIGGER_ACCESS`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L111) locks |
+| misfire handler | always | Applies misfire instructions to triggers whose next fire time is older than `now − misfire-threshold` ([`PersistentJobStore.recoverMisfiredJobs()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L1616)), at most `max-misfires-to-handle-at-a-time` per pass; a pass runs every `misfire-threshold`, sooner when the last one left triggers over |
+| cluster manager | clustered | Checks in every `cluster-checkin-interval` ([`SchedulerStateRecord`](src/main/java/org/quartz/impl/store/SchedulerStateRecord.java)), detects instances whose check-in is older than interval + `cluster-checkin-misfire-threshold` ([`PersistentJobStore.isAlive()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L1947), the rule [`PersistentJobStore.getSchedulerInstances()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L1836) reports too), and recovers them under the [`PersistentJobStore.LOCK_STATE_ACCESS`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L123) and [`PersistentJobStore.LOCK_TRIGGER_ACCESS`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L120) locks. After each check-in it hands this instance's executions flagged by [`PersistentJobStore.requestInterrupt()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L1798) to the scheduler ([`SchedulerSignaler.interruptRequested()`](src/main/java/org/quartz/spi/SchedulerSignaler.java#L95)), once each |
 
-When the scheduler starts ([`PersistentJobStore.schedulerStarted()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L323)) a store frees its own `ACQUIRED` and `BLOCKED`
+When the scheduler starts ([`PersistentJobStore.schedulerStarted()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L343)) a store frees its own `ACQUIRED` and `BLOCKED`
 triggers, removes stale fired records and recovers the in-progress jobs of its previous run; a clustered store
 does this through its first check-in.
 
@@ -328,15 +331,23 @@ scheduler thread interrupted at shutdown must still give its lease back.
 - **Database:** the application's: the `MongoDatabaseFactory`'s, else `spring.mongodb.database`, else the
   connection string's ([`JobStoreConfigurations.MongoJobStoreConfiguration`](src/main/java/org/quartz/spring/boot/autoconfigure/JobStoreConfigurations.java#L61)).
 - **Transactions:** on a replica set or sharded cluster every store operation is a transaction, and trigger
-  acquisition always takes the trigger lock ([`MongoJobStore.acquireTriggersWithinLock()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L231)) to avoid write conflicts.
+  acquisition always takes the trigger lock ([`MongoJobStore.acquireTriggersWithinLock()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L281)) to avoid write conflicts.
   On a standalone server the store still works: each primitive is one atomic operation.
 - **Failure safety:** a failed transaction is aborted with the interrupt flag cleared, and its server session is
-  killed and marked dirty ([`MongoJobStore.abort()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L263)), because the driver ignores abort errors and an open
+  killed and marked dirty ([`MongoJobStore.abort()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L313)), because the driver ignores abort errors and an open
   transaction would hold its locks for 60 s.
 - **Job transactions:** with a `MongoTransactionManager` on the same `MongoClient`, the job data of a
   [`PersistJobDataAfterExecution`](src/main/java/org/quartz/PersistJobDataAfterExecution.java) job is written in the job's own transaction ([`MongoJobDataTransactions`](src/main/java/org/quartz/spring/MongoJobDataTransactions.java),
-  [`MongoJobStore.updateJobData()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L130)).
+  [`MongoJobStore.updateJobData()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L142)).
 - **Lease locks** are documents in `locks` with an `expiresAt` (also under a TTL index as a safety net).
+- **Value encoding:** instants are BSON dates, durations int64 milliseconds, always written as explicit BSON values
+  ([`MongoTimes`](src/main/java/org/quartz/impl/mongodb/MongoTimes.java)), never handed to the client's codec registry: applications register their own `java.time`
+  codecs, which would otherwise change the stored format. Reads also accept the epoch-millisecond numbers of
+  stores written before 1.0.0-rc2, and [`MongoJobStore.migrateEpochMillisToDates()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L252) converts them at startup. Tested on a
+  client with a hostile registry by [`MongoStorageFormatIT`](src/test/java/org/quartz/impl/mongodb/MongoStorageFormatIT.java).
+- **Queries:** [`MongoStoreDelegate.selectTriggers()`](src/main/java/org/quartz/impl/mongodb/MongoStoreDelegate.java#L534) and [`MongoStoreDelegate.selectJobDetails()`](src/main/java/org/quartz/impl/mongodb/MongoStoreDelegate.java#L375) answer a page with one `find` and one
+  `countDocuments`, sorted like [`StoreQueries.triggerOrder()`](src/main/java/org/quartz/impl/store/StoreQueries.java#L51) (missing fields first, ties by group and name); the other
+  stores use the [`StoreDelegate`](src/main/java/org/quartz/impl/store/StoreDelegate.java) defaults, which read every matching trigger and sort in memory.
 
 ### 5.6 Redis store
 
@@ -349,7 +360,7 @@ scheduler thread interrupted at shutdown must still give its lease back.
   (`%`, `:`).
 - **Atomicity:** every multi-key change is one Lua script in [`RedisScripts`](src/main/java/org/quartz/impl/redis/RedisScripts.java) ([`RedisScripts.STORE_JOB`](src/main/java/org/quartz/impl/redis/RedisScripts.java#L40),
   [`RedisScripts.STORE_TRIGGER`](src/main/java/org/quartz/impl/redis/RedisScripts.java#L118), the conditional [`RedisScripts.SET_STATE`](src/main/java/org/quartz/impl/redis/RedisScripts.java#L157), [`RedisScripts.INSERT_FIRED`](src/main/java/org/quartz/impl/redis/RedisScripts.java#L184),
-  [`RedisScripts.DELETE_FIRED`](src/main/java/org/quartz/impl/redis/RedisScripts.java#L227), [`RedisScripts.ACQUIRE_LOCK`](src/main/java/org/quartz/impl/redis/RedisScripts.java#L266), [`RedisScripts.RELEASE_LOCK`](src/main/java/org/quartz/impl/redis/RedisScripts.java#L278), …), tested by
+  [`RedisScripts.DELETE_FIRED`](src/main/java/org/quartz/impl/redis/RedisScripts.java#L240), [`RedisScripts.ACQUIRE_LOCK`](src/main/java/org/quartz/impl/redis/RedisScripts.java#L279), [`RedisScripts.RELEASE_LOCK`](src/main/java/org/quartz/impl/redis/RedisScripts.java#L291), …), tested by
   [`RedisLuaScriptsIT`](src/test/java/org/quartz/impl/redis/RedisLuaScriptsIT.java). There are no transactions across scripts, hence the write-order rules of §5.2.
 - **Leases:** `SET NX PX`, released by compare-and-delete.
 - **Durability** is Redis's: use AOF persistence (`appendonly yes`).
@@ -357,7 +368,8 @@ scheduler thread interrupted at shutdown must still give its lease back.
 ### 5.7 Codecs
 
 [`JobDetailCodec`](src/main/java/org/quartz/impl/store/codec/JobDetailCodec.java) and [`TriggerCodec`](src/main/java/org/quartz/impl/store/codec/TriggerCodec.java) turn jobs and triggers into store-neutral `Map<String, Object>`s: MongoDB
-stores them as documents, Redis as hashes of strings. Instants are epoch milliseconds; the four built-in trigger
+stores them as documents, Redis as hashes of strings. Instants are epoch milliseconds in the maps (Redis stores
+them so; the MongoDB delegate turns them into BSON dates, §5.5); the four built-in trigger
 types have their own fields, other trigger types are Java-serialized ([`TriggerCodec.TYPE_BLOB`](src/main/java/org/quartz/impl/store/codec/TriggerCodec.java#L135)). [`JobDataCodec`](src/main/java/org/quartz/impl/store/codec/JobDataCodec.java)
 keeps simple job data values typed (type-tagged strings in Redis) and Java-serializes the map when a value is not
 simple. The constants (for example [`TriggerCodec.NEXT_FIRE_TIME`](src/main/java/org/quartz/impl/store/codec/TriggerCodec.java#L66), [`JobDetailCodec.JOB_CLASS`](src/main/java/org/quartz/impl/store/codec/JobDetailCodec.java#L40)) are the stored field
@@ -415,8 +427,8 @@ auto-configuration classes are listed in
 
 [`QuartzEndpointAutoConfiguration`](src/main/java/org/quartz/spring/boot/autoconfigure/QuartzEndpointAutoConfiguration.java), [`QuartzHealthContributorAutoConfiguration`](src/main/java/org/quartz/spring/boot/autoconfigure/QuartzHealthContributorAutoConfiguration.java) and [`QuartzMetricsAutoConfiguration`](src/main/java/org/quartz/spring/boot/autoconfigure/QuartzMetricsAutoConfiguration.java)
 add the `quartz` endpoint ([`QuartzEndpoint`](src/main/java/org/quartz/spring/boot/actuate/endpoint/QuartzEndpoint.java), [`QuartzEndpointWebExtension`](src/main/java/org/quartz/spring/boot/actuate/endpoint/QuartzEndpointWebExtension.java)), the `quartz` health indicator
-([`QuartzHealthIndicator`](src/main/java/org/quartz/spring/boot/actuate/health/QuartzHealthIndicator.java): DOWN when the scheduler is shut down, its store cannot be read, or its cluster check-in
-is overdue) and Micrometer meters ([`QuartzMetrics`](src/main/java/org/quartz/spring/boot/actuate/metrics/QuartzMetrics.java), a scheduler plugin listening to jobs and triggers). The
+([`QuartzHealthIndicator`](src/main/java/org/quartz/spring/boot/actuate/health/QuartzHealthIndicator.java): DOWN when the scheduler is shut down, its store cannot be read, or the instance is no
+longer alive in [`Scheduler.getSchedulerInstances()`](src/main/java/org/quartz/Scheduler.java#L350)) and Micrometer meters ([`QuartzMetrics`](src/main/java/org/quartz/spring/boot/actuate/metrics/QuartzMetrics.java), a scheduler plugin listening to jobs and triggers). The
 README's Actuator section has the user view.
 
 ---
@@ -476,7 +488,7 @@ flowchart LR
 | Dependencies | `dependency:analyze-only` with `failOnWarning`: declare what you use, nothing more. Store and actuator dependencies are `optional` |
 | Javadoc | `./mvnw javadoc:javadoc`. The sources and javadoc jars are built only by the `publish-artefacts` profile; check them before a release with `./mvnw -Ppublish-artefacts -Dgpg.skip -DskipTests package` |
 | Release | The `publish-artefacts` profile: sources, javadoc, GPG signing, `central-publishing-maven-plugin` |
-| Version | Set in `pom.xml`; the filtered [`quartz-build.properties`](src/main/resources/org/quartz/core/quartz-build.properties) carries it to [`QuartzScheduler.getVersion()`](src/main/java/org/quartz/core/QuartzScheduler.java#L246) |
+| Version | Set in `pom.xml`; the filtered [`quartz-build.properties`](src/main/resources/org/quartz/core/quartz-build.properties) carries it to [`QuartzScheduler.getVersion()`](src/main/java/org/quartz/core/QuartzScheduler.java#L253) |
 
 After changing the Java release or the plugin set, run `clean verify`: incremental builds have kept stale classes.
 
@@ -526,9 +538,9 @@ methods atomic. A new primitive goes into [`StoreDelegate`](src/main/java/org/qu
 (for Redis, as a script in [`RedisScripts`](src/main/java/org/quartz/impl/redis/RedisScripts.java) when it touches several keys). On stores without transactions, order the
 writes so that stopping between them is recoverable (§5.2). Add a contract test.
 
-**Add a job store.** Extend [`PersistentJobStore`](src/main/java/org/quartz/impl/store/PersistentJobStore.java): implement [`PersistentJobStore.createDelegate()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L179) and
-[`PersistentJobStore.createClusterLock()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L186) (usually a [`LeaseStoreLock`](src/main/java/org/quartz/impl/store/LeaseStoreLock.java) with [`LeaseStoreLock.tryAcquire()`](src/main/java/org/quartz/impl/store/LeaseStoreLock.java#L77) and
-[`LeaseStoreLock.releaseLease()`](src/main/java/org/quartz/impl/store/LeaseStoreLock.java#L80)), and override [`PersistentJobStore.inTransaction()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L195) if the store has transactions;
+**Add a job store.** Extend [`PersistentJobStore`](src/main/java/org/quartz/impl/store/PersistentJobStore.java): implement [`PersistentJobStore.createDelegate()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L199) and
+[`PersistentJobStore.createClusterLock()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L206) (usually a [`LeaseStoreLock`](src/main/java/org/quartz/impl/store/LeaseStoreLock.java) with [`LeaseStoreLock.tryAcquire()`](src/main/java/org/quartz/impl/store/LeaseStoreLock.java#L77) and
+[`LeaseStoreLock.releaseLease()`](src/main/java/org/quartz/impl/store/LeaseStoreLock.java#L80)), and override [`PersistentJobStore.inTransaction()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L215) if the store has transactions;
 extend both contract test bases; register a [`JobStoreFactory`](src/main/java/org/quartz/spring/boot/autoconfigure/JobStoreFactory.java) in [`JobStoreConfigurations`](src/main/java/org/quartz/spring/boot/autoconfigure/JobStoreConfigurations.java) and add a [`JobStoreType`](src/main/java/org/quartz/spring/boot/autoconfigure/JobStoreType.java).
 
 **Add a thread pool.** Implement [`ThreadPool`](src/main/java/org/quartz/spi/ThreadPool.java) with the obligations of §6, override [`ThreadPool.describe()`](src/main/java/org/quartz/spi/ThreadPool.java#L92), and
@@ -548,7 +560,7 @@ hour after a DST gap was recorded.
 - **Interrupts at shutdown.** The scheduler, misfire and cluster threads are interrupted when the scheduler halts,
   often in the middle of a store call. Lettuce and the MongoDB driver throw on interrupted threads, and a command
   may have reached the server even though the client gave up. Hence: release locks and abort transactions with the
-  interrupt flag cleared ([`LeaseStoreLock.release()`](src/main/java/org/quartz/impl/store/LeaseStoreLock.java#L110), [`MongoJobStore.abort()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L263)), kill MongoDB sessions after a failed
+  interrupt flag cleared ([`LeaseStoreLock.release()`](src/main/java/org/quartz/impl/store/LeaseStoreLock.java#L110), [`MongoJobStore.abort()`](src/main/java/org/quartz/impl/mongodb/MongoJobStore.java#L313)), kill MongoDB sessions after a failed
   transaction, and write fired-trigger records before state changes.
 - **No unbounded concurrency.** A pool that reports more capacity than it can run makes the scheduler acquire
   triggers that then wait in a queue, invisible to the other cluster nodes.
@@ -561,6 +573,11 @@ hour after a DST gap was recorded.
 - **The formatter rewrites code.** Never hand-format. Javadoc lines are re-wrapped, which can move an `@` to the
   start of a line: write `{@code @Annotation}` in prose.
 - **Removed properties fail startup** by design: do not quietly re-add or ignore old keys.
+- **Two clocks.** Scheduling times (fire times, fired-trigger records, misfires, manual-fire start times) come from
+  the scheduler's `Clock` ([`PersistentJobStore.getSchedulingTime()`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L429)); cluster check-ins, liveness and lock leases from the
+  system clock ([`PersistentJobStore.CHECKIN_CLOCK`](src/main/java/org/quartz/impl/store/PersistentJobStore.java#L178)), because instances compare them. Elapsed times use
+  `System.nanoTime()`. Scheduling instants have millisecond precision (the stores'), so truncate new ones with
+  [`Instants.toMillis()`](src/main/java/org/quartz/utils/Instants.java#L36).
 
 ---
 
