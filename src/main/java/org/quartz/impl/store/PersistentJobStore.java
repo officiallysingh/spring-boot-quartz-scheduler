@@ -1780,8 +1780,7 @@ public abstract class PersistentJobStore implements JobStore {
   public List<ExecutingJob> getExecutingJobs() throws JobPersistenceException {
     return executeWithoutLock(
         () ->
-            delegate.selectFiredTriggerRecords().stream()
-                .filter(record -> STATE_EXECUTING.equals(record.state()))
+            delegate.selectFiredTriggerRecordsInState(STATE_EXECUTING).stream()
                 .map(PersistentJobStore::toExecutingJob)
                 .toList());
   }

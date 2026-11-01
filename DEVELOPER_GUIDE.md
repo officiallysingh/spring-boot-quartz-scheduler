@@ -356,7 +356,7 @@ scheduler thread interrupted at shutdown must still give its lease back.
   `trigger:<k>`, `triggers:<group>`, `trigger_groups`, `job_triggers:<k>`, `calendar_triggers:<name>`,
   `state:<STATE>`, `waiting` and `waiting_ignore_misfire` (sorted by next fire time), `calendars`,
   `paused_trigger_groups`, `paused_job_groups`, `fired:<id>`, `fired_ids`, `fired_by_instance:<id>`,
-  `fired_by_job:<k>`, `fired_by_trigger:<k>`, `fired_instances`, `schedulers`, `lock:<name>`. Names are escaped
+  `fired_by_job:<k>`, `fired_by_trigger:<k>`, `interrupts_by_instance:<id>`, `fired_instances`, `schedulers`, `lock:<name>`. Names are escaped
   (`%`, `:`).
 - **Atomicity:** every multi-key change is one Lua script in [`RedisScripts`](src/main/java/org/quartz/impl/redis/RedisScripts.java) ([`RedisScripts.STORE_JOB`](src/main/java/org/quartz/impl/redis/RedisScripts.java#L40),
   [`RedisScripts.STORE_TRIGGER`](src/main/java/org/quartz/impl/redis/RedisScripts.java#L118), the conditional [`RedisScripts.SET_STATE`](src/main/java/org/quartz/impl/redis/RedisScripts.java#L157), [`RedisScripts.INSERT_FIRED`](src/main/java/org/quartz/impl/redis/RedisScripts.java#L184),

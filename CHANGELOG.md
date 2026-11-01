@@ -59,10 +59,13 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
 - SPI: `JobStore.getExecutingJobs()`, `JobStore.getExecutingJob(String)`,
   `JobStore.requestInterrupt(String)`, `SchedulerSignaler.interruptRequested(String)` (default:
   does nothing), `StoreDelegate.selectFiredTriggerRecords()`,
-  `StoreDelegate.selectFiredTriggerRecord(String)` and
+  `StoreDelegate.selectFiredTriggerRecord(String)`,
+  `StoreDelegate.selectFiredTriggerRecordsInState(String)`,
+  `StoreDelegate.selectInterruptRequestedFireInstanceIds(String)` and
   `StoreDelegate.updateFiredTriggerInterruptRequested(String)`; `FiredTriggerRecord` has a new
   `interruptRequested` component. Stores record the flag as `interruptRequested` on the
-  fired-trigger document (MongoDB) or hash (Redis).
+  fired-trigger document (MongoDB) or hash (Redis); Redis also keeps an
+  `interrupts_by_instance:<id>` set, so a check-in finds requests with one read.
 
 ### Cluster instances
 

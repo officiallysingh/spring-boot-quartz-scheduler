@@ -31,6 +31,7 @@ import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.Updates;
+import com.mongodb.client.result.UpdateResult;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -199,12 +200,15 @@ class MongoStoreDelegate implements StoreDelegate {
     }
   }
 
-  private long updateOne(MongoCollection<Document> collection, Bson filter, Bson update) {
+  private UpdateResult update(MongoCollection<Document> collection, Bson filter, Bson update) {
     ClientSession s = session.get();
-    return ((s != null)
-            ? collection.updateOne(s, filter, update)
-            : collection.updateOne(filter, update))
-        .getModifiedCount();
+    return (s != null)
+        ? collection.updateOne(s, filter, update)
+        : collection.updateOne(filter, update);
+  }
+
+  private long updateOne(MongoCollection<Document> collection, Bson filter, Bson update) {
+    return update(collection, filter, update).getModifiedCount();
   }
 
   private long updateMany(MongoCollection<Document> collection, Bson filter, Bson update) {
@@ -832,12 +836,11 @@ class MongoStoreDelegate implements StoreDelegate {
 
   @Override
   public boolean updateFiredTriggerInterruptRequested(String fireInstanceId) {
-    Bson filter = and(fired(fireInstanceId), eq(STATE, PersistentJobStore.STATE_EXECUTING));
-    Bson update = Updates.set(INTERRUPT_REQUESTED, true);
-    ClientSession s = session.get();
-    return ((s != null)
-                ? collections.firedTriggers().updateOne(s, filter, update)
-                : collections.firedTriggers().updateOne(filter, update))
+    // matched, not modified: an entry flagged before counts too
+    return update(
+                collections.firedTriggers(),
+                and(fired(fireInstanceId), eq(STATE, PersistentJobStore.STATE_EXECUTING)),
+                Updates.set(INTERRUPT_REQUESTED, true))
             .getMatchedCount()
         > 0;
   }
@@ -866,6 +869,24 @@ class MongoStoreDelegate implements StoreDelegate {
   @Override
   public List<FiredTriggerRecord> selectFiredTriggerRecords() {
     return firedRecords(sched());
+  }
+
+  @Override
+  public List<FiredTriggerRecord> selectFiredTriggerRecordsInState(String state) {
+    return firedRecords(sched(eq(STATE, state)));
+  }
+
+  @Override
+  public Set<String> selectInterruptRequestedFireInstanceIds(String instanceId) {
+    Set<String> ids = new LinkedHashSet<>();
+    for (Document document :
+        find(
+                collections.firedTriggers(),
+                sched(and(eq(INSTANCE_ID, instanceId), eq(INTERRUPT_REQUESTED, true))))
+            .projection(Projections.include(FIRE_INSTANCE_ID))) {
+      ids.add(document.getString(FIRE_INSTANCE_ID));
+    }
+    return ids;
   }
 
   @Override

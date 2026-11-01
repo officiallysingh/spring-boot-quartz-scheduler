@@ -206,8 +206,9 @@ final class RedisScripts {
             """);
 
   /**
-   * ARGV: prefix, id, state field, executing state, flag field. Sets the flag of an executing
-   * entry; returns 1 if the entry is executing.
+   * ARGV: prefix, id, state field, executing state, flag field. Sets the flag of an executing entry
+   * and adds it to its instance's {@code interrupts_by_instance} set; returns 1 if the entry is
+   * executing.
    */
   static final RedisScript<Long> REQUEST_INTERRUPT_FIRED =
       script(
@@ -215,6 +216,7 @@ final class RedisScripts {
             local h = ARGV[1] .. 'fired:' .. ARGV[2]
             if redis.call('HGET', h, ARGV[3]) ~= ARGV[4] then return 0 end
             redis.call('HSET', h, ARGV[5], 'true')
+            redis.call('SADD', ARGV[1] .. 'interrupts_by_instance:' .. redis.call('HGET', h, '_inst'), ARGV[2])
             return 1
             """);
 
@@ -229,6 +231,7 @@ final class RedisScripts {
               redis.call('SREM', P .. 'fired_by_instance:' .. f[1], id)
               redis.call('SREM', P .. 'fired_by_job:' .. f[2], id)
               redis.call('SREM', P .. 'fired_by_trigger:' .. f[3], id)
+              redis.call('SREM', P .. 'interrupts_by_instance:' .. f[1], id)
               if redis.call('SCARD', P .. 'fired_by_instance:' .. f[1]) == 0 then
                 redis.call('SREM', P .. 'fired_instances', f[4])
               end

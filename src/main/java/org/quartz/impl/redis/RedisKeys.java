@@ -137,6 +137,10 @@ final class RedisKeys {
     return prefix + "fired_by_trigger:" + triggerK;
   }
 
+  String interruptsByInstance(String instanceId) {
+    return prefix + "interrupts_by_instance:" + escape(instanceId);
+  }
+
   String firedInstances() {
     return prefix + "fired_instances";
   }

@@ -681,6 +681,11 @@ class RedisStoreDelegate implements StoreDelegate {
   }
 
   @Override
+  public Set<String> selectInterruptRequestedFireInstanceIds(String instanceId) {
+    return new LinkedHashSet<>(members(keys.interruptsByInstance(instanceId)));
+  }
+
+  @Override
   public List<FiredTriggerRecord> selectFiredTriggerRecordsForInstance(String instanceId) {
     return firedRecords(keys.firedByInstance(instanceId));
   }
