@@ -120,6 +120,20 @@ public interface Scheduler {
   String DEFAULT_FAIL_OVER_GROUP = "FAILED_OVER_JOBS";
 
   /**
+   * The <code>Trigger</code> group of the one-off triggers created by {@link #triggerJob(JobKey)},
+   * {@link #triggerJob(JobKey, JobDataMap)} and {@link #triggerNow(TriggerKey)} ("MANUAL_TRIGGER");
+   * clients should not use it for their own triggers.
+   */
+  String MANUAL_TRIGGER_GROUP = "MANUAL_TRIGGER";
+
+  /**
+   * A constant <code>JobDataMap</code> key holding, in the data of the one-off trigger created by
+   * {@link #triggerNow(TriggerKey)}, the key ({@code group.name}) of the trigger whose job was
+   * fired.
+   */
+  String MANUAL_FIRE_OF_TRIGGER = "QRTZ_MANUAL_FIRE_OF_TRIGGER";
+
+  /**
    * A constant <code>JobDataMap</code> key that can be used to retrieve the name of the original
    * <code>Trigger</code> from a recovery trigger's data map in the case of a job recovering after a
    * failed scheduler instance.
@@ -483,16 +497,39 @@ public interface Scheduler {
    */
   boolean deleteJobs(List<JobKey> jobKeys) throws SchedulerException;
 
-  /** Trigger the identified <code>{@link org.quartz.JobDetail}</code> (execute it now). */
+  /**
+   * Trigger the identified <code>{@link org.quartz.JobDetail}</code> (execute it now), with a
+   * one-off trigger in the {@value #MANUAL_TRIGGER_GROUP} group and no job data of its own.
+   *
+   * @see #triggerNow(TriggerKey)
+   */
   void triggerJob(JobKey jobKey) throws SchedulerException;
 
   /**
-   * Trigger the identified <code>{@link org.quartz.JobDetail}</code> (execute it now).
+   * Trigger the identified <code>{@link org.quartz.JobDetail}</code> (execute it now), with a
+   * one-off trigger in the {@value #MANUAL_TRIGGER_GROUP} group.
    *
    * @param data the (possibly <code>null</code>) JobDataMap to be associated with the trigger that
    *     fires the job immediately.
    */
   void triggerJob(JobKey jobKey, @Nullable JobDataMap data) throws SchedulerException;
+
+  /**
+   * Fire the job of the identified trigger now, once, with a copy of that trigger's job data (and
+   * its priority). The identified trigger itself is not modified: its state, next fire time and job
+   * data stay as they are.
+   *
+   * <p>The job runs through a one-off trigger in the {@value #MANUAL_TRIGGER_GROUP} group whose job
+   * data also holds {@value #MANUAL_FIRE_OF_TRIGGER} = the identified trigger's key ({@code
+   * group.name}), so listeners and history can tell a manual re-fire from a scheduled one. The
+   * usual scheduler, trigger and job listener callbacks are made. Use it to re-fire a trigger that
+   * misfired or failed.
+   *
+   * @param triggerKey the trigger whose job and job data to use
+   * @throws JobPersistenceException if the trigger does not exist
+   * @throws SchedulerException if the job cannot be scheduled
+   */
+  void triggerNow(TriggerKey triggerKey) throws SchedulerException;
 
   /**
    * Pause the <code>{@link org.quartz.JobDetail}</code> with the given key - by pausing all of its

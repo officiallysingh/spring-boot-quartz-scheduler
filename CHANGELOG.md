@@ -25,3 +25,13 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
   scheduler's `Clock` and truncated to milliseconds, so a recovery trigger's
   `FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME_IN_MILLISECONDS` equals the interrupted execution's
   `getFireTime()`. Before, the record used a separate `Instant.now()`.
+
+### Manual fires
+
+- New `Scheduler.triggerNow(TriggerKey)`: runs the trigger's job once, now, with a copy of the
+  trigger's job data and its priority, and leaves the trigger unchanged. The one-off trigger's job
+  data holds `Scheduler.MANUAL_FIRE_OF_TRIGGER` = the source trigger's key (`group.name`). It
+  throws a `JobPersistenceException` if the trigger does not exist.
+- **Breaking:** the one-off triggers of `triggerJob(...)` and `triggerNow(...)` are now in the
+  group `Scheduler.MANUAL_TRIGGER_GROUP` (`MANUAL_TRIGGER`), not `DEFAULT`, so listeners and
+  history can tell manual fires from scheduled ones. They start at the scheduler `Clock`'s now.

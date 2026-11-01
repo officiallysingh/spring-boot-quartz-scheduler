@@ -47,6 +47,7 @@ import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.JobKey;
 import org.quartz.JobListener;
+import org.quartz.JobPersistenceException;
 import org.quartz.ListenerManager;
 import org.quartz.Matcher;
 import org.quartz.ObjectAlreadyExistsException;
@@ -844,23 +845,46 @@ public class QuartzScheduler {
   }
 
   /**
-   * Trigger the identified <code>{@link org.quartz.Job}</code> (execute it now) - with a
-   * non-volatile trigger.
+   * Trigger the identified <code>{@link org.quartz.Job}</code> (execute it now), with a one-off
+   * trigger in the {@value Scheduler#MANUAL_TRIGGER_GROUP} group.
    */
-  @SuppressWarnings("deprecation")
   public void triggerJob(JobKey jobKey, @Nullable JobDataMap data) throws SchedulerException {
     validateState();
+    storeManualTrigger(jobKey, (data != null) ? data : new JobDataMap(), Trigger.DEFAULT_PRIORITY);
+  }
 
+  /**
+   * Fire the job of the identified trigger now, once, with a copy of the trigger's job data and its
+   * priority; the trigger itself is not changed. The one-off trigger is in the {@value
+   * Scheduler#MANUAL_TRIGGER_GROUP} group and carries {@value Scheduler#MANUAL_FIRE_OF_TRIGGER}.
+   *
+   * @throws JobPersistenceException if the trigger does not exist
+   */
+  public void triggerNow(TriggerKey triggerKey) throws SchedulerException {
+    validateState();
+    OperableTrigger source = resources.getJobStore().retrieveTrigger(triggerKey);
+    if (source == null) {
+      throw new JobPersistenceException(
+          "Cannot fire trigger " + triggerKey + " now: the trigger does not exist.");
+    }
+    JobDataMap data = new JobDataMap(source.getJobDataMap());
+    data.put(Scheduler.MANUAL_FIRE_OF_TRIGGER, triggerKey.toString());
+    storeManualTrigger(source.getJobKey(), data, source.getPriority());
+  }
+
+  /** Stores a trigger firing the job once, now (by the scheduler's clock). */
+  private void storeManualTrigger(JobKey jobKey, JobDataMap data, int priority)
+      throws SchedulerException {
     OperableTrigger trig =
         (OperableTrigger)
             newTrigger()
-                .withIdentity(newTriggerId(), Scheduler.DEFAULT_GROUP)
+                .withIdentity(newTriggerId(), Scheduler.MANUAL_TRIGGER_GROUP)
                 .forJob(jobKey)
+                .withPriority(priority)
+                .startAt(resources.getClock().instant())
                 .build();
+    trig.setJobDataMap(data);
     trig.computeFirstFireTime(null);
-    if (data != null) {
-      trig.setJobDataMap(data);
-    }
 
     boolean collision = true;
     while (collision) {
@@ -868,7 +892,7 @@ public class QuartzScheduler {
         resources.getJobStore().storeTrigger(trig, false);
         collision = false;
       } catch (ObjectAlreadyExistsException oaee) {
-        trig.setKey(new TriggerKey(newTriggerId(), Scheduler.DEFAULT_GROUP));
+        trig.setKey(new TriggerKey(newTriggerId(), Scheduler.MANUAL_TRIGGER_GROUP));
       }
     }
 
