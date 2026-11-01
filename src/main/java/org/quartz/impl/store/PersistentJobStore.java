@@ -35,6 +35,7 @@ import org.quartz.Calendar;
 import org.quartz.ExecutingJob;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
+import org.quartz.JobDetailPage;
 import org.quartz.JobKey;
 import org.quartz.JobPersistenceException;
 import org.quartz.ObjectAlreadyExistsException;
@@ -47,6 +48,9 @@ import org.quartz.Trigger;
 import org.quartz.Trigger.CompletedExecutionInstruction;
 import org.quartz.Trigger.TriggerState;
 import org.quartz.TriggerKey;
+import org.quartz.TriggerPage;
+import org.quartz.TriggerQuery;
+import org.quartz.TriggerWithState;
 import org.quartz.impl.config.JobStoreSettings;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.impl.matchers.StringMatcher.StringOperatorName;
@@ -58,7 +62,6 @@ import org.quartz.spi.SchedulerSignaler;
 import org.quartz.spi.TriggerFiredBundle;
 import org.quartz.spi.TriggerFiredResult;
 import org.quartz.utils.Instants;
-import org.quartz.utils.Key;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -699,7 +702,7 @@ public abstract class PersistentJobStore implements JobStore {
 
   private Set<JobKey> jobKeys(GroupMatcher<JobKey> matcher) {
     Set<JobKey> keys = new LinkedHashSet<>();
-    for (String group : matchingGroups(delegate.selectJobGroups(), matcher)) {
+    for (String group : StoreQueries.matchingGroups(delegate.selectJobGroups(), matcher)) {
       keys.addAll(delegate.selectJobKeys(group));
     }
     return keys;
@@ -708,16 +711,6 @@ public abstract class PersistentJobStore implements JobStore {
   @Override
   public List<String> getJobGroupNames() throws JobPersistenceException {
     return executeWithoutLock(delegate::selectJobGroups);
-  }
-
-  private static <K extends Key<K>> List<String> matchingGroups(
-      List<String> groups, GroupMatcher<K> matcher) {
-    StringOperatorName operator = matcher.getCompareWithOperator();
-    String value = matcher.getCompareToValue();
-    if (operator == StringOperatorName.EQUALS) {
-      return groups.contains(value) ? List.of(value) : List.of();
-    }
-    return groups.stream().filter(group -> operator.evaluate(group, value)).toList();
   }
 
   // ------------------------------------------------------------------
@@ -885,7 +878,7 @@ public abstract class PersistentJobStore implements JobStore {
 
   private Set<TriggerKey> triggerKeys(GroupMatcher<TriggerKey> matcher) {
     Set<TriggerKey> keys = new LinkedHashSet<>();
-    for (String group : matchingGroups(delegate.selectTriggerGroups(), matcher)) {
+    for (String group : StoreQueries.matchingGroups(delegate.selectTriggerGroups(), matcher)) {
       keys.addAll(delegate.selectTriggerKeys(group));
     }
     return keys;
@@ -934,17 +927,86 @@ public abstract class PersistentJobStore implements JobStore {
     return executeWithoutLock(
         () -> {
           String state = delegate.selectTriggerState(triggerKey);
-          if (state == null) {
-            return TriggerState.NONE;
-          }
-          return switch (state) {
-            case STATE_COMPLETE -> TriggerState.COMPLETE;
-            case STATE_PAUSED, STATE_PAUSED_BLOCKED -> TriggerState.PAUSED;
-            case STATE_ERROR -> TriggerState.ERROR;
-            case STATE_BLOCKED -> TriggerState.BLOCKED;
-            default -> TriggerState.NORMAL;
-          };
+          return (state != null) ? toTriggerState(state) : TriggerState.NONE;
         });
+  }
+
+  /** The public state of a stored trigger state. */
+  protected static TriggerState toTriggerState(String state) {
+    return switch (state) {
+      case STATE_COMPLETE -> TriggerState.COMPLETE;
+      case STATE_PAUSED, STATE_PAUSED_BLOCKED -> TriggerState.PAUSED;
+      case STATE_ERROR -> TriggerState.ERROR;
+      case STATE_BLOCKED -> TriggerState.BLOCKED;
+      default -> TriggerState.NORMAL;
+    };
+  }
+
+  /**
+   * The stored states behind public states, the inverse of {@link #toTriggerState(String)}: empty
+   * for "all states" when {@code states} is empty. {@link TriggerState#NONE} has none.
+   */
+  private static Set<String> storedStates(Set<TriggerState> states) {
+    Set<String> stored = new LinkedHashSet<>();
+    for (TriggerState state : states) {
+      switch (state) {
+        case NORMAL -> stored.addAll(List.of(STATE_WAITING, STATE_ACQUIRED));
+        case PAUSED -> stored.addAll(List.of(STATE_PAUSED, STATE_PAUSED_BLOCKED));
+        case COMPLETE -> stored.add(STATE_COMPLETE);
+        case ERROR -> stored.add(STATE_ERROR);
+        case BLOCKED -> stored.add(STATE_BLOCKED);
+        case NONE -> {}
+      }
+    }
+    return stored;
+  }
+
+  /** Whether the states select nothing at all (only {@link TriggerState#NONE}). */
+  private static boolean selectsNothing(Set<TriggerState> states) {
+    return !states.isEmpty() && storedStates(states).isEmpty();
+  }
+
+  @Override
+  public List<TriggerKey> getTriggerKeys(GroupMatcher<TriggerKey> matcher, Set<TriggerState> states)
+      throws JobPersistenceException {
+    if (selectsNothing(states)) {
+      return List.of();
+    }
+    return executeWithoutLock(() -> delegate.selectTriggerKeys(matcher, storedStates(states)));
+  }
+
+  @Override
+  public TriggerPage getTriggers(TriggerQuery query) throws JobPersistenceException {
+    if (selectsNothing(query.states())) {
+      return new TriggerPage(List.of(), 0);
+    }
+    StorePage<StoredTrigger> page =
+        executeWithoutLock(
+            () ->
+                delegate.selectTriggers(
+                    query.matcher(),
+                    storedStates(query.states()),
+                    query.sort(),
+                    query.descending(),
+                    query.offset(),
+                    query.limit()));
+    return new TriggerPage(
+        page.content().stream()
+            .map(stored -> new TriggerWithState(stored.trigger(), toTriggerState(stored.state())))
+            .toList(),
+        page.total());
+  }
+
+  @Override
+  public JobDetailPage getJobDetails(GroupMatcher<JobKey> matcher, int offset, int limit)
+      throws JobPersistenceException {
+    if (offset < 0 || limit < 1) {
+      throw new IllegalArgumentException(
+          "offset must not be negative and limit positive: " + offset + ", " + limit);
+    }
+    StorePage<JobDetail> page =
+        executeWithoutLock(() -> delegate.selectJobDetails(matcher, offset, limit));
+    return new JobDetailPage(page.content(), page.total());
   }
 
   @Override
@@ -1053,7 +1115,8 @@ public abstract class PersistentJobStore implements JobStore {
   }
 
   private Set<String> pauseTriggerGroups(GroupMatcher<TriggerKey> matcher) {
-    List<String> groups = new ArrayList<>(matchingGroups(delegate.selectTriggerGroups(), matcher));
+    List<String> groups =
+        new ArrayList<>(StoreQueries.matchingGroups(delegate.selectTriggerGroups(), matcher));
     // an exact match also pauses a group that does not exist yet
     if (matcher.getCompareWithOperator() == StringOperatorName.EQUALS
         && !groups.contains(matcher.getCompareToValue())) {
@@ -1089,7 +1152,7 @@ public abstract class PersistentJobStore implements JobStore {
         LOCK_TRIGGER_ACCESS,
         () -> {
           List<String> groups =
-              new ArrayList<>(matchingGroups(delegate.selectJobGroups(), matcher));
+              new ArrayList<>(StoreQueries.matchingGroups(delegate.selectJobGroups(), matcher));
           // an exact match also pauses jobs added to the group later (as Quartz's in-memory store
           // did)
           if (matcher.getCompareWithOperator() == StringOperatorName.EQUALS

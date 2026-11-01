@@ -111,3 +111,21 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
   trigger, fire instance id, scheduler instance id, fire time and scheduled fire time of the
   execution a recovery run replaces (empty unless recovering). `RecoveryInfo.of(JobDataMap)`
   reads the same from job data. The `FAILED_JOB_ORIGINAL_*` job data entries stay strings.
+
+### Trigger and job queries
+
+- New `Scheduler.getTriggerKeys(GroupMatcher<TriggerKey>, Set<TriggerState>)`: the keys of the
+  triggers in the given states (empty set = all), ordered by key, filtered by the store.
+- New `Scheduler.getTriggers(TriggerQuery)`: one page of triggers with their states
+  (`TriggerPage` of `TriggerWithState`, plus the total), filtered by groups and states, sorted by
+  `TriggerSort` `KEY`, `NEXT_FIRE_TIME`, `PREVIOUS_FIRE_TIME` or `PRIORITY` (ties by key; missing
+  times first), optionally descending. States map exactly as `getTriggerState` reports them. The
+  MongoDB store answers with one `find` (sort, skip, limit) and one `countDocuments`; the Redis
+  store reads the matching triggers and pages in memory, with the same results.
+- New `Scheduler.getJobDetails(GroupMatcher<JobKey>, int offset, int limit)`: one page of jobs
+  ordered by key (`JobDetailPage`, plus the total).
+- New MongoDB indexes on `qrtz_triggers`: `(schedName, state, group, name)` and
+  `(schedName, nextFireTime, group, name)`, created at startup like the others.
+- SPI: `JobStore.getTriggerKeys(GroupMatcher, Set)`, `getTriggers(TriggerQuery)`,
+  `getJobDetails(GroupMatcher, int, int)`; `StoreDelegate.selectTriggerKeys(GroupMatcher,
+  Collection)`, `selectTriggers(...)` and `selectJobDetails(...)` with generic defaults.

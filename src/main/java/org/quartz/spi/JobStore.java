@@ -29,6 +29,7 @@ import org.quartz.Calendar;
 import org.quartz.ExecutingJob;
 import org.quartz.Job;
 import org.quartz.JobDetail;
+import org.quartz.JobDetailPage;
 import org.quartz.JobKey;
 import org.quartz.JobPersistenceException;
 import org.quartz.ObjectAlreadyExistsException;
@@ -39,6 +40,8 @@ import org.quartz.Trigger;
 import org.quartz.Trigger.CompletedExecutionInstruction;
 import org.quartz.Trigger.TriggerState;
 import org.quartz.TriggerKey;
+import org.quartz.TriggerPage;
+import org.quartz.TriggerQuery;
 import org.quartz.impl.matchers.GroupMatcher;
 
 /**
@@ -626,6 +629,34 @@ public interface JobStore {
    * @throws JobPersistenceException if the store cannot be read
    */
   List<ExecutingJob> getExecutingJobs() throws JobPersistenceException;
+
+  /**
+   * Keys of the triggers in the matching groups that are in one of the given states (all states if
+   * empty), ordered by group, then name, read without loading the triggers.
+   *
+   * @return the keys
+   * @throws JobPersistenceException if the store cannot be read
+   */
+  List<TriggerKey> getTriggerKeys(GroupMatcher<TriggerKey> matcher, Set<TriggerState> states)
+      throws JobPersistenceException;
+
+  /**
+   * One page of triggers with their states; see {@link
+   * org.quartz.Scheduler#getTriggers(TriggerQuery)}.
+   *
+   * @return the page
+   * @throws JobPersistenceException if the store cannot be read
+   */
+  TriggerPage getTriggers(TriggerQuery query) throws JobPersistenceException;
+
+  /**
+   * One page of the jobs in the matching groups, ordered by group, then name.
+   *
+   * @return the page
+   * @throws JobPersistenceException if the store cannot be read
+   */
+  JobDetailPage getJobDetails(GroupMatcher<JobKey> matcher, int offset, int limit)
+      throws JobPersistenceException;
 
   /**
    * The scheduler instances using the store, with their liveness; see {@link

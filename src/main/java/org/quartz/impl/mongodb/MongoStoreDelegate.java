@@ -21,6 +21,7 @@ import static com.mongodb.client.model.Filters.lt;
 import static com.mongodb.client.model.Filters.lte;
 import static com.mongodb.client.model.Filters.ne;
 import static com.mongodb.client.model.Filters.or;
+import static com.mongodb.client.model.Filters.regex;
 
 import com.mongodb.client.ClientSession;
 import com.mongodb.client.FindIterable;
@@ -40,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.Binary;
@@ -51,10 +53,15 @@ import org.quartz.JobKey;
 import org.quartz.JobPersistenceException;
 import org.quartz.Trigger;
 import org.quartz.TriggerKey;
+import org.quartz.TriggerSort;
+import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.impl.store.FiredTriggerRecord;
 import org.quartz.impl.store.PersistentJobStore;
 import org.quartz.impl.store.SchedulerStateRecord;
 import org.quartz.impl.store.StoreDelegate;
+import org.quartz.impl.store.StorePage;
+import org.quartz.impl.store.StoreQueries;
+import org.quartz.impl.store.StoredTrigger;
 import org.quartz.impl.store.codec.JobDataCodec;
 import org.quartz.impl.store.codec.JobDetailCodec;
 import org.quartz.impl.store.codec.SerializationCodec;
@@ -364,6 +371,21 @@ class MongoStoreDelegate implements StoreDelegate {
     return keys;
   }
 
+  @Override
+  public StorePage<JobDetail> selectJobDetails(GroupMatcher<JobKey> matcher, int offset, int limit)
+      throws JobPersistenceException {
+    Bson filter = sched(groups(matcher));
+    List<JobDetail> jobs = new ArrayList<>();
+    for (Document document :
+        find(collections.jobs(), filter)
+            .sort(Sorts.ascending(JobDetailCodec.GROUP, JobDetailCodec.NAME))
+            .skip(offset)
+            .limit(limit)) {
+      jobs.add(JobDetailCodec.decode(fields(document), jobData(document), classLoader));
+    }
+    return new StorePage<>(jobs, count(collections.jobs(), filter));
+  }
+
   // ------------------------------------------------------------------
   // triggers
   // ------------------------------------------------------------------
@@ -465,6 +487,71 @@ class MongoStoreDelegate implements StoreDelegate {
   @Override
   public List<TriggerKey> selectTriggerKeysInState(String state) {
     return triggerKeys(find(collections.triggers(), sched(eq(STATE, state))));
+  }
+
+  /** The filter of a group matcher on the {@code group} field (also used for jobs). */
+  private static Bson groups(GroupMatcher<?> matcher) {
+    String value = matcher.getCompareToValue();
+    return switch (matcher.getCompareWithOperator()) {
+      case EQUALS -> eq(TriggerCodec.GROUP, value);
+      case STARTS_WITH -> regex(TriggerCodec.GROUP, "^" + Pattern.quote(value));
+      case ENDS_WITH -> regex(TriggerCodec.GROUP, Pattern.quote(value) + "\\z");
+      case CONTAINS -> regex(TriggerCodec.GROUP, Pattern.quote(value));
+      case ANYTHING -> new Document();
+    };
+  }
+
+  private Bson triggersMatching(GroupMatcher<TriggerKey> matcher, Collection<String> states) {
+    return states.isEmpty()
+        ? sched(groups(matcher))
+        : sched(and(groups(matcher), in(STATE, states)));
+  }
+
+  private static final Bson KEY_ORDER = Sorts.ascending(TriggerCodec.GROUP, TriggerCodec.NAME);
+
+  /** The sort of {@link StoreQueries#triggerOrder}: missing fields sort first, as nulls do. */
+  private static Bson triggerSort(TriggerSort sort, boolean descending) {
+    List<String> fields =
+        switch (sort) {
+          case KEY -> List.of(TriggerCodec.GROUP, TriggerCodec.NAME);
+          case NEXT_FIRE_TIME ->
+              List.of(TriggerCodec.NEXT_FIRE_TIME, TriggerCodec.GROUP, TriggerCodec.NAME);
+          case PREVIOUS_FIRE_TIME ->
+              List.of(TriggerCodec.PREVIOUS_FIRE_TIME, TriggerCodec.GROUP, TriggerCodec.NAME);
+          case PRIORITY -> List.of(TriggerCodec.PRIORITY, TriggerCodec.GROUP, TriggerCodec.NAME);
+        };
+    return descending ? Sorts.descending(fields) : Sorts.ascending(fields);
+  }
+
+  @Override
+  public List<TriggerKey> selectTriggerKeys(
+      GroupMatcher<TriggerKey> matcher, Collection<String> states) {
+    return triggerKeys(
+        find(collections.triggers(), triggersMatching(matcher, states)).sort(KEY_ORDER));
+  }
+
+  @Override
+  public StorePage<StoredTrigger> selectTriggers(
+      GroupMatcher<TriggerKey> matcher,
+      Collection<String> states,
+      TriggerSort sort,
+      boolean descending,
+      int offset,
+      int limit)
+      throws JobPersistenceException {
+    Bson filter = triggersMatching(matcher, states);
+    List<StoredTrigger> triggers = new ArrayList<>();
+    for (Document document :
+        find(collections.triggers(), filter)
+            .sort(triggerSort(sort, descending))
+            .skip(offset)
+            .limit(limit)) {
+      triggers.add(
+          new StoredTrigger(
+              TriggerCodec.decode(fields(document), jobData(document), classLoader),
+              document.getString(STATE)));
+    }
+    return new StorePage<>(triggers, count(collections.triggers(), filter));
   }
 
   @Override

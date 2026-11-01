@@ -725,6 +725,32 @@ public interface Scheduler {
    */
   Set<TriggerKey> getTriggerKeys(GroupMatcher<TriggerKey> matcher) throws SchedulerException;
 
+  /**
+   * Get the keys of the triggers in the matching groups that are in any of the given states,
+   * filtered by the store (the MongoDB store in one query) rather than by reading each trigger's
+   * state.
+   *
+   * @param matcher the trigger groups to include
+   * @param states the states to include, as {@link #getTriggerState(TriggerKey)} reports them;
+   *     empty for all states
+   * @return the keys, ordered by group, then name
+   * @throws SchedulerException if the store cannot be read
+   */
+  List<TriggerKey> getTriggerKeys(GroupMatcher<TriggerKey> matcher, Set<TriggerState> states)
+      throws SchedulerException;
+
+  /**
+   * Get one page of triggers with their states: those in the query's groups and states, in its
+   * order, from offset {@code offset}, at most {@code limit} of them, with the number of matching
+   * triggers. The MongoDB store answers with one query and one count; the Redis store reads the
+   * matching triggers and pages in memory.
+   *
+   * @param query which triggers, in which order, which page
+   * @return the page and the total
+   * @throws SchedulerException if the store cannot be read
+   */
+  TriggerPage getTriggers(TriggerQuery query) throws SchedulerException;
+
   /** Get the names of all <code>{@link Trigger}</code> groups that are paused. */
   Set<String> getPausedTriggerGroups() throws SchedulerException;
 
@@ -749,6 +775,20 @@ public interface Scheduler {
    * @throws SchedulerException On error
    */
   List<JobDetail> getJobDetails(GroupMatcher<JobKey> matcher) throws SchedulerException;
+
+  /**
+   * Get one page of the jobs in the matching groups, ordered by group, then name, with the number
+   * of matching jobs. The MongoDB store answers with one query and one count.
+   *
+   * @param matcher the job groups to include
+   * @param offset how many matching jobs to skip, at least 0
+   * @param limit the page size, at least 1
+   * @return the page and the total
+   * @throws SchedulerException if the store cannot be read
+   * @throws IllegalArgumentException if {@code offset} or {@code limit} is out of range
+   */
+  JobDetailPage getJobDetails(GroupMatcher<JobKey> matcher, int offset, int limit)
+      throws SchedulerException;
 
   /**
    * Get the <code>{@link Trigger}</code> instance with the given key.

@@ -44,6 +44,7 @@ import org.quartz.InterruptableJob;
 import org.quartz.Job;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
+import org.quartz.JobDetailPage;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.JobKey;
@@ -63,6 +64,8 @@ import org.quartz.Trigger.CompletedExecutionInstruction;
 import org.quartz.Trigger.TriggerState;
 import org.quartz.TriggerKey;
 import org.quartz.TriggerListener;
+import org.quartz.TriggerPage;
+import org.quartz.TriggerQuery;
 import org.quartz.UnableToInterruptJobException;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.listeners.SchedulerListenerSupport;
@@ -1140,6 +1143,23 @@ public class QuartzScheduler {
     validateState();
 
     return resources.getJobStore().retrieveJob(jobKey);
+  }
+
+  public List<TriggerKey> getTriggerKeys(GroupMatcher<TriggerKey> matcher, Set<TriggerState> states)
+      throws SchedulerException {
+    validateState();
+    return resources.getJobStore().getTriggerKeys(matcher, states);
+  }
+
+  public TriggerPage getTriggers(TriggerQuery query) throws SchedulerException {
+    validateState();
+    return resources.getJobStore().getTriggers(query);
+  }
+
+  public JobDetailPage getJobDetails(GroupMatcher<JobKey> matcher, int offset, int limit)
+      throws SchedulerException {
+    validateState();
+    return resources.getJobStore().getJobDetails(matcher, offset, limit);
   }
 
   public List<JobDetail> getJobDetails(GroupMatcher<JobKey> matcher) throws SchedulerException {

@@ -31,6 +31,7 @@ import static org.quartz.DailyTimeIntervalScheduleBuilder.MONDAY_THROUGH_FRIDAY;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,6 +53,7 @@ import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobBuilder;
 import org.quartz.JobDetail;
+import org.quartz.JobDetailPage;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.JobKey;
@@ -68,6 +70,9 @@ import org.quartz.Trigger;
 import org.quartz.Trigger.TriggerState;
 import org.quartz.TriggerBuilder;
 import org.quartz.TriggerKey;
+import org.quartz.TriggerPage;
+import org.quartz.TriggerQuery;
+import org.quartz.TriggerSort;
 import org.quartz.impl.JobDetailImpl;
 import org.quartz.impl.calendar.WeeklyCalendar;
 import org.quartz.impl.matchers.GroupMatcher;
@@ -226,6 +231,151 @@ public abstract class AbstractJobStoreContractTest {
                       assertThat(stored.getFireTimeAfter(stored.getNextFireTime()))
                           .isEqualTo(trigger.getFireTimeAfter(trigger.getNextFireTime()));
                     }));
+  }
+
+  /** 60 triggers in groups g0..g2 of the fixture job; g1's first five paused, three in error. */
+  private List<OperableTrigger> storeQueryTriggers() throws Exception {
+    Instant base = Instant.parse("2036-01-01T00:00:00Z");
+    List<OperableTrigger> triggers = new ArrayList<>();
+    for (int g = 0; g < 3; g++) {
+      for (int t = 0; t < 20; t++) {
+        int i = g * 20 + t;
+        OperableTrigger trigger =
+            (OperableTrigger)
+                TriggerBuilder.newTrigger()
+                    .withIdentity(String.format("t%02d", t), "g" + g)
+                    .forJob(this.fJobDetail)
+                    .startAt(base.plus(Duration.ofMinutes((i * 37L) % 60)).plusSeconds(i))
+                    .withPriority(i % 7)
+                    .build();
+        trigger.computeFirstFireTime(null);
+        triggers.add(trigger);
+      }
+    }
+    this.fJobStore.storeJobsAndTriggers(Map.of(this.fJobDetail, Set.copyOf(triggers)), true);
+    for (int t = 0; t < 5; t++) {
+      this.fJobStore.pauseTrigger(TriggerKey.triggerKey(String.format("t%02d", t), "g1"));
+    }
+    for (int t = 10; t < 13; t++) {
+      OperableTrigger trigger =
+          this.fJobStore.retrieveTrigger(TriggerKey.triggerKey("t" + t, "g2"));
+      this.fJobStore.triggeredJobComplete(
+          trigger, this.fJobDetail, Trigger.CompletedExecutionInstruction.SET_TRIGGER_ERROR);
+    }
+    return triggers;
+  }
+
+  private static List<TriggerKey> keys(TriggerPage page) {
+    return page.content().stream().map(row -> row.trigger().getKey()).toList();
+  }
+
+  @Test
+  void triggerQueriesFilterSortAndPageInTheStore() throws Exception {
+    List<OperableTrigger> triggers = storeQueryTriggers();
+    GroupMatcher<TriggerKey> any = GroupMatcher.anyTriggerGroup();
+    Comparator<OperableTrigger> byKey =
+        Comparator.comparing((OperableTrigger t) -> t.getKey().getGroup())
+            .thenComparing(t -> t.getKey().getName());
+
+    // state filters, mapped like getTriggerState
+    List<TriggerKey> errors =
+        List.of(
+            TriggerKey.triggerKey("t10", "g2"),
+            TriggerKey.triggerKey("t11", "g2"),
+            TriggerKey.triggerKey("t12", "g2"));
+    assertThat(this.fJobStore.getTriggerKeys(any, Set.of(TriggerState.ERROR))).isEqualTo(errors);
+    TriggerPage errorPage =
+        this.fJobStore.getTriggers(
+            new TriggerQuery(any, Set.of(TriggerState.ERROR), TriggerSort.KEY, false, 0, 20));
+    assertThat(errorPage.total()).isEqualTo(3);
+    assertThat(keys(errorPage)).isEqualTo(errors);
+    assertThat(errorPage.content()).allMatch(row -> row.state() == TriggerState.ERROR);
+    assertThat(
+            this.fJobStore
+                .getTriggers(
+                    new TriggerQuery(
+                        any,
+                        Set.of(TriggerState.PAUSED, TriggerState.ERROR),
+                        TriggerSort.KEY,
+                        false,
+                        0,
+                        100))
+                .total())
+        .isEqualTo(8);
+    assertThat(this.fJobStore.getTriggerKeys(any, Set.of(TriggerState.NORMAL))).hasSize(52);
+    assertThat(this.fJobStore.getTriggerKeys(any, Set.of(TriggerState.NONE))).isEmpty();
+    assertThat(this.fJobStore.getTriggerKeys(any, Set.of()))
+        .isEqualTo(triggers.stream().sorted(byKey).map(Trigger::getKey).toList());
+
+    // the 20 soonest fires
+    TriggerPage soonest =
+        this.fJobStore.getTriggers(
+            new TriggerQuery(any, Set.of(), TriggerSort.NEXT_FIRE_TIME, false, 0, 20));
+    assertThat(soonest.total()).isEqualTo(60);
+    assertThat(keys(soonest))
+        .isEqualTo(
+            triggers.stream()
+                .sorted(
+                    Comparator.comparing((OperableTrigger t) -> t.getNextFireTime())
+                        .thenComparing(byKey))
+                .limit(20)
+                .map(Trigger::getKey)
+                .toList());
+    assertThat(soonest.content().getFirst().trigger().getNextFireTime())
+        .isEqualTo(triggers.stream().map(Trigger::getNextFireTime).min(Instant::compareTo).get());
+
+    // descending priority, ties by key descending, second page
+    TriggerPage byPriority =
+        this.fJobStore.getTriggers(
+            new TriggerQuery(any, Set.of(), TriggerSort.PRIORITY, true, 10, 15));
+    assertThat(keys(byPriority))
+        .isEqualTo(
+            triggers.stream()
+                .sorted(
+                    Comparator.comparingInt((OperableTrigger t) -> t.getPriority())
+                        .thenComparing(byKey)
+                        .reversed())
+                .skip(10)
+                .limit(15)
+                .map(Trigger::getKey)
+                .toList());
+
+    // group matchers; a page past the end
+    TriggerPage g1 =
+        this.fJobStore.getTriggers(TriggerQuery.of(GroupMatcher.triggerGroupEquals("g1"), 100));
+    assertThat(g1.total()).isEqualTo(20);
+    assertThat(g1.content()).filteredOn(row -> row.state() == TriggerState.PAUSED).hasSize(5);
+    assertThat(
+            this.fJobStore
+                .getTriggerKeys(GroupMatcher.triggerGroupStartsWith("g"), Set.of())
+                .size())
+        .isEqualTo(60);
+    assertThat(this.fJobStore.getTriggerKeys(GroupMatcher.triggerGroupEndsWith("2"), Set.of()))
+        .hasSize(20)
+        .allMatch(key -> key.getGroup().equals("g2"));
+    assertThat(this.fJobStore.getTriggerKeys(GroupMatcher.triggerGroupContains(".*"), Set.of()))
+        .isEmpty();
+    TriggerPage pastTheEnd =
+        this.fJobStore.getTriggers(new TriggerQuery(any, Set.of(), TriggerSort.KEY, false, 60, 5));
+    assertThat(pastTheEnd.content()).isEmpty();
+    assertThat(pastTheEnd.total()).isEqualTo(60);
+  }
+
+  @Test
+  void jobDetailPagesAreOrderedByKey() throws Exception {
+    for (String group : List.of("b", "a", "c")) {
+      for (String name : List.of("y", "x")) {
+        this.fJobStore.storeJob(
+            JobBuilder.newJob(MyJob.class).withIdentity(name, group).storeDurably().build(), false);
+      }
+    }
+    JobDetailPage page = this.fJobStore.getJobDetails(GroupMatcher.anyJobGroup(), 1, 3);
+    assertThat(page.total()).isEqualTo(7); // with the fixture's jobGroup1.job1
+    assertThat(page.content())
+        .extracting(JobDetail::getKey)
+        .containsExactly(JobKey.jobKey("y", "a"), JobKey.jobKey("x", "b"), JobKey.jobKey("y", "b"));
+    assertThat(this.fJobStore.getJobDetails(GroupMatcher.jobGroupEquals("c"), 0, 10).total())
+        .isEqualTo(2);
   }
 
   @Test

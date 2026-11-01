@@ -206,7 +206,17 @@ public class MongoJobStore extends PersistentJobStore {
                         Indexes.descending(TriggerCodec.PRIORITY))),
                 new IndexModel(
                     Indexes.ascending(sched, TriggerCodec.JOB_GROUP, TriggerCodec.JOB_NAME)),
-                new IndexModel(Indexes.ascending(sched, TriggerCodec.CALENDAR_NAME))));
+                new IndexModel(Indexes.ascending(sched, TriggerCodec.CALENDAR_NAME)),
+                // Scheduler.getTriggers: by state in key order, and "what fires next"
+                new IndexModel(
+                    Indexes.ascending(
+                        sched, MongoStoreDelegate.STATE, TriggerCodec.GROUP, TriggerCodec.NAME)),
+                new IndexModel(
+                    Indexes.ascending(
+                        sched,
+                        TriggerCodec.NEXT_FIRE_TIME,
+                        TriggerCodec.GROUP,
+                        TriggerCodec.NAME))));
     collections.calendars().createIndex(Indexes.ascending(sched, TriggerCodec.NAME), unique);
     collections
         .pausedGroups()
