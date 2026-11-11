@@ -3,7 +3,7 @@
 Changes to the public API, behaviour and storage format, by release. Breaking changes are marked
 **Breaking**.
 
-## 1.0.0-rc3 (unreleased)
+## 1.0.0-rc3 (2026-11-11)
 
 ### Manual fires
 
