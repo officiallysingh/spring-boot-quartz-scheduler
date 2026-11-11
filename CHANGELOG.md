@@ -32,6 +32,10 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
   trigger's job data and its priority, and leaves the trigger unchanged. The one-off trigger's job
   data holds `Scheduler.MANUAL_FIRE_OF_TRIGGER` = the source trigger's key (`group.name`). It
   throws a `JobPersistenceException` if the trigger does not exist.
+- New `Scheduler.triggerNow(TriggerKey, JobDataMap)`: the same, with the given entries added to
+  the one-off trigger's job data over the source trigger's. `MANUAL_FIRE_OF_TRIGGER` always holds
+  the source trigger's key, even if the given data has that key. The source trigger's job data is
+  not changed. `triggerNow(TriggerKey)` is `triggerNow(triggerKey, null)`.
 - **Breaking:** the one-off triggers of `triggerJob(...)` and `triggerNow(...)` are now in the
   group `Scheduler.MANUAL_TRIGGER_GROUP` (`MANUAL_TRIGGER`), not `DEFAULT`, so listeners and
   history can tell manual fires from scheduled ones. They start at the scheduler `Clock`'s now.

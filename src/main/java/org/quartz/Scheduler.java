@@ -121,8 +121,9 @@ public interface Scheduler {
 
   /**
    * The <code>Trigger</code> group of the one-off triggers created by {@link #triggerJob(JobKey)},
-   * {@link #triggerJob(JobKey, JobDataMap)} and {@link #triggerNow(TriggerKey)} ("MANUAL_TRIGGER");
-   * clients should not use it for their own triggers.
+   * {@link #triggerJob(JobKey, JobDataMap)}, {@link #triggerNow(TriggerKey)} and {@link
+   * #triggerNow(TriggerKey, JobDataMap)} ("MANUAL_TRIGGER"); clients should not use it for their
+   * own triggers.
    *
    * <p>Manual fires follow the pause state of this group (and of the job's group), not of {@link
    * #DEFAULT_GROUP}: pause it, e.g. with {@code pauseTriggers(GroupMatcher.triggerGroupEquals(
@@ -132,8 +133,8 @@ public interface Scheduler {
 
   /**
    * A constant <code>JobDataMap</code> key holding, in the data of the one-off trigger created by
-   * {@link #triggerNow(TriggerKey)}, the key ({@code group.name}) of the trigger whose job was
-   * fired.
+   * {@link #triggerNow(TriggerKey)} and {@link #triggerNow(TriggerKey, JobDataMap)}, the key
+   * ({@code group.name}) of the trigger whose job was fired.
    */
   String MANUAL_FIRE_OF_TRIGGER = "QRTZ_MANUAL_FIRE_OF_TRIGGER";
 
@@ -546,6 +547,7 @@ public interface Scheduler {
    *
    * @param data the (possibly <code>null</code>) JobDataMap to be associated with the trigger that
    *     fires the job immediately.
+   * @see #triggerNow(TriggerKey, JobDataMap)
    */
   void triggerJob(JobKey jobKey, @Nullable JobDataMap data) throws SchedulerException;
 
@@ -560,11 +562,30 @@ public interface Scheduler {
    * usual scheduler, trigger and job listener callbacks are made. Use it to re-fire a trigger that
    * misfired or failed.
    *
+   * <p>Same as {@link #triggerNow(TriggerKey, JobDataMap) triggerNow(triggerKey, null)}.
+   *
    * @param triggerKey the trigger whose job and job data to use
    * @throws JobPersistenceException if the trigger does not exist
    * @throws SchedulerException if the job cannot be scheduled
    */
   void triggerNow(TriggerKey triggerKey) throws SchedulerException;
+
+  /**
+   * Fire the job of the identified trigger now, once, like {@link #triggerNow(TriggerKey)}, with
+   * the given entries added to the one-off trigger's job data.
+   *
+   * <p>The one-off trigger's job data is a copy of the identified trigger's, then the given entries
+   * (which win on a shared key), then {@value #MANUAL_FIRE_OF_TRIGGER} = the identified trigger's
+   * key: a {@value #MANUAL_FIRE_OF_TRIGGER} entry in {@code data} is overwritten. The identified
+   * trigger's own job data is not changed. As with {@link #triggerJob(JobKey, JobDataMap)}, the job
+   * sees the entries in {@link JobExecutionContext#getMergedJobDataMap()}, over the job's own data.
+   *
+   * @param triggerKey the trigger whose job and job data to use
+   * @param data the (possibly <code>null</code>) entries to add to the one-off trigger's job data
+   * @throws JobPersistenceException if the trigger does not exist
+   * @throws SchedulerException if the job cannot be scheduled
+   */
+  void triggerNow(TriggerKey triggerKey, @Nullable JobDataMap data) throws SchedulerException;
 
   /**
    * Pause the <code>{@link org.quartz.JobDetail}</code> with the given key - by pausing all of its

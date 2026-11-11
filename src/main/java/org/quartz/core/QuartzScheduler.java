@@ -863,19 +863,25 @@ public class QuartzScheduler {
    * Fire the job of the identified trigger now, once, with a copy of the trigger's job data and its
    * priority; the trigger itself is not changed. The one-off trigger is in the {@value
    * Scheduler#MANUAL_TRIGGER_GROUP} group and carries {@value Scheduler#MANUAL_FIRE_OF_TRIGGER}.
+   * The given entries, if any, are added over the copied ones, but not over {@value
+   * Scheduler#MANUAL_FIRE_OF_TRIGGER}.
    *
    * @throws JobPersistenceException if the trigger does not exist
    */
-  public void triggerNow(TriggerKey triggerKey) throws SchedulerException {
+  public void triggerNow(TriggerKey triggerKey, @Nullable JobDataMap data)
+      throws SchedulerException {
     validateState();
     OperableTrigger source = resources.getJobStore().retrieveTrigger(triggerKey);
     if (source == null) {
       throw new JobPersistenceException(
           "Cannot fire trigger " + triggerKey + " now: the trigger does not exist.");
     }
-    JobDataMap data = new JobDataMap(source.getJobDataMap());
-    data.put(Scheduler.MANUAL_FIRE_OF_TRIGGER, triggerKey.toString());
-    storeManualTrigger(source.getJobKey(), data, source.getPriority());
+    JobDataMap manualData = new JobDataMap(source.getJobDataMap());
+    if (data != null) {
+      manualData.putAll(data);
+    }
+    manualData.put(Scheduler.MANUAL_FIRE_OF_TRIGGER, triggerKey.toString());
+    storeManualTrigger(source.getJobKey(), manualData, source.getPriority());
   }
 
   /** Stores a trigger firing the job once, now (by the scheduler's clock). */

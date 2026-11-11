@@ -265,7 +265,13 @@ public class StdScheduler implements Scheduler {
 
   /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
   public void triggerNow(TriggerKey triggerKey) throws SchedulerException {
-    sched.triggerNow(triggerKey);
+    triggerNow(triggerKey, null);
+  }
+
+  /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
+  public void triggerNow(TriggerKey triggerKey, @Nullable JobDataMap data)
+      throws SchedulerException {
+    sched.triggerNow(triggerKey, data);
   }
 
   /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */

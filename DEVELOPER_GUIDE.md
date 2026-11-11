@@ -428,7 +428,7 @@ auto-configuration classes are listed in
 [`QuartzEndpointAutoConfiguration`](src/main/java/org/quartz/spring/boot/autoconfigure/QuartzEndpointAutoConfiguration.java), [`QuartzHealthContributorAutoConfiguration`](src/main/java/org/quartz/spring/boot/autoconfigure/QuartzHealthContributorAutoConfiguration.java) and [`QuartzMetricsAutoConfiguration`](src/main/java/org/quartz/spring/boot/autoconfigure/QuartzMetricsAutoConfiguration.java)
 add the `quartz` endpoint ([`QuartzEndpoint`](src/main/java/org/quartz/spring/boot/actuate/endpoint/QuartzEndpoint.java), [`QuartzEndpointWebExtension`](src/main/java/org/quartz/spring/boot/actuate/endpoint/QuartzEndpointWebExtension.java)), the `quartz` health indicator
 ([`QuartzHealthIndicator`](src/main/java/org/quartz/spring/boot/actuate/health/QuartzHealthIndicator.java): DOWN when the scheduler is shut down, its store cannot be read, or the instance is no
-longer alive in [`Scheduler.getSchedulerInstances()`](src/main/java/org/quartz/Scheduler.java#L354)) and Micrometer meters ([`QuartzMetrics`](src/main/java/org/quartz/spring/boot/actuate/metrics/QuartzMetrics.java), a scheduler plugin listening to jobs and triggers). The
+longer alive in [`Scheduler.getSchedulerInstances()`](src/main/java/org/quartz/Scheduler.java#L355)) and Micrometer meters ([`QuartzMetrics`](src/main/java/org/quartz/spring/boot/actuate/metrics/QuartzMetrics.java), a scheduler plugin listening to jobs and triggers). The
 README's Actuator section has the user view.
 
 ---

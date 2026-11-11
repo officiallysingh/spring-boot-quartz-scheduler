@@ -30,7 +30,10 @@ import org.quartz.listeners.TriggerListenerSupport;
 import org.quartz.support.AbstractMongoIT;
 import org.quartz.support.TestSchedulers;
 
-/** {@link Scheduler#triggerNow(TriggerKey)} and {@link Scheduler#triggerJob(JobKey)}. */
+/**
+ * {@link Scheduler#triggerNow(TriggerKey)}, {@link Scheduler#triggerNow(TriggerKey, JobDataMap)}
+ * and {@link Scheduler#triggerJob(JobKey)}.
+ */
 class ManualFireIT extends AbstractMongoIT {
 
   /** What each execution saw: its trigger and merged job data. */
@@ -125,9 +128,45 @@ class ManualFireIT extends AbstractMongoIT {
   }
 
   @Test
+  void triggerNowWithDataOverridesTheTriggersDataButNotTheSourceKey() throws Exception {
+    JobDetail job =
+        JobBuilder.newJob(RecordingJob.class).withIdentity("auction", "auctions").build();
+    Trigger trigger =
+        TriggerBuilder.newTrigger()
+            .withIdentity("auction-start", "auctions")
+            .startAt(Instant.now().plus(Duration.ofDays(7)))
+            .usingJobData("k", "v")
+            .usingJobData("kept", "t")
+            .build();
+    scheduler.scheduleJob(job, trigger);
+
+    scheduler.triggerNow(
+        trigger.getKey(),
+        new JobDataMap(
+            Map.of("k", "given", "extra", "1", Scheduler.MANUAL_FIRE_OF_TRIGGER, "forged")));
+
+    await().atMost(Duration.ofSeconds(20)).until(() -> EXECUTIONS.size() == 1);
+    assertThat(EXECUTIONS.getFirst().data())
+        .containsEntry("k", "given")
+        .containsEntry("kept", "t")
+        .containsEntry("extra", "1")
+        .containsEntry(Scheduler.MANUAL_FIRE_OF_TRIGGER, "auctions.auction-start");
+    // the given entries go to the one-off trigger only
+    assertThat(scheduler.getTrigger(trigger.getKey()).getJobDataMap().getWrappedMap())
+        .isEqualTo(Map.of("k", "v", "kept", "t"));
+  }
+
+  @Test
   void triggerNowOfAMissingTriggerFails() {
     assertThatExceptionOfType(JobPersistenceException.class)
         .isThrownBy(() -> scheduler.triggerNow(TriggerKey.triggerKey("missing", "auctions")))
+        .withMessageContaining("auctions.missing");
+    assertThatExceptionOfType(JobPersistenceException.class)
+        .isThrownBy(
+            () ->
+                scheduler.triggerNow(
+                    TriggerKey.triggerKey("missing", "auctions"),
+                    new JobDataMap(Map.of("extra", "1"))))
         .withMessageContaining("auctions.missing");
   }
 
