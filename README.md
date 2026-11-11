@@ -77,10 +77,8 @@ everything, from the thread pool to the store, is configured through typed `spri
 
 ## Installation
 
-> **Current version: 1.0.0-rc2**, available from
-> [Maven Central](https://central.sonatype.com/artifact/com.neolama/spring-boot-quartz-scheduler).
-> Upgrading? Read the [changelog](CHANGELOG.md) first: it lists the breaking changes. MongoDB stores written by
-> 1.0.0-rc1 are not readable by later versions: drop the store's collections and let the jobs be re-created.
+> **Current version: 1.0.0-rc3**, available from
+> [Maven Central](https://central.sonatype.com/artifact/com.neolama/spring-boot-quartz-scheduler)
 
 Add the library and the Spring Boot starter of the store you use to your application.
 
@@ -89,7 +87,7 @@ Maven
 <dependency>
     <groupId>com.neolama</groupId>
     <artifactId>spring-boot-quartz-scheduler</artifactId>
-    <version>1.0.0-rc2</version>
+    <version>1.0.0-rc3</version>
 </dependency>
 
 <!-- MongoDB store -->
@@ -105,7 +103,7 @@ Maven
 ```
 Gradle
 ```groovy
-implementation 'com.neolama:spring-boot-quartz-scheduler:1.0.0-rc2'
+implementation 'com.neolama:spring-boot-quartz-scheduler:1.0.0-rc3'
 implementation 'org.springframework.boot:spring-boot-starter-data-mongodb' // or spring-boot-starter-data-redis
 ```
 
