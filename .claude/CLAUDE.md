@@ -20,5 +20,5 @@
   - Long test runs: run `./mvnw verify` in the background and poll, rather than hitting the shell timeout.
 - **Spring Boot code embedded in this repo** goes under `org.quartz.spring.boot.*` (never `org.springframework.*`) to avoid split packages/clashes with the official `spring-boot-quartz`.
 - **Licensing:** keep Apache 2.0 headers on retained/ported files; add `NOTICE` crediting Quartz and Spring Boot.
-- **Working style:** small commits per logical step; never delete a test without saying why; when a decision is ambiguous, continue with the conservative choice and explain it in the commit message (and in `DEVELOPER_GUIDE.md` when it shapes how the code works).
+- **Working style:** small commits per logical step, but **ask for my confirmation before every commit** (show the files and the proposed message; a yes covers only the commits it names); never delete a test without saying why; when a decision is ambiguous, continue with the conservative choice and explain it in the commit message (and in `DEVELOPER_GUIDE.md` when it shapes how the code works).
 - **Do not** add Lombok, or any other dependency or build plugin without the user's approval (add approved build plugins to the list above).
