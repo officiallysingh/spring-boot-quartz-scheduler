@@ -70,7 +70,10 @@ import org.quartz.utils.LenientDateTime;
  */
 public class DateBuilder {
 
-  /** A unit of time, for {@link #futureDate(int, IntervalUnit)} and the interval-based triggers. */
+  /**
+   * A unit of time, for {@link #futureDate(int, IntervalUnit, java.time.Clock, ZoneId)} and the
+   * interval-based triggers.
+   */
   public enum IntervalUnit {
     /** Milliseconds. */
     MILLISECOND,
