@@ -77,7 +77,9 @@ public interface CalendarIntervalTrigger extends Trigger {
   /**
    * Gets the time zone within which time calculations related to this trigger will be performed.
    *
-   * <p>If none was set, the system default time zone is used.
+   * <p>If none was set, the scheduler's default time zone ({@link Scheduler#getTimeZone()}, <code>
+   * spring.quartz.time-zone</code>, UTC by default) applies from the moment the trigger is
+   * scheduled; before that, UTC. Never the JVM default zone.
    */
   ZoneId getTimeZone();
 

@@ -21,6 +21,8 @@ package org.quartz.impl.calendar;
 import java.io.Serializable;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.utils.LenientDateTime;
@@ -49,11 +51,11 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
 
   private @Nullable ZoneId timeZone;
 
-  /** Create a calendar without a base calendar, in the system default time zone. */
+  /** Create a calendar without a base calendar and without a zone (see {@link #getTimeZone()}). */
   public BaseCalendar() {}
 
   /**
-   * Create a calendar on top of another, in the system default time zone.
+   * Create a calendar on top of another, without a zone (see {@link #getTimeZone()}).
    *
    * @param baseCalendar the calendar that must also include a time, or {@code null}
    */
@@ -64,8 +66,8 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
   /**
    * Create a calendar without a base calendar.
    *
-   * @param timeZone The time zone to use for this Calendar, <code>null</code> if <code>
-   *     {@link ZoneId#systemDefault()}</code> should be used
+   * @param timeZone The time zone to use for this Calendar, <code>null</code> for none yet (see
+   *     {@link #getTimeZone()})
    */
   public BaseCalendar(@Nullable ZoneId timeZone) {
     setTimeZone(timeZone);
@@ -75,8 +77,8 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
    * Create a calendar on top of another.
    *
    * @param baseCalendar the calendar that must also include a time, or {@code null}
-   * @param timeZone The time zone to use for this Calendar, <code>null</code> if <code>
-   *     {@link ZoneId#systemDefault()}</code> should be used
+   * @param timeZone The time zone to use for this Calendar, <code>null</code> for none yet (see
+   *     {@link #getTimeZone()})
    */
   public BaseCalendar(@Nullable Calendar baseCalendar, @Nullable ZoneId timeZone) {
     setBaseCalendar(baseCalendar);
@@ -127,8 +129,12 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
   /**
    * Returns the time zone for which this <code>Calendar</code> will be resolved.
    *
-   * @return This Calendar's timezone, <code>null</code> if Calendar should use the <code>
-   *     {@link ZoneId#systemDefault()}</code>
+   * <p>A calendar added to a scheduler without a zone takes the scheduler's default zone ({@link
+   * org.quartz.Scheduler#getTimeZone()}, <code>spring.quartz.time-zone</code>, UTC unless set) when
+   * it is added ({@link #bind(ZoneId)}) and is stored with it. Until then it resolves in UTC. The
+   * JVM default zone is never used.
+   *
+   * @return This Calendar's timezone, <code>null</code> if none was set yet
    */
   public @Nullable ZoneId getTimeZone() {
     return timeZone;
@@ -137,11 +143,28 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
   /**
    * Sets the time zone for which this <code>Calendar</code> will be resolved.
    *
-   * @param timeZone The time zone to use for this Calendar, <code>null</code> if <code>
-   *     {@link ZoneId#systemDefault()}</code> should be used
+   * @param timeZone The time zone to use for this Calendar, <code>null</code> to unset it, so that
+   *     the scheduler applies its default zone when the calendar is added
    */
   public void setTimeZone(@Nullable ZoneId timeZone) {
     this.timeZone = timeZone;
+  }
+
+  /**
+   * Gives this calendar, and every {@link BaseCalendar} below it, the given zone if none was set
+   * explicitly. The scheduler calls it with its default zone when the calendar is added, and the
+   * job store when it loads one (a calendar stored without a zone takes the default).
+   *
+   * @param defaultTimeZone the scheduler's default zone, see {@link
+   *     org.quartz.Scheduler#getTimeZone()}
+   */
+  public void bind(ZoneId defaultTimeZone) {
+    if (getTimeZone() == null) {
+      setTimeZone(Objects.requireNonNull(defaultTimeZone, "defaultTimeZone"));
+    }
+    if (baseCalendar instanceof BaseCalendar base) {
+      base.bind(defaultTimeZone);
+    }
   }
 
   /**
@@ -183,9 +206,10 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
     return timeStamp;
   }
 
-  /** The calendar's time zone, or the system default zone if none was set. */
+  /** The calendar's time zone, or UTC if none was set yet (see {@link #getTimeZone()}). */
   protected ZoneId getTimeZoneOrDefault() {
-    return (getTimeZone() == null) ? ZoneId.systemDefault() : getTimeZone();
+    ZoneId zone = getTimeZone();
+    return (zone != null) ? zone : ZoneOffset.UTC;
   }
 
   /**

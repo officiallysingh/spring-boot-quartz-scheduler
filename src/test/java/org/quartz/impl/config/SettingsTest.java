@@ -17,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -38,6 +39,7 @@ class SettingsTest {
     assertThat(s.interruptJobsOnShutdown()).isFalse();
     assertThat(s.interruptJobsOnShutdownWithWait()).isFalse();
     assertThat(s.context()).isEmpty();
+    assertThat(s.timeZone()).isEqualTo(ZoneId.of("UTC"));
   }
 
   @Test
@@ -115,6 +117,18 @@ class SettingsTest {
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> SchedulerSettings.builder().batchTriggerAcquisitionMaxCount(0).build())
         .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> SchedulerSettings.builder().timeZone(null))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessageContaining("timeZone");
+  }
+
+  @Test
+  void timeZoneRoundTripsThroughTheBuilder() {
+    ZoneId kolkata = ZoneId.of("Asia/Kolkata");
+    SchedulerSettings s = SchedulerSettings.builder().timeZone(kolkata).build();
+
+    assertThat(s.timeZone()).isEqualTo(kolkata);
+    assertThat(s.toBuilder().build()).isEqualTo(s);
   }
 
   @Test

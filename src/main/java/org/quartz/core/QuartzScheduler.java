@@ -25,8 +25,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -67,6 +69,7 @@ import org.quartz.TriggerListener;
 import org.quartz.TriggerPage;
 import org.quartz.TriggerQuery;
 import org.quartz.UnableToInterruptJobException;
+import org.quartz.impl.calendar.BaseCalendar;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.listeners.SchedulerListenerSupport;
 import org.quartz.spi.JobFactory;
@@ -291,6 +294,16 @@ public class QuartzScheduler {
   /** Returns the instance Id of the <code>QuartzScheduler</code>. */
   public String getSchedulerInstanceId() {
     return resources.getInstanceId();
+  }
+
+  /** The clock of the scheduler, see {@link Scheduler#getClock()}. */
+  public Clock getClock() {
+    return resources.getClock();
+  }
+
+  /** The default time zone of the scheduler, see {@link Scheduler#getTimeZone()}. */
+  public ZoneId getTimeZone() {
+    return resources.getTimeZone();
   }
 
   /** Returns the name of the thread group for Quartz's main threads. */
@@ -565,6 +578,7 @@ public class QuartzScheduler {
       throw new SchedulerException("Trigger does not reference given job!");
     }
 
+    bind(trig);
     trig.validate();
 
     Calendar cal = null;
@@ -604,6 +618,7 @@ public class QuartzScheduler {
 
     OperableTrigger trig = (OperableTrigger) trigger;
 
+    bind(trig);
     trig.validate();
 
     Calendar cal = null;
@@ -725,6 +740,7 @@ public class QuartzScheduler {
         OperableTrigger opt = (OperableTrigger) trigger;
         opt.setJobKey(job.getKey());
 
+        bind(opt);
         opt.validate();
 
         Calendar cal = null;
@@ -818,6 +834,7 @@ public class QuartzScheduler {
     } else {
       trig.setJobKey(oldTrigger.getJobKey());
     }
+    bind(trig);
     trig.validate();
 
     Calendar cal = null;
@@ -840,6 +857,17 @@ public class QuartzScheduler {
     }
 
     return ft;
+  }
+
+  /**
+   * Binds a trigger that is about to be stored to this scheduler: its clock becomes the trigger's
+   * "now", a missing start time becomes now, and a cron, calendar-interval or daily-time-interval
+   * trigger without an explicit time zone takes the scheduler's default zone.
+   *
+   * @see OperableTrigger#bind(Clock, ZoneId)
+   */
+  private void bind(OperableTrigger trigger) {
+    trigger.bind(resources.getClock(), resources.getTimeZone());
   }
 
   private String newTriggerId() {
@@ -896,6 +924,7 @@ public class QuartzScheduler {
                 .startAt(resources.getClock().instant())
                 .build();
     trig.setJobDataMap(data);
+    bind(trig);
     trig.computeFirstFireTime(null);
 
     boolean collision = true;
@@ -1231,6 +1260,11 @@ public class QuartzScheduler {
       throws SchedulerException {
     validateState();
 
+    // like a trigger, a calendar without an explicit zone takes the scheduler's default zone and
+    // is stored with it
+    if (calendar instanceof BaseCalendar base) {
+      base.bind(resources.getTimeZone());
+    }
     resources.getJobStore().storeCalendar(calName, calendar, replace, updateTriggers);
   }
 

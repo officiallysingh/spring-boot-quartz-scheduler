@@ -45,13 +45,14 @@ public class HolidayCalendar extends BaseCalendar implements Calendar, Serializa
   private TreeSet<Instant> dates = new TreeSet<>();
 
   /**
-   * Create a calendar that excludes nothing yet, without a base calendar, in the system default
-   * time zone.
+   * Create a calendar that excludes nothing yet, without a base calendar, without a zone (see
+   * {@link BaseCalendar#getTimeZone()}).
    */
   public HolidayCalendar() {}
 
   /**
-   * Create a calendar that excludes nothing yet on top of another, in the system default time zone.
+   * Create a calendar that excludes nothing yet on top of another, without a zone (see {@link
+   * BaseCalendar#getTimeZone()}).
    *
    * @param baseCalendar the calendar that must also include a time, or {@code null}
    */
@@ -62,7 +63,8 @@ public class HolidayCalendar extends BaseCalendar implements Calendar, Serializa
   /**
    * Create a calendar that excludes nothing yet without a base calendar.
    *
-   * @param timeZone the time zone, or {@code null} for the system default
+   * @param timeZone the time zone, or {@code null} for the scheduler's default zone once added (see
+   *     {@link BaseCalendar#getTimeZone()})
    */
   public HolidayCalendar(@Nullable ZoneId timeZone) {
     super(timeZone);
@@ -72,7 +74,8 @@ public class HolidayCalendar extends BaseCalendar implements Calendar, Serializa
    * Create a calendar that excludes nothing yet on top of another.
    *
    * @param baseCalendar the calendar that must also include a time, or {@code null}
-   * @param timeZone the time zone, or {@code null} for the system default
+   * @param timeZone the time zone, or {@code null} for the scheduler's default zone once added (see
+   *     {@link BaseCalendar#getTimeZone()})
    */
   public HolidayCalendar(@Nullable Calendar baseCalendar, @Nullable ZoneId timeZone) {
     super(baseCalendar, timeZone);

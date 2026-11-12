@@ -97,6 +97,7 @@ public class QuartzEndpoint {
   @ReadOperation
   public QuartzDescriptor quartzReport() throws SchedulerException {
     return new QuartzDescriptor(
+        this.scheduler.getTimeZone().getId(),
         new GroupNamesDescriptor(this.scheduler.getJobGroupNames()),
         new GroupNamesDescriptor(this.scheduler.getTriggerGroupNames()));
   }
@@ -251,7 +252,7 @@ public class QuartzEndpoint {
       return null;
     }
     this.scheduler.triggerJob(jobKey);
-    return new QuartzJobTriggerDescriptor(jobDetail);
+    return new QuartzJobTriggerDescriptor(jobDetail, this.scheduler.getClock().instant());
   }
 
   private static List<Map<String, Object>> extractTriggersSummary(
@@ -332,16 +333,27 @@ public class QuartzEndpoint {
     };
   }
 
-  /** Description of available job and trigger group names. */
+  /**
+   * Description of the scheduler's default time zone and of the available job and trigger group
+   * names.
+   */
   public static final class QuartzDescriptor implements OperationResponseBody {
+
+    private final String timeZone;
 
     private final GroupNamesDescriptor jobs;
 
     private final GroupNamesDescriptor triggers;
 
-    QuartzDescriptor(GroupNamesDescriptor jobs, GroupNamesDescriptor triggers) {
+    QuartzDescriptor(String timeZone, GroupNamesDescriptor jobs, GroupNamesDescriptor triggers) {
+      this.timeZone = timeZone;
       this.jobs = jobs;
       this.triggers = triggers;
+    }
+
+    /** The scheduler's default time zone, see {@link Scheduler#getTimeZone()}. */
+    public String getTimeZone() {
+      return this.timeZone;
     }
 
     public GroupNamesDescriptor getJobs() {
@@ -431,11 +443,11 @@ public class QuartzEndpoint {
 
     private final Instant triggerTime;
 
-    QuartzJobTriggerDescriptor(JobDetail jobDetail) {
+    QuartzJobTriggerDescriptor(JobDetail jobDetail, Instant triggerTime) {
       this.group = jobDetail.getKey().getGroup();
       this.name = jobDetail.getKey().getName();
       this.className = jobDetail.getJobClass().getName();
-      this.triggerTime = Instant.now();
+      this.triggerTime = triggerTime;
     }
 
     public String getGroup() {
@@ -793,6 +805,7 @@ public class QuartzEndpoint {
       putIfNoNull(content, "daysOfWeek", this.trigger.getDaysOfWeek());
       putIfNoNull(content, "startTimeOfDay", getLocalTime(this.trigger.getStartTimeOfDay()));
       putIfNoNull(content, "endTimeOfDay", getLocalTime(this.trigger.getEndTimeOfDay()));
+      putIfNoNull(content, "timeZone", this.trigger.getTimeZone());
     }
 
     @Override

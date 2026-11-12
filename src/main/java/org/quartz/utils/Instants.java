@@ -14,6 +14,7 @@
 package org.quartz.utils;
 
 import java.time.Instant;
+import java.time.InstantSource;
 import java.time.temporal.ChronoUnit;
 import org.jspecify.annotations.Nullable;
 import org.springframework.lang.Contract;
@@ -26,9 +27,13 @@ public final class Instants {
 
   private Instants() {}
 
-  /** The current instant, truncated to milliseconds. */
-  public static Instant now() {
-    return Instant.ofEpochMilli(System.currentTimeMillis());
+  /**
+   * The current instant of the given source (the scheduler's {@link java.time.Clock}), truncated to
+   * milliseconds. There is no overload without a source: every "now" of the scheduler comes from
+   * its clock.
+   */
+  public static Instant now(InstantSource source) {
+    return Instant.ofEpochMilli(source.millis());
   }
 
   /** The given instant truncated to milliseconds, or {@code null} if it is {@code null}. */

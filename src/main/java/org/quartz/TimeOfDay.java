@@ -169,15 +169,6 @@ public class TimeOfDay implements Serializable {
   }
 
   /**
-   * Return a time with time of day reset to this object values, in the system default time zone.
-   * The millisecond value will be zero.
-   */
-  @Contract("null -> null; !null -> !null")
-  public @Nullable Instant getTimeOfDayForDate(@Nullable Instant dateTime) {
-    return getTimeOfDayForDate(dateTime, ZoneId.systemDefault());
-  }
-
-  /**
    * Return a time with time of day reset to this object values, in the given time zone. The
    * millisecond value will be zero. A time of day that does not exist on that day (DST gap) moves
    * forward by the length of the gap.
@@ -204,53 +195,31 @@ public class TimeOfDay implements Serializable {
   }
 
   /**
-   * Create a TimeOfDay from the given date, in the system default time zone.
+   * Create a TimeOfDay from the given date, in the given time zone. There is no overload without a
+   * zone: a time of day is only defined in one.
    *
    * @param dateTime The instant from which to extract Hour, Minute and Second.
-   */
-  @Contract("null -> null; !null -> !null")
-  public static @Nullable TimeOfDay hourAndMinuteAndSecondFromDate(@Nullable Instant dateTime) {
-    return hourAndMinuteAndSecondFromDate(dateTime, null);
-  }
-
-  /**
-   * Create a TimeOfDay from the given date, in the given time zone.
-   *
-   * @param dateTime The instant from which to extract Hour, Minute and Second.
-   * @param tz The time zone from which relate Hour, Minute and Second for the given date. If null,
-   *     system default time zone will be used.
+   * @param tz The time zone from which relate Hour, Minute and Second for the given date.
    */
   @Contract("null, _ -> null; !null, _ -> !null")
   public static @Nullable TimeOfDay hourAndMinuteAndSecondFromDate(
-      @Nullable Instant dateTime, @Nullable ZoneId tz) {
+      @Nullable Instant dateTime, ZoneId tz) {
     if (dateTime == null) return null;
-    ZonedDateTime cal = dateTime.atZone(tz != null ? tz : ZoneId.systemDefault());
+    ZonedDateTime cal = dateTime.atZone(tz);
 
     return new TimeOfDay(cal.getHour(), cal.getMinute(), cal.getSecond());
   }
 
   /**
-   * Create a TimeOfDay from the given date (at the zero-second), in the system default time zone.
+   * Create a TimeOfDay from the given date (at the zero-second), in the given time zone.
    *
    * @param dateTime The instant from which to extract Hour and Minute.
-   */
-  @Contract("null -> null; !null -> !null")
-  public static @Nullable TimeOfDay hourAndMinuteFromDate(@Nullable Instant dateTime) {
-    return hourAndMinuteFromDate(dateTime, null);
-  }
-
-  /**
-   * Create a TimeOfDay from the given date (at the zero-second), in the system default time zone.
-   *
-   * @param dateTime The instant from which to extract Hour and Minute.
-   * @param tz The time zone from which relate Hour and Minute for the given date. If null, system
-   *     default time zone will be used.
+   * @param tz The time zone from which relate Hour and Minute for the given date.
    */
   @Contract("null, _ -> null; !null, _ -> !null")
-  public static @Nullable TimeOfDay hourAndMinuteFromDate(
-      @Nullable Instant dateTime, @Nullable ZoneId tz) {
+  public static @Nullable TimeOfDay hourAndMinuteFromDate(@Nullable Instant dateTime, ZoneId tz) {
     if (dateTime == null) return null;
-    ZonedDateTime cal = dateTime.atZone(tz != null ? tz : ZoneId.systemDefault());
+    ZonedDateTime cal = dateTime.atZone(tz);
 
     return new TimeOfDay(cal.getHour(), cal.getMinute());
   }

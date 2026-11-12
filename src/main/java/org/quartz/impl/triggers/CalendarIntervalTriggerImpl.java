@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.Year;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import org.jspecify.annotations.Nullable;
 import org.quartz.CalendarIntervalScheduleBuilder;
 import org.quartz.CalendarIntervalTrigger;
@@ -87,9 +88,8 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
-  // set by the constructors or setStartTime before the trigger is used
-  @SuppressWarnings("NullAway.Init")
-  private Instant startTime;
+  // null until setStartTime, or bind() when the trigger is scheduled
+  private @Nullable Instant startTime;
 
   private @Nullable Instant endTime = null;
 
@@ -126,20 +126,23 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
   }
 
   /**
-   * Create a <code>DateIntervalTrigger</code> that will occur immediately, and repeat at the given
-   * interval.
+   * Create a <code>DateIntervalTrigger</code> that will occur when it is scheduled (its start time
+   * is set then, by the scheduler's clock), and repeat at the given interval.
    */
   public CalendarIntervalTriggerImpl(String name, IntervalUnit intervalUnit, int repeatInterval) {
     this(name, null, intervalUnit, repeatInterval);
   }
 
   /**
-   * Create a <code>DateIntervalTrigger</code> that will occur immediately, and repeat at the given
-   * interval.
+   * Create a <code>DateIntervalTrigger</code> that will occur when it is scheduled (its start time
+   * is set then, by the scheduler's clock), and repeat at the given interval.
    */
   public CalendarIntervalTriggerImpl(
       String name, @Nullable String group, IntervalUnit intervalUnit, int repeatInterval) {
-    this(name, group, Instants.now(), null, intervalUnit, repeatInterval);
+    super(name, group);
+
+    setRepeatIntervalUnit(intervalUnit);
+    setRepeatInterval(repeatInterval);
   }
 
   /**
@@ -223,8 +226,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
 
   /** Get the time at which the <code>DateIntervalTrigger</code> should occur. */
   @Override
-  public Instant getStartTime() {
-    if (startTime == null) startTime = Instants.now();
+  public @Nullable Instant getStartTime() {
     return startTime;
   }
 
@@ -301,20 +303,25 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
   }
 
   public ZoneId getTimeZone() {
-
-    if (timeZone == null) {
-      timeZone = ZoneId.systemDefault();
-    }
-    return timeZone;
+    return timeZone != null ? timeZone : ZoneOffset.UTC;
   }
 
   /**
    * Sets the time zone within which time calculations related to this trigger will be performed.
    *
-   * @param timeZone the desired time zone, or null for the system default.
+   * @param timeZone the desired time zone, or null to unset it: the trigger then resolves in UTC
+   *     until it is scheduled, when the scheduler applies its default zone ({@link
+   *     org.quartz.Scheduler#getTimeZone()})
    */
   public void setTimeZone(@Nullable ZoneId timeZone) {
     this.timeZone = timeZone;
+  }
+
+  @Override
+  protected void applyDefaultTimeZone(ZoneId defaultTimeZone) {
+    if (timeZone == null) {
+      timeZone = defaultTimeZone;
+    }
   }
 
   /**
@@ -412,7 +419,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    */
   @Override
   public void updateAfterMisfire(org.quartz.@Nullable Calendar cal) {
-    updateAfterMisfire(cal, Instants.now());
+    updateAfterMisfire(cal, now());
   }
 
   @Override
@@ -461,7 +468,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
       if (nextFireTime == null) break;
 
       // avoid infinite loop
-      if (nextFireTime.atZone(ZoneId.systemDefault()).getYear() > YEAR_TO_GIVEUP_SCHEDULING_AT) {
+      if (nextFireTime.atZone(getTimeZone()).getYear() > YEAR_TO_GIVEUP_SCHEDULING_AT) {
         nextFireTime = null;
       }
     }
@@ -474,7 +481,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
   @Override
   public void updateWithNewCalendar(
       org.quartz.@Nullable Calendar calendar, Duration misfireThreshold) {
-    updateWithNewCalendar(calendar, misfireThreshold, Instants.now());
+    updateWithNewCalendar(calendar, misfireThreshold, now());
   }
 
   @Override
@@ -493,7 +500,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
       if (nextFireTime == null) break;
 
       // avoid infinite loop
-      if (nextFireTime.atZone(ZoneId.systemDefault()).getYear() > YEAR_TO_GIVEUP_SCHEDULING_AT) {
+      if (nextFireTime.atZone(getTimeZone()).getYear() > YEAR_TO_GIVEUP_SCHEDULING_AT) {
         nextFireTime = null;
       }
 
@@ -520,7 +527,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    */
   @Override
   public @Nullable Instant computeFirstFireTime(org.quartz.@Nullable Calendar calendar) {
-    nextFireTime = getStartTime();
+    nextFireTime = requireStartTime();
 
     while (nextFireTime != null && calendar != null && !calendar.isTimeIncluded(nextFireTime)) {
 
@@ -529,7 +536,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
       if (nextFireTime == null) break;
 
       // avoid infinite loop
-      if (nextFireTime.atZone(ZoneId.systemDefault()).getYear() > YEAR_TO_GIVEUP_SCHEDULING_AT) {
+      if (nextFireTime.atZone(getTimeZone()).getYear() > YEAR_TO_GIVEUP_SCHEDULING_AT) {
         return null;
       }
     }
@@ -596,10 +603,10 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
     // increment afterTime by a second, so that we are
     // comparing against a time after it!
     if (afterTime == null) {
-      afterTime = Instants.now();
+      afterTime = now();
     }
 
-    long startMillis = getStartTime().toEpochMilli();
+    long startMillis = requireStartTime().toEpochMilli();
     long afterMillis = afterTime.toEpochMilli();
     long endMillis = (getEndTime() == null) ? Long.MAX_VALUE : getEndTime().toEpochMilli();
 
@@ -616,8 +623,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
     Instant time = null;
     long repeatLong = getRepeatInterval();
 
-    LenientDateTime sTime =
-        new LenientDateTime(getStartTime(), timeZone != null ? timeZone : ZoneId.systemDefault());
+    LenientDateTime sTime = new LenientDateTime(requireStartTime(), getTimeZone());
 
     if (getRepeatIntervalUnit().equals(IntervalUnit.SECOND)) {
       long jumpCount = secondsAfterStart / repeatLong;
@@ -773,8 +779,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
 
     // otherwise we have to back up one interval from the fire time after the end time
 
-    LenientDateTime lTime =
-        new LenientDateTime(fTime, timeZone != null ? timeZone : ZoneId.systemDefault());
+    LenientDateTime lTime = new LenientDateTime(fTime, getTimeZone());
 
     if (getRepeatIntervalUnit().equals(IntervalUnit.SECOND)) {
       lTime.add(LenientDateTime.SECOND, -1 * getRepeatInterval());
@@ -828,6 +833,9 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
     CalendarIntervalScheduleBuilder cb =
         CalendarIntervalScheduleBuilder.calendarIntervalSchedule()
             .withInterval(getRepeatInterval(), getRepeatIntervalUnit());
+    if (timeZone != null) {
+      cb.inTimeZone(timeZone);
+    }
 
     switch (getMisfireInstruction()) {
       case MISFIRE_INSTRUCTION_DO_NOTHING:

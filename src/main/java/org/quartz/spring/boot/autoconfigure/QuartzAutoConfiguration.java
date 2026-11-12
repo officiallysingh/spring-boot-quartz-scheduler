@@ -99,8 +99,7 @@ public final class QuartzAutoConfiguration {
     jobFactory.setApplicationContext(applicationContext);
     schedulerFactoryBean.setJobFactory(jobFactory);
     QuartzSettings settings =
-        new QuartzSettings(
-            properties.scheduler().toSettings(), properties.threadPool().toSettings());
+        new QuartzSettings(properties.schedulerSettings(), properties.threadPool().toSettings());
     schedulerFactoryBean.setSettings(settings);
     schedulerFactoryBean.setAutoStartup(properties.autoStartup());
     schedulerFactoryBean.setStartupDelay(properties.startupDelay());

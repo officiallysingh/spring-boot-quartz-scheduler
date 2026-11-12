@@ -18,7 +18,8 @@
 
 package org.quartz.plugins.history;
 
-import java.time.Instant;
+import java.time.Clock;
+import java.time.ZoneId;
 import org.quartz.JobExecutionContext;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerConfigException;
@@ -29,6 +30,7 @@ import org.quartz.TriggerListener;
 import org.quartz.impl.matchers.EverythingMatcher;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.utils.InstantMessageFormat;
+import org.quartz.utils.Instants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -221,6 +223,14 @@ public class LoggingTriggerHistoryPlugin implements SchedulerPlugin, TriggerList
   @SuppressWarnings("NullAway.Init")
   private String name;
 
+  // the scheduler's clock and default zone, set by initialize(): the time stamps of the messages
+  // and the zone they are rendered in
+  @SuppressWarnings("NullAway.Init")
+  private Clock clock;
+
+  @SuppressWarnings("NullAway.Init")
+  private ZoneId timeZone;
+
   private String triggerFiredMessage =
       "Trigger {1}.{0} fired job {6}.{5} at: {4, date, HH:mm:ss MM/dd/yyyy}";
 
@@ -330,6 +340,8 @@ public class LoggingTriggerHistoryPlugin implements SchedulerPlugin, TriggerList
    */
   public void initialize(String pname, Scheduler scheduler) throws SchedulerException {
     this.name = pname;
+    this.clock = scheduler.getClock();
+    this.timeZone = scheduler.getTimeZone();
 
     scheduler.getListenerManager().addTriggerListener(this, EverythingMatcher.allTriggers());
   }
@@ -356,7 +368,7 @@ public class LoggingTriggerHistoryPlugin implements SchedulerPlugin, TriggerList
 
   /*
    * Object[] arguments = { new Integer(7), new
-   * Instant.now(), "a disturbance in the Force" };
+   * Instants.now(clock), "a disturbance in the Force" };
    *
    * String result = InstantMessageFormat.format( "At {1,time} on {1,date}, there
    * was {2} on planet {0,number,integer}.", arguments);
@@ -374,11 +386,11 @@ public class LoggingTriggerHistoryPlugin implements SchedulerPlugin, TriggerList
     Object[] args = {
       trigger.getKey().getName(), trigger.getKey().getGroup(),
       trigger.getPreviousFireTime(), trigger.getNextFireTime(),
-      Instant.now(), context.getJobDetail().getKey().getName(),
+      Instants.now(clock), context.getJobDetail().getKey().getName(),
       context.getJobDetail().getKey().getGroup(), context.getRefireCount()
     };
 
-    getLog().info(InstantMessageFormat.format(getTriggerFiredMessage(), args));
+    getLog().info(InstantMessageFormat.format(timeZone, getTriggerFiredMessage(), args));
   }
 
   public void triggerMisfired(Trigger trigger) {
@@ -389,11 +401,11 @@ public class LoggingTriggerHistoryPlugin implements SchedulerPlugin, TriggerList
     Object[] args = {
       trigger.getKey().getName(), trigger.getKey().getGroup(),
       trigger.getPreviousFireTime(), trigger.getNextFireTime(),
-      Instant.now(), trigger.getJobKey().getName(),
+      Instants.now(clock), trigger.getJobKey().getName(),
       trigger.getJobKey().getGroup()
     };
 
-    getLog().info(InstantMessageFormat.format(getTriggerMisfiredMessage(), args));
+    getLog().info(InstantMessageFormat.format(timeZone, getTriggerMisfiredMessage(), args));
   }
 
   public void triggerComplete(
@@ -421,12 +433,12 @@ public class LoggingTriggerHistoryPlugin implements SchedulerPlugin, TriggerList
     Object[] args = {
       trigger.getKey().getName(), trigger.getKey().getGroup(),
       trigger.getPreviousFireTime(), trigger.getNextFireTime(),
-      Instant.now(), context.getJobDetail().getKey().getName(),
+      Instants.now(clock), context.getJobDetail().getKey().getName(),
       context.getJobDetail().getKey().getGroup(), context.getRefireCount(),
       triggerInstructionCode.toString(), instrCode
     };
 
-    getLog().info(InstantMessageFormat.format(getTriggerCompleteMessage(), args));
+    getLog().info(InstantMessageFormat.format(timeZone, getTriggerCompleteMessage(), args));
   }
 
   public boolean vetoJobExecution(Trigger trigger, JobExecutionContext context) {

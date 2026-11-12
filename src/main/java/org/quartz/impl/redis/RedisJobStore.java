@@ -71,7 +71,7 @@ public class RedisJobStore extends PersistentJobStore {
   @Override
   protected StoreDelegate createDelegate(String schedulerName, ClassLoader classLoader) {
     keys = new RedisKeys(redisSettings.keyPrefix(), schedulerName);
-    return new RedisStoreDelegate(redis, keys, classLoader);
+    return new RedisStoreDelegate(redis, keys, classLoader, getClock(), getTimeZone());
   }
 
   @Override

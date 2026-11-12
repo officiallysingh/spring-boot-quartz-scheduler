@@ -1,7 +1,6 @@
 package org.quartz;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -10,9 +9,6 @@ import static org.quartz.DateBuilder.JUNE;
 import static org.quartz.DateBuilder.dateOf;
 import static org.quartz.DateBuilder.futureDate;
 import static org.quartz.DateBuilder.newDate;
-import static org.quartz.DateBuilder.newDateInLocale;
-import static org.quartz.DateBuilder.newDateInTimeZoneAndLocale;
-import static org.quartz.DateBuilder.newDateInTimezone;
 import static org.quartz.DateBuilder.todayAt;
 import static org.quartz.DateBuilder.translateTime;
 
@@ -22,7 +18,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.util.Locale;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -31,23 +26,46 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.quartz.DateBuilder.IntervalUnit;
 
+/**
+ * Every helper takes the clock and the zone explicitly, so none of these tests depends on the JVM
+ * default zone or on the system clock.
+ */
 class DateBuilderTest {
+
+  private static final ZoneId VIENNA = ZoneId.of("Europe/Vienna");
+
+  private static final ZoneId KOLKATA = ZoneId.of("Asia/Kolkata"); // +05:30: half-hour offset
+
+  private static Clock fixed(String instant, ZoneId zone) {
+    return Clock.fixed(Instant.parse(instant), zone);
+  }
+
+  private static Clock fixedUtc(String instant) {
+    return fixed(instant, ZoneOffset.UTC);
+  }
 
   @Test
   void testJustInstantiatedBuilderShouldReturnSameInstantTruncatedToSeconds() {
-    var clock = Clock.fixed(Instant.parse("2007-12-03T10:15:30.999Z"), ZoneOffset.UTC);
-    var builder = DateBuilder.newDate();
-    builder.setClock(clock);
+    var builder = newDate(fixedUtc("2007-12-03T10:15:30.999Z"), ZoneOffset.UTC);
 
     assertEquals(Instant.parse("2007-12-03T10:15:30.000Z"), builder.build());
   }
 
   @Test
+  void testBuilderFillsTheMissingFieldsFromTheClockInTheGivenZone() {
+    // 23:30 UTC on the 3rd is already the 4th in Kolkata
+    var builder = newDate(fixedUtc("2007-12-03T23:30:15Z"), KOLKATA).atHourMinuteAndSecond(1, 2, 3);
+
+    assertEquals(ZonedDateTime.of(2007, 12, 4, 1, 2, 3, 0, KOLKATA).toInstant(), builder.build());
+  }
+
+  @Test
   void testBuilder() {
-    var expected = ZonedDateTime.of(2013, 07, 1, 10, 30, 0, 0, ZoneId.systemDefault()).toInstant();
+    var clock = fixedUtc("2007-12-03T10:15:30.000Z");
+    var expected = ZonedDateTime.of(2013, 07, 1, 10, 30, 0, 0, ZoneOffset.UTC).toInstant();
 
     var bd1 =
-        newDate()
+        newDate(clock, ZoneOffset.UTC)
             .inYear(2013)
             .inMonth(JULY)
             .onDay(1)
@@ -55,12 +73,15 @@ class DateBuilderTest {
             .atMinute(30)
             .atSecond(0)
             .build();
-    var bd2 = newDate().inYear(2013).inMonthOnDay(JULY, 1).atHourMinuteAndSecond(10, 30, 0).build();
+    var bd2 =
+        newDate(clock, ZoneOffset.UTC)
+            .inYear(2013)
+            .inMonthOnDay(JULY, 1)
+            .atHourMinuteAndSecond(10, 30, 0)
+            .build();
 
     assertAll(
-        "dateBuilderDefaultTimeZone",
-        () -> assertEquals(expected, bd1),
-        () -> assertEquals(expected, bd2));
+        "dateBuilderUtc", () -> assertEquals(expected, bd1), () -> assertEquals(expected, bd2));
   }
 
   @Test
@@ -68,44 +89,8 @@ class DateBuilderTest {
     ZoneId tz = ZoneId.of("GMT-04:00");
     var expected = Instant.parse("2013-06-01T14:33:12.000Z");
 
-    Locale lz = Locale.TAIWAN;
-
     var bd1 =
-        newDate()
-            .inYear(2013)
-            .inMonth(JUNE)
-            .onDay(1)
-            .atHourOfDay(10)
-            .atMinute(33)
-            .atSecond(12)
-            .inTimeZone(tz)
-            .inLocale(lz)
-            .build();
-
-    var bd2 =
-        newDateInLocale(lz)
-            .inYear(2013)
-            .inMonth(JUNE)
-            .onDay(1)
-            .atHourOfDay(10)
-            .atMinute(33)
-            .atSecond(12)
-            .inTimeZone(tz)
-            .build();
-
-    var bd3 =
-        newDateInTimezone(tz)
-            .inYear(2013)
-            .inMonth(JUNE)
-            .onDay(1)
-            .atHourOfDay(10)
-            .atMinute(33)
-            .atSecond(12)
-            .inLocale(lz)
-            .build();
-
-    var bd4 =
-        newDateInTimeZoneAndLocale(tz, lz)
+        newDate(fixedUtc("2007-12-03T10:15:30.000Z"), tz)
             .inYear(2013)
             .inMonth(JUNE)
             .onDay(1)
@@ -114,12 +99,13 @@ class DateBuilderTest {
             .atSecond(12)
             .build();
 
-    assertAll(
-        "dateBuilderWithCustomTimeZone",
-        () -> assertEquals(expected, bd1),
-        () -> assertEquals(expected, bd2),
-        () -> assertEquals(expected, bd3),
-        () -> assertEquals(expected, bd4));
+    assertEquals(expected, bd1);
+  }
+
+  @Test
+  void testBuilderRejectsNulls() {
+    assertThrows(NullPointerException.class, () -> newDate(null, ZoneOffset.UTC));
+    assertThrows(NullPointerException.class, () -> newDate(Clock.systemUTC(), null));
   }
 
   /*
@@ -141,18 +127,33 @@ class DateBuilderTest {
   @ParameterizedTest
   @MethodSource("futureDateTestData")
   void testFutureDate(int interval, IntervalUnit unit, String expected) {
-    var clock = Clock.fixed(Instant.parse("2007-12-03T10:15:30.000Z"), ZoneId.systemDefault());
+    var clock = fixedUtc("2007-12-03T10:15:30.000Z");
 
-    assertEquals(Instant.parse(expected), futureDate(interval, unit, clock));
+    assertEquals(Instant.parse(expected), futureDate(interval, unit, clock, ZoneOffset.UTC));
   }
 
   @ParameterizedTest
   @MethodSource("futureDateTestData")
-  void testFutureDateWithNonDefaultZone(int interval, IntervalUnit unit, String expected) {
-    var clock =
-        Clock.fixed(Instant.parse("2007-12-03T10:15:30.000Z"), ZoneOffset.ofHoursMinutes(3, 15));
+  void testFutureDateCountsInTheGivenZoneNotTheClocksZone(
+      int interval, IntervalUnit unit, String expected) {
+    // outside daylight-saving changes a fixed offset gives the same instants as UTC
+    var clock = fixed("2007-12-03T10:15:30.000Z", VIENNA);
 
-    assertEquals(Instant.parse(expected), futureDate(interval, unit, clock));
+    assertEquals(
+        Instant.parse(expected),
+        futureDate(interval, unit, clock, ZoneOffset.ofHoursMinutes(3, 15)));
+  }
+
+  @Test
+  void testFutureDateOneDayAcrossADaylightSavingChangeIsTwentyThreeHours() {
+    var clock = fixedUtc("2024-03-30T11:00:00Z"); // 12:00 in Vienna, the day before the change
+
+    assertEquals(
+        Instant.parse("2024-03-31T10:00:00Z"), // 12:00 Vienna summer time
+        futureDate(1, IntervalUnit.DAY, clock, VIENNA));
+    assertEquals(
+        Instant.parse("2024-03-31T11:00:00Z"),
+        futureDate(1, IntervalUnit.DAY, clock, ZoneOffset.UTC));
   }
 
   /*
@@ -164,58 +165,30 @@ class DateBuilderTest {
         Arguments.of("2024-10-25T23:59:30.999Z", ZoneOffset.UTC, "2024-10-26T02:30:20.000Z"),
         Arguments.of(
             "2024-03-30T23:59:59.999+01:00",
-            ZoneId.of("Europe/Vienna"),
+            VIENNA,
             "2024-03-31T03:30:20.000+02:00"), // DST change skipped one hour
         Arguments.of(
-            "2024-10-26T23:59:59.999+01:00",
-            ZoneId.of("Europe/Vienna"),
-            "2024-10-27T02:30:20.000+01:00")); // DST change added one hour
+            "2024-10-26T23:59:59.999+02:00",
+            VIENNA,
+            "2024-10-27T02:30:20.000+01:00")); // DST change: 02:30 exists twice, the later one
   }
 
   @ParameterizedTest
   @MethodSource("tomorrowAtTestData")
   void testTomorrowAt(String input, ZoneId zoneId, String expected) {
     var instant = ZonedDateTime.parse(input).toInstant();
-    var clock = Clock.fixed(instant, zoneId);
-    var tomorrow = DateBuilder.tomorrowAt(2, 30, 20, clock);
+    // the clock's own zone is not used
+    var clock = Clock.fixed(instant, ZoneId.of("Pacific/Auckland"));
+    var tomorrow = DateBuilder.tomorrowAt(2, 30, 20, clock, zoneId);
 
-    assertEquals(Instant.from(ZonedDateTime.parse(expected).toInstant()), tomorrow);
+    assertEquals(ZonedDateTime.parse(expected).toInstant(), tomorrow);
   }
 
   /*
    * todayAt tests
    */
 
-  @ParameterizedTest
-  @MethodSource("testDateOf3PWithInvalidParametersTestData")
-  void testTodayAtInvalidValues(int hour, int minute, int second) {
-    assertThrows(DateTimeException.class, () -> todayAt(hour, minute, second));
-  }
-
-  @Test
-  void testTodayAt() {
-    var clock1 = Clock.fixed(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneOffset.UTC);
-    var date1 = DateBuilder.todayAt(1, 1, 1, clock1);
-    var clock2 = Clock.fixed(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneId.of("Europe/Vienna"));
-    var date2 = DateBuilder.todayAt(1, 1, 1, clock2);
-    var clock3 = Clock.fixed(Instant.parse("2024-03-31T08:13:54.341Z"), ZoneId.of("Europe/Vienna"));
-    var dstSkippedHour = DateBuilder.todayAt(2, 30, 17, clock3); // DST change => skipped hour
-
-    assertAll(
-        "dateOf3P",
-        () -> assertNotEquals(date1, date2),
-        () -> assertEquals(Instant.parse("2007-12-03T01:01:01.000Z"), date1),
-        () -> assertEquals(Instant.parse("2007-12-03T00:01:01.000Z"), date2),
-        () ->
-            assertEquals(
-                ZonedDateTime.parse("2024-03-31T03:30:17.000+02:00").toInstant(), dstSkippedHour));
-  }
-
-  /*
-   * dateOf tests
-   */
-
-  private static Stream<Arguments> testDateOf3PWithInvalidParametersTestData() {
+  private static Stream<Arguments> todayAtInvalidValuesTestData() {
     return Stream.of(
         Arguments.of(-1, 0, 0),
         Arguments.of(24, 0, 0),
@@ -226,17 +199,53 @@ class DateBuilderTest {
   }
 
   @ParameterizedTest
+  @MethodSource("todayAtInvalidValuesTestData")
+  void testTodayAtInvalidValues(int hour, int minute, int second) {
+    assertThrows(
+        DateTimeException.class,
+        () -> todayAt(hour, minute, second, Clock.systemUTC(), ZoneOffset.UTC));
+  }
+
+  @Test
+  void testTodayAt() {
+    var clock = fixed("2007-12-03T08:13:54.341Z", ZoneId.of("Pacific/Auckland"));
+    var date1 = DateBuilder.todayAt(1, 1, 1, clock, ZoneOffset.UTC);
+    var date2 = DateBuilder.todayAt(1, 1, 1, clock, VIENNA);
+    var dstSkippedHour =
+        DateBuilder.todayAt(
+            2, 30, 17, fixedUtc("2024-03-31T08:13:54.341Z"), VIENNA); // DST change => skipped hour
+
+    assertAll(
+        "todayAt",
+        () -> assertNotEquals(date1, date2),
+        () -> assertEquals(Instant.parse("2007-12-03T01:01:01.000Z"), date1),
+        () -> assertEquals(Instant.parse("2007-12-03T00:01:01.000Z"), date2),
+        () ->
+            assertEquals(
+                ZonedDateTime.parse("2024-03-31T03:30:17+02:00").toInstant(), dstSkippedHour));
+  }
+
+  /*
+   * dateOf tests
+   */
+
+  private static Stream<Arguments> testDateOf3PWithInvalidParametersTestData() {
+    return todayAtInvalidValuesTestData();
+  }
+
+  @ParameterizedTest
   @MethodSource("testDateOf3PWithInvalidParametersTestData")
   void testDateOf3PWithInvalidParameters(int hour, int minute, int second) {
-    assertThrows(DateTimeException.class, () -> dateOf(hour, minute, second));
+    assertThrows(
+        DateTimeException.class,
+        () -> dateOf(hour, minute, second, Clock.systemUTC(), ZoneOffset.UTC));
   }
 
   @Test
   void testDateOf3P() {
-    var clock1 = Clock.fixed(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneOffset.UTC);
-    var clock2 = Clock.fixed(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneId.of("Europe/Vienna"));
-    var date1 = DateBuilder.dateOf(1, 1, 1, clock1);
-    var date2 = DateBuilder.dateOf(1, 1, 1, clock2);
+    var clock = fixedUtc("2007-12-03T08:13:54.341Z");
+    var date1 = DateBuilder.dateOf(1, 1, 1, clock, ZoneOffset.UTC);
+    var date2 = DateBuilder.dateOf(1, 1, 1, clock, VIENNA);
     assertAll(
         "dateOf3P",
         () -> assertNotEquals(date1, date2),
@@ -246,54 +255,66 @@ class DateBuilderTest {
 
   private static Stream<Arguments> testDateOf5PWithInvalidParametersTestData() {
     return Stream.of(
-        Arguments.of(-1, 0, 0, 0, 0),
-        Arguments.of(24, 0, 0, 0, 0),
-        Arguments.of(0, -1, 0, 0, 0),
-        Arguments.of(0, 60, 0, 0, 0),
-        Arguments.of(0, 0, -1, 0, 0),
-        Arguments.of(0, 0, 60, 0, 0),
-        Arguments.of(0, 0, 0, 0, 0),
-        Arguments.of(0, 0, 0, 32, 0),
-        Arguments.of(0, 0, 0, 0, 0),
-        Arguments.of(0, 0, 0, 0, 13),
-        Arguments.of(0, 0, 0, 0, 0),
-        Arguments.of(0, 0, 0, 0, 0));
+        Arguments.of(-1, 0, 0, 1, 1),
+        Arguments.of(24, 0, 0, 1, 1),
+        Arguments.of(0, -1, 0, 1, 1),
+        Arguments.of(0, 60, 0, 1, 1),
+        Arguments.of(0, 0, -1, 1, 1),
+        Arguments.of(0, 0, 60, 1, 1),
+        Arguments.of(0, 0, 0, 0, 1),
+        Arguments.of(0, 0, 0, 32, 1),
+        Arguments.of(0, 0, 0, 1, 0),
+        Arguments.of(0, 0, 0, 1, 13));
   }
 
   @ParameterizedTest
   @MethodSource("testDateOf5PWithInvalidParametersTestData")
   void testDateOf5PWithInvalidParameters(
       int hour, int minute, int second, int dayOfMonth, int month) {
-    assertThrows(DateTimeException.class, () -> dateOf(hour, minute, second, dayOfMonth, month));
+    assertThrows(
+        DateTimeException.class,
+        () -> dateOf(hour, minute, second, dayOfMonth, month, Clock.systemUTC(), ZoneOffset.UTC));
   }
 
   @Test
   void testDateOf5P() {
-    var clock1 = Clock.fixed(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneOffset.UTC);
-    var clock2 = Clock.fixed(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneId.of("Europe/Vienna"));
-    var date1 = DateBuilder.dateOf(1, 1, 1, 1, 1, clock1);
-    var date2 = DateBuilder.dateOf(1, 1, 1, 1, 1, clock2);
+    var clock = fixedUtc("2007-12-03T08:13:54.341Z");
+    var date1 = DateBuilder.dateOf(1, 1, 1, 1, 1, clock, ZoneOffset.UTC);
+    var date2 = DateBuilder.dateOf(1, 1, 1, 1, 1, clock, VIENNA);
     assertAll(
-        "dateOf6P",
+        "dateOf5P",
         () -> assertNotEquals(date1, date2),
         () -> assertEquals(Instant.parse("2007-01-01T01:01:01.000Z"), date1),
         () -> assertEquals(Instant.parse("2007-01-01T00:01:01.000Z"), date2));
   }
 
+  @Test
+  void testDateOf5PTakesTheYearOfTheClockInTheGivenZone() {
+    // 23:30 UTC on 31 December 2007 is already 2008 in Kolkata
+    var clock = fixedUtc("2007-12-31T23:30:00Z");
+
+    assertEquals(
+        ZonedDateTime.of(2008, 6, 1, 1, 1, 1, 0, KOLKATA).toInstant(),
+        DateBuilder.dateOf(1, 1, 1, 1, 6, clock, KOLKATA));
+    assertEquals(
+        Instant.parse("2007-06-01T01:01:01Z"),
+        DateBuilder.dateOf(1, 1, 1, 1, 6, clock, ZoneOffset.UTC));
+  }
+
   private static Stream<Arguments> testDateOf6PWithInvalidParametersTestData() {
     return Stream.of(
-        Arguments.of(-1, 0, 0, 0, 0, 0),
-        Arguments.of(24, 0, 0, 0, 0, 0),
-        Arguments.of(0, -1, 0, 0, 0, 0),
-        Arguments.of(0, 60, 0, 0, 0, 0),
-        Arguments.of(0, 0, -1, 0, 0, 0),
-        Arguments.of(0, 0, 60, 0, 0, 0),
-        Arguments.of(0, 0, 0, 0, 0, 0),
-        Arguments.of(0, 0, 0, 32, 0, 0),
-        Arguments.of(0, 0, 0, 0, 0, 0),
-        Arguments.of(0, 0, 0, 0, 13, 0),
-        Arguments.of(0, 0, 0, 0, 0, -1_000_000_000),
-        Arguments.of(0, 0, 0, 0, 0, 1_000_000_000));
+        Arguments.of(-1, 0, 0, 1, 1, 2024),
+        Arguments.of(24, 0, 0, 1, 1, 2024),
+        Arguments.of(0, -1, 0, 1, 1, 2024),
+        Arguments.of(0, 60, 0, 1, 1, 2024),
+        Arguments.of(0, 0, -1, 1, 1, 2024),
+        Arguments.of(0, 0, 60, 1, 1, 2024),
+        Arguments.of(0, 0, 0, 0, 1, 2024),
+        Arguments.of(0, 0, 0, 32, 1, 2024),
+        Arguments.of(0, 0, 0, 1, 0, 2024),
+        Arguments.of(0, 0, 0, 1, 13, 2024),
+        Arguments.of(0, 0, 0, 1, 1, -1_000_000_000),
+        Arguments.of(0, 0, 0, 1, 1, 1_000_000_000));
   }
 
   @ParameterizedTest
@@ -301,15 +322,14 @@ class DateBuilderTest {
   void testDateOf6PWithInvalidParameters(
       int hour, int minute, int second, int dayOfMonth, int month, int year) {
     assertThrows(
-        DateTimeException.class, () -> dateOf(hour, minute, second, dayOfMonth, month, year));
+        DateTimeException.class,
+        () -> dateOf(hour, minute, second, dayOfMonth, month, year, ZoneOffset.UTC));
   }
 
   @Test
   void testDateOf6P() {
-    var clock1 = Clock.fixed(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneOffset.UTC);
-    var clock2 = Clock.fixed(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneId.of("Europe/Vienna"));
-    var date1 = DateBuilder.dateOf(1, 1, 1, 1, 1, 2024, clock1);
-    var date2 = DateBuilder.dateOf(1, 1, 1, 1, 1, 2024, clock2);
+    var date1 = DateBuilder.dateOf(1, 1, 1, 1, 1, 2024, ZoneOffset.UTC);
+    var date2 = DateBuilder.dateOf(1, 1, 1, 1, 1, 2024, VIENNA);
     assertAll(
         "dateOf6P",
         () -> assertNotEquals(date1, date2),
@@ -318,65 +338,52 @@ class DateBuilderTest {
   }
 
   /*
-   * evenHourDateAfterNow tests
+   * evenHourDate tests
    */
 
   @Test
   void testEvenHourDateAfterNow() {
-    var clock = Clock.fixed(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneOffset.UTC);
+    var clock = fixedUtc("2007-12-03T08:13:54.341Z");
     assertEquals(
-        Instant.parse("2007-12-03T09:00:00.000Z"), DateBuilder.evenHourDateAfterNow(clock));
+        Instant.parse("2007-12-03T09:00:00.000Z"),
+        DateBuilder.evenHourDateAfterNow(clock, ZoneOffset.UTC));
   }
-
-  /*
-   * evenHourDate tests
-   */
 
   @Test
   void testEvenHourDate() {
     assertEquals(
         Instant.parse("2007-12-03T09:00:00.000Z"),
-        DateBuilder.evenHourDate(Instant.parse("2007-12-03T08:13:54.341Z")));
+        DateBuilder.evenHourDate(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneOffset.UTC));
   }
 
   @Test
-  void testEvenHourDateWithoutProvidedDateCurrentDateRoundedToSeconds() {
-    var clock = Clock.fixed(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneOffset.UTC);
-    assertEquals(Instant.parse("2007-12-03T09:00:00.000Z"), DateBuilder.evenHourDate(null, clock));
+  void testEvenHourDateInAHalfHourOffsetZone() {
+    // 08:13 UTC is 13:43 in Kolkata: the next even hour there is 14:00, i.e. 08:30 UTC
+    assertEquals(
+        Instant.parse("2007-12-03T08:30:00.000Z"),
+        DateBuilder.evenHourDate(Instant.parse("2007-12-03T08:13:54.341Z"), KOLKATA));
+    assertEquals(
+        Instant.parse("2007-12-03T07:30:00.000Z"),
+        DateBuilder.evenHourDateBefore(Instant.parse("2007-12-03T08:13:54.341Z"), KOLKATA));
   }
-
-  /*
-   * evenHourDateBefore tests
-   */
 
   @Test
   void testEvenHourDateBefore() {
     assertEquals(
         Instant.parse("2007-12-03T08:00:00.000Z"),
-        DateBuilder.evenHourDateBefore(Instant.parse("2007-12-03T08:13:54.341Z")));
-  }
-
-  @Test
-  void testEvenHourDateBeforeWithoutProvidedDateCurrentDateRoundedToSeconds() {
-    var clock = Clock.fixed(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneOffset.UTC);
-    assertEquals(
-        Instant.parse("2007-12-03T08:00:00.000Z"), DateBuilder.evenHourDateBefore(null, clock));
-  }
-
-  /*
-   * evenMinuteDateAfterNow tests
-   */
-
-  @Test
-  void testEvenMinuteDateAfterNow() {
-    var clock = Clock.fixed(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneOffset.UTC);
-    assertEquals(
-        Instant.parse("2007-12-03T08:14:00.000Z"), DateBuilder.evenMinuteDateAfterNow(clock));
+        DateBuilder.evenHourDateBefore(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneOffset.UTC));
   }
 
   /*
    * evenMinuteDate tests
    */
+
+  @Test
+  void testEvenMinuteDateAfterNow() {
+    var clock = fixedUtc("2007-12-03T08:13:54.341Z");
+    assertEquals(
+        Instant.parse("2007-12-03T08:14:00.000Z"), DateBuilder.evenMinuteDateAfterNow(clock));
+  }
 
   @Test
   void testEvenMinuteDate() {
@@ -386,37 +393,19 @@ class DateBuilderTest {
   }
 
   @Test
-  void testEvenMinuteDateWithoutProvidedDateCurrentDateRoundedToSeconds() {
-    var clock = Clock.fixed(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneOffset.UTC);
-    assertEquals(
-        Instant.parse("2007-12-03T08:14:00.000Z"), DateBuilder.evenMinuteDate(null, clock));
-  }
-
-  /*
-   * evenMinuteDateBefore tests
-   */
-
-  @Test
   void testEvenMinuteDateBefore() {
     assertEquals(
         Instant.parse("2007-12-03T08:13:00.000Z"),
         DateBuilder.evenMinuteDateBefore(Instant.parse("2007-12-03T08:13:54.341Z")));
   }
 
-  @Test
-  void testEvenMinuteDateBeforeWithoutProvidedDateCurrentDateRoundedToSeconds() {
-    var clock = Clock.fixed(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneOffset.UTC);
-    assertEquals(
-        Instant.parse("2007-12-03T08:13:00.000Z"), DateBuilder.evenMinuteDateBefore(null, clock));
-  }
-
   /*
-   * evenSecondDateAfterNow tests
+   * evenSecondDate tests
    */
 
   @Test
   void testEvenSecondDateAfterNow() {
-    var clock = Clock.fixed(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneOffset.UTC);
+    var clock = fixedUtc("2007-12-03T08:13:54.341Z");
     assertEquals(
         Instant.parse("2007-12-03T08:13:55.000Z"), DateBuilder.evenSecondDateAfterNow(clock));
   }
@@ -424,14 +413,13 @@ class DateBuilderTest {
   @Test
   void testEvenSecondDateAfterNowDSTForward() {
     var clock =
-        Clock.fixed(
-            ZonedDateTime.parse("2024-03-31T01:59:59.999+01:00").toInstant(),
-            ZoneId.of("Europe/Vienna"));
+        Clock.fixed(ZonedDateTime.parse("2024-03-31T01:59:59.999+01:00").toInstant(), VIENNA);
+
     var before = clock.instant();
     var result = DateBuilder.evenSecondDateAfterNow(clock);
 
     assertAll(
-        "DSTChange+1H",
+        "evenSecondDateAfterNowDSTForward",
         () ->
             assertEquals(ZonedDateTime.parse("2024-03-31T01:59:59.999+01:00").toInstant(), before),
         () -> assertEquals(ZonedDateTime.parse("2024-03-31T01:00:00.000Z").toInstant(), result),
@@ -442,24 +430,19 @@ class DateBuilderTest {
   @Test
   void testEvenSecondDateAfterNowDSTBackward() {
     var clock =
-        Clock.fixed(
-            ZonedDateTime.parse("2024-10-27T02:59:59.999+02:00").toInstant(),
-            ZoneId.of("Europe/Vienna"));
+        Clock.fixed(ZonedDateTime.parse("2024-10-27T02:59:59.999+02:00").toInstant(), VIENNA);
+
     var before = clock.instant();
     var result = DateBuilder.evenSecondDateAfterNow(clock);
 
     assertAll(
-        "DSTChange-1H",
+        "evenSecondDateAfterNowDSTBackward",
         () ->
             assertEquals(ZonedDateTime.parse("2024-10-27T02:59:59.999+02:00").toInstant(), before),
         () -> assertEquals(ZonedDateTime.parse("2024-10-27T01:00:00.000Z").toInstant(), result),
         () ->
             assertEquals(ZonedDateTime.parse("2024-10-27T02:00:00.000+01:00").toInstant(), result));
   }
-
-  /*
-   * evenSecondDate tests
-   */
 
   @Test
   void testEvenSecondDate() {
@@ -469,28 +452,10 @@ class DateBuilderTest {
   }
 
   @Test
-  void testEvenSecondDateWithoutProvidedDateCurrentDateRoundedToSeconds() {
-    var clock = Clock.fixed(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneOffset.UTC);
-    assertEquals(
-        Instant.parse("2007-12-03T08:13:55.000Z"), DateBuilder.evenSecondDate(null, clock));
-  }
-
-  /*
-   * evenSecondDateBefore tests
-   */
-
-  @Test
   void testEvenSecondDateBefore() {
     assertEquals(
         Instant.parse("2007-12-03T08:13:54.000Z"),
         DateBuilder.evenSecondDateBefore(Instant.parse("2007-12-03T08:13:54.341Z")));
-  }
-
-  @Test
-  void testEvenSecondDateBeforeWithoutProvidedDateCurrentDateRoundedToSeconds() {
-    var clock = Clock.fixed(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneOffset.UTC);
-    assertEquals(
-        Instant.parse("2007-12-03T08:13:54.000Z"), DateBuilder.evenSecondDateBefore(null, clock));
   }
 
   /*
@@ -499,9 +464,10 @@ class DateBuilderTest {
 
   @ParameterizedTest
   @ValueSource(ints = {Integer.MIN_VALUE, -1, 60, Integer.MAX_VALUE})
-  void testNextGivenMinuteDateWithInvalidSecondBaseShouldThrow(int minuteBase) {
+  void testNextGivenMinuteDateWithInvalidMinuteBaseShouldThrow(int minuteBase) {
     assertThrows(
-        IllegalArgumentException.class, () -> DateBuilder.nextGivenMinuteDate(null, minuteBase));
+        IllegalArgumentException.class,
+        () -> DateBuilder.nextGivenMinuteDate(Instant.EPOCH, minuteBase, ZoneOffset.UTC));
   }
 
   private static Stream<Arguments> nextGivenMinuteDateTestData() {
@@ -523,17 +489,17 @@ class DateBuilderTest {
   @ParameterizedTest
   @MethodSource("nextGivenMinuteDateTestData")
   void testNextGivenMinuteDate(String input, int minuteBase, String expected) {
-    var instant = Instant.parse(input);
-    var result =
-        DateBuilder.nextGivenMinuteDate(instant != null ? Instant.from(instant) : null, minuteBase);
-    assertEquals(Instant.parse(expected), result);
+    assertEquals(
+        Instant.parse(expected),
+        DateBuilder.nextGivenMinuteDate(Instant.parse(input), minuteBase, ZoneOffset.UTC));
   }
 
   @Test
-  void testNextGivenMinuteDateWithNullDateShouldReturnCurrentDateRoundedToBaseMinute() {
-    var clock = Clock.fixed(Instant.parse("2007-12-03T10:15:30.123Z"), ZoneOffset.UTC);
-    var result = DateBuilder.nextGivenMinuteDate(null, 0, clock);
-    assertEquals(Instant.parse("2007-12-03T11:00:00.000Z"), result);
+  void testNextGivenMinuteDateCountsFromTheHourOfTheGivenZone() {
+    // 11:17 UTC is 16:47 in Kolkata: the next multiple of 20 minutes there is 17:00 = 11:30 UTC
+    assertEquals(
+        Instant.parse("2007-12-03T11:30:00.000Z"),
+        DateBuilder.nextGivenMinuteDate(Instant.parse("2007-12-03T11:17:41.123Z"), 20, KOLKATA));
   }
 
   /*
@@ -544,7 +510,8 @@ class DateBuilderTest {
   @ValueSource(ints = {Integer.MIN_VALUE, -1, 60, Integer.MAX_VALUE})
   void testNextGivenSecondDateWithInvalidSecondBaseShouldThrow(int secondBase) {
     assertThrows(
-        IllegalArgumentException.class, () -> DateBuilder.nextGivenSecondDate(null, secondBase));
+        IllegalArgumentException.class,
+        () -> DateBuilder.nextGivenSecondDate(Instant.EPOCH, secondBase));
   }
 
   private static Stream<Arguments> nextGivenSecondDateTestData() {
@@ -559,17 +526,8 @@ class DateBuilderTest {
   @ParameterizedTest
   @MethodSource("nextGivenSecondDateTestData")
   void testNextGivenSecondDate(String input, int secondBase, String expected) {
-    var instant = Instant.parse(input);
-    var result =
-        DateBuilder.nextGivenSecondDate(instant != null ? Instant.from(instant) : null, secondBase);
-    assertEquals(Instant.parse(expected), result);
-  }
-
-  @Test
-  void testNextGivenSecondDateWithNullDateShouldReturnCurrentDateRoundedToBaseSecond() {
-    var clock = Clock.fixed(Instant.parse("2007-12-03T10:15:30.123Z"), ZoneOffset.UTC);
-    var result = DateBuilder.nextGivenSecondDate(null, 0, clock);
-    assertEquals(Instant.parse("2007-12-03T10:16:00.000Z"), result);
+    assertEquals(
+        Instant.parse(expected), DateBuilder.nextGivenSecondDate(Instant.parse(input), secondBase));
   }
 
   /*
@@ -607,145 +565,9 @@ class DateBuilderTest {
 
   @ParameterizedTest
   @MethodSource("translateTimeTestData")
-  void testTranslateTime(String input, ZoneId tzFrom, ZoneId tzTo, String expected) {
-    var zdt = ZonedDateTime.parse(input).withZoneSameInstant(tzFrom);
-    var result1 = translateTime(zdt.toInstant(), tzFrom, tzTo);
-    assertEquals(ZonedDateTime.parse(expected).toInstant(), result1);
-  }
-
-  /*
-   * validateDayOfWeek tests
-   */
-
-  @ParameterizedTest
-  @ValueSource(ints = {Integer.MIN_VALUE, -1, 0, 8, Integer.MAX_VALUE})
-  void testValidateDayOfWeekWithInvalidValueShouldThrow(int dayOfWeek) {
-    assertThrows(IllegalArgumentException.class, () -> DateBuilder.validateDayOfWeek(dayOfWeek));
-  }
-
-  private static Stream<Arguments> validateDayOfWeekTestData() {
-    return Stream.iterate(1, i -> i + 1).limit(7).map(i -> Arguments.of(i));
-  }
-
-  @ParameterizedTest
-  @MethodSource("validateDayOfWeekTestData")
-  void testValidateDayOfWeek(int second) {
-    assertDoesNotThrow(() -> DateBuilder.validateDayOfWeek(second));
-  }
-
-  /*
-   * validateHour tests
-   */
-
-  @ParameterizedTest
-  @ValueSource(ints = {Integer.MIN_VALUE, -1, 24, Integer.MAX_VALUE})
-  void testValidateHourWithInvalidValueShouldThrow(int minute) {
-    assertThrows(IllegalArgumentException.class, () -> DateBuilder.validateHour(minute));
-  }
-
-  private static Stream<Arguments> validateHourTestData() {
-    return Stream.iterate(0, i -> i + 1).limit(24).map(i -> Arguments.of(i));
-  }
-
-  @ParameterizedTest
-  @MethodSource("validateHourTestData")
-  void testValidateHour(int hour) {
-    assertDoesNotThrow(() -> DateBuilder.validateHour(hour));
-  }
-
-  /*
-   * validateMinutes tests
-   */
-
-  @ParameterizedTest
-  @ValueSource(ints = {Integer.MIN_VALUE, -1, 60, Integer.MAX_VALUE})
-  void testValidateMinuteWithInvalidValueShouldThrow(int minute) {
-    assertThrows(IllegalArgumentException.class, () -> DateBuilder.validateMinute(minute));
-  }
-
-  private static Stream<Arguments> validateMinuteTestData() {
-    return Stream.iterate(0, i -> i + 1).limit(60).map(i -> Arguments.of(i));
-  }
-
-  @ParameterizedTest
-  @MethodSource("validateMinuteTestData")
-  void testValidateMinute(int minute) {
-    assertDoesNotThrow(() -> DateBuilder.validateMinute(minute));
-  }
-
-  /*
-   * validateSeconds tests
-   */
-
-  @ParameterizedTest
-  @ValueSource(ints = {Integer.MIN_VALUE, -1, 60, Integer.MAX_VALUE})
-  void testValidateSecondWithInvalidValueShouldThrow(int second) {
-    assertThrows(IllegalArgumentException.class, () -> DateBuilder.validateSecond(second));
-  }
-
-  private static Stream<Arguments> validateSecondsTestData() {
-    return Stream.iterate(0, i -> i + 1).limit(60).map(i -> Arguments.of(i));
-  }
-
-  @ParameterizedTest
-  @MethodSource("validateSecondsTestData")
-  void testValidateSeconds(int second) {
-    assertDoesNotThrow(() -> DateBuilder.validateSecond(second));
-  }
-
-  /*
-   * validateDayOfMonth tests
-   */
-
-  @ParameterizedTest
-  @ValueSource(ints = {Integer.MIN_VALUE, -1, 0, 32, Integer.MAX_VALUE})
-  void testValidateDayOfMonthWithInvalidValueShouldThrow(int dayOfMonth) {
-    assertThrows(IllegalArgumentException.class, () -> DateBuilder.validateDayOfMonth(dayOfMonth));
-  }
-
-  private static Stream<Arguments> validateDayOfMonthTestData() {
-    return Stream.iterate(1, i -> i + 1).limit(31).map(i -> Arguments.of(i));
-  }
-
-  @ParameterizedTest
-  @MethodSource("validateDayOfMonthTestData")
-  void testValidateDayOfMonth(int dayOfMonth) {
-    assertDoesNotThrow(() -> DateBuilder.validateDayOfMonth(dayOfMonth));
-  }
-
-  /*
-   * validateMonth tests
-   */
-
-  @ParameterizedTest
-  @ValueSource(ints = {Integer.MIN_VALUE, -1, 0, 13, Integer.MAX_VALUE})
-  void testValidateMonthWithInvalidValueShouldThrow(int month) {
-    assertThrows(IllegalArgumentException.class, () -> DateBuilder.validateMonth(month));
-  }
-
-  private static Stream<Arguments> validateMonthTestData() {
-    return Stream.iterate(1, i -> i + 1).limit(12).map(i -> Arguments.of(i));
-  }
-
-  @ParameterizedTest
-  @MethodSource("validateMonthTestData")
-  void testValidateMonth(int month) {
-    assertDoesNotThrow(() -> DateBuilder.validateMonth(month));
-  }
-
-  /*
-   * validateYear tests
-   */
-
-  @ParameterizedTest
-  @ValueSource(ints = {Integer.MIN_VALUE, 1969, 1_000_000_000, Integer.MAX_VALUE})
-  void testValidateYearWithInvalidValueShouldThrow(int year) {
-    assertThrows(IllegalArgumentException.class, () -> DateBuilder.validateYear(year));
-  }
-
-  @ParameterizedTest
-  @ValueSource(ints = {1970, 2024, 999_999_999})
-  void testValidateYear(int year) {
-    assertDoesNotThrow(() -> DateBuilder.validateYear(year));
+  void testTranslateTime(String input, ZoneId src, ZoneId dest, String expected) {
+    assertEquals(
+        ZonedDateTime.parse(expected).toInstant(),
+        translateTime(ZonedDateTime.parse(input).toInstant(), src, dest));
   }
 }

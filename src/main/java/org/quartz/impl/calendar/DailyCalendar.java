@@ -66,9 +66,9 @@ public class DailyCalendar extends BaseCalendar {
    *       that a time range may not cross daily boundaries (10PM - 2AM)
    * </UL>
    *
-   * <p><b>Note:</b> This <CODE>DailyCalendar</CODE> will use the <code>
-   * {@link ZoneId#systemDefault()}</code> time zone unless an explicit time zone is set via <code>
-   * {@link BaseCalendar#setTimeZone(ZoneId)}</code>
+   * <p><b>Note:</b> Unless a time zone is set via <code>{@link BaseCalendar#setTimeZone(ZoneId)}
+   * </code>, this <CODE>DailyCalendar</CODE> takes the scheduler's default zone when it is added
+   * (see {@link BaseCalendar#getTimeZone()}); UTC until then.
    *
    * @param rangeStartingTime a String representing the starting time for the time range
    * @param rangeEndingTime a String representing the ending time for the the time range
@@ -94,9 +94,9 @@ public class DailyCalendar extends BaseCalendar {
    *       that a time range may not cross daily boundaries (10PM - 2AM)
    * </UL>
    *
-   * <p><b>Note:</b> This <CODE>DailyCalendar</CODE> will use the <code>
-   * {@link ZoneId#systemDefault()}</code> time zone unless an explicit time zone is set via <code>
-   * {@link BaseCalendar#setTimeZone(ZoneId)}</code>
+   * <p><b>Note:</b> Unless a time zone is set via <code>{@link BaseCalendar#setTimeZone(ZoneId)}
+   * </code>, this <CODE>DailyCalendar</CODE> takes the scheduler's default zone when it is added
+   * (see {@link BaseCalendar#getTimeZone()}); UTC until then.
    *
    * @param baseCalendar the base calendar for this calendar instance &ndash; see {@link
    *     BaseCalendar} for more information on base calendar functionality
@@ -124,9 +124,9 @@ public class DailyCalendar extends BaseCalendar {
    *       that a time range may not cross daily boundaries (10PM - 2AM)
    * </UL>
    *
-   * <p><b>Note:</b> This <CODE>DailyCalendar</CODE> will use the <code>
-   * {@link ZoneId#systemDefault()}</code> time zone unless an explicit time zone is set via <code>
-   * {@link BaseCalendar#setTimeZone(ZoneId)}</code>
+   * <p><b>Note:</b> Unless a time zone is set via <code>{@link BaseCalendar#setTimeZone(ZoneId)}
+   * </code>, this <CODE>DailyCalendar</CODE> takes the scheduler's default zone when it is added
+   * (see {@link BaseCalendar#getTimeZone()}); UTC until then.
    *
    * @param rangeStartingHourOfDay the hour of the start of the time range
    * @param rangeStartingMinute the minute of the start of the time range
@@ -171,9 +171,9 @@ public class DailyCalendar extends BaseCalendar {
    *       that a time range may not cross daily boundaries (10PM - 2AM)
    * </UL>
    *
-   * <p><b>Note:</b> This <CODE>DailyCalendar</CODE> will use the <code>
-   * {@link ZoneId#systemDefault()}</code> time zone unless an explicit time zone is set via <code>
-   * {@link BaseCalendar#setTimeZone(ZoneId)}</code>
+   * <p><b>Note:</b> Unless a time zone is set via <code>{@link BaseCalendar#setTimeZone(ZoneId)}
+   * </code>, this <CODE>DailyCalendar</CODE> takes the scheduler's default zone when it is added
+   * (see {@link BaseCalendar#getTimeZone()}); UTC until then.
    *
    * @param baseCalendar the base calendar for this calendar instance &ndash; see {@link
    *     BaseCalendar} for more information on base calendar functionality
@@ -223,9 +223,9 @@ public class DailyCalendar extends BaseCalendar {
    *         true</CODE>)</I>
    * </UL>
    *
-   * <p><b>Note:</b> This <CODE>DailyCalendar</CODE> will use the <code>
-   * {@link ZoneId#systemDefault()}</code> time zone unless an explicit time zone is set via <code>
-   * {@link BaseCalendar#setTimeZone(ZoneId)}</code>
+   * <p><b>Note:</b> Unless a time zone is set via <code>{@link BaseCalendar#setTimeZone(ZoneId)}
+   * </code>, this <CODE>DailyCalendar</CODE> takes the scheduler's default zone when it is added
+   * (see {@link BaseCalendar#getTimeZone()}); UTC until then.
    *
    * @param rangeStartingCalendar a ZonedDateTime representing the starting time for the time range
    * @param rangeEndingCalendar a ZonedDateTime representing the ending time for the time range
@@ -250,9 +250,9 @@ public class DailyCalendar extends BaseCalendar {
    *         true</CODE>)</I>
    * </UL>
    *
-   * <p><b>Note:</b> This <CODE>DailyCalendar</CODE> will use the <code>
-   * {@link ZoneId#systemDefault()}</code> time zone unless an explicit time zone is set via <code>
-   * {@link BaseCalendar#setTimeZone(ZoneId)}</code>
+   * <p><b>Note:</b> Unless a time zone is set via <code>{@link BaseCalendar#setTimeZone(ZoneId)}
+   * </code>, this <CODE>DailyCalendar</CODE> takes the scheduler's default zone when it is added
+   * (see {@link BaseCalendar#getTimeZone()}); UTC until then.
    *
    * @param baseCalendar the base calendar for this calendar instance &ndash; see {@link
    *     BaseCalendar} for more information on base calendar functionality
@@ -280,9 +280,9 @@ public class DailyCalendar extends BaseCalendar {
    *         rangeEndingTime</CODE>)</I>
    * </UL>
    *
-   * <p><b>Note:</b> This <CODE>DailyCalendar</CODE> will use the <code>
-   * {@link ZoneId#systemDefault()}</code> time zone unless an explicit time zone is set via <code>
-   * {@link BaseCalendar#setTimeZone(ZoneId)}</code>. You should use <code>
+   * <p><b>Note:</b> Unless a time zone is set via <code>{@link BaseCalendar#setTimeZone(ZoneId)}
+   * </code>, this <CODE>DailyCalendar</CODE> takes the scheduler's default zone when it is added
+   * (see {@link BaseCalendar#getTimeZone()}); UTC until then. You should use <code>
    * {@link #DailyCalendar(org.quartz.Calendar, java.time.ZoneId, java.time.Instant, java.time.Instant)}
    * </code> if you don't want the given <code>rangeStartingTimeInMillis</code> and <code>
    * rangeEndingTimeInMillis</code> to be evaluated in the default time zone.
@@ -309,9 +309,9 @@ public class DailyCalendar extends BaseCalendar {
    *         rangeEndingTime</CODE>)</I>
    * </UL>
    *
-   * <p><b>Note:</b> This <CODE>DailyCalendar</CODE> will use the <code>
-   * {@link ZoneId#systemDefault()}</code> time zone unless an explicit time zone is set via <code>
-   * {@link BaseCalendar#setTimeZone(ZoneId)}</code>. You should use <code>
+   * <p><b>Note:</b> Unless a time zone is set via <code>{@link BaseCalendar#setTimeZone(ZoneId)}
+   * </code>, this <CODE>DailyCalendar</CODE> takes the scheduler's default zone when it is added
+   * (see {@link BaseCalendar#getTimeZone()}); UTC until then. You should use <code>
    * {@link #DailyCalendar(org.quartz.Calendar, java.time.ZoneId, java.time.Instant, java.time.Instant)}
    * </code> if you don't want the given <code>rangeStartingTimeInMillis</code> and <code>
    * rangeEndingTimeInMillis</code> to be evaluated in the default time zone.

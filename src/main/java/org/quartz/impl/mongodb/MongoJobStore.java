@@ -141,6 +141,8 @@ public class MongoJobStore extends PersistentJobStore {
             getInstanceName(),
             MongoCollections.of(database, mongoSettings.collectionPrefix()),
             getClassLoader(),
+            getClock(),
+            getTimeZone(),
             () -> null)
         .updateJobData(jobDetail);
   }
@@ -150,7 +152,12 @@ public class MongoJobStore extends PersistentJobStore {
     collections =
         MongoCollections.of(client.getDatabase(databaseName), mongoSettings.collectionPrefix());
     return new MongoStoreDelegate(
-        schedulerName, collections, classLoader, () -> session.isBound() ? session.get() : null);
+        schedulerName,
+        collections,
+        classLoader,
+        getClock(),
+        getTimeZone(),
+        () -> session.isBound() ? session.get() : null);
   }
 
   @Override

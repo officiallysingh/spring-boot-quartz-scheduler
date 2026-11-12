@@ -43,13 +43,20 @@ public final class InstantMessageFormat {
    * @param arguments the arguments
    * @return the formatted message
    */
-  public static String format(String pattern, Object... arguments) {
+  /**
+   * Formats the pattern, rendering {@code date} and {@code time} arguments ({@link
+   * java.time.temporal.TemporalAccessor}s) in the given zone. There is no overload without a zone:
+   * callers pass the scheduler's ({@link org.quartz.Scheduler#getTimeZone()}), never the JVM
+   * default.
+   */
+  public static String format(ZoneId zone, String pattern, Object... arguments) {
     MessageFormat messageFormat = new MessageFormat(pattern);
     Format[] formats = messageFormat.getFormats();
     for (int i = 0; i < formats.length; i++) {
       if (formats[i] instanceof SimpleDateFormat) {
         String datePattern = ((SimpleDateFormat) formats[i]).toPattern();
-        messageFormat.setFormat(i, new TemporalFormat(datePattern, messageFormat.getLocale()));
+        messageFormat.setFormat(
+            i, new TemporalFormat(datePattern, messageFormat.getLocale(), zone));
       }
     }
     return messageFormat.format(arguments);
@@ -61,9 +68,8 @@ public final class InstantMessageFormat {
 
     private final transient DateTimeFormatter formatter;
 
-    TemporalFormat(String pattern, Locale locale) {
-      this.formatter =
-          DateTimeFormatter.ofPattern(pattern, locale).withZone(ZoneId.systemDefault());
+    TemporalFormat(String pattern, Locale locale, ZoneId zone) {
+      this.formatter = DateTimeFormatter.ofPattern(pattern, locale).withZone(zone);
     }
 
     @Override

@@ -27,8 +27,8 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.Locale;
-import org.jspecify.annotations.Nullable;
+import java.util.Objects;
+import org.quartz.utils.LenientDateTime;
 
 /**
  * <code>DateBuilder</code> is used to conveniently create <code>java.time.Instant</code> values
@@ -52,11 +52,18 @@ import org.jspecify.annotations.Nullable;
  *             .withSchedule(simpleSchedule()
  *                 .withIntervalInHours(1)
  *                 .repeatForever())
- *             .startAt(futureDate(10, MINUTES))
+ *             .startAt(futureDate(10, MINUTES, scheduler.getClock(), scheduler.getTimeZone()))
  *             .build();
  *
  *         scheduler.scheduleJob(job, trigger);
  * </pre>
+ *
+ * <p>Every helper that needs "now" takes a {@link Clock}, the scheduler's ({@link
+ * Scheduler#getClock()}), and every helper that works with a date or an hour takes the {@link
+ * ZoneId} it is in ({@link Scheduler#getTimeZone()} for the scheduler's default). None reads the
+ * system clock or the JVM default zone. A local time that falls in a daylight-saving gap moves
+ * forward by the gap, and one that exists twice is the later (standard-time) one: the rule of
+ * {@link LenientDateTime}, as for every fire time.
  *
  * @see TriggerBuilder
  * @see JobBuilder
@@ -158,98 +165,53 @@ public class DateBuilder {
   private int hour = -1;
   private int minute = -1;
   private int second = -1;
-  private ZoneId zoneId;
-  private @Nullable Locale lc;
-  private Clock clock = Clock.systemDefaultZone();
+  private final ZoneId zoneId;
+  private final Clock clock;
 
-  /**
-   * Create a DateBuilder, with initial settings for the current date and time in the system default
-   * timezone.
-   */
-  private DateBuilder() {
-    this(ZoneId.systemDefault());
+  private DateBuilder(Clock clock, ZoneId zoneId) {
+    this.clock = Objects.requireNonNull(clock, "clock");
+    this.zoneId = Objects.requireNonNull(zoneId, "zoneId");
   }
 
   /**
-   * Create a DateBuilder, with initial settings for the current date and time in the given
-   * timezone.
+   * Create a DateBuilder whose fields that are not set are taken from the current date and time by
+   * the given clock, in the given time zone. There is no factory without them: a date needs a zone,
+   * and "now" comes from the scheduler's clock ({@link Scheduler#getClock()}), never from the JVM
+   * default zone or the system clock.
+   *
+   * @param clock the source of the current date and time
+   * @param zoneId the zone the fields of the date are in
    */
-  private DateBuilder(ZoneId tz) {
-    this.zoneId = tz;
+  public static DateBuilder newDate(Clock clock, ZoneId zoneId) {
+    return new DateBuilder(clock, zoneId);
   }
 
   /**
-   * Create a DateBuilder, with initial settings for the current date and time in the given locale.
+   * Build the Date defined by this builder instance: every field not set is taken from the current
+   * date and time by the clock, in the zone. A local time in a daylight-saving gap moves forward by
+   * the gap; one in an overlap is the later (standard-time) one, as everywhere in the scheduler.
    */
-  private DateBuilder(Locale lc) {
-    this(ZoneId.systemDefault());
-    this.lc = lc;
-  }
-
-  /**
-   * Create a DateBuilder, with initial settings for the current date and time in the given timezone
-   * and locale.
-   */
-  private DateBuilder(ZoneId tz, Locale lc) {
-    this(tz);
-    this.lc = lc;
-  }
-
-  void setClock(Clock clock) {
-    this.clock = clock;
-  }
-
-  /**
-   * Create a DateBuilder, with initial settings for the current date and time in the system default
-   * timezone.
-   */
-  public static DateBuilder newDate() {
-    return new DateBuilder();
-  }
-
-  /**
-   * Create a DateBuilder, with initial settings for the current date and time in the given
-   * timezone.
-   */
-  public static DateBuilder newDateInTimezone(ZoneId tz) {
-    return new DateBuilder(tz);
-  }
-
-  /**
-   * Create a DateBuilder, with initial settings for the current date and time in the given locale.
-   */
-  public static DateBuilder newDateInLocale(Locale lc) {
-    return new DateBuilder(lc);
-  }
-
-  /**
-   * Create a DateBuilder, with initial settings for the current date and time in the given timezone
-   * and locale.
-   */
-  public static DateBuilder newDateInTimeZoneAndLocale(ZoneId tz, Locale lc) {
-    return new DateBuilder(tz, lc);
-  }
-
-  /** Build the Date defined by this builder instance. */
   public Instant build() {
-    var useZoneId = (zoneId != null) ? zoneId : ZoneId.systemDefault();
+    var now = now(clock, zoneId);
+    var local =
+        LocalDateTime.of(
+            year != -1 ? year : now.getYear(),
+            month != -1 ? month : now.getMonthValue(),
+            day != -1 ? day : now.getDayOfMonth(),
+            hour != -1 ? hour : now.getHour(),
+            minute != -1 ? minute : now.getMinute(),
+            second != -1 ? second : now.getSecond(),
+            0);
 
-    if (year == -1 || month == -1 || day == -1 || hour == -1 || minute == -1 || second == -1) {
-      var zdt = ZonedDateTime.now(clock).withZoneSameInstant(useZoneId);
-
-      year = zdt.getYear();
-      month = zdt.getMonthValue();
-      day = zdt.getDayOfMonth();
-      hour = zdt.getHour();
-      minute = zdt.getMinute();
-      second = zdt.getSecond();
-    }
-    var zdt = ZonedDateTime.of(year, month, day, hour, minute, second, 0, useZoneId);
-
-    return zdt.toInstant();
+    return LenientDateTime.resolve(local, zoneId);
   }
 
-  /** Set the hour (0-23) for the instant that will be built by this builder. */
+  /**
+   * Set the hour (0-23) for the Date that will be built by this builder.
+   *
+   * @see #atMinute(int)
+   * @see #atSecond(int)
+   */
   public DateBuilder atHourOfDay(int atHour) {
     validateHour(atHour);
 
@@ -257,7 +219,12 @@ public class DateBuilder {
     return this;
   }
 
-  /** Set the minute (0-59) for the instant that will be built by this builder. */
+  /**
+   * Set the minute (0-59) for the Date that will be built by this builder.
+   *
+   * @see #atHourOfDay(int)
+   * @see #atSecond(int)
+   */
   public DateBuilder atMinute(int atMinute) {
     validateMinute(atMinute);
 
@@ -266,8 +233,11 @@ public class DateBuilder {
   }
 
   /**
-   * Set the second (0-59) for the instant that will be built by this builder, and truncate the
+   * Set the second (0-59) for the Date that will be built by this builder, and truncate the
    * milliseconds to 000.
+   *
+   * @see #atHourOfDay(int)
+   * @see #atMinute(int)
    */
   public DateBuilder atSecond(int atSecond) {
     validateSecond(atSecond);
@@ -277,13 +247,8 @@ public class DateBuilder {
   }
 
   /**
-   * Set the hour (0-23), minute (0-59) and second (0-59) of the instant that will be built.
-   *
-   * @param atHour the hour of the day
-   * @param atMinute the minute of the hour
-   * @param atSecond the second of the minute
-   * @return the updated DateBuilder
-   * @throws IllegalArgumentException if a value is out of range
+   * Set the hour (0-23), minute (0-59) and second (0-59) for the Date that will be built by this
+   * builder, and truncate the milliseconds to 000.
    */
   public DateBuilder atHourMinuteAndSecond(int atHour, int atMinute, int atSecond) {
     validateHour(atHour);
@@ -296,7 +261,11 @@ public class DateBuilder {
     return this;
   }
 
-  /** Set the day of month (1-31) for the instant that will be built by this builder. */
+  /**
+   * Set the day of month (1-31) for the Date that will be built by this builder.
+   *
+   * @see #inMonth(int)
+   */
   public DateBuilder onDay(int onDay) {
     validateDayOfMonth(onDay);
 
@@ -304,7 +273,11 @@ public class DateBuilder {
     return this;
   }
 
-  /** Set the month (1-12) for the instant that will be built by this builder. */
+  /**
+   * Set the month (1-12) for the Date that will be built by this builder.
+   *
+   * @see #onDay(int)
+   */
   public DateBuilder inMonth(int inMonth) {
     validateMonth(inMonth);
 
@@ -313,12 +286,7 @@ public class DateBuilder {
   }
 
   /**
-   * Set the month (1-12) and day of the month (1-31) of the instant that will be built.
-   *
-   * @param inMonth the month, for example {@link #MARCH}
-   * @param onDay the day of the month
-   * @return the updated DateBuilder
-   * @throws IllegalArgumentException if a value is out of range
+   * Set the month (1-12) and day of month (1-31) for the Date that will be built by this builder.
    */
   public DateBuilder inMonthOnDay(int inMonth, int onDay) {
     validateMonth(inMonth);
@@ -329,7 +297,7 @@ public class DateBuilder {
     return this;
   }
 
-  /** Set the year for the instant that will be built by this builder. */
+  /** Set the year for the Date that will be built by this builder. */
   public DateBuilder inYear(int inYear) {
     validateYear(inYear);
 
@@ -338,37 +306,21 @@ public class DateBuilder {
   }
 
   /**
-   * Set the time zone for the instant that will be built by this builder (if "null", system default
-   * will be used)
-   */
-  public DateBuilder inTimeZone(ZoneId timezone) {
-    this.zoneId = timezone;
-    return this;
-  }
-
-  /**
-   * Set the Locale for the instant that will be built by this builder (if "null", system default
-   * will be used)
-   */
-  public DateBuilder inLocale(Locale locale) {
-    this.lc = locale;
-    return this;
-  }
-
-  /**
-   * The instant that is {@code interval} {@code unit}s from now, in the system default time zone
-   * (relevant for days and longer units).
+   * The instant that is {@code interval} {@code unit}s from now by the given clock, counted in the
+   * given time zone (relevant for days and longer units, across daylight-saving changes).
    *
    * @param interval how many units ahead
    * @param unit the unit of {@code interval}
+   * @param clock the source of now
+   * @param zoneId the zone to count days, weeks, months and years in
    * @return the future instant
    */
-  public static Instant futureDate(int interval, IntervalUnit unit) {
-    return futureDate(interval, unit, Clock.systemDefaultZone());
+  public static Instant futureDate(int interval, IntervalUnit unit, Clock clock, ZoneId zoneId) {
+    return now(clock, zoneId).plus(interval, translate(unit)).toInstant();
   }
 
-  static Instant futureDate(int interval, IntervalUnit unit, Clock clock) {
-    return ZonedDateTime.now(clock).plus(interval, translate(unit)).toInstant();
+  private static ZonedDateTime now(Clock clock, ZoneId zoneId) {
+    return ZonedDateTime.ofInstant(clock.instant(), zoneId);
   }
 
   private static ChronoUnit translate(IntervalUnit unit) {
@@ -395,81 +347,74 @@ public class DateBuilder {
   }
 
   /**
-   * Get an <code>Instant</code> that represents the given time, on tomorrow's date.
+   * Get an <code>Instant</code> that represents the given time, on tomorrow's date by the given
+   * clock, in the given time zone.
    *
    * @param hour The value (0-23) to give the hours field of the date
    * @param minute The value (0-59) to give the minutes field of the date
    * @param second The value (0-59) to give the seconds field of the date
+   * @param clock the source of today
+   * @param zoneId the zone of the time of day
    * @return the new date
    */
-  public static Instant tomorrowAt(int hour, int minute, int second) {
-    return tomorrowAt(hour, minute, second, Clock.systemDefaultZone());
-  }
-
-  static Instant tomorrowAt(int hour, int minute, int second, Clock clock) {
-    return ZonedDateTime.now(clock)
-        .truncatedTo(ChronoUnit.DAYS)
-        .plusHours(24)
-        .with(LocalTime.of(hour, minute, second, 0))
-        .toInstant();
+  public static Instant tomorrowAt(int hour, int minute, int second, Clock clock, ZoneId zoneId) {
+    return LenientDateTime.resolve(
+        now(clock, zoneId).toLocalDate().plusDays(1).atTime(LocalTime.of(hour, minute, second, 0)),
+        zoneId);
   }
 
   /**
-   * Get an <code>Instant</code> that represents the given time, on today's date (equivalent to
-   * {@link #dateOf(int, int, int)}).
+   * Get an <code>Instant</code> that represents the given time, on today's date by the given clock,
+   * in the given time zone (equivalent to {@link #dateOf(int, int, int, Clock, ZoneId)}).
    *
    * @param hour The value (0-23) to give the hours field of the date
    * @param minute The value (0-59) to give the minutes field of the date
    * @param second The value (0-59) to give the seconds field of the date
+   * @param clock the source of today
+   * @param zoneId the zone of the time of day
    * @return the new date
    */
-  public static Instant todayAt(int hour, int minute, int second) {
-    return todayAt(hour, minute, second, Clock.systemDefaultZone());
-  }
-
-  static Instant todayAt(int hour, int minute, int second, Clock clock) {
-    return dateOf(hour, minute, second, clock);
+  public static Instant todayAt(int hour, int minute, int second, Clock clock, ZoneId zoneId) {
+    return dateOf(hour, minute, second, clock, zoneId);
   }
 
   /**
-   * Get an <code>Instant</code> that represents the given time, on today's date (equivalent to
-   * {@link #todayAt(int, int, int)}).
+   * Get an <code>Instant</code> that represents the given time, on today's date by the given clock,
+   * in the given time zone (equivalent to {@link #todayAt(int, int, int, Clock, ZoneId)}).
    *
    * @param hour The value (0-23) to give the hours field of the date
    * @param minute The value (0-59) to give the minutes field of the date
    * @param second The value (0-59) to give the seconds field of the date
+   * @param clock the source of today
+   * @param zoneId the zone of the time of day
    * @return the new date
    */
-  public static Instant dateOf(int hour, int minute, int second) {
-    return dateOf(hour, minute, second, Clock.systemDefaultZone());
-  }
-
-  static Instant dateOf(int hour, int minute, int second, Clock clock) {
-    return ZonedDateTime.now(clock).with(LocalTime.of(hour, minute, second, 0)).toInstant();
+  public static Instant dateOf(int hour, int minute, int second, Clock clock, ZoneId zoneId) {
+    return LenientDateTime.resolve(
+        now(clock, zoneId).toLocalDate().atTime(LocalTime.of(hour, minute, second, 0)), zoneId);
   }
 
   /**
-   * Get an <code>Instant</code> that represents the given time, on the given date.
+   * Get an <code>Instant</code> that represents the given time, on the given date, in the current
+   * year by the given clock, in the given time zone.
    *
    * @param hour The value (0-23) to give the hours field of the date
    * @param minute The value (0-59) to give the minutes field of the date
    * @param second The value (0-59) to give the seconds field of the date
    * @param dayOfMonth The value (1-31) to give the day of month field of the date
    * @param month The value (1-12) to give the month field of the date
+   * @param clock the source of the current year
+   * @param zoneId the zone of the date and time
    * @return the new date
    */
-  public static Instant dateOf(int hour, int minute, int second, int dayOfMonth, int month) {
-    return dateOf(hour, minute, second, dayOfMonth, month, Clock.systemDefaultZone());
-  }
-
-  static Instant dateOf(int hour, int minute, int second, int dayOfMonth, int month, Clock clock) {
-    var zdt = ZonedDateTime.now(clock);
-    return zdt.with(LocalDateTime.of(zdt.getYear(), month, dayOfMonth, hour, minute, second, 0))
-        .toInstant();
+  public static Instant dateOf(
+      int hour, int minute, int second, int dayOfMonth, int month, Clock clock, ZoneId zoneId) {
+    return dateOf(hour, minute, second, dayOfMonth, month, now(clock, zoneId).getYear(), zoneId);
   }
 
   /**
-   * Get an <code>Instant</code> that represents the given time, on the given date.
+   * Get an <code>Instant</code> that represents the given time, on the given date, in the given
+   * time zone. No clock is involved: every field is given.
    *
    * @param hour The value (0-23) to give the hours field of the date
    * @param minute The value (0-59) to give the minutes field of the date
@@ -477,173 +422,123 @@ public class DateBuilder {
    * @param dayOfMonth The value (1-31) to give the day of month field of the date
    * @param month The value (1-12) to give the month field of the date
    * @param year The value (1970-999999999) to give the year field of the date
+   * @param zoneId the zone of the date and time
    * @return the new date
    */
   public static Instant dateOf(
-      int hour, int minute, int second, int dayOfMonth, int month, int year) {
-    return dateOf(hour, minute, second, dayOfMonth, month, year, Clock.systemDefaultZone());
-  }
-
-  static Instant dateOf(
-      int hour, int minute, int second, int dayOfMonth, int month, int year, Clock clock) {
-    return LocalDateTime.of(year, month, dayOfMonth, hour, minute, second, 0)
-        .atZone(clock.getZone())
-        .toInstant();
+      int hour, int minute, int second, int dayOfMonth, int month, int year, ZoneId zoneId) {
+    return LenientDateTime.resolve(
+        LocalDateTime.of(year, month, dayOfMonth, hour, minute, second, 0), zoneId);
   }
 
   /**
-   * Returns a date that is rounded to the next even hour after the current time.
+   * Returns a date that is rounded to the next even hour after now by the given clock, in the given
+   * time zone (an hour boundary differs between zones whose offsets are not whole hours).
    *
    * <p>For example a current time of 08:13:54 would result in a date with the time of 09:00:00. If
    * the date's time is in the 23rd hour, the date's 'day' will be promoted, and the time will be
    * set to 00:00:00.
    *
+   * @param clock the source of now
+   * @param zoneId the zone whose hours to round to
    * @return the new rounded date
    */
-  public static Instant evenHourDateAfterNow() {
-    return evenHourDateAfterNow(Clock.systemDefaultZone());
-  }
-
-  static Instant evenHourDateAfterNow(Clock clock) {
-    return evenHourDate(null, clock);
+  public static Instant evenHourDateAfterNow(Clock clock, ZoneId zoneId) {
+    return evenHourDate(clock.instant(), zoneId);
   }
 
   /**
-   * Returns a date that is rounded to the next even hour above the given date.
+   * Returns a date that is rounded to the next even hour above the given date, in the given time
+   * zone (an hour boundary differs between zones whose offsets are not whole hours).
    *
    * <p>For example an input date with a time of 08:13:54 would result in a date with the time of
    * 09:00:00. If the date's time is in the 23rd hour, the date's 'day' will be promoted, and the
    * time will be set to 00:00:00.
    *
-   * @param date the instant to round, if <code>null</code> the current time will be used
+   * @param date the instant to round
+   * @param zoneId the zone whose hours to round to
    * @return the new rounded date
    */
-  public static Instant evenHourDate(@Nullable Instant date) {
-    return evenHourDate(date, Clock.systemDefaultZone());
-  }
-
-  static Instant evenHourDate(@Nullable Instant date, Clock clock) {
-    var zdt =
-        (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
-
-    zdt = zdt.plusHours(1);
-    return zdt.truncatedTo(ChronoUnit.HOURS).toInstant();
+  public static Instant evenHourDate(Instant date, ZoneId zoneId) {
+    return date.atZone(zoneId).plusHours(1).truncatedTo(ChronoUnit.HOURS).toInstant();
   }
 
   /**
-   * Returns a date that is rounded to the previous even hour below the given date.
+   * Returns a date that is rounded to the previous even hour below the given date, in the given
+   * time zone.
    *
    * <p>For example an input date with a time of 08:13:54 would result in a date with the time of
    * 08:00:00.
    *
-   * @param date the instant to round, if <code>null</code> the current time will be used
+   * @param date the instant to round
+   * @param zoneId the zone whose hours to round to
    * @return the new rounded date
    */
-  public static Instant evenHourDateBefore(@Nullable Instant date) {
-    return evenHourDateBefore(date, Clock.systemDefaultZone());
-  }
-
-  static Instant evenHourDateBefore(@Nullable Instant date, Clock clock) {
-    var zdt =
-        (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
-
-    return zdt.truncatedTo(ChronoUnit.HOURS).toInstant();
+  public static Instant evenHourDateBefore(Instant date, ZoneId zoneId) {
+    return date.atZone(zoneId).truncatedTo(ChronoUnit.HOURS).toInstant();
   }
 
   /**
-   * Returns a date that is rounded to the next even minute after the current time.
+   * Returns a date that is rounded to the next even minute after now by the given clock. Minute
+   * boundaries are the same in every time zone.
    *
    * <p>For example a current time of 08:13:54 would result in a date with the time of 08:14:00. If
    * the date's time is in the 59th minute, then the hour (and possibly the day) will be promoted.
    *
+   * @param clock the source of now
    * @return the new rounded date
    */
-  public static Instant evenMinuteDateAfterNow() {
-    return evenMinuteDateAfterNow(Clock.systemDefaultZone());
-  }
-
-  static Instant evenMinuteDateAfterNow(Clock clock) {
-    return evenMinuteDate(null, clock);
+  public static Instant evenMinuteDateAfterNow(Clock clock) {
+    return evenMinuteDate(clock.instant());
   }
 
   /**
-   * Returns a date that is rounded to the next even minute above the given date.
+   * Returns a date that is rounded to the next even minute above the given date. Minute boundaries
+   * are the same in every time zone.
    *
    * <p>For example an input date with a time of 08:13:54 would result in a date with the time of
    * 08:14:00. If the date's time is in the 59th minute, then the hour (and possibly the day) will
    * be promoted.
    *
-   * @param date the instant to round, if <code>null</code> the current time will be used
+   * @param date the instant to round
    * @return the new rounded date
    */
-  public static Instant evenMinuteDate(@Nullable Instant date) {
-    return evenMinuteDate(date, Clock.systemDefaultZone());
+  public static Instant evenMinuteDate(Instant date) {
+    return date.plus(1, ChronoUnit.MINUTES).truncatedTo(ChronoUnit.MINUTES);
   }
 
   /**
-   * Like {@link #evenMinuteDate(Instant)}, with the current time taken from {@code clock}.
-   *
-   * @param date the instant to round, if <code>null</code> the current time will be used
-   * @param clock the clock supplying the current time
-   * @return the new rounded date
-   */
-  public static Instant evenMinuteDate(@Nullable Instant date, Clock clock) {
-    var zdt =
-        (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
-
-    zdt = zdt.plusMinutes(1);
-    return zdt.truncatedTo(ChronoUnit.MINUTES).toInstant();
-  }
-
-  /**
-   * Returns a date that is rounded to the previous even minute below the given date.
+   * Returns a date that is rounded to the previous even minute below the given date. Minute
+   * boundaries are the same in every time zone.
    *
    * <p>For example an input date with a time of 08:13:54 would result in a date with the time of
    * 08:13:00.
    *
-   * @param date the instant to round, if <code>null</code> the current time will be used
+   * @param date the instant to round
    * @return the new rounded date
    */
-  public static Instant evenMinuteDateBefore(@Nullable Instant date) {
-    return evenMinuteDateBefore(date, Clock.systemDefaultZone());
-  }
-
-  static Instant evenMinuteDateBefore(@Nullable Instant date, Clock clock) {
-    var zdt =
-        (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
-
-    return zdt.truncatedTo(ChronoUnit.MINUTES).toInstant();
+  public static Instant evenMinuteDateBefore(Instant date) {
+    return date.truncatedTo(ChronoUnit.MINUTES);
   }
 
   /**
-   * Returns a date that is rounded to the next even second after the current time.
+   * Returns a date that is rounded to the next even second after now by the given clock.
    *
+   * @param clock the source of now
    * @return the new rounded date
    */
-  public static Instant evenSecondDateAfterNow() {
-    return evenSecondDateAfterNow(Clock.systemDefaultZone());
-  }
-
-  static Instant evenSecondDateAfterNow(Clock clock) {
-    return evenSecondDate(null, clock);
+  public static Instant evenSecondDateAfterNow(Clock clock) {
+    return evenSecondDate(clock.instant());
   }
 
   /**
    * Returns a date that is rounded to the next even second above the given date.
    *
-   * @param date the instant to round, if <code>null</code> the current time will be used
+   * @param date the instant to round
    * @return the new rounded date
    */
-  public static Instant evenSecondDate(@Nullable Instant date) {
-    return evenSecondDate(date, Clock.systemDefaultZone());
-  }
-
-  static Instant evenSecondDate(@Nullable Instant date, Clock clock) {
-    var zdt =
-        (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
-
-    zdt = zdt.plusSeconds(1);
-    return zdt.truncatedTo(ChronoUnit.SECONDS).toInstant();
+  public static Instant evenSecondDate(Instant date) {
+    return date.plusSeconds(1).truncatedTo(ChronoUnit.SECONDS);
   }
 
   /**
@@ -652,28 +547,21 @@ public class DateBuilder {
    * <p>For example an input date with a time of 08:13:54.341 would result in a date with the time
    * of 08:13:54.000.
    *
-   * @param date the instant to round, if <code>null</code> the current time will be used
+   * @param date the instant to round
    * @return the new rounded date
    */
-  public static Instant evenSecondDateBefore(@Nullable Instant date) {
-    return evenSecondDateBefore(date, Clock.systemDefaultZone());
-  }
-
-  static Instant evenSecondDateBefore(@Nullable Instant date, Clock clock) {
-    var zdt =
-        (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
-
-    return zdt.truncatedTo(ChronoUnit.SECONDS).toInstant();
+  public static Instant evenSecondDateBefore(Instant date) {
+    return date.truncatedTo(ChronoUnit.SECONDS);
   }
 
   /**
-   * Returns a date that is rounded to the next even multiple of the given minute.
+   * Returns a date that is rounded to the next even multiple of the given minute, in the given time
+   * zone (the hour the minutes count from differs between zones whose offsets are not whole hours).
    *
    * <p>For example an input date with a time of 08:13:54, and an input minute-base of 5 would
    * result in a date with the time of 08:15:00. The same input date with an input minute-base of 10
-   * would result in a date with the time of 08:20:00. But a date with the time 08:53:31 and an
-   * input minute-base of 45 would result in 09:00:00, because the even-hour is the next 'base' for
-   * 45-minute intervals.
+   * would result in a date with the time of 08:20:00. But a minute-base of 0 would result in
+   * 09:00:00, because the even-hour is the next 'base' for 0-minutes.
    *
    * <p>More examples:
    *
@@ -746,22 +634,18 @@ public class DateBuilder {
    * </tr>
    * </table>
    *
-   * @param date the instant to round, if <code>null</code> the current time will be used
+   * @param date the instant to round
    * @param minuteBase the base-minute to set the time on
+   * @param zoneId the zone whose hours the minutes count from
    * @return the new rounded date
    * @see #nextGivenSecondDate(Instant, int)
    */
-  public static Instant nextGivenMinuteDate(Instant date, int minuteBase) {
-    return nextGivenMinuteDate(date, minuteBase, Clock.systemDefaultZone());
-  }
-
-  static Instant nextGivenMinuteDate(Instant date, int minuteBase, Clock clock) {
+  public static Instant nextGivenMinuteDate(Instant date, int minuteBase, ZoneId zoneId) {
     if (minuteBase < 0 || minuteBase > 59) {
       throw new IllegalArgumentException("minuteBase must be >=0 and <= 59");
     }
 
-    var zdt =
-        (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
+    var zdt = date.atZone(zoneId);
     if (minuteBase == 0) {
       zdt = zdt.truncatedTo(ChronoUnit.HOURS).plusHours(1);
       return zdt.toInstant();
@@ -781,27 +665,23 @@ public class DateBuilder {
   }
 
   /**
-   * Returns a date that is rounded to the next even multiple of the given second.
+   * Returns a date that is rounded to the next even multiple of the given second. Minute boundaries
+   * are the same in every time zone, so no zone is needed.
    *
    * <p>The rules for calculating the second are the same as those for calculating the minute in the
-   * method <code>getNextGivenMinuteDate(..)</code>.
+   * method <code>nextGivenMinuteDate(..)</code>.
    *
-   * @param date the instant to round, if <code>null</code> the current time will be used
+   * @param date the instant to round
    * @param secondBase the base-second to set the time on
    * @return the new rounded date
-   * @see #nextGivenMinuteDate(Instant, int)
+   * @see #nextGivenMinuteDate(Instant, int, ZoneId)
    */
   public static Instant nextGivenSecondDate(Instant date, int secondBase) {
-    return nextGivenSecondDate(date, secondBase, Clock.systemDefaultZone());
-  }
-
-  static Instant nextGivenSecondDate(Instant date, int secondBase, Clock clock) {
     if (secondBase < 0 || secondBase > 59) {
       throw new IllegalArgumentException("secondBase must be >=0 and <= 59");
     }
 
-    var zdt =
-        (date == null) ? ZonedDateTime.now(clock) : ZonedDateTime.ofInstant(date, ZoneOffset.UTC);
+    var zdt = date.atZone(ZoneOffset.UTC);
     if (secondBase == 0) {
       zdt = zdt.truncatedTo(ChronoUnit.MINUTES).plusMinutes(1);
       return zdt.toInstant();

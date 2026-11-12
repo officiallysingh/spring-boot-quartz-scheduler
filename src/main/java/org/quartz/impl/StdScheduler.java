@@ -18,7 +18,9 @@
 
 package org.quartz.impl;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -123,6 +125,16 @@ public class StdScheduler implements Scheduler {
   /** Returns the <code>SchedulerContext</code> of the <code>Scheduler</code>. */
   public SchedulerContext getContext() throws SchedulerException {
     return sched.getSchedulerContext();
+  }
+
+  @Override
+  public Clock getClock() {
+    return sched.getClock();
+  }
+
+  @Override
+  public ZoneId getTimeZone() {
+    return sched.getTimeZone();
   }
 
   ///////////////////////////////////////////////////////////////////////////

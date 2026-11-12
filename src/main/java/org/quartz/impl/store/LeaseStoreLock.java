@@ -25,6 +25,11 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Threads of the same instance first serialize on an in-JVM lock, so one lease is enough per
  * instance.
+ *
+ * <p>Lease expiry is measured by the system clock (of the instance, or of the store server), never
+ * by the scheduler's {@link java.time.Clock}: leases written by different instances are compared
+ * with each other, so they must share one timeline, and under a fixed or offset scheduling clock a
+ * lease would never, or always, look expired. The same holds for cluster check-ins.
  */
 public abstract class LeaseStoreLock implements StoreLock {
 

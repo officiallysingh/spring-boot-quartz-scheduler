@@ -23,6 +23,7 @@ import java.text.ParseException;
 import java.time.Instant;
 import java.time.Year;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -301,7 +302,7 @@ public final class CronExpression implements Serializable {
     } catch (ParseException ex) {
       throw new AssertionError("Could not parse expression!", ex);
     }
-    if (expression.getTimeZone() != null) {
+    if (expression.hasTimeZone()) {
       setTimeZone(expression.getTimeZone());
     }
   }
@@ -374,16 +375,26 @@ public final class CronExpression implements Serializable {
     return lastDate.plusSeconds(1);
   }
 
-  /** Returns the time zone for which this <code>CronExpression</code> will be resolved. */
+  /**
+   * Returns the time zone for which this <code>CronExpression</code> will be resolved: the zone set
+   * with {@link #setTimeZone(ZoneId)}, else UTC. An expression never resolves in the JVM default
+   * zone; a {@link CronTrigger} whose zone was not set takes the scheduler's default zone ({@link
+   * Scheduler#getTimeZone()}) when it is scheduled.
+   */
   public ZoneId getTimeZone() {
-    if (timeZone == null) {
-      timeZone = ZoneId.systemDefault();
-    }
-
-    return timeZone;
+    return timeZone != null ? timeZone : ZoneOffset.UTC;
   }
 
-  /** Sets the time zone for which this <code>CronExpression</code> will be resolved. */
+  /** Whether a time zone was set with {@link #setTimeZone(ZoneId)}. */
+  public boolean hasTimeZone() {
+    return timeZone != null;
+  }
+
+  /**
+   * Sets the time zone for which this <code>CronExpression</code> will be resolved.
+   *
+   * @param timeZone the zone; {@code null} to unset it, see {@link #getTimeZone()}
+   */
   public void setTimeZone(@Nullable ZoneId timeZone) {
     this.timeZone = timeZone;
   }

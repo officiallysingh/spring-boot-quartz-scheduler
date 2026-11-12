@@ -21,7 +21,9 @@ import static org.quartz.DateBuilder.evenSecondDateAfterNow;
 import static org.quartz.DateBuilder.futureDate;
 import static org.quartz.TriggerBuilder.newTrigger;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import org.junit.jupiter.api.Test;
 import org.quartz.DateBuilder.IntervalUnit;
@@ -65,17 +67,18 @@ public class TriggerBuilderTest {
         Trigger.DEFAULT_PRIORITY,
         trigger.getPriority(),
         "Unexpected trigger priority: " + trigger.getPriority());
-    assertNotNull(trigger.getStartTime(), "Unexpected start-time: " + trigger.getStartTime());
+    // "now" is resolved by the scheduler's clock when the trigger is scheduled
+    assertNull(trigger.getStartTime(), "Unexpected start-time: " + trigger.getStartTime());
     assertNull(trigger.getEndTime(), "Unexpected end-time: " + trigger.getEndTime());
 
-    Instant stime = evenSecondDateAfterNow();
+    Instant stime = evenSecondDateAfterNow(Clock.systemUTC());
 
     trigger =
         newTrigger()
             .withIdentity("t1")
             .withDescription("my description")
             .withPriority(2)
-            .endAt(futureDate(10, IntervalUnit.WEEK))
+            .endAt(futureDate(10, IntervalUnit.WEEK, Clock.systemUTC(), ZoneOffset.UTC))
             .startAt(stime)
             .build();
 

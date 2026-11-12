@@ -22,7 +22,9 @@ import java.text.ParseException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import org.jspecify.annotations.Nullable;
 import org.quartz.CronExpression;
 import org.quartz.CronScheduleBuilder;
@@ -78,9 +80,8 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
 
   private @Nullable CronExpression cronEx = null;
 
-  // set by the constructors or setStartTime before the trigger is used
-  @SuppressWarnings("NullAway.Init")
-  private Instant startTime;
+  // null until setStartTime, or bind() when the trigger is scheduled
+  private @Nullable Instant startTime;
 
   private @Nullable Instant endTime = null;
   private @Nullable Instant nextFireTime = null;
@@ -98,13 +99,11 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
   /**
    * Create a <code>CronTrigger</code> with no settings.
    *
-   * <p>The start-time will also be set to the current time, and the time zone will be set the
-   * system's default time zone.
+   * <p>The start time and the time zone are unset: the scheduler sets them to "now" by its clock
+   * and to its default zone when the trigger is scheduled ({@link #bind(java.time.Clock, ZoneId)}).
    */
   public CronTriggerImpl() {
     super();
-    setStartTime(Instants.now());
-    setTimeZone(ZoneId.systemDefault());
   }
 
   /*
@@ -131,9 +130,8 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    * @throws ParseException if the expression is not valid
    */
   public void setCronExpression(String cronExpression) throws ParseException {
-    ZoneId origTz = getTimeZone();
     this.cronEx = new CronExpression(cronExpression);
-    this.cronEx.setTimeZone(origTz);
+    this.cronEx.setTimeZone(this.timeZone);
   }
 
   // null only for an incomplete trigger whose expression is not set yet, as in Quartz
@@ -143,17 +141,22 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
   }
 
   /**
-   * Set the CronExpression to the given one. The time zone of the passed-in CronExpression
-   * over-rides any that was already set on the Trigger.
+   * Set the CronExpression to the given one. A time zone set on the passed-in CronExpression
+   * over-rides any that was already set on the Trigger; an expression without one takes the
+   * trigger's.
    */
   public void setCronExpression(CronExpression cronExpression) {
     this.cronEx = cronExpression;
-    this.timeZone = cronExpression.getTimeZone();
+    if (cronExpression.hasTimeZone()) {
+      this.timeZone = cronExpression.getTimeZone();
+    } else {
+      cronExpression.setTimeZone(this.timeZone);
+    }
   }
 
   /** Get the time at which the <code>CronTrigger</code> should occur. */
   @Override
-  public Instant getStartTime() {
+  public @Nullable Instant getStartTime() {
     return this.startTime;
   }
 
@@ -168,14 +171,8 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
       throw new IllegalArgumentException("End time cannot be before start time");
     }
 
-    // round off millisecond...
-    // Note timeZone is not needed here as parameter for
-    // Calendar.getInstance(),
-    // since time zone is implicit when using a Date in the setTime method.
-    LenientDateTime cl = new LenientDateTime(startTime, ZoneId.systemDefault());
-    cl.set(LenientDateTime.MILLISECOND, 0);
-
-    this.startTime = cl.toInstant();
+    // round off milliseconds: cron fire times are whole seconds
+    this.startTime = startTime.truncatedTo(ChronoUnit.SECONDS);
   }
 
   /**
@@ -243,32 +240,44 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
     this.previousFireTime = Instants.toMillis(previousFireTime);
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>UTC until a zone is set or the trigger is scheduled: the scheduler then applies its default
+   * zone ({@link org.quartz.Scheduler#getTimeZone()}) to a trigger whose zone was not set
+   * explicitly, and the zone is stored with the trigger.
+   */
   public ZoneId getTimeZone() {
-
     if (cronEx != null) {
       return cronEx.getTimeZone();
     }
-
-    if (timeZone == null) {
-      timeZone = ZoneId.systemDefault();
-    }
-    return timeZone;
+    return timeZone != null ? timeZone : ZoneOffset.UTC;
   }
 
   /**
    * Sets the time zone for which the <code>cronExpression</code> of this <code>CronTrigger</code>
    * will be resolved.
    *
-   * <p>If {@link #setCronExpression(CronExpression)} is called after this method, the TimeZon
-   * setting on the CronExpression will "win". However if {@link #setCronExpression(String)} is
+   * <p>If {@link #setCronExpression(CronExpression)} is called after this method with an expression
+   * that has a time zone, that zone will "win". However if {@link #setCronExpression(String)} is
    * called after this method, the time zone applied by this method will remain in effect, since the
    * String cron expression does not carry a time zone!
+   *
+   * @param timeZone the zone; {@code null} to unset it, so that the scheduler applies its default
+   *     zone when the trigger is scheduled
    */
   public void setTimeZone(@Nullable ZoneId timeZone) {
     if (cronEx != null) {
       cronEx.setTimeZone(timeZone);
     }
     this.timeZone = timeZone;
+  }
+
+  @Override
+  protected void applyDefaultTimeZone(ZoneId defaultTimeZone) {
+    if (timeZone == null) {
+      setTimeZone(defaultTimeZone);
+    }
   }
 
   /**
@@ -281,11 +290,12 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
   @Override
   public @Nullable Instant getFireTimeAfter(@Nullable Instant afterTime) {
     if (afterTime == null) {
-      afterTime = Instants.now();
+      afterTime = now();
     }
 
-    if (getStartTime().isAfter(afterTime)) {
-      afterTime = getStartTime().minusSeconds(1);
+    Instant startTime = requireStartTime();
+    if (startTime.isAfter(afterTime)) {
+      afterTime = startTime.minusSeconds(1);
     }
 
     if (getEndTime() != null && (afterTime.compareTo(getEndTime()) >= 0)) {
@@ -315,7 +325,8 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
       resultTime = (cronEx == null) ? null : cronEx.getFinalFireTime();
     }
 
-    if ((resultTime != null) && (getStartTime() != null) && (resultTime.isBefore(getStartTime()))) {
+    Instant startTime = getStartTime();
+    if ((resultTime != null) && (startTime != null) && (resultTime.isBefore(startTime))) {
       return null;
     }
 
@@ -347,7 +358,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    */
   @Override
   public void updateAfterMisfire(org.quartz.@Nullable Calendar cal) {
-    updateAfterMisfire(cal, Instants.now());
+    updateAfterMisfire(cal, now());
   }
 
   @Override
@@ -456,7 +467,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
   @Override
   public void updateWithNewCalendar(
       org.quartz.@Nullable Calendar calendar, Duration misfireThreshold) {
-    updateWithNewCalendar(calendar, misfireThreshold, Instants.now());
+    updateWithNewCalendar(calendar, misfireThreshold, now());
   }
 
   @Override
@@ -476,7 +487,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
 
       // avoid infinite loop
       // Use gregorian only because the constant is based on Gregorian
-      if (nextFireTime.atZone(ZoneId.systemDefault()).getYear() > YEAR_TO_GIVEUP_SCHEDULING_AT) {
+      if (nextFireTime.atZone(getTimeZone()).getYear() > YEAR_TO_GIVEUP_SCHEDULING_AT) {
         nextFireTime = null;
       }
 
@@ -503,7 +514,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    */
   @Override
   public @Nullable Instant computeFirstFireTime(org.quartz.@Nullable Calendar calendar) {
-    nextFireTime = getFireTimeAfter(getStartTime().minusSeconds(1));
+    nextFireTime = getFireTimeAfter(requireStartTime().minusSeconds(1));
 
     while (nextFireTime != null && calendar != null && !calendar.isTimeIncluded(nextFireTime)) {
       nextFireTime = getFireTimeAfter(nextFireTime);

@@ -20,9 +20,11 @@ package org.quartz.core;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import org.quartz.impl.config.SchedulerSettings;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spi.ThreadPool;
@@ -77,6 +79,8 @@ public class QuartzSchedulerResources {
   private boolean interruptJobsOnShutdownWithWait = false;
 
   private Clock clock = Clock.systemUTC();
+
+  private ZoneId timeZone = SchedulerSettings.DEFAULT_TIME_ZONE;
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -375,5 +379,27 @@ public class QuartzSchedulerResources {
     }
 
     this.clock = clock;
+  }
+
+  /**
+   * The default time zone of the scheduler: the zone a cron, calendar-interval or
+   * daily-time-interval trigger scheduled without an explicit zone resolves in. Never the JVM
+   * default zone.
+   */
+  public ZoneId getTimeZone() {
+    return timeZone;
+  }
+
+  /**
+   * Set the default time zone of the scheduler.
+   *
+   * @param timeZone the zone
+   */
+  public void setTimeZone(ZoneId timeZone) {
+    if (timeZone == null) {
+      throw new IllegalArgumentException("Time zone cannot be null.");
+    }
+
+    this.timeZone = timeZone;
   }
 }

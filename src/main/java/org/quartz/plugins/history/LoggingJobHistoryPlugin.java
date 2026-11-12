@@ -18,7 +18,8 @@
 
 package org.quartz.plugins.history;
 
-import java.time.Instant;
+import java.time.Clock;
+import java.time.ZoneId;
 import org.jspecify.annotations.Nullable;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
@@ -30,6 +31,7 @@ import org.quartz.Trigger;
 import org.quartz.impl.matchers.EverythingMatcher;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.utils.InstantMessageFormat;
+import org.quartz.utils.Instants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -283,6 +285,14 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
   @SuppressWarnings("NullAway.Init")
   private String name;
 
+  // the scheduler's clock and default zone, set by initialize(): the time stamps of the messages
+  // and the zone they are rendered in
+  @SuppressWarnings("NullAway.Init")
+  private Clock clock;
+
+  @SuppressWarnings("NullAway.Init")
+  private ZoneId timeZone;
+
   private String jobToBeFiredMessage =
       "Job {1}.{0} fired (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy}";
 
@@ -397,6 +407,8 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
    */
   public void initialize(String pname, Scheduler scheduler) throws SchedulerException {
     this.name = pname;
+    this.clock = scheduler.getClock();
+    this.timeZone = scheduler.getTimeZone();
     scheduler.getListenerManager().addJobListener(this, EverythingMatcher.allJobs());
   }
 
@@ -422,7 +434,7 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
 
   /*
    * Object[] arguments = { new Integer(7), new
-   * Instant.now(), "a disturbance in the Force" };
+   * Instants.now(clock), "a disturbance in the Force" };
    *
    * String result = InstantMessageFormat.format( "At {1,time} on {1,date}, there
    * was {2} on planet {0,number,integer}.", arguments);
@@ -445,7 +457,7 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
     Object[] args = {
       context.getJobDetail().getKey().getName(),
       context.getJobDetail().getKey().getGroup(),
-      Instant.now(),
+      Instants.now(clock),
       trigger.getKey().getName(),
       trigger.getKey().getGroup(),
       trigger.getPreviousFireTime(),
@@ -453,7 +465,7 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
       context.getRefireCount()
     };
 
-    getLog().info(InstantMessageFormat.format(getJobToBeFiredMessage(), args));
+    getLog().info(InstantMessageFormat.format(timeZone, getJobToBeFiredMessage(), args));
   }
 
   /**
@@ -476,7 +488,7 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
           new Object[] {
             context.getJobDetail().getKey().getName(),
             context.getJobDetail().getKey().getGroup(),
-            Instant.now(),
+            Instants.now(clock),
             trigger.getKey().getName(),
             trigger.getKey().getGroup(),
             trigger.getPreviousFireTime(),
@@ -485,7 +497,8 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
             errMsg
           };
 
-      getLog().warn(InstantMessageFormat.format(getJobFailedMessage(), args), jobException);
+      getLog()
+          .warn(InstantMessageFormat.format(timeZone, getJobFailedMessage(), args), jobException);
     } else {
       if (!getLog().isInfoEnabled()) {
         return;
@@ -496,7 +509,7 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
           new Object[] {
             context.getJobDetail().getKey().getName(),
             context.getJobDetail().getKey().getGroup(),
-            Instant.now(),
+            Instants.now(clock),
             trigger.getKey().getName(),
             trigger.getKey().getGroup(),
             trigger.getPreviousFireTime(),
@@ -505,7 +518,7 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
             result
           };
 
-      getLog().info(InstantMessageFormat.format(getJobSuccessMessage(), args));
+      getLog().info(InstantMessageFormat.format(timeZone, getJobSuccessMessage(), args));
     }
   }
 
@@ -523,7 +536,7 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
     Object[] args = {
       context.getJobDetail().getKey().getName(),
       context.getJobDetail().getKey().getGroup(),
-      Instant.now(),
+      Instants.now(clock),
       trigger.getKey().getName(),
       trigger.getKey().getGroup(),
       trigger.getPreviousFireTime(),
@@ -531,7 +544,7 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
       context.getRefireCount()
     };
 
-    getLog().info(InstantMessageFormat.format(getJobWasVetoedMessage(), args));
+    getLog().info(InstantMessageFormat.format(timeZone, getJobWasVetoedMessage(), args));
   }
 }
 

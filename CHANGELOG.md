@@ -3,6 +3,62 @@
 Changes to the public API, behaviour and storage format, by release. Breaking changes are marked
 **Breaking**.
 
+## 1.0.0-rc4 (2026-11-12)
+
+### Time zone and clock
+
+- New `spring.quartz.time-zone` (`ZoneId`, default `UTC`; `SchedulerSettings.timeZone()`,
+  `Scheduler.getTimeZone()`): the zone of a cron, calendar-interval or daily-time-interval trigger
+  scheduled without `inTimeZone(...)`. The scheduler applies it when the trigger is scheduled and
+  the store keeps it with the trigger, so changing the property later does not move existing
+  triggers. Until it is scheduled such a trigger resolves in UTC (`CronExpression.getTimeZone()`
+  too; new `CronExpression.hasTimeZone()`). **Breaking**: these triggers followed
+  `ZoneId.systemDefault()`; nothing in scheduling reads the JVM default zone now.
+- Calendars follow the same rule: a `BaseCalendar` added without a zone takes the scheduler's
+  default zone in `Scheduler.addCalendar()`, base calendars included, and is stored with it (new
+  `BaseCalendar.bind(ZoneId)`; the store applies the default to a stored calendar without one). Until
+  it is added a calendar resolves in UTC. **Breaking**: `BaseCalendar` fell back to
+  `ZoneId.systemDefault()`, so a `DailyCalendar` or `CronCalendar` built without a zone excluded
+  different hours on each machine; `CronCalendar.getTimeZone()` is `null` while no zone is set.
+- `DailyTimeIntervalScheduleBuilder.inTimeZone(ZoneId)` and `DailyTimeIntervalTrigger.getTimeZone()`;
+  the zone is stored (`timeZone` field of `DAILY_I` trigger records in MongoDB and Redis). A record
+  without one, written by 1.0.0-rc3, takes the scheduler's default zone when loaded.
+- Every "now" is the scheduler's `Clock` (new `Scheduler.getClock()`). A trigger built without
+  `startAt()`, or with `startNow()`, has no start time until it is scheduled, when it becomes now by
+  that clock (**Breaking**: `Trigger.getStartTime()` is `@Nullable` until then; computing fire times
+  of an unscheduled trigger without a start time throws `IllegalStateException`;
+  `TriggerBuilder.startAt(null)` means the same as `startNow()`). `getFireTimeAfter(null)`, the
+  no-argument `updateAfterMisfire` and the two-argument `updateWithNewCalendar` use the clock of
+  the scheduler the trigger was scheduled with or loaded from; before that, the system clock. The
+  history plugins stamp their messages with the scheduler's clock and render them in its zone; the
+  actuator's "job triggered" time is the scheduler's clock.
+- The actuator `quartz` endpoint reports the scheduler's `timeZone`, and daily-time-interval
+  trigger summaries and details carry their `timeZone`.
+- `DateBuilder` **Breaking**: the helpers take the `Clock` and the `ZoneId` explicitly:
+  `futureDate(interval, unit, clock, zone)`, `tomorrowAt`/`todayAt`/`dateOf(h, m, s, clock, zone)`,
+  `dateOf(h, m, s, d, M, clock, zone)`, `dateOf(h, m, s, d, M, y, zone)`,
+  `evenHourDateAfterNow(clock, zone)`, `evenHourDate`/`evenHourDateBefore(instant, zone)`,
+  `nextGivenMinuteDate(instant, base, zone)`; minute and second rounding needs no zone:
+  `evenMinuteDateAfterNow(clock)`, `evenMinuteDate(instant)` and so on, with a non-null instant.
+  `newDate(clock, zone)` replaces `newDate()`, `newDateInTimezone()`, `newDateInLocale()` and
+  `newDateInTimeZoneAndLocale()` (the locale had no effect). `build()` fills only the fields that
+  were not set (it reset the time of day whenever a date field was missing). A local time in a
+  daylight-saving gap or overlap resolves as fire times do (`LenientDateTime`: forward by the gap,
+  the later occurrence).
+- `TimeOfDay` **Breaking**: `getTimeOfDayForDate(Instant)`, `hourAndMinuteAndSecondFromDate(Instant)`
+  and `hourAndMinuteFromDate(Instant)` are gone; the overloads with a zone need a non-null one.
+- `CronScheduleBuilder.build()` gives each trigger its own copy of the expression, so a builder can
+  be reused after one of its triggers was scheduled.
+  `DailyTimeIntervalScheduleBuilder.endingDailyAfterCount()` is time-of-day arithmetic (it used the
+  system clock and zone).
+- Cluster check-ins, liveness and lock leases stay on the system clock, because instances compare
+  them with each other; said on `Scheduler.getClock()` and `PersistentJobStore.CHECKIN_CLOCK`.
+- SPI: `OperableTrigger.bind(Clock, ZoneId)`; `SchedulerSignaler.getClock()` and `getTimeZone()`
+  (with defaults for third-party signalers); `TriggerCodec.decode(fields, data, classLoader, clock,
+  zone)`; `InstantMessageFormat.format(zone, pattern, args...)`; `Instants.now(InstantSource)`
+  replaces `Instants.now()`; `PersistentJobStore.getClock()` and `getTimeZone()`;
+  `QuartzSchedulerResources.getTimeZone()`; `QuartzProperties.schedulerSettings()`.
+
 ## 1.0.0-rc3 (2026-11-11)
 
 ### Manual fires

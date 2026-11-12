@@ -183,8 +183,15 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
    */
   boolean mayFireAgain();
 
-  /** Get the time at which the <code>Trigger</code> should occur. */
-  Instant getStartTime();
+  /**
+   * Get the time at which the <code>Trigger</code> should occur.
+   *
+   * @return the start time; {@code null} for a trigger built without {@link
+   *     TriggerBuilder#startAt(Instant)} (or with {@link TriggerBuilder#startNow()}) that has not
+   *     been scheduled yet: the scheduler sets it to "now" by its {@link Scheduler#getClock()
+   *     clock} when the trigger is scheduled
+   */
+  @Nullable Instant getStartTime();
 
   /**
    * Get the time at which the <code>Trigger</code> should quit repeating - regardless of any
@@ -218,6 +225,10 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
   /**
    * Returns the next time at which the <code>Trigger</code> will fire, after the given time. If the
    * trigger will not fire after the given time, <code>null</code> will be returned.
+   *
+   * @param afterTime the time; {@code null} for "now" by the clock of the scheduler the trigger was
+   *     scheduled with or loaded from (see {@link Scheduler#getClock()}), or by the system clock
+   *     for a trigger that has not been scheduled yet
    */
   @Nullable Instant getFireTimeAfter(@Nullable Instant afterTime);
 

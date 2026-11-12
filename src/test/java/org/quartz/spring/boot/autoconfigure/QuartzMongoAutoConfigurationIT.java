@@ -17,9 +17,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import org.bson.Document;
 import org.junit.jupiter.api.Test;
+import org.quartz.CronScheduleBuilder;
+import org.quartz.CronTrigger;
 import org.quartz.Job;
 import org.quartz.JobBuilder;
 import org.quartz.JobDetail;
@@ -28,6 +32,7 @@ import org.quartz.Scheduler;
 import org.quartz.SimpleScheduleBuilder;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
+import org.quartz.TriggerKey;
 import org.quartz.impl.mongodb.MongoJobStore;
 import org.quartz.support.AbstractMongoIT;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,7 +52,8 @@ import org.springframework.context.annotation.Configuration;
     properties = {
       "spring.quartz.job-store.type=mongodb",
       "spring.quartz.scheduler.name=mongoApp",
-      "spring.quartz.job-store.mongodb.collection-prefix=app_"
+      "spring.quartz.job-store.mongodb.collection-prefix=app_",
+      "spring.quartz.time-zone=Asia/Kolkata"
     })
 class QuartzMongoAutoConfigurationIT extends AbstractMongoIT {
 
@@ -70,6 +76,24 @@ class QuartzMongoAutoConfigurationIT extends AbstractMongoIT {
     await().atMost(Duration.ofSeconds(30)).until(() -> EXECUTED.contains("mongoJob"));
     assertThat(mongoClient().getDatabase("test").getCollection("app_jobs").countDocuments())
         .isEqualTo(1);
+
+    // one test method: the collections are dropped after each test, the context is cached
+    theTimeZonePropertyIsTheSchedulersDefaultZone();
+  }
+
+  private void theTimeZonePropertyIsTheSchedulersDefaultZone() throws Exception {
+    assertThat(scheduler.getTimeZone()).isEqualTo(ZoneId.of("Asia/Kolkata"));
+
+    // a cron trigger bean without a zone took it when it was scheduled, and the store kept it
+    CronTrigger stored = (CronTrigger) scheduler.getTrigger(TriggerKey.triggerKey("nightly"));
+    assertThat(stored.getTimeZone()).isEqualTo(ZoneId.of("Asia/Kolkata"));
+    assertThat(
+            mongoClient()
+                .getDatabase("test")
+                .getCollection("app_triggers")
+                .find(new Document("name", "nightly"))
+                .first())
+        .containsEntry("timeZone", "Asia/Kolkata");
   }
 
   @Configuration(proxyBeanMethods = false)
@@ -83,6 +107,15 @@ class QuartzMongoAutoConfigurationIT extends AbstractMongoIT {
     @Bean
     JobDetail mongoJob() {
       return JobBuilder.newJob(RecordingJob.class).withIdentity("mongoJob").storeDurably().build();
+    }
+
+    @Bean
+    Trigger nightly(JobDetail mongoJob) {
+      return TriggerBuilder.newTrigger()
+          .forJob(mongoJob)
+          .withIdentity("nightly")
+          .withSchedule(CronScheduleBuilder.dailyAtHourAndMinute(2, 0))
+          .build();
     }
 
     @Bean

@@ -18,17 +18,18 @@ package org.quartz.spring.boot.actuate.endpoint;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
-import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -108,8 +109,15 @@ class QuartzEndpointTest {
 
   private final QuartzEndpoint endpoint;
 
+  private static final Clock CLOCK =
+      Clock.fixed(Instant.parse("2020-12-01T10:00:00Z"), ZoneOffset.UTC);
+
+  private static final ZoneId TIME_ZONE = ZoneId.of("Asia/Kolkata");
+
   QuartzEndpointTest() {
     this.scheduler = mock(Scheduler.class);
+    given(this.scheduler.getClock()).willReturn(CLOCK);
+    given(this.scheduler.getTimeZone()).willReturn(TIME_ZONE);
     this.endpoint = new QuartzEndpoint(this.scheduler, Collections.emptyList());
   }
 
@@ -119,8 +127,10 @@ class QuartzEndpointTest {
     given(this.scheduler.getTriggerGroupNames())
         .willReturn(Collections.singletonList("triggerSamples"));
     QuartzDescriptor quartzReport = this.endpoint.quartzReport();
+    assertThat(quartzReport.getTimeZone()).isEqualTo("Asia/Kolkata");
     assertThat(quartzReport.getJobs().getGroups()).containsOnly("jobSamples", "DEFAULT");
     assertThat(quartzReport.getTriggers().getGroups()).containsOnly("triggerSamples");
+    then(this.scheduler).should().getTimeZone();
     then(this.scheduler).should().getJobGroupNames();
     then(this.scheduler).should().getTriggerGroupNames();
     then(this.scheduler).shouldHaveNoMoreInteractions();
@@ -398,7 +408,8 @@ class QuartzEndpointTest {
             entry("interval", 3600000L),
             entry("startTimeOfDay", LocalTime.of(9, 0)),
             entry("endTimeOfDay", LocalTime.of(18, 0)),
-            entry("daysOfWeek", new LinkedHashSet<>(Arrays.asList(3, 5))));
+            entry("daysOfWeek", new LinkedHashSet<>(Arrays.asList(3, 5))),
+            entry("timeZone", ZoneOffset.UTC));
   }
 
   @Test
@@ -616,6 +627,7 @@ class QuartzEndpointTest {
             entry("startTimeOfDay", LocalTime.of(9, 0)),
             entry("endTimeOfDay", LocalTime.of(18, 0)),
             entry("daysOfWeek", new LinkedHashSet<>(Arrays.asList(2, 4))),
+            entry("timeZone", ZoneOffset.UTC),
             entry("repeatCount", -1),
             entry("timesTriggered", 0));
   }
@@ -928,8 +940,8 @@ class QuartzEndpointTest {
     assertThat(quartzJobTriggerDescriptor.getName()).isEqualTo("hello");
     assertThat(quartzJobTriggerDescriptor.getGroup()).isEqualTo("samples");
     assertThat(quartzJobTriggerDescriptor.getClassName()).isEqualTo("org.quartz.Job");
-    assertThat(quartzJobTriggerDescriptor.getTriggerTime())
-        .isCloseTo(Instant.now(), within(5, ChronoUnit.SECONDS));
+    // the scheduler's clock, not the system clock
+    assertThat(quartzJobTriggerDescriptor.getTriggerTime()).isEqualTo(CLOCK.instant());
     then(this.scheduler).should().triggerJob(new JobKey("hello", "samples"));
   }
 

@@ -17,6 +17,7 @@
  */
 package org.quartz;
 
+import java.time.ZoneId;
 import java.util.Set;
 import org.quartz.DateBuilder.IntervalUnit;
 
@@ -110,6 +111,15 @@ public interface DailyTimeIntervalTrigger extends Trigger {
 
   /** Get the number of times the <code>DateIntervalTrigger</code> has already fired. */
   int getTimesTriggered();
+
+  /**
+   * The time zone the start and end times of day, and the days of the week, are in.
+   *
+   * <p>If none was set, the scheduler's default time zone ({@link Scheduler#getTimeZone()}, <code>
+   * spring.quartz.time-zone</code>, UTC by default) applies from the moment the trigger is
+   * scheduled; before that, UTC. Never the JVM default zone.
+   */
+  ZoneId getTimeZone();
 
   TriggerBuilder<DailyTimeIntervalTrigger> getTriggerBuilder();
 }

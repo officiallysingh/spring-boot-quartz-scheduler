@@ -18,6 +18,10 @@
 
 package org.quartz.impl.triggers;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.CronTrigger;
@@ -33,6 +37,7 @@ import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
 import org.quartz.TriggerKey;
 import org.quartz.spi.OperableTrigger;
+import org.quartz.utils.Instants;
 
 /**
  * The base abstract class to be extended by all <code>Trigger</code>s.
@@ -86,6 +91,9 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
   private int priority = DEFAULT_PRIORITY;
 
   private transient @Nullable TriggerKey key = null;
+
+  // the clock of the scheduler, set by bind() when the trigger is scheduled or loaded
+  private transient @Nullable Clock clock = null;
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -445,6 +453,53 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
    *
    * @throws IllegalStateException if a required property (such as Name, Group, Class) is not set.
    */
+  @Override
+  public void bind(Clock clock, ZoneId defaultTimeZone) {
+    this.clock = Objects.requireNonNull(clock, "clock");
+    Objects.requireNonNull(defaultTimeZone, "defaultTimeZone");
+    if (getStartTime() == null) {
+      setStartTime(Instants.now(clock));
+    }
+    applyDefaultTimeZone(defaultTimeZone);
+  }
+
+  /**
+   * Called by {@link #bind(Clock, ZoneId)}: a trigger with a time zone sets it to the given one if
+   * none was set explicitly. The default does nothing (simple triggers have no zone).
+   */
+  protected void applyDefaultTimeZone(ZoneId timeZone) {}
+
+  /**
+   * The clock of the scheduler this trigger is bound to, or the system clock for a trigger that has
+   * not been scheduled or loaded yet.
+   */
+  protected Clock clock() {
+    return clock != null ? clock : Clock.systemUTC();
+  }
+
+  /** Now by {@link #clock()}, at millisecond precision. */
+  protected Instant now() {
+    return Instants.now(clock());
+  }
+
+  /**
+   * The start time, which fire-time arithmetic needs.
+   *
+   * @throws IllegalStateException if the trigger has none yet (built without {@code startAt} and
+   *     not scheduled)
+   */
+  protected Instant requireStartTime() {
+    Instant startTime = getStartTime();
+    if (startTime == null) {
+      throw new IllegalStateException(
+          "Trigger "
+              + getKey()
+              + " has no start time yet: schedule it, or give it one with"
+              + " TriggerBuilder.startAt()");
+    }
+    return startTime;
+  }
+
   public void validate() throws SchedulerException {
     if (name == null) {
       throw new SchedulerException("Trigger's name cannot be null");

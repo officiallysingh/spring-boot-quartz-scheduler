@@ -21,7 +21,6 @@ package org.quartz;
 import java.time.Instant;
 import org.jspecify.annotations.Nullable;
 import org.quartz.spi.MutableTrigger;
-import org.quartz.utils.Instants;
 import org.quartz.utils.Key;
 
 /**
@@ -65,7 +64,8 @@ public class TriggerBuilder<T extends Trigger> {
 
   private @Nullable TriggerKey key;
   private @Nullable String description;
-  private Instant startTime = Instants.now();
+  // null: "now" by the scheduler's clock, set when the trigger is scheduled
+  private @Nullable Instant startTime;
   private @Nullable Instant endTime;
   private int priority = Trigger.DEFAULT_PRIORITY;
   private @Nullable String calendarName;
@@ -98,7 +98,7 @@ public class TriggerBuilder<T extends Trigger> {
 
     trig.setCalendarName(calendarName);
     trig.setDescription(description);
-    trig.setStartTime(startTime);
+    if (startTime != null) trig.setStartTime(startTime);
     trig.setEndTime(endTime);
     if (key == null) key = new TriggerKey(Key.createUniqueName(null), null);
     trig.setKey(key);
@@ -203,25 +203,28 @@ public class TriggerBuilder<T extends Trigger> {
    * depending upon the schedule configured for the Trigger. However the Trigger will NOT fire
    * before this time, regardless of the Trigger's schedule.
    *
-   * @param triggerStartTime the start time for the Trigger.
+   * @param triggerStartTime the start time for the Trigger; {@code null} for "now" by the
+   *     scheduler's clock at the moment the trigger is scheduled, as {@link #startNow()}
    * @return the updated TriggerBuilder
    * @see Trigger#getStartTime()
    * @see DateBuilder
    */
-  public TriggerBuilder<T> startAt(Instant triggerStartTime) {
+  public TriggerBuilder<T> startAt(@Nullable Instant triggerStartTime) {
     this.startTime = triggerStartTime;
     return this;
   }
 
   /**
-   * Set the time the Trigger should start at to the current moment - the trigger may or may not
-   * fire at this time - depending upon the schedule configured for the Trigger.
+   * Start the Trigger at the moment it is scheduled, by the scheduler's {@link Scheduler#getClock()
+   * clock} - the trigger may or may not fire at this time - depending upon the schedule configured
+   * for the Trigger. This is the default; until the trigger is scheduled its {@link
+   * Trigger#getStartTime()} is {@code null}, so the builder never reads the system clock.
    *
    * @return the updated TriggerBuilder
    * @see Trigger#getStartTime()
    */
   public TriggerBuilder<T> startNow() {
-    this.startTime = Instants.now();
+    this.startTime = null;
     return this;
   }
 

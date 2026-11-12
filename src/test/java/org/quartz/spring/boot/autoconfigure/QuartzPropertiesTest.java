@@ -16,6 +16,7 @@ package org.quartz.spring.boot.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.quartz.impl.config.JobStoreSettings;
@@ -38,6 +39,8 @@ class QuartzPropertiesTest {
 
     assertThat(properties.scheduler().toSettings())
         .isEqualTo(SchedulerSettings.builder().name("quartzScheduler").build());
+    assertThat(properties.timeZone()).isEqualTo(ZoneId.of("UTC"));
+    assertThat(properties.schedulerSettings()).isEqualTo(properties.scheduler().toSettings());
     assertThat(properties.threadPool().toSettings()).isEqualTo(ThreadPoolSettings.defaults());
     assertThat(properties.jobStore().toSettings()).isEqualTo(JobStoreSettings.defaults());
     assertThat(properties.autoStartup()).isTrue();
@@ -64,6 +67,7 @@ class QuartzPropertiesTest {
                 Map.entry("spring.quartz.startup-delay", "5s"),
                 Map.entry("spring.quartz.wait-for-jobs-to-complete-on-shutdown", "true"),
                 Map.entry("spring.quartz.overwrite-existing-jobs", "true"),
+                Map.entry("spring.quartz.time-zone", "Asia/Kolkata"),
                 Map.entry("spring.quartz.scheduler.name", "app-scheduler"),
                 Map.entry("spring.quartz.scheduler.instance-id", "AUTO"),
                 Map.entry("spring.quartz.scheduler.idle-wait-time", "45s"),
@@ -88,6 +92,10 @@ class QuartzPropertiesTest {
     assertThat(properties.startupDelay()).isEqualTo(Duration.ofSeconds(5));
     assertThat(properties.waitForJobsToCompleteOnShutdown()).isTrue();
     assertThat(properties.overwriteExistingJobs()).isTrue();
+
+    assertThat(properties.timeZone()).isEqualTo(ZoneId.of("Asia/Kolkata"));
+    assertThat(properties.schedulerSettings().timeZone()).isEqualTo(ZoneId.of("Asia/Kolkata"));
+    assertThat(properties.schedulerSettings().name()).isEqualTo("app-scheduler");
 
     SchedulerSettings scheduler = properties.scheduler().toSettings();
     assertThat(scheduler.name()).isEqualTo("app-scheduler");

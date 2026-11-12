@@ -54,8 +54,8 @@ public class WeeklyCalendar extends BaseCalendar implements Calendar, Serializab
   }
 
   /**
-   * Create a calendar excluding Saturdays and Sundays on top of another, in the system default time
-   * zone.
+   * Create a calendar excluding Saturdays and Sundays on top of another, without a zone (see {@link
+   * BaseCalendar#getTimeZone()}).
    *
    * @param baseCalendar the calendar that must also include a time, or {@code null}
    */
@@ -66,7 +66,8 @@ public class WeeklyCalendar extends BaseCalendar implements Calendar, Serializab
   /**
    * Create a calendar excluding Saturdays and Sundays, without a base calendar.
    *
-   * @param timeZone the time zone, or {@code null} for the system default
+   * @param timeZone the time zone, or {@code null} for the scheduler's default zone once added (see
+   *     {@link BaseCalendar#getTimeZone()})
    */
   public WeeklyCalendar(@Nullable ZoneId timeZone) {
     super(null, timeZone);
@@ -76,7 +77,8 @@ public class WeeklyCalendar extends BaseCalendar implements Calendar, Serializab
    * Create a calendar excluding Saturdays and Sundays on top of another.
    *
    * @param baseCalendar the calendar that must also include a time, or {@code null}
-   * @param timeZone the time zone, or {@code null} for the system default
+   * @param timeZone the time zone, or {@code null} for the scheduler's default zone once added (see
+   *     {@link BaseCalendar#getTimeZone()})
    */
   public WeeklyCalendar(@Nullable Calendar baseCalendar, @Nullable ZoneId timeZone) {
     super(baseCalendar, timeZone);

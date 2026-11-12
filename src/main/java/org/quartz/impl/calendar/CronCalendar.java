@@ -59,8 +59,8 @@ public class CronCalendar extends BaseCalendar {
    * @param expression a String representation of the desired cron expression
    * @param timeZone Specifies for which time zone the <code>expression</code> should be
    *     interpreted, i.e. the expression 0 0 10 * * ?, is resolved to 10:00 am in this time zone.
-   *     If <code>timeZone</code> is <code>null</code> then <code>ZoneId.systemDefault()</code> will
-   *     be used.
+   *     <code>null</code> for none yet: the calendar takes the scheduler's default zone when it is
+   *     added (see {@link BaseCalendar#getTimeZone()}); UTC until then.
    */
   public CronCalendar(@Nullable Calendar baseCalendar, String expression, @Nullable ZoneId timeZone)
       throws ParseException {
@@ -84,14 +84,14 @@ public class CronCalendar extends BaseCalendar {
    * CronExpression</code>.
    */
   @Override
-  public ZoneId getTimeZone() {
-    return cronExpression.getTimeZone();
+  public @Nullable ZoneId getTimeZone() {
+    return cronExpression.hasTimeZone() ? cronExpression.getTimeZone() : null;
   }
 
   /**
    * Sets the time zone for which the <code>CronExpression</code> of this <code>CronCalendar</code>
-   * will be resolved. If <code>timeZone</code> is <code>null</code> then <code>
-   * ZoneId.systemDefault()</code> will be used.
+   * will be resolved; <code>null</code> unsets it, so that the scheduler applies its default zone
+   * when the calendar is added (UTC until then).
    *
    * <p>Overrides <code>{@link BaseCalendar#setTimeZone(ZoneId)}</code> to defer to its <code>
    * CronExpression</code>.

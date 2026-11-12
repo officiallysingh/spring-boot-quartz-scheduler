@@ -13,8 +13,10 @@
  */
 package org.quartz.impl.redis;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -33,6 +35,7 @@ import org.quartz.JobKey;
 import org.quartz.JobPersistenceException;
 import org.quartz.Trigger;
 import org.quartz.TriggerKey;
+import org.quartz.impl.calendar.BaseCalendar;
 import org.quartz.impl.store.FiredTriggerRecord;
 import org.quartz.impl.store.PersistentJobStore;
 import org.quartz.impl.store.SchedulerStateRecord;
@@ -71,10 +74,21 @@ class RedisStoreDelegate implements StoreDelegate {
 
   private final ClassLoader classLoader;
 
-  RedisStoreDelegate(StringRedisTemplate redis, RedisKeys keys, ClassLoader classLoader) {
+  private final Clock clock;
+
+  private final ZoneId timeZone;
+
+  RedisStoreDelegate(
+      StringRedisTemplate redis,
+      RedisKeys keys,
+      ClassLoader classLoader,
+      Clock clock,
+      ZoneId timeZone) {
     this.redis = redis;
     this.keys = keys;
     this.classLoader = classLoader;
+    this.clock = clock;
+    this.timeZone = timeZone;
   }
 
   private long run(RedisScript<Long> script, String routingKey, List<String> args) {
@@ -245,7 +259,9 @@ class RedisStoreDelegate implements StoreDelegate {
   public @Nullable OperableTrigger selectTrigger(TriggerKey triggerKey)
       throws JobPersistenceException {
     Map<String, String> fields = hash(keys.trigger(RedisKeys.k(triggerKey)));
-    return fields.isEmpty() ? null : TriggerCodec.decode(fields, jobData(fields), classLoader);
+    return fields.isEmpty()
+        ? null
+        : TriggerCodec.decode(fields, jobData(fields), classLoader, clock, timeZone);
   }
 
   @Override
@@ -495,9 +511,18 @@ class RedisStoreDelegate implements StoreDelegate {
   public @Nullable Calendar selectCalendar(String name) throws JobPersistenceException {
     Object value = redis.opsForHash().get(keys.calendars(), name);
     return (value != null)
-        ? SerializationCodec.deserialize(
-            SerializationCodec.fromBase64((String) value), Calendar.class, classLoader)
+        ? bind(
+            SerializationCodec.deserialize(
+                SerializationCodec.fromBase64((String) value), Calendar.class, classLoader))
         : null;
+  }
+
+  /** A calendar stored without a zone (none is stored so) takes the scheduler's default zone. */
+  private Calendar bind(Calendar calendar) {
+    if (calendar instanceof BaseCalendar base) {
+      base.bind(timeZone);
+    }
+    return calendar;
   }
 
   @Override

@@ -17,9 +17,8 @@
  */
 package org.quartz;
 
-import java.time.Instant;
+import java.time.LocalTime;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -27,7 +26,6 @@ import org.jspecify.annotations.Nullable;
 import org.quartz.DateBuilder.IntervalUnit;
 import org.quartz.impl.triggers.DailyTimeIntervalTriggerImpl;
 import org.quartz.spi.MutableTrigger;
-import org.quartz.utils.Instants;
 
 /**
  * A {@link ScheduleBuilder} implementation that build schedule for DailyTimeIntervalTrigger.
@@ -78,6 +76,8 @@ public class DailyTimeIntervalScheduleBuilder extends ScheduleBuilder<DailyTimeI
   private int repeatCount = DailyTimeIntervalTrigger.REPEAT_INDEFINITELY;
 
   private int misfireInstruction = CalendarIntervalTrigger.MISFIRE_INSTRUCTION_SMART_POLICY;
+
+  private @Nullable ZoneId timeZone;
 
   /**
    * A set of all days of the week.
@@ -153,7 +153,25 @@ public class DailyTimeIntervalScheduleBuilder extends ScheduleBuilder<DailyTimeI
     if (endTimeOfDay != null) st.setEndTimeOfDay(endTimeOfDay);
     else st.setEndTimeOfDay(TimeOfDay.hourMinuteAndSecondOfDay(23, 59, 59));
 
+    st.setTimeZone(timeZone);
+
     return st;
+  }
+
+  /**
+   * The <code>TimeZone</code> the start and end times of day, and the days of the week, are in.
+   *
+   * <p>Without it, the trigger takes the scheduler's default time zone when it is scheduled (<code>
+   * spring.quartz.time-zone</code>, UTC by default; see {@link Scheduler#getTimeZone()}), never the
+   * JVM default zone.
+   *
+   * @param timezone the time zone for the schedule.
+   * @return the updated DailyTimeIntervalScheduleBuilder
+   * @see DailyTimeIntervalTrigger#getTimeZone()
+   */
+  public DailyTimeIntervalScheduleBuilder inTimeZone(ZoneId timezone) {
+    this.timeZone = timezone;
+    return this;
   }
 
   /**
@@ -316,42 +334,35 @@ public class DailyTimeIntervalScheduleBuilder extends ScheduleBuilder<DailyTimeI
       throw new IllegalArgumentException(
           "You must set the startDailyAt() before calling this endingDailyAfterCount()!");
 
-    Instant today = Instants.now();
-    Instant startTimeOfDayDate = startTimeOfDay.getTimeOfDayForDate(today);
-    Instant maxEndTimeOfDayDate =
-        TimeOfDay.hourMinuteAndSecondOfDay(23, 59, 59).getTimeOfDayForDate(today);
-    long remainingMillisInDay =
-        maxEndTimeOfDayDate.toEpochMilli() - startTimeOfDayDate.toEpochMilli();
-    long intervalInMillis;
-    if (intervalUnit == IntervalUnit.SECOND) intervalInMillis = interval * 1000L;
-    else if (intervalUnit == IntervalUnit.MINUTE) intervalInMillis = interval * 1000L * 60;
-    else if (intervalUnit == IntervalUnit.HOUR) intervalInMillis = interval * 1000L * 60 * 60;
+    // pure time-of-day arithmetic: no clock and no zone are involved
+    long startSecondOfDay = startTimeOfDay.toLocalTime().toSecondOfDay();
+    long maxEndSecondOfDay = LocalTime.of(23, 59, 59).toSecondOfDay();
+    long remainingSecondsInDay = maxEndSecondOfDay - startSecondOfDay;
+
+    long intervalInSeconds;
+    if (intervalUnit == IntervalUnit.SECOND) intervalInSeconds = interval;
+    else if (intervalUnit == IntervalUnit.MINUTE) intervalInSeconds = interval * 60L;
+    else if (intervalUnit == IntervalUnit.HOUR) intervalInSeconds = interval * 60L * 60L;
     else
       throw new IllegalArgumentException(
           "The IntervalUnit: " + intervalUnit + " is invalid for this trigger.");
 
-    if (remainingMillisInDay - intervalInMillis <= 0)
+    if (remainingSecondsInDay - intervalInSeconds <= 0)
       throw new IllegalArgumentException(
           "The startTimeOfDay is too late with given Interval and IntervalUnit values.");
 
-    long maxNumOfCount = (remainingMillisInDay / intervalInMillis);
+    long maxNumOfCount = (remainingSecondsInDay / intervalInSeconds);
     if (count > maxNumOfCount)
       throw new IllegalArgumentException(
           "The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
 
-    long incrementInMillis = (count - 1) * intervalInMillis;
-    Instant endTimeOfDayDate = startTimeOfDayDate.plusMillis(incrementInMillis);
+    long endSecondOfDay = startSecondOfDay + (count - 1) * intervalInSeconds;
 
-    if (endTimeOfDayDate.isAfter(maxEndTimeOfDayDate))
+    if (endSecondOfDay > maxEndSecondOfDay)
       throw new IllegalArgumentException(
           "The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
 
-    ZonedDateTime cal = endTimeOfDayDate.atZone(ZoneId.systemDefault());
-    int hour = cal.getHour();
-    int minute = cal.getMinute();
-    int second = cal.getSecond();
-
-    endTimeOfDay = TimeOfDay.hourMinuteAndSecondOfDay(hour, minute, second);
+    endTimeOfDay = TimeOfDay.from(LocalTime.ofSecondOfDay(endSecondOfDay));
     return this;
   }
 

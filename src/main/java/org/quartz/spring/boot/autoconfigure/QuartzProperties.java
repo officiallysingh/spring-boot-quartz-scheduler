@@ -17,6 +17,7 @@
 package org.quartz.spring.boot.autoconfigure;
 
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.quartz.impl.config.JobStoreSettings;
@@ -39,6 +40,9 @@ import org.springframework.transaction.annotation.Propagation;
  *     started up.
  * @param waitForJobsToCompleteOnShutdown Whether to wait for running jobs to complete on shutdown.
  * @param overwriteExistingJobs Whether configured jobs should overwrite existing job definitions.
+ * @param timeZone Default time zone of the scheduler: the zone a cron, calendar-interval or
+ *     daily-time-interval trigger scheduled without an explicit zone resolves in; never the JVM
+ *     default zone.
  * @param scheduler Scheduler settings.
  * @param threadPool Worker thread pool settings.
  * @param jobStore Job store settings.
@@ -53,6 +57,7 @@ public record QuartzProperties(
     @DefaultValue("0s") Duration startupDelay,
     boolean waitForJobsToCompleteOnShutdown,
     boolean overwriteExistingJobs,
+    @DefaultValue("UTC") ZoneId timeZone,
     @DefaultValue Scheduler scheduler,
     @DefaultValue ThreadPool threadPool,
     @DefaultValue JobStore jobStore,
@@ -66,6 +71,11 @@ public record QuartzProperties(
    * system property when the store is clustered.
    */
   public static final String SYSTEM_PROPERTY_INSTANCE_ID = "SYS_PROP";
+
+  /** The {@link SchedulerSettings} of the scheduler group, with {@link #timeZone()}. */
+  public SchedulerSettings schedulerSettings() {
+    return this.scheduler.toSettings().toBuilder().timeZone(this.timeZone).build();
+  }
 
   /**
    * Scheduler settings.

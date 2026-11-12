@@ -15,10 +15,14 @@ package org.quartz.impl.mongodb;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.time.Clock;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +37,7 @@ import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
 import org.quartz.SchedulerException;
 import org.quartz.impl.config.JobStoreSettings;
+import org.quartz.spi.SchedulerSignaler;
 import org.quartz.support.AbstractMongoIT;
 import org.quartz.support.TestSchedulers;
 
@@ -50,7 +55,11 @@ class MongoTransactionInterruptIT extends AbstractMongoIT {
     store.setInstanceName("InterruptTest");
     store.setInstanceId("NON_CLUSTERED");
     ClassLoader classLoader = getClass().getClassLoader();
-    store.initialize(classLoader, null);
+    // the store binds the scheduler's clock and zone to the triggers it loads
+    SchedulerSignaler signaler = mock(SchedulerSignaler.class);
+    given(signaler.getClock()).willReturn(Clock.systemUTC());
+    given(signaler.getTimeZone()).willReturn(ZoneId.of("UTC"));
+    store.initialize(classLoader, signaler);
   }
 
   @AfterEach

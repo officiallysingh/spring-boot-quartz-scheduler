@@ -21,6 +21,8 @@ import static org.quartz.DateBuilder.IntervalUnit.MINUTE;
 import static org.quartz.DateBuilder.futureDate;
 import static org.quartz.TriggerBuilder.newTrigger;
 
+import java.time.Clock;
+import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -65,25 +67,61 @@ class TriggerComparatorTest {
   void testTriggerTimeSort() {
 
     // build trigger in expected sort order
-    Trigger t1 = newTrigger().withIdentity("a").startAt(futureDate(1, MINUTE)).build();
+    Trigger t1 =
+        newTrigger()
+            .withIdentity("a")
+            .startAt(futureDate(1, MINUTE, Clock.systemUTC(), ZoneOffset.UTC))
+            .build();
     ((OperableTrigger) t1).computeFirstFireTime(null);
-    Trigger t2 = newTrigger().withIdentity("b").startAt(futureDate(2, MINUTE)).build();
+    Trigger t2 =
+        newTrigger()
+            .withIdentity("b")
+            .startAt(futureDate(2, MINUTE, Clock.systemUTC(), ZoneOffset.UTC))
+            .build();
     ((OperableTrigger) t2).computeFirstFireTime(null);
-    Trigger t3 = newTrigger().withIdentity("c").startAt(futureDate(3, MINUTE)).build();
+    Trigger t3 =
+        newTrigger()
+            .withIdentity("c")
+            .startAt(futureDate(3, MINUTE, Clock.systemUTC(), ZoneOffset.UTC))
+            .build();
     ((OperableTrigger) t3).computeFirstFireTime(null);
     Trigger t4 =
-        newTrigger().withIdentity("d").startAt(futureDate(5, MINUTE)).withPriority(7).build();
+        newTrigger()
+            .withIdentity("d")
+            .startAt(futureDate(5, MINUTE, Clock.systemUTC(), ZoneOffset.UTC))
+            .withPriority(7)
+            .build();
     ((OperableTrigger) t4).computeFirstFireTime(null);
-    Trigger t5 = newTrigger().withIdentity("e").startAt(futureDate(5, MINUTE)).build();
+    Trigger t5 =
+        newTrigger()
+            .withIdentity("e")
+            .startAt(futureDate(5, MINUTE, Clock.systemUTC(), ZoneOffset.UTC))
+            .build();
     ((OperableTrigger) t5).computeFirstFireTime(null);
-    Trigger t6 = newTrigger().withIdentity("g").startAt(futureDate(5, MINUTE)).build();
+    Trigger t6 =
+        newTrigger()
+            .withIdentity("g")
+            .startAt(futureDate(5, MINUTE, Clock.systemUTC(), ZoneOffset.UTC))
+            .build();
     ((OperableTrigger) t6).computeFirstFireTime(null);
     Trigger t7 =
-        newTrigger().withIdentity("h").startAt(futureDate(5, MINUTE)).withPriority(2).build();
+        newTrigger()
+            .withIdentity("h")
+            .startAt(futureDate(5, MINUTE, Clock.systemUTC(), ZoneOffset.UTC))
+            .withPriority(2)
+            .build();
     ((OperableTrigger) t7).computeFirstFireTime(null);
-    Trigger t8 = newTrigger().withIdentity("i").startAt(futureDate(6, MINUTE)).build();
+    Trigger t8 =
+        newTrigger()
+            .withIdentity("i")
+            .startAt(futureDate(6, MINUTE, Clock.systemUTC(), ZoneOffset.UTC))
+            .build();
     ((OperableTrigger) t8).computeFirstFireTime(null);
-    Trigger t9 = newTrigger().withIdentity("j").startAt(futureDate(7, MINUTE)).build();
+    Trigger t9 =
+        newTrigger()
+            .withIdentity("j")
+            .startAt(futureDate(7, MINUTE, Clock.systemUTC(), ZoneOffset.UTC))
+            .build();
     ((OperableTrigger) t9).computeFirstFireTime(null);
 
     List<Trigger> ts = new LinkedList<Trigger>();

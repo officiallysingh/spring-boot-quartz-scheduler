@@ -14,6 +14,7 @@
 package org.quartz.impl.config;
 
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -41,6 +42,8 @@ import org.jspecify.annotations.Nullable;
  * @param interruptJobsOnShutdownWithWait interrupt running interruptable jobs on {@code
  *     shutdown(true)}
  * @param context initial entries of the {@link org.quartz.SchedulerContext}
+ * @param timeZone the default time zone of the scheduler: the zone a cron, calendar-interval or
+ *     daily-time-interval trigger scheduled without an explicit zone resolves in
  */
 public record SchedulerSettings(
     String name,
@@ -53,7 +56,8 @@ public record SchedulerSettings(
     int batchTriggerAcquisitionMaxCount,
     boolean interruptJobsOnShutdown,
     boolean interruptJobsOnShutdownWithWait,
-    Map<String, String> context) {
+    Map<String, String> context,
+    ZoneId timeZone) {
 
   public static final String DEFAULT_NAME = "DefaultQuartzScheduler";
 
@@ -62,6 +66,12 @@ public record SchedulerSettings(
   public static final Duration DEFAULT_IDLE_WAIT_TIME = Duration.ofSeconds(30);
 
   public static final Duration MIN_IDLE_WAIT_TIME = Duration.ofSeconds(1);
+
+  /**
+   * The default {@link #timeZone()}: UTC (the region id, as the <code>spring.quartz.time-zone
+   * </code> default binds it), never the JVM default zone.
+   */
+  public static final ZoneId DEFAULT_TIME_ZONE = ZoneId.of("UTC");
 
   /**
    * Validates the settings.
@@ -91,6 +101,7 @@ public record SchedulerSettings(
     }
     context =
         context == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(context));
+    Objects.requireNonNull(timeZone, "timeZone");
   }
 
   /** The effective scheduler thread name. */
@@ -133,7 +144,8 @@ public record SchedulerSettings(
         .batchTriggerAcquisitionMaxCount(batchTriggerAcquisitionMaxCount)
         .interruptJobsOnShutdown(interruptJobsOnShutdown)
         .interruptJobsOnShutdownWithWait(interruptJobsOnShutdownWithWait)
-        .context(context);
+        .context(context)
+        .timeZone(timeZone);
   }
 
   static void requireText(String value, String what) {
@@ -155,6 +167,7 @@ public record SchedulerSettings(
     private boolean interruptJobsOnShutdown;
     private boolean interruptJobsOnShutdownWithWait;
     private final Map<String, String> context = new LinkedHashMap<>();
+    private ZoneId timeZone = DEFAULT_TIME_ZONE;
 
     private Builder() {}
 
@@ -293,6 +306,17 @@ public record SchedulerSettings(
     }
 
     /**
+     * Set {@link SchedulerSettings#timeZone() timeZone}.
+     *
+     * @param timeZone the value
+     * @return this builder
+     */
+    public Builder timeZone(ZoneId timeZone) {
+      this.timeZone = Objects.requireNonNull(timeZone, "timeZone");
+      return this;
+    }
+
+    /**
      * The settings.
      *
      * @return the settings
@@ -310,7 +334,8 @@ public record SchedulerSettings(
           batchTriggerAcquisitionMaxCount,
           interruptJobsOnShutdown,
           interruptJobsOnShutdownWithWait,
-          context);
+          context,
+          timeZone);
     }
   }
 }

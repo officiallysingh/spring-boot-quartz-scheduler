@@ -82,8 +82,8 @@ public class CronScheduleBuilder extends ScheduleBuilder<CronTrigger> {
 
     CronTriggerImpl ct = new CronTriggerImpl();
 
-    ct.setCronExpression(cronExpression);
-    ct.setTimeZone(cronExpression.getTimeZone());
+    // a copy: binding the trigger to a scheduler sets a zone on the expression it holds
+    ct.setCronExpression(new CronExpression(cronExpression));
     ct.setMisfireInstruction(misfireInstruction);
 
     return ct;
@@ -249,9 +249,13 @@ public class CronScheduleBuilder extends ScheduleBuilder<CronTrigger> {
   }
 
   /**
-   * The time zone in which to base the schedule.
+   * The <code>TimeZone</code> in which to base the schedule.
    *
-   * @param timezone the time-zone for the schedule.
+   * <p>Without it, the trigger takes the scheduler's default time zone when it is scheduled (<code>
+   * spring.quartz.time-zone</code>, UTC by default; see {@link Scheduler#getTimeZone()}), never the
+   * JVM default zone.
+   *
+   * @param timezone the time zone for the schedule.
    * @return the updated CronScheduleBuilder
    * @see CronExpression#getTimeZone()
    */

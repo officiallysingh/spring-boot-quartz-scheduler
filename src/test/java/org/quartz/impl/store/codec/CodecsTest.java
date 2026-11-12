@@ -16,17 +16,22 @@ package org.quartz.impl.store.codec;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.quartz.CalendarIntervalScheduleBuilder;
+import org.quartz.CalendarIntervalTrigger;
 import org.quartz.CronScheduleBuilder;
+import org.quartz.CronTrigger;
 import org.quartz.DailyTimeIntervalScheduleBuilder;
+import org.quartz.DailyTimeIntervalTrigger;
 import org.quartz.Job;
 import org.quartz.JobBuilder;
 import org.quartz.JobDataMap;
@@ -39,6 +44,7 @@ import org.quartz.TriggerBuilder;
 import org.quartz.impl.calendar.AnnualCalendar;
 import org.quartz.impl.triggers.SimpleTriggerImpl;
 import org.quartz.spi.OperableTrigger;
+import org.quartz.support.MutableClock;
 
 class CodecsTest {
 
@@ -121,7 +127,8 @@ class CodecsTest {
                         .endingDailyAt(TimeOfDay.hourAndMinuteOfDay(18, 0))
                         .onSaturdayAndSunday()
                         .withIntervalInHours(2)
-                        .withRepeatCount(7))
+                        .withRepeatCount(7)
+                        .inTimeZone(ZoneId.of("Asia/Kolkata")))
                 .build());
     triggers.forEach(t -> t.computeFirstFireTime(null));
     triggers.get(0).triggered(null);
@@ -140,6 +147,14 @@ class CodecsTest {
     assertThat(decoded.getEndTime()).isEqualTo(original.getEndTime());
     assertThat(decoded.getNextFireTime()).isEqualTo(original.getNextFireTime());
     assertThat(decoded.getPreviousFireTime()).isEqualTo(original.getPreviousFireTime());
+    if (original instanceof CronTrigger cron) {
+      assertThat(((CronTrigger) decoded).getTimeZone()).isEqualTo(cron.getTimeZone());
+    } else if (original instanceof CalendarIntervalTrigger calendarInterval) {
+      assertThat(((CalendarIntervalTrigger) decoded).getTimeZone())
+          .isEqualTo(calendarInterval.getTimeZone());
+    } else if (original instanceof DailyTimeIntervalTrigger daily) {
+      assertThat(((DailyTimeIntervalTrigger) decoded).getTimeZone()).isEqualTo(daily.getTimeZone());
+    }
     // the schedule itself: equal fire times from here on
     Instant after = original.getNextFireTime();
     for (int i = 0; i < 5 && after != null; i++) {
@@ -153,9 +168,52 @@ class CodecsTest {
     for (OperableTrigger trigger : triggers()) {
       Map<String, Object> fields = TriggerCodec.encode(trigger);
       assertThat(fields).doesNotContainKey(TriggerCodec.BLOB);
-      assertSameTrigger(TriggerCodec.decode(fields, new JobDataMap(), classLoader), trigger);
       assertSameTrigger(
-          TriggerCodec.decode(asStrings(fields), new JobDataMap(), classLoader), trigger);
+          TriggerCodec.decode(
+              fields, new JobDataMap(), classLoader, Clock.systemUTC(), ZoneOffset.UTC),
+          trigger);
+      assertSameTrigger(
+          TriggerCodec.decode(
+              asStrings(fields), new JobDataMap(), classLoader, Clock.systemUTC(), ZoneOffset.UTC),
+          trigger);
+    }
+  }
+
+  @Test
+  void zonesAreStoredWithEveryZonedTrigger() throws Exception {
+    for (OperableTrigger trigger : triggers()) {
+      Map<String, Object> fields = TriggerCodec.encode(trigger);
+      if (trigger instanceof SimpleTriggerImpl) {
+        assertThat(fields).doesNotContainKey(TriggerCodec.TIME_ZONE);
+      } else {
+        assertThat(fields).containsKey(TriggerCodec.TIME_ZONE);
+      }
+    }
+    assertThat(TriggerCodec.encode(triggers().get(3)))
+        .containsEntry(TriggerCodec.TIME_ZONE, "Asia/Kolkata");
+  }
+
+  @Test
+  void decodingBindsTheSchedulersClockAndDefaultZone() throws Exception {
+    MutableClock clock = new MutableClock(Instant.parse("2030-03-04T05:06:07Z"));
+    ZoneId defaultZone = ZoneId.of("Europe/London");
+    for (OperableTrigger trigger : triggers()) {
+      Map<String, Object> fields = new LinkedHashMap<>(TriggerCodec.encode(trigger));
+      fields.remove(TriggerCodec.TIME_ZONE); // a record without a zone (none is written so)
+
+      OperableTrigger decoded =
+          TriggerCodec.decode(fields, new JobDataMap(), classLoader, clock, defaultZone);
+
+      if (decoded instanceof CronTrigger cron) {
+        assertThat(cron.getTimeZone()).isEqualTo(defaultZone);
+      } else if (decoded instanceof CalendarIntervalTrigger calendarInterval) {
+        assertThat(calendarInterval.getTimeZone()).isEqualTo(defaultZone);
+      } else if (decoded instanceof DailyTimeIntervalTrigger daily) {
+        assertThat(daily.getTimeZone()).isEqualTo(defaultZone);
+      }
+      // "now" is the scheduler's clock: the first fire time after it, not after the system clock
+      Instant afterNow = decoded.getFireTimeAfter(null);
+      assertThat(afterNow).isEqualTo(decoded.getFireTimeAfter(clock.instant()));
     }
   }
 
@@ -171,7 +229,9 @@ class CodecsTest {
 
     Map<String, Object> fields = TriggerCodec.encode(trigger);
     assertThat(fields.get(TriggerCodec.TYPE)).isEqualTo(TriggerCodec.TYPE_BLOB);
-    OperableTrigger decoded = TriggerCodec.decode(asStrings(fields), data, classLoader);
+    OperableTrigger decoded =
+        TriggerCodec.decode(
+            asStrings(fields), data, classLoader, Clock.systemUTC(), ZoneOffset.UTC);
 
     assertThat(decoded).isInstanceOf(CustomTrigger.class);
     assertThat(((CustomTrigger) decoded).extra).isEqualTo("kept");

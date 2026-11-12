@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 import static org.quartz.DailyTimeIntervalScheduleBuilder.MONDAY_THROUGH_FRIDAY;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -401,7 +402,7 @@ public abstract class AbstractJobStoreContractTest {
   @Test
   void testAcquireNextTrigger() throws Exception {
 
-    Instant baseFireTimeDate = DateBuilder.evenMinuteDateAfterNow();
+    Instant baseFireTimeDate = DateBuilder.evenMinuteDateAfterNow(Clock.systemUTC());
     long baseFireTime = baseFireTimeDate.toEpochMilli();
 
     OperableTrigger trigger1 =
@@ -1193,7 +1194,7 @@ public abstract class AbstractJobStoreContractTest {
   @Test
   void testResetErrorTrigger() throws Exception {
 
-    Instant baseFireTimeDate = DateBuilder.evenMinuteDateAfterNow();
+    Instant baseFireTimeDate = DateBuilder.evenMinuteDateAfterNow(Clock.systemUTC());
     long baseFireTime = baseFireTimeDate.toEpochMilli();
 
     // create and store a trigger

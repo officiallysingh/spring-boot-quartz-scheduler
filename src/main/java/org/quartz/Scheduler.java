@@ -18,7 +18,9 @@
 
 package org.quartz;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -217,6 +219,24 @@ public interface Scheduler {
 
   /** Returns the <code>SchedulerContext</code> of the <code>Scheduler</code>. */
   SchedulerContext getContext() throws SchedulerException;
+
+  /**
+   * The clock of the scheduler: its only source of "now" for fire times, misfires, manual fires and
+   * the start time of a trigger scheduled without one. Cluster check-ins and lock leases are the
+   * exception: they use the system clock, because instances compare them with each other.
+   *
+   * @return the clock, {@link java.time.Clock#systemUTC()} unless one was configured
+   */
+  Clock getClock();
+
+  /**
+   * The default time zone of the scheduler: the zone a cron, calendar-interval or
+   * daily-time-interval trigger scheduled without an explicit zone resolves in. UTC unless
+   * configured (<code>spring.quartz.time-zone</code>); never the JVM default zone.
+   *
+   * @return the zone
+   */
+  ZoneId getTimeZone();
 
   ///////////////////////////////////////////////////////////////////////////
   ///

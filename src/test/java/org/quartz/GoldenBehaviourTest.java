@@ -151,31 +151,28 @@ class GoldenBehaviourTest {
 
   @Test
   void dailyTimeIntervalTriggerFireTimes() throws Exception {
-    try {
-      assertNoMismatches(
-          "daily-time-interval.tsv.gz",
-          r -> {
-            TimeZone.setDefault(TimeZone.getTimeZone(r[0]));
-            DailyTimeIntervalTriggerImpl t = new DailyTimeIntervalTriggerImpl();
-            t.setName("g");
-            t.setStartTime(Instant.ofEpochMilli(Long.parseLong(r[1])));
-            t.setStartTimeOfDay(timeOfDay(r[2]));
-            t.setEndTimeOfDay(timeOfDay(r[3]));
-            t.setRepeatIntervalUnit(IntervalUnit.valueOf(r[4]));
-            t.setRepeatInterval(Integer.parseInt(r[5]));
-            if (!r[6].isEmpty()) {
-              Set<Integer> days = new HashSet<>();
-              for (String d : r[6].split(",")) {
-                days.add(Integer.parseInt(d));
-              }
-              t.setDaysOfWeek(days);
+    // the fixtures were recorded with the zone as the JVM default; the trigger now carries it
+    assertNoMismatches(
+        "daily-time-interval.tsv.gz",
+        r -> {
+          DailyTimeIntervalTriggerImpl t = new DailyTimeIntervalTriggerImpl();
+          t.setName("g");
+          t.setTimeZone(ZoneId.of(r[0]));
+          t.setStartTime(Instant.ofEpochMilli(Long.parseLong(r[1])));
+          t.setStartTimeOfDay(timeOfDay(r[2]));
+          t.setEndTimeOfDay(timeOfDay(r[3]));
+          t.setRepeatIntervalUnit(IntervalUnit.valueOf(r[4]));
+          t.setRepeatInterval(Integer.parseInt(r[5]));
+          if (!r[6].isEmpty()) {
+            Set<Integer> days = new HashSet<>();
+            for (String d : r[6].split(",")) {
+              days.add(Integer.parseInt(d));
             }
-            t.setRepeatCount(Integer.parseInt(r[7]));
-            return compare("fire", r[8], join(TriggerUtils.computeFireTimes(t, null, 15)));
-          });
-    } finally {
-      TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
-    }
+            t.setDaysOfWeek(days);
+          }
+          t.setRepeatCount(Integer.parseInt(r[7]));
+          return compare("fire", r[8], join(TriggerUtils.computeFireTimes(t, null, 15)));
+        });
   }
 
   @Test

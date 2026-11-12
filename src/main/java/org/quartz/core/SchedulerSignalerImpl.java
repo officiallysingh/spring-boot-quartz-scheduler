@@ -20,6 +20,7 @@ package org.quartz.core;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
 import org.jspecify.annotations.Nullable;
 import org.quartz.JobKey;
 import org.quartz.SchedulerException;
@@ -113,6 +114,16 @@ public class SchedulerSignalerImpl implements SchedulerSignaler {
     } catch (RuntimeException e) {
       throw new SchedulerException("Clock failed to supply the scheduling time", e);
     }
+  }
+
+  @Override
+  public Clock getClock() {
+    return clock;
+  }
+
+  @Override
+  public ZoneId getTimeZone() {
+    return sched.getTimeZone();
   }
 
   @Override

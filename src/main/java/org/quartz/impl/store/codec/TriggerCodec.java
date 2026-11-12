@@ -14,6 +14,7 @@
 package org.quartz.impl.store.codec;
 
 import java.text.ParseException;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -181,6 +182,7 @@ public final class TriggerCodec {
       fields.put(TIMES_TRIGGERED, daily.getTimesTriggered());
       putIfNotNull(fields, START_TIME_OF_DAY, timeOfDay(daily.getStartTimeOfDay()));
       putIfNotNull(fields, END_TIME_OF_DAY, timeOfDay(daily.getEndTimeOfDay()));
+      fields.put(TIME_ZONE, daily.getTimeZone().getId());
       if (daily.getDaysOfWeek() != null) {
         fields.put(
             DAYS_OF_WEEK,
@@ -199,8 +201,17 @@ public final class TriggerCodec {
   }
 
   /** Decodes a trigger encoded by {@link #encode}, attaching {@code jobData}. */
+  /**
+   * Decodes a trigger and binds it to the scheduler ({@link OperableTrigger#bind(Clock, ZoneId)}):
+   * the clock is its source of "now" from here on, and a stored trigger without a zone (none is
+   * written without one) takes the default.
+   */
   public static OperableTrigger decode(
-      Map<String, ?> fields, JobDataMap jobData, ClassLoader classLoader)
+      Map<String, ?> fields,
+      JobDataMap jobData,
+      ClassLoader classLoader,
+      Clock clock,
+      ZoneId defaultTimeZone)
       throws JobPersistenceException {
     String type = Fields.string(fields, TYPE);
     OperableTrigger trigger;
@@ -249,6 +260,7 @@ public final class TriggerCodec {
     trigger.setNextFireTime(instant(fields, NEXT_FIRE_TIME));
     trigger.setPreviousFireTime(instant(fields, PREVIOUS_FIRE_TIME));
     trigger.setJobDataMap((jobData != null) ? jobData : new JobDataMap());
+    trigger.bind(clock, defaultTimeZone);
     return trigger;
   }
 
@@ -265,7 +277,7 @@ public final class TriggerCodec {
   private static CronTriggerImpl decodeCron(Map<String, ?> fields) throws ParseException {
     CronTriggerImpl trigger = new CronTriggerImpl();
     trigger.setCronExpression(Fields.requiredString(fields, CRON_EXPRESSION));
-    trigger.setTimeZone(ZoneId.of(Fields.requiredString(fields, TIME_ZONE)));
+    trigger.setTimeZone(zone(fields));
     return trigger;
   }
 
@@ -275,7 +287,7 @@ public final class TriggerCodec {
         IntervalUnit.valueOf(Fields.requiredString(fields, REPEAT_INTERVAL_UNIT)));
     trigger.setRepeatInterval(Fields.intValue(fields, REPEAT_INTERVAL, 1));
     trigger.setTimesTriggered(Fields.intValue(fields, TIMES_TRIGGERED, 0));
-    trigger.setTimeZone(ZoneId.of(Fields.requiredString(fields, TIME_ZONE)));
+    trigger.setTimeZone(zone(fields));
     trigger.setPreserveHourOfDayAcrossDaylightSavings(Fields.booleanValue(fields, PRESERVE_HOUR));
     trigger.setSkipDayIfHourDoesNotExist(Fields.booleanValue(fields, SKIP_DAY));
     return trigger;
@@ -303,7 +315,14 @@ public final class TriggerCodec {
               .map(Integer::valueOf)
               .collect(Collectors.toCollection(TreeSet::new)));
     }
+    trigger.setTimeZone(zone(fields));
     return trigger;
+  }
+
+  /** The stored zone, or {@code null} for a record without one: the binding sets the default. */
+  private static @Nullable ZoneId zone(Map<String, ?> fields) {
+    String zone = Fields.string(fields, TIME_ZONE);
+    return (zone != null) ? ZoneId.of(zone) : null;
   }
 
   private static @Nullable String timeOfDay(@Nullable TimeOfDay timeOfDay) {

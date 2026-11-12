@@ -184,6 +184,14 @@ public interface CronTrigger extends Trigger {
   /**
    * Returns the time zone for which the <code>cronExpression</code> of this <code>CronTrigger
    * </code> will be resolved.
+   *
+   * <p>If none was set ({@link CronScheduleBuilder#inTimeZone(ZoneId)}), the scheduler's default
+   * time zone applies from the moment the trigger is scheduled: the <code>spring.quartz.time-zone
+   * </code> property, UTC by default (see {@link Scheduler#getTimeZone()}); the zone is then stored
+   * with the trigger. Before that, the expression resolves in UTC. The JVM default zone is never
+   * used. A local time that does not exist on a day (a daylight-saving gap) fires once the gap is
+   * over, and one that exists twice (an overlap) fires at the later, standard-time occurrence; see
+   * {@link org.quartz.utils.LenientDateTime}.
    */
   ZoneId getTimeZone();
 

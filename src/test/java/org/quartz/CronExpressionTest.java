@@ -22,6 +22,7 @@ import java.io.*;
 import java.text.ParseException;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.Calendar;
@@ -30,6 +31,9 @@ import org.junit.jupiter.api.Test;
 public class CronExpressionTest extends SerializationTestSupport {
 
   private static final ZoneId EST_TIME_ZONE = ZoneId.of("US/Eastern");
+
+  // an expression without a zone resolves in UTC (never in the JVM default zone)
+  private static final TimeZone UTC = TimeZone.getTimeZone(ZoneOffset.UTC);
 
   /** The object to serialize and compare with its deserialized copy. */
   @Override
@@ -68,7 +72,7 @@ public class CronExpressionTest extends SerializationTestSupport {
   void testIsSatisfiedBy() throws Exception {
     CronExpression cronExpression = new CronExpression("0 15 10 * * ? 2005");
 
-    Calendar cal = Calendar.getInstance();
+    Calendar cal = Calendar.getInstance(UTC);
 
     cal.set(2005, Calendar.JUNE, 1, 10, 15, 0);
     assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
@@ -79,43 +83,43 @@ public class CronExpressionTest extends SerializationTestSupport {
     cal.set(Calendar.YEAR, 2006);
     assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
-    cal = Calendar.getInstance();
+    cal = Calendar.getInstance(UTC);
     cal.set(2005, Calendar.JUNE, 1, 10, 16, 0);
     assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
-    cal = Calendar.getInstance();
+    cal = Calendar.getInstance(UTC);
     cal.set(2005, Calendar.JUNE, 1, 10, 14, 0);
     assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
     // Test for March
-    cal = Calendar.getInstance();
+    cal = Calendar.getInstance(UTC);
     cal.set(2005, Calendar.MARCH, 1, 10, 15, 0);
     assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
     cal.set(Calendar.DAY_OF_MONTH, 31);
     assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
-    cal = Calendar.getInstance();
+    cal = Calendar.getInstance(UTC);
     cal.set(2005, Calendar.MARCH, 1, 10, 16, 0);
     assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
-    cal = Calendar.getInstance();
+    cal = Calendar.getInstance(UTC);
     cal.set(2005, Calendar.MARCH, 1, 10, 14, 0);
     assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
     // Test for February
-    cal = Calendar.getInstance();
+    cal = Calendar.getInstance(UTC);
     cal.set(2005, Calendar.FEBRUARY, 1, 10, 15, 0);
     assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
     cal.set(Calendar.DAY_OF_MONTH, 28);
     assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
 
-    cal = Calendar.getInstance();
+    cal = Calendar.getInstance(UTC);
     cal.set(2005, Calendar.FEBRUARY, 1, 10, 16, 0);
     assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
-    cal = Calendar.getInstance();
+    cal = Calendar.getInstance(UTC);
     cal.set(2005, Calendar.FEBRUARY, 1, 10, 14, 0);
     assertFalse(cronExpression.isSatisfiedBy(cal.toInstant()));
 
@@ -133,7 +137,7 @@ public class CronExpressionTest extends SerializationTestSupport {
 
   @Test
   void testIsSatisfiedByLastDayOfMonth() throws Exception {
-    Calendar cal = Calendar.getInstance();
+    Calendar cal = Calendar.getInstance(UTC);
 
     // Test months with 31 days
     CronExpression cronExpression = new CronExpression("0 15 10 L * ? 2005");
@@ -170,7 +174,7 @@ public class CronExpressionTest extends SerializationTestSupport {
 
   @Test
   void testIsSatisfiedByLastDayOfMonthWithOffset() throws Exception {
-    Calendar cal = Calendar.getInstance();
+    Calendar cal = Calendar.getInstance(UTC);
 
     // Test months with 31 days
     CronExpression cronExpression = new CronExpression("0 15 10 L-2 * ? 2005");
@@ -233,7 +237,7 @@ public class CronExpressionTest extends SerializationTestSupport {
   void testLastDayOffset() throws Exception {
     CronExpression cronExpression = new CronExpression("0 15 10 L-2 * ? 2010");
 
-    Calendar cal = Calendar.getInstance();
+    Calendar cal = Calendar.getInstance(UTC);
 
     cal.set(2010, Calendar.OCTOBER, 29, 10, 15, 0); // last day - 2
     assertTrue(cronExpression.isSatisfiedBy(cal.toInstant()));
@@ -383,11 +387,16 @@ public class CronExpressionTest extends SerializationTestSupport {
   @Test
   void testQtz259() throws Exception {
     CronScheduleBuilder schedBuilder = CronScheduleBuilder.cronSchedule("0 0 0 L-2 * ? *");
+    Instant start = Instant.parse("2025-01-15T12:00:00Z");
     Trigger trigger =
-        TriggerBuilder.newTrigger().withIdentity("test").withSchedule(schedBuilder).build();
+        TriggerBuilder.newTrigger()
+            .withIdentity("test")
+            .startAt(start)
+            .withSchedule(schedBuilder)
+            .build();
 
     int i = 0;
-    Instant previousDate = trigger.getFireTimeAfter(Instant.now());
+    Instant previousDate = trigger.getFireTimeAfter(start);
     while (++i < 26) {
       Instant date = trigger.getFireTimeAfter(previousDate);
       System.out.println("fireTime: " + date + ", previousFireTime: " + previousDate);
@@ -400,11 +409,16 @@ public class CronExpressionTest extends SerializationTestSupport {
   @Test
   void testQtz259LW() throws Exception {
     CronScheduleBuilder schedBuilder = CronScheduleBuilder.cronSchedule("0 0 0 LW * ? *");
+    Instant start = Instant.parse("2025-01-15T12:00:00Z");
     Trigger trigger =
-        TriggerBuilder.newTrigger().withIdentity("test").withSchedule(schedBuilder).build();
+        TriggerBuilder.newTrigger()
+            .withIdentity("test")
+            .startAt(start)
+            .withSchedule(schedBuilder)
+            .build();
 
     int i = 0;
-    Instant pdate = trigger.getFireTimeAfter(Instant.now());
+    Instant pdate = trigger.getFireTimeAfter(start);
     while (++i < 26) {
       Instant date = trigger.getFireTimeAfter(pdate);
       System.out.println("fireTime: " + date + ", previousFireTime: " + pdate);
@@ -525,14 +539,16 @@ public class CronExpressionTest extends SerializationTestSupport {
   @Test
   void testQtz395_CopyConstructorMustPreserveTimeZone() throws ParseException {
     ZoneId nonDefault = ZoneId.of("Europe/Brussels");
-    if (nonDefault.equals(ZoneId.systemDefault())) {
-      nonDefault = EST_TIME_ZONE;
-    }
     CronExpression cronExpression = new CronExpression("0 15 10 * * ? 2005");
     cronExpression.setTimeZone(nonDefault);
 
     CronExpression copyCronExpression = new CronExpression(cronExpression);
     assertEquals(nonDefault, copyCronExpression.getTimeZone());
+    assertTrue(copyCronExpression.hasTimeZone());
+
+    CronExpression withoutZone = new CronExpression(new CronExpression("0 15 10 * * ? 2005"));
+    assertFalse(withoutZone.hasTimeZone());
+    assertEquals(ZoneOffset.UTC, withoutZone.getTimeZone());
   }
 
   // Issue #58
@@ -786,7 +802,7 @@ public class CronExpressionTest extends SerializationTestSupport {
   @Test
   public void testGetTimeBefore() throws ParseException {
     long now = System.currentTimeMillis();
-    Calendar cal = Calendar.getInstance();
+    Calendar cal = Calendar.getInstance(UTC);
     cal.setTimeInMillis(now);
     int year = cal.get(Calendar.YEAR);
 
@@ -848,7 +864,7 @@ public class CronExpressionTest extends SerializationTestSupport {
 
     List<Instant> correctFireTimes = new ArrayList<>();
 
-    Calendar cal = Calendar.getInstance();
+    Calendar cal = Calendar.getInstance(UTC);
     cal.set(Calendar.MILLISECOND, 0);
     cal.set(2025, Calendar.DECEMBER, 1, 0, 0, 0);
     correctFireTimes.add(cal.toInstant());

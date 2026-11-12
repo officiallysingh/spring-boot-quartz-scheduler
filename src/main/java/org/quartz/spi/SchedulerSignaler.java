@@ -18,7 +18,9 @@
 
 package org.quartz.spi;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
 import org.jspecify.annotations.Nullable;
 import org.quartz.JobKey;
 import org.quartz.SchedulerException;
@@ -78,6 +80,26 @@ public interface SchedulerSignaler {
    */
   default Instant getCurrentTime() throws SchedulerException {
     return Instant.now();
+  }
+
+  /**
+   * The clock of the scheduler, which the store binds to every trigger it loads (see {@link
+   * OperableTrigger#bind(Clock, ZoneId)}).
+   *
+   * <p>The default, for third-party signaler implementations, is {@link Clock#systemUTC()}.
+   * Quartz's own implementation returns the configured {@link Clock}.
+   */
+  default Clock getClock() {
+    return Clock.systemUTC();
+  }
+
+  /**
+   * The default time zone of the scheduler, see {@link org.quartz.Scheduler#getTimeZone()}.
+   *
+   * <p>The default, for third-party signaler implementations, is UTC.
+   */
+  default ZoneId getTimeZone() {
+    return ZoneId.of("UTC");
   }
 
   /**

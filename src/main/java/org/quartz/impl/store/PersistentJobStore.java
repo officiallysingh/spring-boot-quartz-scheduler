@@ -17,9 +17,11 @@
  */
 package org.quartz.impl.store;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.InstantSource;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -144,6 +146,17 @@ public abstract class PersistentJobStore implements JobStore {
 
   @SuppressWarnings("NullAway.Init")
   private ClassLoader classLoader;
+
+  /**
+   * The scheduler's clock, bound to every trigger the store loads (see {@link
+   * OperableTrigger#bind(Clock, ZoneId)}): the scheduling clock, not {@link #CHECKIN_CLOCK}.
+   */
+  @SuppressWarnings("NullAway.Init")
+  private Clock clock;
+
+  /** The scheduler's default time zone, bound to every trigger the store loads. */
+  @SuppressWarnings("NullAway.Init")
+  private ZoneId timeZone;
 
   @SuppressWarnings("NullAway.Init")
   private SchedulerSignaler signaler;
@@ -283,6 +296,22 @@ public abstract class PersistentJobStore implements JobStore {
   }
 
   /**
+   * The scheduler's clock, see {@link SchedulerSignaler#getClock()}; set by {@link
+   * #initialize(ClassLoader, SchedulerSignaler)}.
+   */
+  protected Clock getClock() {
+    return clock;
+  }
+
+  /**
+   * The scheduler's default time zone, see {@link SchedulerSignaler#getTimeZone()}; set by {@link
+   * #initialize(ClassLoader, SchedulerSignaler)}.
+   */
+  protected ZoneId getTimeZone() {
+    return timeZone;
+  }
+
+  /**
    * The id of the scheduler instance using the store.
    *
    * @return the instance id
@@ -322,6 +351,8 @@ public abstract class PersistentJobStore implements JobStore {
     }
     this.classLoader = Objects.requireNonNull(classLoader, "classLoader");
     this.signaler = signaler;
+    this.clock = signaler.getClock();
+    this.timeZone = signaler.getTimeZone();
     this.delegate = createDelegate(instanceName, classLoader);
     if (isClustered()) {
       this.lock = createClusterLock(instanceName, instanceId + "/" + UUID.randomUUID());
@@ -1769,6 +1800,7 @@ public abstract class PersistentJobStore implements JobStore {
         Scheduler.FAILED_JOB_ORIGINAL_TRIGGER_SCHEDULED_FIRETIME_IN_MILLISECONDS,
         String.valueOf(record.scheduledTime().toEpochMilli()));
     trigger.setJobDataMap(data);
+    trigger.bind(clock, timeZone);
     trigger.computeFirstFireTime(null);
     return trigger;
   }

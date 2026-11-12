@@ -32,8 +32,10 @@ import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.Updates;
 import com.mongodb.client.result.UpdateResult;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -55,6 +57,7 @@ import org.quartz.JobPersistenceException;
 import org.quartz.Trigger;
 import org.quartz.TriggerKey;
 import org.quartz.TriggerSort;
+import org.quartz.impl.calendar.BaseCalendar;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.impl.store.FiredTriggerRecord;
 import org.quartz.impl.store.PersistentJobStore;
@@ -101,16 +104,24 @@ class MongoStoreDelegate implements StoreDelegate {
 
   private final ClassLoader classLoader;
 
+  private final Clock clock;
+
+  private final ZoneId timeZone;
+
   private final Supplier<@Nullable ClientSession> session;
 
   MongoStoreDelegate(
       String schedName,
       MongoCollections collections,
       ClassLoader classLoader,
+      Clock clock,
+      ZoneId timeZone,
       Supplier<@Nullable ClientSession> session) {
     this.schedName = schedName;
     this.collections = collections;
     this.classLoader = classLoader;
+    this.clock = clock;
+    this.timeZone = timeZone;
     this.session = session;
   }
 
@@ -432,7 +443,7 @@ class MongoStoreDelegate implements StoreDelegate {
       throws JobPersistenceException {
     Document document = first(collections.triggers(), triggerKey(triggerKey));
     return (document != null)
-        ? TriggerCodec.decode(fields(document), jobData(document), classLoader)
+        ? TriggerCodec.decode(fields(document), jobData(document), classLoader, clock, timeZone)
         : null;
   }
 
@@ -552,7 +563,8 @@ class MongoStoreDelegate implements StoreDelegate {
             .limit(limit)) {
       triggers.add(
           new StoredTrigger(
-              TriggerCodec.decode(fields(document), jobData(document), classLoader),
+              TriggerCodec.decode(
+                  fields(document), jobData(document), classLoader, clock, timeZone),
               document.getString(STATE)));
     }
     return new StorePage<>(triggers, count(collections.triggers(), filter));
@@ -686,9 +698,18 @@ class MongoStoreDelegate implements StoreDelegate {
   public @Nullable Calendar selectCalendar(String name) throws JobPersistenceException {
     Document document = first(collections.calendars(), calendar(name));
     return (document != null)
-        ? SerializationCodec.deserialize(
-            document.get(CALENDAR, Binary.class).getData(), Calendar.class, classLoader)
+        ? bind(
+            SerializationCodec.deserialize(
+                document.get(CALENDAR, Binary.class).getData(), Calendar.class, classLoader))
         : null;
+  }
+
+  /** A calendar stored without a zone (none is stored so) takes the scheduler's default zone. */
+  private Calendar bind(Calendar calendar) {
+    if (calendar instanceof BaseCalendar base) {
+      base.bind(timeZone);
+    }
+    return calendar;
   }
 
   @Override

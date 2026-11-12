@@ -1,7 +1,9 @@
 package org.quartz.spi;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
 import org.quartz.JobExecutionContext;
@@ -14,6 +16,23 @@ import org.quartz.SchedulerException;
  * firings, misfires and calendar changes. Not for use by applications.
  */
 public interface OperableTrigger extends MutableTrigger {
+
+  /**
+   * This method should not be used by the Quartz client.
+   *
+   * <p>Binds the trigger to a scheduler. {@code clock} becomes the trigger's source of "now": for
+   * {@link #getFireTimeAfter(Instant) getFireTimeAfter(null)}, {@link
+   * #updateAfterMisfire(Calendar)} and {@link #updateWithNewCalendar(Calendar, Duration)}. A {@code
+   * null} {@link #getStartTime() start time} becomes now by that clock, and a trigger whose time
+   * zone was not set explicitly (cron, calendar-interval, daily-time-interval) takes {@code
+   * defaultTimeZone}; both stick, and are stored with the trigger. The scheduler binds a trigger
+   * when it is scheduled, before {@link #validate()} and {@link #computeFirstFireTime(Calendar)};
+   * the job store binds every trigger it loads. Binding again only replaces the clock.
+   *
+   * @param clock the scheduler's clock, see {@link Scheduler#getClock()}
+   * @param defaultTimeZone the scheduler's default zone, see {@link Scheduler#getTimeZone()}
+   */
+  void bind(Clock clock, ZoneId defaultTimeZone);
 
   /**
    * This method should not be used by the Quartz client.

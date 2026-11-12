@@ -201,6 +201,7 @@ public class StdSchedulerFactory {
       rsrcs.setInterruptJobsOnShutdown(sched.interruptJobsOnShutdown());
       rsrcs.setInterruptJobsOnShutdownWithWait(sched.interruptJobsOnShutdownWithWait());
       rsrcs.setClock(clock);
+      rsrcs.setTimeZone(sched.timeZone());
 
       tp.setInstanceName(schedName);
       tp.setInstanceId(schedInstId);

@@ -24,7 +24,9 @@ import static org.quartz.JobBuilder.newJob;
 import static org.quartz.TimeOfDay.hourMinuteAndSecondOfDay;
 import static org.quartz.TriggerBuilder.newTrigger;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.quartz.DateBuilder.IntervalUnit;
@@ -48,7 +50,21 @@ public class DailyTimeIntervalScheduleBuilderTest {
             .forJob(job)
             .withSchedule(dailyTimeIntervalSchedule().withIntervalInSeconds(3))
             .build();
+    // scheduleJob binds the trigger first: that sets the start time and the default zone
+    ((OperableTrigger) trigger).bind(Clock.systemUTC(), ZoneOffset.UTC);
     assertNotNull(((OperableTrigger) trigger).computeFirstFireTime(null));
+  }
+
+  @Test
+  void testUnscheduledTriggerWithoutStartTimeCannotComputeFireTimes() {
+    DailyTimeIntervalTrigger trigger =
+        newTrigger()
+            .withIdentity("test")
+            .withSchedule(dailyTimeIntervalSchedule().withIntervalInSeconds(3))
+            .build();
+    assertNull(trigger.getStartTime());
+    assertThrows(
+        IllegalStateException.class, () -> ((OperableTrigger) trigger).computeFirstFireTime(null));
   }
 
   void testScheduleInMiddleOfDailyInterval() throws Exception {
@@ -81,7 +97,7 @@ public class DailyTimeIntervalScheduleBuilderTest {
         trigger.getNextFireTime().isAfter(currTime.toInstant()),
         "First fire time is not after now!");
 
-    Instant startTime = DateBuilder.todayAt(2, 15, 0);
+    Instant startTime = DateBuilder.todayAt(2, 15, 0, Clock.systemUTC(), ZoneOffset.UTC);
 
     trigger =
         newTrigger()
@@ -108,6 +124,7 @@ public class DailyTimeIntervalScheduleBuilderTest {
         newTrigger()
             .withIdentity("test")
             .withSchedule(dailyTimeIntervalSchedule().withIntervalInHours(1))
+            .startAt(Instant.parse("2011-01-01T00:00:00Z"))
             .build();
     assertEquals("test", trigger.getKey().getName());
     assertEquals("DEFAULT", trigger.getKey().getGroup());
@@ -128,10 +145,11 @@ public class DailyTimeIntervalScheduleBuilderTest {
                     .startingDailyAt(TimeOfDay.hourAndMinuteOfDay(8, 0))
                     .endingDailyAt(TimeOfDay.hourAndMinuteOfDay(17, 0))
                     .onMondayThroughFriday())
+            .startAt(Instant.parse("2011-01-01T00:00:00Z"))
             .build();
     assertEquals("test", trigger.getKey().getName());
     assertEquals("group", trigger.getKey().getGroup());
-    assertTrue(Instant.now().toEpochMilli() >= trigger.getStartTime().toEpochMilli());
+    assertEquals(Instant.parse("2011-01-01T00:00:00Z"), trigger.getStartTime());
     assertNull(trigger.getEndTime());
     assertEquals(IntervalUnit.MINUTE, trigger.getRepeatIntervalUnit());
     assertEquals(72, trigger.getRepeatInterval());
@@ -143,8 +161,8 @@ public class DailyTimeIntervalScheduleBuilderTest {
 
   @Test
   void testSecondlyTriggerWithStartAndEndTime() {
-    Instant startTime = DateBuilder.dateOf(0, 0, 0, 1, 1, 2011);
-    Instant endTime = DateBuilder.dateOf(0, 0, 0, 2, 1, 2011);
+    Instant startTime = DateBuilder.dateOf(0, 0, 0, 1, 1, 2011, ZoneOffset.UTC);
+    Instant endTime = DateBuilder.dateOf(0, 0, 0, 2, 1, 2011, ZoneOffset.UTC);
     DailyTimeIntervalTrigger trigger =
         newTrigger()
             .withIdentity("test", "test")
@@ -175,6 +193,7 @@ public class DailyTimeIntervalScheduleBuilderTest {
         newTrigger()
             .withIdentity("test")
             .withSchedule(dailyTimeIntervalSchedule().withIntervalInHours(1).withRepeatCount(9))
+            .startAt(Instant.parse("2011-01-01T00:00:00Z"))
             .build();
     assertEquals("test", trigger.getKey().getName());
     assertEquals("DEFAULT", trigger.getKey().getGroup());
@@ -186,7 +205,7 @@ public class DailyTimeIntervalScheduleBuilderTest {
 
   @Test
   void testEndingAtAfterCount() {
-    Instant startTime = DateBuilder.dateOf(0, 0, 0, 1, 1, 2011);
+    Instant startTime = DateBuilder.dateOf(0, 0, 0, 1, 1, 2011, ZoneOffset.UTC);
     DailyTimeIntervalTrigger trigger =
         newTrigger()
             .withIdentity("test")
@@ -202,14 +221,14 @@ public class DailyTimeIntervalScheduleBuilderTest {
     assertEquals(IntervalUnit.MINUTE, trigger.getRepeatIntervalUnit());
     List<Instant> fireTimes = TriggerUtils.computeFireTimes((OperableTrigger) trigger, null, 48);
     assertEquals(48, fireTimes.size());
-    assertEquals(dateOf(8, 0, 0, 1, 1, 2011), fireTimes.get(0));
-    assertEquals(dateOf(10, 45, 0, 4, 1, 2011), fireTimes.get(47));
+    assertEquals(dateOf(8, 0, 0, 1, 1, 2011, ZoneOffset.UTC), fireTimes.get(0));
+    assertEquals(dateOf(10, 45, 0, 4, 1, 2011, ZoneOffset.UTC), fireTimes.get(47));
     assertEquals(new TimeOfDay(10, 45), trigger.getEndTimeOfDay());
   }
 
   @Test
   void testEndingAtAfterCountOf1() {
-    Instant startTime = DateBuilder.dateOf(0, 0, 0, 1, 1, 2011);
+    Instant startTime = DateBuilder.dateOf(0, 0, 0, 1, 1, 2011, ZoneOffset.UTC);
     DailyTimeIntervalTrigger trigger =
         newTrigger()
             .withIdentity("test")
@@ -227,8 +246,8 @@ public class DailyTimeIntervalScheduleBuilderTest {
     validateTrigger(trigger);
     List<Instant> fireTimes = TriggerUtils.computeFireTimes((OperableTrigger) trigger, null, 48);
     assertEquals(48, fireTimes.size());
-    assertEquals(dateOf(8, 0, 0, 1, 1, 2011), fireTimes.get(0));
-    assertEquals(dateOf(8, 0, 0, 17, 2, 2011), fireTimes.get(47));
+    assertEquals(dateOf(8, 0, 0, 1, 1, 2011, ZoneOffset.UTC), fireTimes.get(0));
+    assertEquals(dateOf(8, 0, 0, 17, 2, 2011, ZoneOffset.UTC), fireTimes.get(47));
     assertEquals(new TimeOfDay(8, 0), trigger.getEndTimeOfDay());
   }
 
@@ -243,7 +262,7 @@ public class DailyTimeIntervalScheduleBuilderTest {
   @Test
   void testEndingAtAfterCountOf0() {
     try {
-      Instant startTime = DateBuilder.dateOf(0, 0, 0, 1, 1, 2011);
+      Instant startTime = DateBuilder.dateOf(0, 0, 0, 1, 1, 2011, ZoneOffset.UTC);
       newTrigger()
           .withIdentity("test")
           .withSchedule(
@@ -259,7 +278,7 @@ public class DailyTimeIntervalScheduleBuilderTest {
     }
 
     try {
-      Instant startTime = DateBuilder.dateOf(0, 0, 0, 1, 1, 2011);
+      Instant startTime = DateBuilder.dateOf(0, 0, 0, 1, 1, 2011, ZoneOffset.UTC);
       newTrigger()
           .withIdentity("test")
           .withSchedule(
