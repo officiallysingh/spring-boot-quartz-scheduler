@@ -28,8 +28,6 @@ import org.quartz.utils.Key;
  */
 public abstract class StringMatcher<T extends Key<?>> implements Matcher<T> {
 
-  private static final long serialVersionUID = -2757924162611145836L;
-
   /** How a {@link StringMatcher} compares a key's name or group with its value. */
   public enum StringOperatorName {
     /** The name or group equals the value. */

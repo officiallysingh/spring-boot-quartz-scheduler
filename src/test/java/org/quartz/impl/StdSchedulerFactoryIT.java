@@ -38,7 +38,7 @@ import org.quartz.impl.mongodb.MongoJobStore;
 import org.quartz.listeners.JobListenerSupport;
 import org.quartz.listeners.TriggerListenerSupport;
 import org.quartz.simpl.SimpleThreadPool;
-import org.quartz.simpl.SystemPropertyInstanceIdGenerator;
+import org.quartz.spi.InstanceIdGenerator;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spi.ThreadPool;
 import org.quartz.support.AbstractMongoIT;
@@ -252,45 +252,69 @@ class StdSchedulerFactoryIT extends AbstractMongoIT {
   }
 
   @Test
-  void systemPropertyInstanceIdGenerator() throws Exception {
-    String property = "org.quartz.test.StdSchedulerFactoryIT.instanceId";
-    System.setProperty(property, "from-sys-prop");
-    try {
-      SystemPropertyInstanceIdGenerator generator = new SystemPropertyInstanceIdGenerator();
-      generator.setSystemPropertyName(property);
-      generator.setPrepend("pre-");
-      generator.setPostpend("-post");
+  void customInstanceIdGenerator() throws Exception {
+    Scheduler scheduler =
+        create(
+            StdSchedulerFactory.builder()
+                .scheduler(named("CustomGenerator").instanceIdAuto(true).build())
+                .jobStore(clusteredStore())
+                .instanceIdGenerator(() -> "generated-id")
+                .build());
 
-      Scheduler scheduler =
-          create(
-              StdSchedulerFactory.builder()
-                  .scheduler(named("SysProp").instanceIdAuto(true).build())
-                  .jobStore(clusteredStore())
-                  .instanceIdGenerator(generator)
-                  .build());
-
-      assertThat(scheduler.getSchedulerInstanceId()).isEqualTo("pre-from-sys-prop-post");
-    } finally {
-      System.clearProperty(property);
-    }
+    assertThat(scheduler.getSchedulerInstanceId()).isEqualTo("generated-id");
   }
 
   @Test
-  void systemPropertyInstanceIdGeneratorFailsWithoutTheProperty() {
-    SystemPropertyInstanceIdGenerator generator = new SystemPropertyInstanceIdGenerator();
-    generator.setSystemPropertyName("org.quartz.test.StdSchedulerFactoryIT.missing");
+  void failingInstanceIdGeneratorFailsTheFactory() {
+    InstanceIdGenerator generator =
+        () -> {
+          throw new SchedulerException("no instance id");
+        };
 
-    assertThatThrownBy(generator::generateInstanceId).isInstanceOf(SchedulerException.class);
     assertThatThrownBy(
             () ->
                 create(
                     StdSchedulerFactory.builder()
-                        .scheduler(named("SysPropMissing").instanceIdAuto(true).build())
+                        .scheduler(named("FailingGenerator").instanceIdAuto(true).build())
                         .jobStore(clusteredStore())
                         .instanceIdGenerator(generator)
                         .build()))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("instance id");
+  }
+
+  @Test
+  void aClusteredStoreRejectsAnInstanceIdEveryInstanceWouldShare() {
+    assertThat(
+            org.quartz.ClusteredInstanceIdException.isSharedByEveryInstance(
+                SchedulerSettings.DEFAULT_INSTANCE_ID))
+        .isTrue();
+    for (String shared : List.of(SchedulerSettings.DEFAULT_INSTANCE_ID, "SYS_PROP")) {
+      assertThatThrownBy(
+              () ->
+                  create(
+                      StdSchedulerFactory.builder()
+                          .scheduler(named("Shared" + shared).instanceId(shared).build())
+                          .jobStore(clusteredStore())
+                          .build()))
+          .isInstanceOfSatisfying(
+              org.quartz.ClusteredInstanceIdException.class,
+              ex -> assertThat(ex.getInstanceId()).isEqualTo(shared))
+          .hasMessageContaining("clustered")
+          .hasMessageContaining("'" + shared + "'");
+    }
+  }
+
+  @Test
+  void aStoreThatIsNotClusteredKeepsTheDefaultInstanceId() throws Exception {
+    Scheduler scheduler =
+        create(
+            StdSchedulerFactory.builder()
+                .scheduler(named("NotClustered").build())
+                .jobStore(TestSchedulers.mongoStore())
+                .build());
+
+    assertThat(scheduler.getSchedulerInstanceId()).isEqualTo(SchedulerSettings.DEFAULT_INSTANCE_ID);
   }
 
   private static MongoJobStore clusteredStore() {

@@ -91,22 +91,13 @@ public class QuartzSchedulerThread extends Thread {
    * as a non-daemon <code>Thread</code> with normal priority.
    */
   QuartzSchedulerThread(QuartzScheduler qs, QuartzSchedulerResources qsRsrcs) {
-    this(qs, qsRsrcs, qsRsrcs.getMakeSchedulerThreadDaemon(), Thread.NORM_PRIORITY);
-  }
-
-  /**
-   * Construct a new <code>QuartzSchedulerThread</code> for the given <code>QuartzScheduler</code>
-   * as a <code>Thread</code> with the given attributes.
-   */
-  QuartzSchedulerThread(
-      QuartzScheduler qs, QuartzSchedulerResources qsRsrcs, boolean setDaemon, int threadPrio) {
-    super(qs.getSchedulerThreadGroup(), qsRsrcs.getThreadName());
+    super(qsRsrcs.getThreadName());
     this.qs = qs;
     this.qsRsrcs = qsRsrcs;
-    this.setDaemon(setDaemon);
+    // a new thread inherits both from its creator
+    this.setDaemon(false);
+    this.setPriority(Thread.NORM_PRIORITY);
     this.setContextClassLoader(qsRsrcs.getClassLoader());
-
-    this.setPriority(threadPrio);
 
     // start the underlying thread, but put this object into the 'paused'
     // state
@@ -358,7 +349,7 @@ public class QuartzSchedulerThread extends Thread {
               } catch (SchedulerException se) {
                 qs.notifySchedulerListenersError(
                     "An error occurred while firing triggers '" + triggers + "'", se);
-                // QTZ-179 : a problem occurred interacting with the triggers from the db
+                // a problem occurred interacting with the triggers from the db
                 // we release them and loop again
                 for (OperableTrigger trigger : triggers) {
                   qsRsrcs.getJobStore().releaseAcquiredTrigger(trigger);
@@ -429,7 +420,7 @@ public class QuartzSchedulerThread extends Thread {
         synchronized (sigLock) {
           try {
             if (!halted.get()) {
-              // QTZ-336 A job might have been completed in the mean time and we might have
+              // A job might have been completed in the mean time and we might have
               // missed the scheduled changed signal by not waiting for the notify() yet
               // Check that before waiting for too long in case this very job needs to be
               // scheduled very soon
@@ -537,7 +528,8 @@ public class QuartzSchedulerThread extends Thread {
       if (earlier) {
         // so the new time is considered earlier, but is it enough earlier?
         long diff = oldTime - currentTimeMillis();
-        if (diff < (qsRsrcs.getJobStore().supportsPersistence() ? 70L : 7L)) earlier = false;
+        // not worth releasing the acquired triggers for less than a store round trip
+        if (diff < 70L) earlier = false;
       }
 
       if (clearSignal) {

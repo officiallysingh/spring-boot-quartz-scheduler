@@ -16,7 +16,7 @@
  *
  */
 
-package org.quartz.integrations.tests;
+package org.quartz.core;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -50,13 +50,10 @@ import org.quartz.support.TestSchedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Integration test for reproducing QTZ-336 where we don't check for the scheduling change signal.
- */
+/** A scheduling change signalled while the scheduler thread is busy must not be missed. */
 @Disabled /* ignoring now since the bug is years ago fixed, and the test takes a full minute! */
-class QTZ336_MissSchedulingChangeSignalIT extends AbstractMongoIT {
-  private static final Logger LOG =
-      LoggerFactory.getLogger(QTZ336_MissSchedulingChangeSignalIT.class);
+class MissedSchedulingChangeSignalIT extends AbstractMongoIT {
+  private static final Logger LOG = LoggerFactory.getLogger(MissedSchedulingChangeSignalIT.class);
 
   @Test
   void simpleScheduleAlwaysFiredUnder20s() throws Exception {

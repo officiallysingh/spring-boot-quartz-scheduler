@@ -366,11 +366,6 @@ class MongoStoreDelegate implements StoreDelegate {
   }
 
   @Override
-  public int selectNumJobs() {
-    return (int) count(collections.jobs(), sched());
-  }
-
-  @Override
   public List<String> selectJobGroups() {
     return distinct(collections.jobs(), JobDetailCodec.GROUP, sched());
   }
@@ -465,11 +460,6 @@ class MongoStoreDelegate implements StoreDelegate {
   @Override
   public boolean deleteTrigger(TriggerKey triggerKey) {
     return deleteOne(collections.triggers(), triggerKey(triggerKey)) > 0;
-  }
-
-  @Override
-  public int selectNumTriggers() {
-    return (int) count(collections.triggers(), sched());
   }
 
   @Override
@@ -722,11 +712,6 @@ class MongoStoreDelegate implements StoreDelegate {
     return distinct(collections.calendars(), TriggerCodec.NAME, sched());
   }
 
-  @Override
-  public int selectNumCalendars() {
-    return (int) count(collections.calendars(), sched());
-  }
-
   // ------------------------------------------------------------------
   // paused groups
   // ------------------------------------------------------------------
@@ -885,11 +870,6 @@ class MongoStoreDelegate implements StoreDelegate {
   public @Nullable FiredTriggerRecord selectFiredTriggerRecord(String fireInstanceId) {
     Document document = first(collections.firedTriggers(), fired(fireInstanceId));
     return (document != null) ? toFiredRecord(document) : null;
-  }
-
-  @Override
-  public List<FiredTriggerRecord> selectFiredTriggerRecords() {
-    return firedRecords(sched());
   }
 
   @Override

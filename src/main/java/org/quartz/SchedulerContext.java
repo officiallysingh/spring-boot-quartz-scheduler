@@ -18,7 +18,6 @@
 
 package org.quartz;
 
-import java.io.Serializable;
 import java.util.Map;
 import org.quartz.utils.StringKeyDirtyFlagMap;
 
@@ -30,7 +29,7 @@ import org.quartz.utils.StringKeyDirtyFlagMap;
  * @see Scheduler#getContext
  * @author James House
  */
-public class SchedulerContext extends StringKeyDirtyFlagMap implements Serializable {
+public class SchedulerContext extends StringKeyDirtyFlagMap {
 
   private static final long serialVersionUID = -6659641334616491764L;
 

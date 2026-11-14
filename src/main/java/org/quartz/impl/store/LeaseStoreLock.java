@@ -57,24 +57,6 @@ public abstract class LeaseStoreLock implements StoreLock {
   }
 
   /**
-   * The id this instance holds leases under.
-   *
-   * @return the owner id
-   */
-  public String getOwner() {
-    return owner;
-  }
-
-  /**
-   * How long a lease is valid without being released; then other instances may take it.
-   *
-   * @return the lease time
-   */
-  public Duration getLeaseTime() {
-    return leaseTime;
-  }
-
-  /**
    * Takes the lease if it is free, expired or already held by {@code owner}.
    *
    * @return whether {@code owner} now holds the lease

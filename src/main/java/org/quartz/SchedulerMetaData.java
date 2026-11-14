@@ -26,9 +26,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @author James House
  */
-public class SchedulerMetaData implements java.io.Serializable {
-
-  private static final long serialVersionUID = 4203690002633917647L;
+public class SchedulerMetaData {
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -44,8 +42,6 @@ public class SchedulerMetaData implements java.io.Serializable {
 
   private final Class<?> schedClass;
 
-  private final boolean isRemote;
-
   private final boolean started;
 
   private final boolean isInStandbyMode;
@@ -57,8 +53,6 @@ public class SchedulerMetaData implements java.io.Serializable {
   private final int numJobsExec;
 
   private final Class<?> jsClass;
-
-  private final boolean jsPersistent;
 
   private final boolean jsClustered;
 
@@ -79,73 +73,17 @@ public class SchedulerMetaData implements java.io.Serializable {
    */
 
   /**
-   * Create meta data whose thread pool description is {@code "with <tpSize> threads"}.
-   *
-   * @param schedName the scheduler's name
-   * @param schedInst the scheduler's instance id
-   * @param schedClass the scheduler's class
-   * @param isRemote whether the scheduler is remote (always {@code false} here)
-   * @param started whether the scheduler has been started
-   * @param isInStandbyMode whether the scheduler is in standby mode
-   * @param shutdown whether the scheduler has been shut down
-   * @param startTime when the scheduler started, or {@code null} if it has not
-   * @param numJobsExec the number of jobs executed since the scheduler started
-   * @param jsClass the job store's class
-   * @param jsPersistent whether the job store persists jobs
-   * @param jsClustered whether the job store is clustered
-   * @param tpClass the thread pool's class
-   * @param tpSize the thread pool's size or concurrency limit
-   * @param version the Quartz version
-   */
-  public SchedulerMetaData(
-      String schedName,
-      String schedInst,
-      Class<?> schedClass,
-      boolean isRemote,
-      boolean started,
-      boolean isInStandbyMode,
-      boolean shutdown,
-      @Nullable Instant startTime,
-      int numJobsExec,
-      Class<?> jsClass,
-      boolean jsPersistent,
-      boolean jsClustered,
-      Class<?> tpClass,
-      int tpSize,
-      String version) {
-    this(
-        schedName,
-        schedInst,
-        schedClass,
-        isRemote,
-        started,
-        isInStandbyMode,
-        shutdown,
-        startTime,
-        numJobsExec,
-        jsClass,
-        jsPersistent,
-        jsClustered,
-        tpClass,
-        tpSize,
-        "with " + tpSize + " threads",
-        version);
-  }
-
-  /**
    * Create meta data.
    *
    * @param schedName the scheduler's name
    * @param schedInst the scheduler's instance id
    * @param schedClass the scheduler's class
-   * @param isRemote whether the scheduler is remote (always {@code false} here)
    * @param started whether the scheduler has been started
    * @param isInStandbyMode whether the scheduler is in standby mode
    * @param shutdown whether the scheduler has been shut down
    * @param startTime when the scheduler started, or {@code null} if it has not
    * @param numJobsExec the number of jobs executed since the scheduler started
    * @param jsClass the job store's class
-   * @param jsPersistent whether the job store persists jobs
    * @param jsClustered whether the job store is clustered
    * @param tpClass the thread pool's class
    * @param tpSize the thread pool's size or concurrency limit
@@ -157,14 +95,12 @@ public class SchedulerMetaData implements java.io.Serializable {
       String schedName,
       String schedInst,
       Class<?> schedClass,
-      boolean isRemote,
       boolean started,
       boolean isInStandbyMode,
       boolean shutdown,
       @Nullable Instant startTime,
       int numJobsExec,
       Class<?> jsClass,
-      boolean jsPersistent,
       boolean jsClustered,
       Class<?> tpClass,
       int tpSize,
@@ -173,14 +109,12 @@ public class SchedulerMetaData implements java.io.Serializable {
     this.schedName = schedName;
     this.schedInst = schedInst;
     this.schedClass = schedClass;
-    this.isRemote = isRemote;
     this.started = started;
     this.isInStandbyMode = isInStandbyMode;
     this.shutdown = shutdown;
     this.startTime = startTime;
     this.numJobsExec = numJobsExec;
     this.jsClass = jsClass;
-    this.jsPersistent = jsPersistent;
     this.jsClustered = jsClustered;
     this.tpClass = tpClass;
     this.tpSize = tpSize;
@@ -226,15 +160,6 @@ public class SchedulerMetaData implements java.io.Serializable {
   }
 
   /**
-   * Returns whether the <code>Scheduler</code> is being used remotely. Always <code>false</code>
-   * for the schedulers of this library, which has no remote (RMI) access; kept for API
-   * compatibility.
-   */
-  public boolean isSchedulerRemote() {
-    return isRemote;
-  }
-
-  /**
    * Returns whether the scheduler has been started.
    *
    * <p>Note: <code>isStarted()</code> may return <code>true</code> even if <code>isInStandbyMode()
@@ -260,14 +185,6 @@ public class SchedulerMetaData implements java.io.Serializable {
    */
   public Class<?> getJobStoreClass() {
     return jsClass;
-  }
-
-  /**
-   * Returns whether or not the <code>Scheduler</code>'s<code>JobStore</code> instance supports
-   * persistence.
-   */
-  public boolean isJobStoreSupportsPersistence() {
-    return jsPersistent;
   }
 
   /** Returns whether or not the <code>Scheduler</code>'s<code>JobStore</code> is clustered. */
@@ -321,7 +238,13 @@ public class SchedulerMetaData implements java.io.Serializable {
    * <p>The format of the String looks something like this:
    *
    * <pre>
-   *  Quartz Scheduler 'SchedulerName' with instanceId 'SchedulerInstanceId' Scheduler class: 'org.quartz.impl.StdScheduler' - running locally. Running since: '11:33am on Jul 19, 2002' Not currently paused. Number of Triggers fired: '123' Using thread pool 'org.quartz.simpl.SimpleThreadPool' - with '8' threads Using job-store 'org.quartz.impl.JDBCJobStore' - which supports persistence.
+   * Quartz Scheduler (v1.0.0) 'app' with instanceId 'node-1'
+   *   Scheduler class: 'org.quartz.impl.StdScheduler'.
+   *   Running since: 2026-01-01T00:00:00Z
+   *   Not currently in standby mode.
+   *   Number of jobs executed: 123
+   *   Using thread pool 'org.quartz.simpl.SimpleThreadPool' - with 10 threads.
+   *   Using job-store 'org.quartz.impl.mongodb.MongoJobStore' - which is clustered.
    * </pre>
    */
   public String getSummary() throws SchedulerException {
@@ -336,7 +259,7 @@ public class SchedulerMetaData implements java.io.Serializable {
 
     str.append("  Scheduler class: '");
     str.append(getSchedulerClass().getName());
-    str.append("' - running locally.\n");
+    str.append("'.\n");
 
     if (!isShutdown()) {
       if (getRunningSince() != null) {
@@ -371,15 +294,10 @@ public class SchedulerMetaData implements java.io.Serializable {
     str.append("  Using job-store '");
     str.append(getJobStoreClass().getName());
     str.append("' - which ");
-    if (isJobStoreSupportsPersistence()) {
-      str.append("supports persistence.");
-    } else {
-      str.append("does not support persistence.");
-    }
     if (isJobStoreClustered()) {
-      str.append(" and is clustered.");
+      str.append("is clustered.");
     } else {
-      str.append(" and is not clustered.");
+      str.append("is not clustered.");
     }
     str.append("\n");
 

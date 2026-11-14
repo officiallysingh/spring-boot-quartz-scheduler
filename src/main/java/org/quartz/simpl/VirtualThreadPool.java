@@ -13,10 +13,10 @@
  */
 package org.quartz.simpl;
 
+import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import org.jspecify.annotations.Nullable;
 import org.quartz.SchedulerConfigException;
 import org.quartz.spi.ThreadPool;
 import org.slf4j.Logger;
@@ -33,8 +33,9 @@ import org.slf4j.LoggerFactory;
  * should rather follow what those systems accept (for example the size of the database connection
  * pool).
  *
- * <p>Thread priority, daemon status and thread groups do not apply to virtual threads. The threads
- * are named {@code <prefix>-<n>}, the prefix defaulting to {@code <scheduler name>_Worker}.
+ * <p>The threads are named {@code <prefix>-<n>}. The prefix is a constructor argument; for the pool
+ * it creates itself, {@link org.quartz.impl.StdSchedulerFactory} uses the configured prefix or
+ * {@code <scheduler name>_Worker}.
  *
  * @see SimpleThreadPool
  */
@@ -44,9 +45,7 @@ public class VirtualThreadPool implements ThreadPool {
 
   private final int maxConcurrency;
 
-  private @Nullable String threadNamePrefix;
-
-  private String schedulerInstanceName = "QuartzScheduler";
+  private final String threadNamePrefix;
 
   private final ReentrantLock lock = new ReentrantLock();
 
@@ -64,47 +63,29 @@ public class VirtualThreadPool implements ThreadPool {
    * Create a pool running at most {@code maxConcurrency} jobs at a time.
    *
    * @param maxConcurrency the maximum number of concurrently running jobs; at least 1
+   * @param threadNamePrefix the prefix of the thread names, which are {@code <prefix>-<n>}
    */
-  public VirtualThreadPool(int maxConcurrency) {
+  public VirtualThreadPool(int maxConcurrency, String threadNamePrefix) {
     if (maxConcurrency < 1) {
       throw new IllegalArgumentException(
           "maxConcurrency must be at least 1, was " + maxConcurrency);
     }
     this.maxConcurrency = maxConcurrency;
-  }
-
-  /** The maximum number of concurrently running jobs. */
-  public int getMaxConcurrency() {
-    return maxConcurrency;
+    this.threadNamePrefix = Objects.requireNonNull(threadNamePrefix, "threadNamePrefix");
   }
 
   /**
    * The prefix of the thread names.
    *
-   * @return the prefix, or {@code null} for {@code <scheduler name>_Worker}
+   * @return the prefix
    */
-  public @Nullable String getThreadNamePrefix() {
+  public String getThreadNamePrefix() {
     return threadNamePrefix;
-  }
-
-  /** The prefix of the thread names; {@code null} for {@code <scheduler name>_Worker}. */
-  public void setThreadNamePrefix(@Nullable String threadNamePrefix) {
-    this.threadNamePrefix = threadNamePrefix;
-  }
-
-  @Override
-  public void setInstanceId(String schedInstId) {}
-
-  @Override
-  public void setInstanceName(String schedName) {
-    this.schedulerInstanceName = schedName;
   }
 
   @Override
   public void initialize() throws SchedulerConfigException {
-    String prefix =
-        (threadNamePrefix != null) ? threadNamePrefix : schedulerInstanceName + "_Worker";
-    threadFactory = Thread.ofVirtual().name(prefix + "-", 1).factory();
+    threadFactory = Thread.ofVirtual().name(threadNamePrefix + "-", 1).factory();
   }
 
   /** The maximum number of concurrently running jobs. */
@@ -140,6 +121,9 @@ public class VirtualThreadPool implements ThreadPool {
             () -> {
               try {
                 runnable.run();
+              } catch (Throwable ex) {
+                // as SimpleThreadPool does: logged here, not left to the uncaught exception handler
+                log.error("Error while executing the Runnable: ", ex);
               } finally {
                 jobEnded();
               }

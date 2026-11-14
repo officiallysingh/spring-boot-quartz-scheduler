@@ -30,8 +30,6 @@ import org.quartz.utils.Key;
  */
 public class EverythingMatcher<T extends Key<?>> implements Matcher<T> {
 
-  private static final long serialVersionUID = 202300056681974058L;
-
   /** Create a matcher matching every key; use {@link #allJobs()} or {@link #allTriggers()}. */
   protected EverythingMatcher() {}
 

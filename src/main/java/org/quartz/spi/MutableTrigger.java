@@ -89,10 +89,6 @@ public interface MutableTrigger extends Trigger {
   /**
    * Set the time at which the <code>Trigger</code> should quit repeating - regardless of any
    * remaining repeats (based on the trigger's particular repeat settings).
-   *
-   * @see
-   *     org.quartz.TriggerUtils#computeEndTimeToAllowParticularNumberOfFirings(org.quartz.spi.OperableTrigger,
-   *     org.quartz.Calendar, int)
    */
   void setEndTime(@Nullable Instant endTime);
 
@@ -105,7 +101,7 @@ public interface MutableTrigger extends Trigger {
    * <p>If not explicitly set, the default value is <code>MISFIRE_INSTRUCTION_SMART_POLICY</code>.
    *
    * @see #MISFIRE_INSTRUCTION_SMART_POLICY
-   * @see org.quartz.spi.OperableTrigger#updateAfterMisfire(org.quartz.Calendar)
+   * @see org.quartz.spi.OperableTrigger#updateAfterMisfire(org.quartz.Calendar, java.time.Instant)
    * @see SimpleTrigger
    * @see CronTrigger
    */

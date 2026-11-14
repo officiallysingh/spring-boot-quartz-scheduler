@@ -18,12 +18,10 @@
 
 package org.quartz.impl.calendar;
 
-import java.io.Serializable;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import org.jspecify.annotations.Nullable;
 import org.quartz.Calendar;
@@ -37,7 +35,7 @@ import org.quartz.utils.LenientDateTime;
  * @see org.quartz.impl.calendar.BaseCalendar
  * @author Juergen Donnerstag
  */
-public class AnnualCalendar extends BaseCalendar implements Calendar, Serializable {
+public class AnnualCalendar extends BaseCalendar {
 
   private static final long serialVersionUID = 7346867105876610961L;
 
@@ -83,13 +81,6 @@ public class AnnualCalendar extends BaseCalendar implements Calendar, Serializab
     super(baseCalendar, timeZone);
   }
 
-  @Override
-  public Object clone() {
-    AnnualCalendar clone = (AnnualCalendar) super.clone();
-    clone.excludeDays = new ArrayList<>(excludeDays);
-    return clone;
-  }
-
   /** Get the array which defines the exclude-value of each day of month */
   public ArrayList<ZonedDateTime> getDaysExcluded() {
     return excludeDays;
@@ -111,7 +102,9 @@ public class AnnualCalendar extends BaseCalendar implements Calendar, Serializab
     int dday = day.getDayOfMonth();
 
     if (!dataSorted) {
-      Collections.sort(excludeDays, new CalendarComparator());
+      excludeDays.sort(
+          Comparator.comparingInt(ZonedDateTime::getMonthValue)
+              .thenComparingInt(ZonedDateTime::getDayOfMonth));
       dataSorted = true;
     }
 
@@ -250,35 +243,5 @@ public class AnnualCalendar extends BaseCalendar implements Calendar, Serializab
     }
 
     return day.toInstant();
-  }
-}
-
-class CalendarComparator implements Comparator<ZonedDateTime>, Serializable {
-
-  private static final long serialVersionUID = 7346867105876610961L;
-
-  public CalendarComparator() {}
-
-  public int compare(ZonedDateTime c1, ZonedDateTime c2) {
-
-    int month1 = c1.getMonthValue();
-    int month2 = c2.getMonthValue();
-
-    int day1 = c1.getDayOfMonth();
-    int day2 = c2.getDayOfMonth();
-
-    if (month1 < month2) {
-      return -1;
-    }
-    if (month1 > month2) {
-      return 1;
-    }
-    if (day1 < day2) {
-      return -1;
-    }
-    if (day1 > day2) {
-      return 1;
-    }
-    return 0;
   }
 }

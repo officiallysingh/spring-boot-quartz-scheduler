@@ -274,24 +274,6 @@ class TriggerBindingTest {
     assertThat(simple.getFireTimeAfter(null)).isEqualTo(NOW.plus(Duration.ofMinutes(10)));
     clock.advance(Duration.ofMinutes(15));
     assertThat(simple.getFireTimeAfter(null)).isEqualTo(NOW.plus(Duration.ofMinutes(20)));
-
-    // the no-argument misfire overload: "fire once now" by the trigger's clock
-    CronTrigger cron =
-        newTrigger()
-            .startAt(NOW)
-            .withSchedule(
-                CronScheduleBuilder.dailyAtHourAndMinute(9, 0)
-                    .withMisfireHandlingInstructionFireAndProceed())
-            .build();
-    op(cron).bind(clock, ZoneOffset.UTC);
-    op(cron).computeFirstFireTime(null);
-    clock.setInstant(Instant.parse("2026-03-10T09:30:00Z"));
-    op(cron).updateAfterMisfire(null);
-    assertThat(cron.getNextFireTime()).isEqualTo(Instant.parse("2026-03-10T09:30:00Z"));
-
-    // the two-argument calendar overload too
-    op(cron).updateWithNewCalendar(null, Duration.ofSeconds(1));
-    assertThat(cron.getNextFireTime()).isEqualTo(Instant.parse("2026-03-11T09:00:00Z"));
   }
 
   @Test

@@ -28,8 +28,6 @@ import org.quartz.utils.Key;
  */
 public class GroupMatcher<T extends Key<?>> extends StringMatcher<T> {
 
-  private static final long serialVersionUID = -3275767650469343849L;
-
   /**
    * Create a matcher on key groups; use the static factory methods.
    *

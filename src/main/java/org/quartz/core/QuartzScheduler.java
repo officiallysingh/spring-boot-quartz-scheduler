@@ -36,6 +36,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -158,9 +159,10 @@ public class QuartzScheduler {
 
   private final QuartzSchedulerThread schedThread;
 
-  private @Nullable ThreadGroup threadGroup;
-
   private final SchedulerContext context = new SchedulerContext();
+
+  // bound while unscheduleJob(s) is in the store: the jobs deleted with their last trigger
+  private final ScopedValue<List<JobKey>> jobsDeletedByStore = ScopedValue.newInstance();
 
   private final ListenerManager listenerManager = new ListenerManagerImpl();
 
@@ -207,9 +209,7 @@ public class QuartzScheduler {
 
     this.schedThread = new QuartzSchedulerThread(this, resources);
     this.schedThread.start();
-    if (idleWaitTime != null && idleWaitTime.toMillis() > 0) {
-      this.schedThread.setIdleWaitTime(idleWaitTime);
-    }
+    this.schedThread.setIdleWaitTime(idleWaitTime);
 
     jobMgr = new ExecutingJobsManager();
     addInternalJobListener(jobMgr);
@@ -230,14 +230,12 @@ public class QuartzScheduler {
                 getSchedulerName(),
                 getSchedulerInstanceId(),
                 getClass(),
-                false,
                 runningSince() != null,
                 isInStandbyMode(),
                 isShutdown(),
                 runningSince(),
                 numJobsExecuted(),
                 getJobStoreClass(),
-                supportsPersistence(),
                 isClustered(),
                 getThreadPoolClass(),
                 getThreadPoolSize(),
@@ -306,18 +304,6 @@ public class QuartzScheduler {
     return resources.getTimeZone();
   }
 
-  /** Returns the name of the thread group for Quartz's main threads. */
-  public ThreadGroup getSchedulerThreadGroup() {
-    if (threadGroup == null) {
-      threadGroup = new ThreadGroup("QuartzScheduler:" + getSchedulerName());
-      if (resources.getMakeSchedulerThreadDaemon()) {
-        threadGroup.setDaemon(true);
-      }
-    }
-
-    return threadGroup;
-  }
-
   /** Returns the <code>SchedulerContext</code> of the <code>Scheduler</code>. */
   public SchedulerContext getSchedulerContext() throws SchedulerException {
     return context;
@@ -343,8 +329,7 @@ public class QuartzScheduler {
           "The Scheduler cannot be restarted after shutdown() has been called.");
     }
 
-    // QTZ-212 : calling new schedulerStarting() method on the listeners
-    // right after entering start()
+    // the listeners are told right after entering start()
     notifySchedulerListenersStarting();
 
     if (initialStart == null) {
@@ -362,7 +347,8 @@ public class QuartzScheduler {
     notifySchedulerListenersStarted();
   }
 
-  public void startDelayed(final int seconds) throws SchedulerException {
+  public void startDelayed(final Duration delay) throws SchedulerException {
+    Objects.requireNonNull(delay, "delay");
     if (shuttingDown || closed) {
       throw new SchedulerException(
           "The Scheduler cannot be restarted after shutdown() has been called.");
@@ -372,7 +358,7 @@ public class QuartzScheduler {
         new Thread(
             () -> {
               try {
-                Thread.sleep(seconds * 1000L);
+                Thread.sleep(delay);
               } catch (InterruptedException ignore) {
               }
               try {
@@ -413,10 +399,6 @@ public class QuartzScheduler {
 
   public Class<?> getJobStoreClass() {
     return resources.getJobStore().getClass();
-  }
-
-  public boolean supportsPersistence() {
-    return resources.getJobStore().supportsPersistence();
   }
 
   public boolean isClustered() {
@@ -701,10 +683,11 @@ public class QuartzScheduler {
       result = true;
     }
 
+    // the store reports the deleted job to the listeners, wherever it was deleted: with its last
+    // trigger above if it is not durable, otherwise here
     result = resources.getJobStore().removeJob(jobKey) || result;
     if (result) {
       notifySchedulerThread(null);
-      notifySchedulerListenersJobDeleted(jobKey);
     }
     return result;
   }
@@ -716,7 +699,6 @@ public class QuartzScheduler {
 
     result = resources.getJobStore().removeJobs(jobKeys);
     notifySchedulerThread(null);
-    for (JobKey key : jobKeys) notifySchedulerListenersJobDeleted(key);
     return result;
   }
 
@@ -786,11 +768,13 @@ public class QuartzScheduler {
   public boolean unscheduleJobs(List<TriggerKey> triggerKeys) throws SchedulerException {
     validateState();
 
-    boolean result;
-
-    result = resources.getJobStore().removeTriggers(triggerKeys);
+    List<JobKey> deletedJobs = new ArrayList<>();
+    boolean result =
+        ScopedValue.where(jobsDeletedByStore, deletedJobs)
+            .call(() -> resources.getJobStore().removeTriggers(triggerKeys));
     notifySchedulerThread(null);
     for (TriggerKey key : triggerKeys) notifySchedulerListenersUnscheduled(key);
+    deletedJobs.forEach(this::notifySchedulerListenersJobDeleted);
     return result;
   }
 
@@ -798,14 +782,32 @@ public class QuartzScheduler {
   public boolean unscheduleJob(TriggerKey triggerKey) throws SchedulerException {
     validateState();
 
-    if (resources.getJobStore().removeTrigger(triggerKey)) {
-      notifySchedulerThread(null);
-      notifySchedulerListenersUnscheduled(triggerKey);
-    } else {
+    List<JobKey> deletedJobs = new ArrayList<>();
+    boolean removed =
+        ScopedValue.where(jobsDeletedByStore, deletedJobs)
+            .call(() -> resources.getJobStore().removeTrigger(triggerKey));
+    if (!removed) {
       return false;
     }
-
+    notifySchedulerThread(null);
+    // the trigger first, then the job that went with it
+    notifySchedulerListenersUnscheduled(triggerKey);
+    deletedJobs.forEach(this::notifySchedulerListenersJobDeleted);
     return true;
+  }
+
+  /**
+   * A job the store deleted (see {@link
+   * org.quartz.spi.SchedulerSignaler#notifySchedulerListenersJobDeleted}). The listeners are told
+   * at once, unless the store deleted it on behalf of {@link #unscheduleJob} or {@link
+   * #unscheduleJobs}, which report the unscheduled trigger first.
+   */
+  void jobDeletedByStore(JobKey jobKey) {
+    if (jobsDeletedByStore.isBound()) {
+      jobsDeletedByStore.get().add(jobKey);
+    } else {
+      notifySchedulerListenersJobDeleted(jobKey);
+    }
   }
 
   /**
@@ -1330,18 +1332,6 @@ public class QuartzScheduler {
   public void addInternalSchedulerListener(SchedulerListener schedulerListener) {
     synchronized (internalSchedulerListeners) {
       internalSchedulerListeners.add(schedulerListener);
-    }
-  }
-
-  /**
-   * Remove the given <code>{@link SchedulerListener}</code> from the <code>Scheduler</code>'s list
-   * of internal listeners.
-   *
-   * @return true if the identified listener was found in the list, and removed.
-   */
-  public boolean removeInternalSchedulerListener(SchedulerListener schedulerListener) {
-    synchronized (internalSchedulerListeners) {
-      return internalSchedulerListeners.remove(schedulerListener);
     }
   }
 

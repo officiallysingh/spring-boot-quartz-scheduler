@@ -18,7 +18,6 @@
 
 package org.quartz.impl.calendar;
 
-import java.io.Serializable;
 import java.time.Instant;
 import java.time.ZoneId;
 import org.jspecify.annotations.Nullable;
@@ -33,7 +32,7 @@ import org.quartz.utils.LenientDateTime;
  * @see org.quartz.impl.calendar.BaseCalendar
  * @author Juergen Donnerstag
  */
-public class MonthlyCalendar extends BaseCalendar implements Calendar, Serializable {
+public class MonthlyCalendar extends BaseCalendar {
 
   private static final long serialVersionUID = 419164961091807944L;
 
@@ -86,13 +85,6 @@ public class MonthlyCalendar extends BaseCalendar implements Calendar, Serializa
 
     // all days are included by default
     excludeAll = areAllDaysExcluded();
-  }
-
-  @Override
-  public Object clone() {
-    MonthlyCalendar clone = (MonthlyCalendar) super.clone();
-    clone.excludeDays = excludeDays.clone();
-    return clone;
   }
 
   /**

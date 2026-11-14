@@ -49,7 +49,6 @@ import org.springframework.transaction.annotation.Propagation;
  * @param transaction Transactions around job executions.
  * @author Vedran Pavic
  * @author Stephane Nicoll
- * @since 4.0.0
  */
 @ConfigurationProperties("spring.quartz")
 public record QuartzProperties(
@@ -66,12 +65,6 @@ public record QuartzProperties(
   /** Value of {@code instance-id} that generates the id when the store is clustered. */
   public static final String AUTO_INSTANCE_ID = "AUTO";
 
-  /**
-   * Value of {@code instance-id} that reads the id from the {@code org.quartz.scheduler.instanceId}
-   * system property when the store is clustered.
-   */
-  public static final String SYSTEM_PROPERTY_INSTANCE_ID = "SYS_PROP";
-
   /** The {@link SchedulerSettings} of the scheduler group, with {@link #timeZone()}. */
   public SchedulerSettings schedulerSettings() {
     return this.scheduler.toSettings().toBuilder().timeZone(this.timeZone).build();
@@ -81,9 +74,8 @@ public record QuartzProperties(
    * Scheduler settings.
    *
    * @param name Name of the scheduler, shared by all nodes of a cluster.
-   * @param instanceId Instance id of this node; "AUTO" generates one and "SYS_PROP" reads the
-   *     "org.quartz.scheduler.instanceId" system property (both only when the job store is
-   *     clustered).
+   * @param instanceId Instance id of this node, unique in a cluster; "AUTO" generates one when the
+   *     job store is clustered.
    * @param threadName Name of the scheduler thread; defaults to the scheduler name followed by
    *     "_QuartzSchedulerThread".
    * @param idleWaitTime How long the scheduler thread waits for new triggers when idle; at least
@@ -108,11 +100,6 @@ public record QuartzProperties(
       boolean interruptJobsOnShutdownWithWait,
       @Nullable Map<String, String> context) {
 
-    /** Whether the instance id is read from a system property ({@code SYS_PROP}). */
-    public boolean isSystemPropertyInstanceId() {
-      return SYSTEM_PROPERTY_INSTANCE_ID.equals(this.instanceId);
-    }
-
     /**
      * The typed settings these properties describe; settings without a property keep their
      * defaults.
@@ -120,7 +107,7 @@ public record QuartzProperties(
      * @return the scheduler settings
      */
     public SchedulerSettings toSettings() {
-      boolean auto = AUTO_INSTANCE_ID.equals(this.instanceId) || isSystemPropertyInstanceId();
+      boolean auto = AUTO_INSTANCE_ID.equals(this.instanceId);
       return SchedulerSettings.builder()
           .name(this.name)
           .instanceId(auto ? SchedulerSettings.DEFAULT_INSTANCE_ID : this.instanceId)

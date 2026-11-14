@@ -23,9 +23,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
-import org.quartz.SchedulerListener;
 import org.quartz.impl.StdSchedulerFactory;
-import org.quartz.listeners.BroadcastSchedulerListener;
 import org.quartz.listeners.SchedulerListenerSupport;
 import org.quartz.support.AbstractMongoIT;
 import org.quartz.support.TestSchedulers;
@@ -35,7 +33,7 @@ import org.quartz.support.TestSchedulers;
  *
  * @author adahanne
  */
-class QTZ212_SchedulerListener_IT extends AbstractMongoIT {
+class SchedulerListenerStartOrderIT extends AbstractMongoIT {
 
   private static final String SCHEDULER_STARTED = "SCHEDULER_STARTED";
   private static final String SCHEDULER_STARTING = "SCHEDULER_STARTING";
@@ -46,25 +44,6 @@ class QTZ212_SchedulerListener_IT extends AbstractMongoIT {
     StdSchedulerFactory sf = TestSchedulers.factory(TestSchedulers.scheduler(), 1).build();
     Scheduler sched = sf.getScheduler();
     sched.getListenerManager().addSchedulerListener(new TestSchedulerListener());
-    sched.start();
-
-    assertEquals(SCHEDULER_STARTING, methodsCalledInSchedulerListener.get(0));
-    assertEquals(SCHEDULER_STARTED, methodsCalledInSchedulerListener.get(1));
-
-    sched.shutdown();
-  }
-
-  @Test
-  void broadcastSchedulerListenerCallsSchedulerStartingOnAllItsListeners()
-      throws SchedulerException {
-
-    methodsCalledInSchedulerListener = new ArrayList<String>();
-    StdSchedulerFactory sf = TestSchedulers.factory(TestSchedulers.scheduler(), 1).build();
-    Scheduler sched = sf.getScheduler();
-    List<SchedulerListener> listeners = new ArrayList<SchedulerListener>();
-    listeners.add(new TestSchedulerListener());
-
-    sched.getListenerManager().addSchedulerListener(new BroadcastSchedulerListener(listeners));
     sched.start();
 
     assertEquals(SCHEDULER_STARTING, methodsCalledInSchedulerListener.get(0));

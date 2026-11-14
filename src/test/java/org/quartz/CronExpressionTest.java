@@ -56,6 +56,7 @@ public class CronExpressionTest extends SerializationTestSupport {
     assertEquals(targetCronExpression.getTimeZone(), deserializedCronExpression.getTimeZone());
   }
 
+  @Test
   void testTooManyTokens() throws Exception {
     try {
       new CronExpression("0 15 10 * * ? 2005 *"); // too many tokens/terms in expression
@@ -364,10 +365,10 @@ public class CronExpressionTest extends SerializationTestSupport {
   }
 
   /*
-   * QUARTZ-571: Showing that expressions with months correctly serialize.
+   * Showing that expressions with months correctly serialize.
    */
   @Test
-  void testQuartz571() throws Exception {
+  void testExpressionWithMonthsSerializes() throws Exception {
     CronExpression cronExpression = new CronExpression("19 15 10 4 Apr ? ");
 
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -383,9 +384,9 @@ public class CronExpressionTest extends SerializationTestSupport {
     newExpression.getNextValidTimeAfter(Instant.now());
   }
 
-  /** QTZ-259 : last day offset causes repeating fire time */
+  /** A last-day offset must not cause a repeating fire time. */
   @Test
-  void testQtz259() throws Exception {
+  void testLastDayOffsetDoesNotRepeatFireTime() throws Exception {
     CronScheduleBuilder schedBuilder = CronScheduleBuilder.cronSchedule("0 0 0 L-2 * ? *");
     Instant start = Instant.parse("2025-01-15T12:00:00Z");
     Trigger trigger =
@@ -405,9 +406,9 @@ public class CronExpressionTest extends SerializationTestSupport {
     }
   }
 
-  /** QTZ-259 : last day offset causes repeating fire time */
+  /** The last weekday of the month must not cause a repeating fire time. */
   @Test
-  void testQtz259LW() throws Exception {
+  void testLastWeekdayDoesNotRepeatFireTime() throws Exception {
     CronScheduleBuilder schedBuilder = CronScheduleBuilder.cronSchedule("0 0 0 LW * ? *");
     Instant start = Instant.parse("2025-01-15T12:00:00Z");
     Trigger trigger =
@@ -428,10 +429,10 @@ public class CronExpressionTest extends SerializationTestSupport {
   }
 
   /*
-   * QUARTZ-574: Showing that storeExpressionVals correctly calculates the month number
+   * Showing that storeExpressionVals correctly calculates the month number
    */
   @Test
-  void testQuartz574() {
+  void testNonexistentMonthIsRejected() {
     try {
       new CronExpression("* * * * Foo ? ");
       fail("Expected ParseException did not fire for nonexistent month");
@@ -450,7 +451,7 @@ public class CronExpressionTest extends SerializationTestSupport {
   }
 
   @Test
-  void testQuartz621() {
+  void testWildcardDayOfMonthAndDayOfWeekIsRejected() {
     try {
       new CronExpression("0 0 * * * *");
       fail("Expected ParseException did not fire for wildcard day-of-month and day-of-week");
@@ -486,7 +487,7 @@ public class CronExpressionTest extends SerializationTestSupport {
   }
 
   @Test
-  void testQuartz640() throws ParseException {
+  void testLastCombinedWithOtherDaysOfWeekIsRejected() throws ParseException {
     try {
       new CronExpression("0 43 9 ? * SAT,SUN,L");
       fail("Expected ParseException did not fire for L combined with other days of the week");
@@ -515,7 +516,7 @@ public class CronExpressionTest extends SerializationTestSupport {
   }
 
   @Test
-  void testQtz96() throws ParseException {
+  void testWeekdayOptionRejectsDaysOver31() throws ParseException {
     try {
       new CronExpression("0/5 * * 32W 1 ?");
       fail("Expected ParseException did not fire for W with value larger than 31");
@@ -527,7 +528,7 @@ public class CronExpressionTest extends SerializationTestSupport {
   }
 
   @Test
-  void testQtz1439() {
+  void testDayOfMonthWithMonthIsSupported() {
     try {
       CronExpression ce = new CronExpression("0/5 * * 10 1 ? *");
       ce = new CronExpression("0/5 * * 10 12 ? *");
@@ -537,7 +538,7 @@ public class CronExpressionTest extends SerializationTestSupport {
   }
 
   @Test
-  void testQtz395_CopyConstructorMustPreserveTimeZone() throws ParseException {
+  void testCopyConstructorMustPreserveTimeZone() throws ParseException {
     ZoneId nonDefault = ZoneId.of("Europe/Brussels");
     CronExpression cronExpression = new CronExpression("0 15 10 * * ? 2005");
     cronExpression.setTimeZone(nonDefault);
@@ -821,7 +822,7 @@ public class CronExpressionTest extends SerializationTestSupport {
       long interval1 = test.length > 1 ? (long) test[1] : -1;
       long interval2 = test.length > 2 ? (long) test[2] : interval1;
       CronExpression exp = new CronExpression(expression);
-      Instant after = exp.getTimeAfter(Instant.ofEpochMilli(now));
+      Instant after = exp.getNextValidTimeAfter(Instant.ofEpochMilli(now));
       if (after == null) { // matches only in the past
         Instant before = exp.getTimeBefore(Instant.ofEpochMilli(now));
         assertNotNull(before, "expression " + expression);
@@ -830,7 +831,7 @@ public class CronExpressionTest extends SerializationTestSupport {
         assertNull(before, "expression " + expression);
       } else { // matches at fixed intervals
         Instant before = exp.getTimeBefore(after);
-        Instant after2 = exp.getTimeAfter(after);
+        Instant after2 = exp.getNextValidTimeAfter(after);
         assertEquals(
             interval1, after.toEpochMilli() - before.toEpochMilli(), "expression " + expression);
         assertEquals(
@@ -898,7 +899,7 @@ public class CronExpressionTest extends SerializationTestSupport {
 
     // test correct computed dates for first weekdays days of month
     for (int i = 0; i < 13; i++) {
-      Instant nTime = expFirstWeekdayOfTheMonth.getTimeAfter(lTime);
+      Instant nTime = expFirstWeekdayOfTheMonth.getNextValidTimeAfter(lTime);
       assertEquals(correctFireTimes.get(i), nTime);
       lTime = nTime;
     }
@@ -939,7 +940,7 @@ public class CronExpressionTest extends SerializationTestSupport {
 
     // test correct computed dates for last days of month
     for (int i = 0; i < 14; i++) {
-      Instant nTime = expLastDayOfMonth.getTimeAfter(lTime);
+      Instant nTime = expLastDayOfMonth.getNextValidTimeAfter(lTime);
       assertEquals(correctFireTimes.get(i), nTime);
       lTime = nTime;
     }
@@ -960,7 +961,7 @@ public class CronExpressionTest extends SerializationTestSupport {
     assertEquals(2, afterTimeCalendar.getHour());
     assertEquals(45, afterTimeCalendar.getMinute());
 
-    Instant nextFireTime = cronExpression.getTimeAfter(afterTime);
+    Instant nextFireTime = cronExpression.getNextValidTimeAfter(afterTime);
 
     // the fire time is the second (+00:00) occurrence of 02:05:29 local time
     assertNotNull(nextFireTime);
@@ -978,7 +979,7 @@ public class CronExpressionTest extends SerializationTestSupport {
     // 01:45 at the first (-04:00) occurrence of the overlapping wall time
     Instant afterTime = Instant.parse("2025-11-02T05:45:00Z");
 
-    Instant nextFireTime = cronExpression.getTimeAfter(afterTime);
+    Instant nextFireTime = cronExpression.getNextValidTimeAfter(afterTime);
 
     // the fire time is the second (-05:00) occurrence of 01:30 local time
     assertNotNull(nextFireTime);
@@ -994,7 +995,7 @@ public class CronExpressionTest extends SerializationTestSupport {
     CronExpression halfHourShift = new CronExpression("0 45 1 6 4 ? 2025");
     halfHourShift.setTimeZone(lordHowe);
     Instant afterHalfHour = Instant.parse("2025-04-05T14:50:00Z");
-    Instant nextHalfHour = halfHourShift.getTimeAfter(afterHalfHour);
+    Instant nextHalfHour = halfHourShift.getNextValidTimeAfter(afterHalfHour);
     assertNotNull(nextHalfHour);
     assertEquals(Instant.parse("2025-04-05T15:15:00Z"), nextHalfHour);
 
@@ -1002,7 +1003,7 @@ public class CronExpressionTest extends SerializationTestSupport {
     CronExpression twoHourShift = new CronExpression("0 15 2 26 10 ? 2025");
     twoHourShift.setTimeZone(troll);
     Instant afterTwoHour = Instant.parse("2025-10-26T01:45:00Z");
-    Instant nextTwoHour = twoHourShift.getTimeAfter(afterTwoHour);
+    Instant nextTwoHour = twoHourShift.getNextValidTimeAfter(afterTwoHour);
     // afterTime already skips the first occurrence of the repeated 02:15
     // local time (+02:00 = 00:15Z), so the expected fire time is the
     // intentionally selected later occurrence (+00:00 = 02:15Z)
@@ -1021,7 +1022,7 @@ public class CronExpressionTest extends SerializationTestSupport {
 
     Instant afterTime = Instant.parse("2025-04-05T02:50:00Z");
 
-    Instant nextFireTime = cronExpression.getTimeAfter(afterTime);
+    Instant nextFireTime = cronExpression.getNextValidTimeAfter(afterTime);
 
     assertNotNull(nextFireTime);
     assertEquals(Instant.parse("2025-04-06T03:45:00Z"), nextFireTime);
@@ -1037,14 +1038,14 @@ public class CronExpressionTest extends SerializationTestSupport {
     // a fire time inside the gap is skipped and the next hour still fires
     CronExpression spanningHours = new CronExpression("0 30 2-3 9 3 ? 2025");
     spanningHours.setTimeZone(timeZone);
-    Instant nextFireTime = spanningHours.getTimeAfter(afterTime);
+    Instant nextFireTime = spanningHours.getNextValidTimeAfter(afterTime);
     assertNotNull(nextFireTime);
     assertEquals(Instant.parse("2025-03-09T07:30:00Z"), nextFireTime);
 
     // a fire time only inside the gap does not fire at all
     CronExpression gapOnly = new CronExpression("0 30 2 9 3 ? 2025");
     gapOnly.setTimeZone(timeZone);
-    assertNull(gapOnly.getTimeAfter(afterTime));
+    assertNull(gapOnly.getNextValidTimeAfter(afterTime));
   }
 
   @Test
@@ -1058,15 +1059,15 @@ public class CronExpressionTest extends SerializationTestSupport {
     CronExpression daily = new CronExpression("0 0 2 * * ?");
     daily.setTimeZone(lordHowe);
     // the non-existent 02:00 is skipped; the next fire is 02:00 on the following day (+11:00)
-    assertEquals(Instant.parse("2024-10-06T15:00:00Z"), daily.getTimeAfter(afterTime));
+    assertEquals(Instant.parse("2024-10-06T15:00:00Z"), daily.getNextValidTimeAfter(afterTime));
 
     CronExpression hourly = new CronExpression("0 0 * * * ?");
     hourly.setTimeZone(lordHowe);
     // 01:00 (+10:30), then 03:00 (+11:00): there is no 02:00 that day
-    assertEquals(Instant.parse("2024-10-05T14:30:00Z"), hourly.getTimeAfter(afterTime));
+    assertEquals(Instant.parse("2024-10-05T14:30:00Z"), hourly.getNextValidTimeAfter(afterTime));
     assertEquals(
         Instant.parse("2024-10-05T16:00:00Z"),
-        hourly.getTimeAfter(Instant.parse("2024-10-05T14:30:00Z")));
+        hourly.getNextValidTimeAfter(Instant.parse("2024-10-05T14:30:00Z")));
   }
 
   @Test
@@ -1081,6 +1082,6 @@ public class CronExpressionTest extends SerializationTestSupport {
     }
     assertEquals(
         Instant.parse("2024-01-31T00:00:00Z"),
-        lastWeekday.getTimeAfter(Instant.parse("2024-01-30T23:59:59.500Z")));
+        lastWeekday.getNextValidTimeAfter(Instant.parse("2024-01-30T23:59:59.500Z")));
   }
 }

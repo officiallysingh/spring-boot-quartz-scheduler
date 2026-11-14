@@ -91,13 +91,6 @@ class SchedulerFactoryBeanIT extends AbstractMongoIT {
     }
   }
 
-  public static class RunnableJob implements Runnable {
-    @Override
-    public void run() {
-      RESULTS.add("runnable");
-    }
-  }
-
   private AnnotationConfigApplicationContext context;
 
   private SchedulerFactoryBean factoryBean;
@@ -233,15 +226,14 @@ class SchedulerFactoryBeanIT extends AbstractMongoIT {
   }
 
   @Test
-  void adaptableJobFactoryWrapsRunnables() throws Exception {
-    AdaptableJobFactory factory = new AdaptableJobFactory();
-    Job job = factory.adaptJob(new RunnableJob());
+  void defaultJobFactoryAutowiresJobsAndAppliesJobData() throws Exception {
+    factoryBean = newFactoryBean("defaultFactory");
+    scheduleOnce(factoryBean, "greeting", AutowiredJob.class, Map.of("name", "default"));
+    factoryBean.afterPropertiesSet();
+    factoryBean.start();
 
-    assertThat(job).isInstanceOf(DelegatingJob.class);
-    job.execute(null);
-    assertThat(RESULTS).containsExactly("runnable");
-    assertThatThrownBy(() -> factory.adaptJob("not a job"))
-        .isInstanceOf(IllegalArgumentException.class);
+    await().atMost(Duration.ofSeconds(10)).until(() -> !RESULTS.isEmpty());
+    assertThat(RESULTS.get(0)).startsWith("hello default on defaultFactory_Worker");
   }
 
   @Test
@@ -321,7 +313,7 @@ class SchedulerFactoryBeanIT extends AbstractMongoIT {
     factoryBean = null;
     SchedulerFactoryBean bean = newFactoryBean("both");
     bean.setTaskExecutor(Runnable::run);
-    bean.setThreadPool(new SimpleThreadPool(1, 5));
+    bean.setThreadPool(new SimpleThreadPool(1, "test_Worker"));
 
     assertThatThrownBy(bean::afterPropertiesSet).isInstanceOf(IllegalStateException.class);
   }
@@ -349,18 +341,6 @@ class SchedulerFactoryBeanIT extends AbstractMongoIT {
     fromBeanName.afterPropertiesSet();
     assertThat(fromBeanName.getScheduler().getSchedulerName()).isEqualTo("beanNameScheduler");
     fromBeanName.destroy();
-  }
-
-  @Test
-  void schedulerContextIsPopulated() throws Exception {
-    factoryBean = newFactoryBean("contextMap");
-    factoryBean.setSchedulerContextAsMap(Map.of("service", "value"));
-    factoryBean.setApplicationContextSchedulerContextKey("applicationContext");
-    factoryBean.afterPropertiesSet();
-
-    Scheduler scheduler = factoryBean.getScheduler();
-    assertThat(scheduler.getContext().get("service")).isEqualTo("value");
-    assertThat(scheduler.getContext().get("applicationContext")).isSameAs(context);
   }
 
   @Test

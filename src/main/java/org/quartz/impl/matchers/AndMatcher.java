@@ -28,8 +28,6 @@ import org.quartz.utils.Key;
  */
 public class AndMatcher<T extends Key<?>> implements Matcher<T> {
 
-  private static final long serialVersionUID = 4697276220890670941L;
-
   /** The matcher that must match first. */
   protected Matcher<T> leftOperand;
 

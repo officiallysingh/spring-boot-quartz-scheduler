@@ -51,17 +51,16 @@ class QuartzHealthIndicatorTest {
                 "app",
                 "node-1",
                 Object.class,
-                false,
                 started,
                 standby,
                 shutdown,
                 NOW,
                 0,
                 PersistentJobStore.class,
-                true,
                 clustered,
                 SimpleThreadPool.class,
                 4,
+                "with 4 threads",
                 "x"));
   }
 

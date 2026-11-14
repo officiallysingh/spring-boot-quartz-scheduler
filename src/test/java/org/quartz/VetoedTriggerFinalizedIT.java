@@ -30,15 +30,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A unit test to reproduce QTZ-205 bug: A TriggerListener vetoed job will affect
- * SchedulerListener's triggerFinalized() notification.
+ * A job vetoed by a TriggerListener must not affect the SchedulerListener's triggerFinalized()
+ * notification.
  *
  * @author Zemian Deng <saltnlight5@gmail.com>
  */
-class Qtz205SchedulerListenerIT extends AbstractMongoIT {
-  private static Logger logger = LoggerFactory.getLogger(Qtz205SchedulerListenerIT.class);
+class VetoedTriggerFinalizedIT extends AbstractMongoIT {
+  private static Logger logger = LoggerFactory.getLogger(VetoedTriggerFinalizedIT.class);
 
-  public static class Qtz205Job implements Job {
+  public static class CountingJob implements Job {
     private static volatile int jobExecutionCount = 0;
 
     public void execute(JobExecutionContext context) throws JobExecutionException {
@@ -47,7 +47,7 @@ class Qtz205SchedulerListenerIT extends AbstractMongoIT {
     }
   }
 
-  public static class Qtz205TriggerListener implements TriggerListener {
+  public static class VetoingTriggerListener implements TriggerListener {
     private volatile int fireCount;
 
     public int getFireCount() {
@@ -55,7 +55,7 @@ class Qtz205SchedulerListenerIT extends AbstractMongoIT {
     }
 
     public String getName() {
-      return "Qtz205TriggerListener";
+      return "VetoingTriggerListener";
     }
 
     public void triggerFired(Trigger trigger, JobExecutionContext context) {
@@ -80,7 +80,7 @@ class Qtz205SchedulerListenerIT extends AbstractMongoIT {
         CompletedExecutionInstruction triggerInstructionCode) {}
   }
 
-  public static class Qtz205ScheListener implements SchedulerListener {
+  public static class FinalizedCountingListener implements SchedulerListener {
     private int triggerFinalizedCount;
 
     public int getTriggerFinalizedCount() {
@@ -131,11 +131,10 @@ class Qtz205SchedulerListenerIT extends AbstractMongoIT {
     public void schedulingDataCleared() {}
   }
 
-  /** QTZ-205 */
   @Test
   void testTriggerFinalized() throws Exception {
-    Qtz205TriggerListener triggerListener = new Qtz205TriggerListener();
-    Qtz205ScheListener schedulerListener = new Qtz205ScheListener();
+    VetoingTriggerListener triggerListener = new VetoingTriggerListener();
+    FinalizedCountingListener schedulerListener = new FinalizedCountingListener();
     Scheduler scheduler =
         TestSchedulers.create(TestSchedulers.scheduler().idleWaitTime(Duration.ofMillis(1500)), 2);
     scheduler.getListenerManager().addSchedulerListener(schedulerListener);
@@ -143,11 +142,11 @@ class Qtz205SchedulerListenerIT extends AbstractMongoIT {
     scheduler.start();
     scheduler.standby();
 
-    JobDetail job = newJob(Qtz205Job.class).withIdentity("test").build();
+    JobDetail job = newJob(CountingJob.class).withIdentity("test").build();
     Trigger trigger =
         newTrigger()
             .withIdentity("test")
-            .withSchedule(simpleSchedule().withIntervalInMilliseconds(250).withRepeatCount(2))
+            .withSchedule(simpleSchedule().withInterval(Duration.ofMillis(250)).withRepeatCount(2))
             .build();
     scheduler.scheduleJob(job, trigger);
     scheduler.start();
@@ -155,7 +154,7 @@ class Qtz205SchedulerListenerIT extends AbstractMongoIT {
 
     scheduler.shutdown(true);
 
-    assertEquals(2, Qtz205Job.jobExecutionCount);
+    assertEquals(2, CountingJob.jobExecutionCount);
     assertEquals(3, triggerListener.getFireCount());
     assertEquals(1, schedulerListener.getTriggerFinalizedCount());
   }

@@ -18,7 +18,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,8 +57,6 @@ public interface StoreDelegate {
   @Nullable JobDetail selectJob(JobKey jobKey) throws JobPersistenceException;
 
   boolean deleteJob(JobKey jobKey);
-
-  int selectNumJobs();
 
   List<String> selectJobGroups();
 
@@ -105,8 +102,6 @@ public interface StoreDelegate {
   @Nullable String selectTriggerState(TriggerKey triggerKey);
 
   boolean deleteTrigger(TriggerKey triggerKey);
-
-  int selectNumTriggers();
 
   int selectNumTriggersForJob(JobKey jobKey);
 
@@ -234,8 +229,6 @@ public interface StoreDelegate {
 
   List<String> selectCalendarNames();
 
-  int selectNumCalendars();
-
   // paused groups
 
   void insertPausedTriggerGroup(String group);
@@ -280,34 +273,18 @@ public interface StoreDelegate {
   /** The fired-trigger entry with that id, or {@code null}. */
   @Nullable FiredTriggerRecord selectFiredTriggerRecord(String fireInstanceId);
 
-  /** All fired-trigger entries of the scheduler, on every instance. */
-  List<FiredTriggerRecord> selectFiredTriggerRecords();
-
   /**
    * The fired-trigger entries in a state ({@code ACQUIRED} or {@code EXECUTING}), on every
-   * instance. The default filters {@link #selectFiredTriggerRecords()}.
+   * instance.
    */
-  default List<FiredTriggerRecord> selectFiredTriggerRecordsInState(String state) {
-    return selectFiredTriggerRecords().stream()
-        .filter(record -> state.equals(record.state()))
-        .toList();
-  }
+  List<FiredTriggerRecord> selectFiredTriggerRecordsInState(String state);
 
   /**
    * The fire instance ids of an instance's entries flagged by {@link
-   * #updateFiredTriggerInterruptRequested(String)}, read on every cluster check-in. The default
-   * filters {@link #selectFiredTriggerRecordsForInstance(String)}; stores override it with a cheap
-   * lookup.
+   * #updateFiredTriggerInterruptRequested(String)}, read on every cluster check-in, so it should be
+   * a cheap lookup.
    */
-  default Set<String> selectInterruptRequestedFireInstanceIds(String instanceId) {
-    Set<String> ids = new LinkedHashSet<>();
-    for (FiredTriggerRecord record : selectFiredTriggerRecordsForInstance(instanceId)) {
-      if (record.interruptRequested()) {
-        ids.add(record.fireInstanceId());
-      }
-    }
-    return ids;
-  }
+  Set<String> selectInterruptRequestedFireInstanceIds(String instanceId);
 
   List<FiredTriggerRecord> selectFiredTriggerRecordsForInstance(String instanceId);
 

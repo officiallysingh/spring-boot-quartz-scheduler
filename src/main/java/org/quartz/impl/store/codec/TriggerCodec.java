@@ -30,6 +30,7 @@ import org.quartz.JobDataMap;
 import org.quartz.JobKey;
 import org.quartz.JobPersistenceException;
 import org.quartz.TimeOfDay;
+import org.quartz.TriggerKey;
 import org.quartz.impl.triggers.AbstractTrigger;
 import org.quartz.impl.triggers.CalendarIntervalTriggerImpl;
 import org.quartz.impl.triggers.CronTriggerImpl;
@@ -200,7 +201,6 @@ public final class TriggerCodec {
     return fields;
   }
 
-  /** Decodes a trigger encoded by {@link #encode}, attaching {@code jobData}. */
   /**
    * Decodes a trigger and binds it to the scheduler ({@link OperableTrigger#bind(Clock, ZoneId)}):
    * the clock is its source of "now" from here on, and a stored trigger without a zone (none is
@@ -241,8 +241,8 @@ public final class TriggerCodec {
           ex);
     }
     if (trigger instanceof AbstractTrigger<?> common) {
-      common.setName(Fields.requiredString(fields, NAME));
-      common.setGroup(Fields.string(fields, GROUP));
+      common.setKey(
+          new TriggerKey(Fields.requiredString(fields, NAME), Fields.string(fields, GROUP)));
       common.setJobKey(
           new JobKey(Fields.requiredString(fields, JOB_NAME), Fields.string(fields, JOB_GROUP)));
       common.setDescription(Fields.string(fields, DESCRIPTION));
@@ -259,7 +259,7 @@ public final class TriggerCodec {
     }
     trigger.setNextFireTime(instant(fields, NEXT_FIRE_TIME));
     trigger.setPreviousFireTime(instant(fields, PREVIOUS_FIRE_TIME));
-    trigger.setJobDataMap((jobData != null) ? jobData : new JobDataMap());
+    trigger.setJobDataMap(jobData);
     trigger.bind(clock, defaultTimeZone);
     return trigger;
   }

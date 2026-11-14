@@ -150,18 +150,6 @@ public class DateBuilder {
   /** December, as a month number (January = 1). */
   public static final int DECEMBER = 12;
 
-  /** Milliseconds in a minute. */
-  public static final long MILLISECONDS_IN_MINUTE = 60L * 1000L;
-
-  /** Milliseconds in an hour. */
-  public static final long MILLISECONDS_IN_HOUR = 60L * 60L * 1000L;
-
-  /** Seconds in a day without a daylight-saving change. */
-  public static final long SECONDS_IN_MOST_DAYS = 24L * 60L * 60L;
-
-  /** Milliseconds in a day without a daylight-saving change. */
-  public static final long MILLISECONDS_IN_DAY = SECONDS_IN_MOST_DAYS * 1000L;
-
   private int month = -1;
   private int day = -1;
   private int year = -1;
@@ -701,25 +689,6 @@ public class DateBuilder {
     }
 
     return zdt.toInstant();
-  }
-
-  /**
-   * Translate a date and time from a users time zone to the another (probably server) time zone to
-   * assist in creating a simple trigger with the right date and time.
-   *
-   * @param date the date to translate
-   * @param src the original time-zone
-   * @param dest the destination time-zone
-   * @return the translated date
-   */
-  public static Instant translateTime(Instant date, ZoneId src, ZoneId dest) {
-
-    long offset =
-        (dest.getRules().getOffset(date).getTotalSeconds()
-                - src.getRules().getOffset(date).getTotalSeconds())
-            * 1000L;
-
-    return date.minusMillis(offset);
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////////

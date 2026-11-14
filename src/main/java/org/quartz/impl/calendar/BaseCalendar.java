@@ -18,7 +18,6 @@
 
 package org.quartz.impl.calendar;
 
-import java.io.Serializable;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -40,7 +39,7 @@ import org.quartz.utils.LenientDateTime;
  * @author Juergen Donnerstag
  * @author James House
  */
-public class BaseCalendar implements Calendar, Serializable, Cloneable {
+public class BaseCalendar implements Calendar {
 
   private static final long serialVersionUID = 3106623404629760239L;
 
@@ -83,19 +82,6 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
   public BaseCalendar(@Nullable Calendar baseCalendar, @Nullable ZoneId timeZone) {
     setBaseCalendar(baseCalendar);
     setTimeZone(timeZone);
-  }
-
-  @Override
-  public Object clone() {
-    try {
-      BaseCalendar clone = (BaseCalendar) super.clone();
-      if (getBaseCalendar() != null) {
-        clone.baseCalendar = (Calendar) getBaseCalendar().clone();
-      }
-      return clone;
-    } catch (CloneNotSupportedException ex) {
-      throw new IncompatibleClassChangeError("Not Cloneable.");
-    }
   }
 
   /** Set a new base calendar or remove the existing one */

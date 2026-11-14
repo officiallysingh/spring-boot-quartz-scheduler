@@ -98,7 +98,6 @@ public class TriggerBuilderTest {
     assertNotNull(trigger.getEndTime(), "Unexpected end-time: " + trigger.getEndTime());
   }
 
-  /** QTZ-157 */
   @Test
   void testTriggerBuilderWithEndTimePriorCurrentTime() throws Exception {
     TriggerBuilder.newTrigger()

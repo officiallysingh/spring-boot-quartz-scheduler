@@ -23,7 +23,6 @@ import org.quartz.spring.SchedulerFactoryBean;
  * SchedulerFactoryBean} to fine-tune its auto-configuration.
  *
  * @author Vedran Pavic
- * @since 4.0.0
  */
 @FunctionalInterface
 public interface SchedulerFactoryBeanCustomizer {

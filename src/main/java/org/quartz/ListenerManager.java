@@ -33,7 +33,6 @@ import org.jspecify.annotations.Nullable;
  * order in which they were registered.
  *
  * @author jhouse
- * @since 2.0 - previously listeners were managed directly on the Scheduler interface.
  */
 public interface ListenerManager {
 

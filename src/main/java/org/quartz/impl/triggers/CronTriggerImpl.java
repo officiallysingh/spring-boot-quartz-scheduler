@@ -23,7 +23,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import org.jspecify.annotations.Nullable;
 import org.quartz.CronExpression;
@@ -34,9 +33,7 @@ import org.quartz.JobExecutionException;
 import org.quartz.ScheduleBuilder;
 import org.quartz.Scheduler;
 import org.quartz.Trigger;
-import org.quartz.TriggerUtils;
 import org.quartz.utils.Instants;
-import org.quartz.utils.LenientDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,8 +44,7 @@ import org.slf4j.LoggerFactory;
  * @author Sharada Jambula, James House
  * @author Contributions from Mads Henderson
  */
-public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
-    implements CronTrigger, CoreTrigger {
+public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements CronTrigger {
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -58,12 +54,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
-  /**
-   * Required for serialization support. Introduced in Quartz 1.6.1 to maintain compatibility after
-   * the introduction of hasAdditionalProperties method.
-   *
-   * @see java.io.Serializable
-   */
+  /** Required for serialization support: custom subclasses are stored Java-serialized. */
   private static final long serialVersionUID = -8644953146451592766L;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CronTriggerImpl.class);
@@ -205,9 +196,6 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    *
    * <p>The value returned is not guaranteed to be valid until after the <code>Trigger</code> has
    * been added to the scheduler.
-   *
-   * @see TriggerUtils#computeFireTimesBetween(org.quartz.spi.OperableTrigger, org.quartz.Calendar,
-   *     java.time.Instant, java.time.Instant)
    */
   @Override
   public @Nullable Instant getNextFireTime() {
@@ -311,19 +299,17 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
   }
 
   /**
-   * NOT YET IMPLEMENTED: Returns the final time at which the <code>CronTrigger</code> will fire.
+   * The last time the trigger fires at or before its end time, not validated against its calendar;
+   * {@code null} for a trigger without an end time, which has no final fire time.
    *
-   * <p>Note that the return time *may* be in the past. and the date returned is not validated
-   * against org.quartz.calendar
+   * <p>Note that the return time *may* be in the past.
    */
   @Override
   public @Nullable Instant getFinalFireTime() {
-    Instant resultTime;
-    if (getEndTime() != null) {
-      resultTime = getTimeBefore(getEndTime().plusSeconds(1));
-    } else {
-      resultTime = (cronEx == null) ? null : cronEx.getFinalFireTime();
+    if (getEndTime() == null) {
+      return null;
     }
+    Instant resultTime = getTimeBefore(getEndTime().plusSeconds(1));
 
     Instant startTime = getStartTime();
     if ((resultTime != null) && (startTime != null) && (resultTime.isBefore(startTime))) {
@@ -357,11 +343,6 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    * </ul>
    */
   @Override
-  public void updateAfterMisfire(org.quartz.@Nullable Calendar cal) {
-    updateAfterMisfire(cal, now());
-  }
-
-  @Override
   public void updateAfterMisfire(org.quartz.@Nullable Calendar cal, Instant now) {
     int instr = getMisfireInstruction();
 
@@ -383,68 +364,6 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
   }
 
   /**
-   * Determines whether the date and (optionally) time of the given Calendar instance falls on a
-   * scheduled fire-time of this trigger.
-   *
-   * <p>Equivalent to calling <code>willFireOn(cal, false)</code>.
-   *
-   * @param test the date to compare
-   * @see #willFireOn(Calendar, boolean)
-   */
-  public boolean willFireOn(ZonedDateTime test) {
-    return willFireOn(test, false);
-  }
-
-  /**
-   * Determines whether the date and (optionally) time of the given Calendar instance falls on a
-   * scheduled fire-time of this trigger.
-   *
-   * <p>Note that the value returned is NOT validated against the related org.quartz.Calendar (if
-   * any)
-   *
-   * @param testDateTime the date to compare
-   * @param dayOnly if set to true, the method will only determine if the trigger will fire during
-   *     the day represented by the given Calendar (hours, minutes and seconds will be ignored).
-   * @see #willFireOn(Calendar)
-   */
-  public boolean willFireOn(ZonedDateTime testDateTime, boolean dayOnly) {
-
-    LenientDateTime test = new LenientDateTime(testDateTime.toInstant(), testDateTime.getZone());
-
-    test.set(LenientDateTime.MILLISECOND, 0); // don't compare millis.
-
-    if (dayOnly) {
-      test.set(LenientDateTime.HOUR_OF_DAY, 0);
-      test.set(LenientDateTime.MINUTE, 0);
-      test.set(LenientDateTime.SECOND, 0);
-    }
-
-    Instant testTime = test.toInstant();
-
-    Instant fta = getFireTimeAfter(testTime.minusMillis(1000));
-
-    if (fta == null) return false;
-
-    LenientDateTime p = new LenientDateTime(fta, test.getZone());
-
-    int year = p.get(LenientDateTime.YEAR);
-    int month = p.get(LenientDateTime.MONTH);
-    int day = p.get(LenientDateTime.DATE);
-
-    if (dayOnly) {
-      return (year == test.get(LenientDateTime.YEAR)
-          && month == test.get(LenientDateTime.MONTH)
-          && day == test.get(LenientDateTime.DATE));
-    }
-
-    while (fta != null && fta.isBefore(testTime)) {
-      fta = getFireTimeAfter(fta);
-    }
-
-    return testTime.equals(fta);
-  }
-
-  /**
    * Called when the <code>{@link Scheduler}</code> has decided to 'fire' the trigger (execute the
    * associated <code>Job</code>), in order to give the <code>Trigger</code> a chance to update
    * itself for its next triggering (if any).
@@ -462,14 +381,9 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
   }
 
   /**
-   * @see AbstractTrigger#updateWithNewCalendar(org.quartz.Calendar, java.time.Duration)
+   * @see AbstractTrigger#updateWithNewCalendar(org.quartz.Calendar, java.time.Duration,
+   *     java.time.Instant)
    */
-  @Override
-  public void updateWithNewCalendar(
-      org.quartz.@Nullable Calendar calendar, Duration misfireThreshold) {
-    updateWithNewCalendar(calendar, misfireThreshold, now());
-  }
-
   @Override
   public void updateWithNewCalendar(
       org.quartz.@Nullable Calendar calendar, Duration misfireThreshold, Instant now) {
@@ -530,15 +444,6 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
   }
 
   /**
-   * Used by extensions of CronTrigger to imply that there are additional properties, specifically
-   * so that extensions can choose whether to be stored as a serialized blob, or as a flattened
-   * CronTrigger table.
-   */
-  public boolean hasAdditionalProperties() {
-    return false;
-  }
-
-  /**
    * Get a {@link ScheduleBuilder} that is configured to produce a schedule identical to this
    * trigger's schedule.
    *
@@ -579,7 +484,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
   ////////////////////////////////////////////////////////////////////////////
 
   protected @Nullable Instant getTimeAfter(Instant afterTime) {
-    return (cronEx == null) ? null : cronEx.getTimeAfter(afterTime);
+    return (cronEx == null) ? null : cronEx.getNextValidTimeAfter(afterTime);
   }
 
   /**

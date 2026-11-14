@@ -412,18 +412,6 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
     scheduler.getListenerManager().addJobListener(this, EverythingMatcher.allJobs());
   }
 
-  public void start() {
-    // do nothing...
-  }
-
-  /**
-   * Called in order to inform the <code>SchedulerPlugin</code> that it should free up all of it's
-   * resources because the scheduler is shutting down.
-   */
-  public void shutdown() {
-    // nothing to do...
-  }
-
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    *

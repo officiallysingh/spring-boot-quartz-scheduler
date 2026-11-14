@@ -53,24 +53,16 @@ class ConfigurationMetadataTest {
   }
 
   @Test
-  void removedPropertiesAreFlaggedWithWhatToDoInstead() throws Exception {
+  void actuatorSwitchesAreDescribed() throws Exception {
     Map<String, JsonNode> byName =
         properties().stream()
             .collect(java.util.stream.Collectors.toMap(p -> p.get("name").asString(), p -> p));
 
-    JsonNode database = byName.get("spring.quartz.job-store.mongodb.database");
-    assertThat(database.get("deprecation").get("level").asString()).isEqualTo("error");
-    assertThat(database.get("deprecation").get("replacement").asString())
-        .isEqualTo("spring.mongodb.database");
-    assertThat(
-            byName
-                .get("spring.quartz.plugins.job-history.enabled")
-                .get("deprecation")
-                .get("reason")
-                .asString())
-        .contains("LoggingJobHistoryPlugin bean");
-    assertThat(byName.get("spring.quartz.thread-pool.thread-priority").get("deprecation"))
-        .isNotNull();
-    assertThat(byName.get("spring.quartz.thread-pool.thread-count").get("deprecation")).isNull();
+    for (String name :
+        List.of("management.health.quartz.enabled", "management.metrics.quartz.enabled")) {
+      assertThat(byName).as(name).containsKey(name);
+      assertThat(byName.get(name).get("type").asString()).isEqualTo("java.lang.Boolean");
+      assertThat(byName.get(name).get("defaultValue").asBoolean()).as(name).isTrue();
+    }
   }
 }

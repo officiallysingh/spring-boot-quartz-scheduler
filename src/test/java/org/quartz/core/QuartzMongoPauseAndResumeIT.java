@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.quartz.integrations.tests;
+package org.quartz.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.quartz.CronScheduleBuilder.cronSchedule;

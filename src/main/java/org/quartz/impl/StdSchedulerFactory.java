@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
+import org.quartz.ClusteredInstanceIdException;
 import org.quartz.JobListener;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerConfigException;
@@ -129,24 +130,6 @@ public class StdSchedulerFactory {
     return new Builder();
   }
 
-  /**
-   * The factory's logger.
-   *
-   * @return the logger
-   */
-  public Logger getLog() {
-    return log;
-  }
-
-  /**
-   * The settings schedulers are created with.
-   *
-   * @return the settings
-   */
-  public QuartzSettings getSettings() {
-    return settings;
-  }
-
   private Scheduler instantiate() throws SchedulerException {
     SchedulerSettings sched = settings.scheduler();
     String schedName = sched.name();
@@ -157,7 +140,10 @@ public class StdSchedulerFactory {
             ? classLoader
             : Objects.requireNonNull(ClassUtils.getDefaultClassLoader(), "class loader");
 
-    ThreadPool tp = threadPool != null ? threadPool : createThreadPool(settings.threadPool());
+    ThreadPool tp =
+        threadPool != null
+            ? threadPool
+            : createThreadPool(settings.threadPool(), settings.scheduler().name());
     if (jobStore == null) {
       throw new SchedulerConfigException(
           "No JobStore configured: supply one with "
@@ -184,9 +170,12 @@ public class StdSchedulerFactory {
             schedInstId = generator.generateInstanceId();
           }
         } catch (Exception e) {
-          getLog().error("Couldn't generate instance Id!", e);
+          log.error("Couldn't generate instance Id!", e);
           throw new IllegalStateException("Cannot run without an instance id.");
         }
+      }
+      if (js.isClustered() && ClusteredInstanceIdException.isSharedByEveryInstance(schedInstId)) {
+        throw new ClusteredInstanceIdException(schedInstId);
       }
 
       QuartzSchedulerResources rsrcs = new QuartzSchedulerResources();
@@ -194,7 +183,6 @@ public class StdSchedulerFactory {
       rsrcs.setThreadName(sched.effectiveThreadName());
       rsrcs.setInstanceId(schedInstId);
       rsrcs.setJobRunShellFactory(jrsf);
-      rsrcs.setMakeSchedulerThreadDaemon(sched.makeSchedulerThreadDaemon());
       rsrcs.setClassLoader(loader);
       rsrcs.setBatchTimeWindow(sched.batchTriggerAcquisitionFireAheadTimeWindow());
       rsrcs.setMaxBatchSize(sched.batchTriggerAcquisitionMaxCount());
@@ -202,9 +190,6 @@ public class StdSchedulerFactory {
       rsrcs.setInterruptJobsOnShutdownWithWait(sched.interruptJobsOnShutdownWithWait());
       rsrcs.setClock(clock);
       rsrcs.setTimeZone(sched.timeZone());
-
-      tp.setInstanceName(schedName);
-      tp.setInstanceId(schedInstId);
 
       rsrcs.setThreadPool(tp);
       tp.initialize();
@@ -221,7 +206,7 @@ public class StdSchedulerFactory {
       qsInited = true;
 
       // Create Scheduler ref...
-      Scheduler scheduler = instantiate(rsrcs, qs);
+      Scheduler scheduler = new StdScheduler(qs);
 
       // set job factory if specified
       if (jobFactory != null) {
@@ -249,16 +234,15 @@ public class StdSchedulerFactory {
 
       js.setInstanceId(schedInstId);
       js.setInstanceName(schedName);
-      js.setThreadPoolSize(tp.getPoolSize());
       js.initialize(loader, qs.getSchedulerSignaler());
 
       jrsf.initialize(scheduler);
 
       qs.initialize();
 
-      getLog().info("Quartz scheduler '{}' initialized", scheduler.getSchedulerName());
+      log.info("Quartz scheduler '{}' initialized", scheduler.getSchedulerName());
 
-      getLog().info("Quartz scheduler version: {}", qs.getVersion());
+      log.info("Quartz scheduler version: {}", qs.getVersion());
 
       return scheduler;
     } catch (SchedulerException | Error | RuntimeException e) {
@@ -267,19 +251,12 @@ public class StdSchedulerFactory {
     }
   }
 
-  private static ThreadPool createThreadPool(ThreadPoolSettings tps) {
-    if (tps.virtualThreads()) {
-      VirtualThreadPool vtp = new VirtualThreadPool(tps.threadCount());
-      vtp.setThreadNamePrefix(tps.threadNamePrefix());
-      return vtp;
-    }
-    SimpleThreadPool tp = new SimpleThreadPool(tps.threadCount(), tps.threadPriority());
-    if (tps.threadNamePrefix() != null) {
-      tp.setThreadNamePrefix(tps.threadNamePrefix());
-    }
-    tp.setMakeThreadsDaemons(tps.daemon());
-    tp.setThreadsInheritGroupOfInitializingThread(tps.threadsInheritGroupOfInitializingThread());
-    return tp;
+  private static ThreadPool createThreadPool(ThreadPoolSettings tps, String schedulerName) {
+    String prefix =
+        (tps.threadNamePrefix() != null) ? tps.threadNamePrefix() : schedulerName + "_Worker";
+    return tps.virtualThreads()
+        ? new VirtualThreadPool(tps.threadCount(), prefix)
+        : new SimpleThreadPool(tps.threadCount(), prefix);
   }
 
   private void shutdownFromInstantiateException(
@@ -288,21 +265,8 @@ public class StdSchedulerFactory {
       if (qsInited && qs != null) qs.shutdown(false);
       else if (tpInited) tp.shutdown(false);
     } catch (Exception e) {
-      getLog().error("Got another exception while shutting down after instantiation exception", e);
+      log.error("Got another exception while shutting down after instantiation exception", e);
     }
-  }
-
-  /**
-   * Wrap the created scheduler in the {@link Scheduler} handed to applications; subclasses may
-   * return their own.
-   *
-   * @param rsrcs the scheduler's resources
-   * @param qs the scheduler
-   * @return the application-facing scheduler
-   */
-  protected Scheduler instantiate(QuartzSchedulerResources rsrcs, QuartzScheduler qs) {
-
-    return new StdScheduler(qs);
   }
 
   /**

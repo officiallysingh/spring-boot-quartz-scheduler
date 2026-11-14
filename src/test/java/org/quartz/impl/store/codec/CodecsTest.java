@@ -37,10 +37,12 @@ import org.quartz.JobBuilder;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
+import org.quartz.JobKey;
 import org.quartz.JobPersistenceException;
 import org.quartz.SimpleScheduleBuilder;
 import org.quartz.TimeOfDay;
 import org.quartz.TriggerBuilder;
+import org.quartz.TriggerKey;
 import org.quartz.impl.calendar.AnnualCalendar;
 import org.quartz.impl.triggers.SimpleTriggerImpl;
 import org.quartz.spi.OperableTrigger;
@@ -220,8 +222,8 @@ class CodecsTest {
   @Test
   void customTriggersAreStoredSerialized() throws Exception {
     CustomTrigger trigger = new CustomTrigger();
-    trigger.setName("custom");
-    trigger.setJobName("job");
+    trigger.setKey(new TriggerKey("custom"));
+    trigger.setJobKey(new JobKey("job"));
     trigger.setStartTime(Instant.parse("2030-01-01T00:00:00Z"));
     trigger.extra = "kept";
     trigger.computeFirstFireTime(null);
@@ -304,15 +306,6 @@ class CodecsTest {
     assertThat(decoded.get("list")).isEqualTo(List.of(1, 2));
     assertThat(decoded.get("float")).isEqualTo(1.5f);
     assertThat(decoded.isDirty()).isFalse();
-  }
-
-  @Test
-  void usePropertiesRejectsNonStringValues() throws Exception {
-    JobDataCodec.checkUseProperties(new JobDataMap(Map.of("a", "b")), true);
-    JobDataCodec.checkUseProperties(new JobDataMap(Map.of("a", 1)), false);
-    assertThatThrownBy(() -> JobDataCodec.checkUseProperties(new JobDataMap(Map.of("a", 1)), true))
-        .isInstanceOf(JobPersistenceException.class)
-        .hasMessageContaining("useProperties");
   }
 
   @Test

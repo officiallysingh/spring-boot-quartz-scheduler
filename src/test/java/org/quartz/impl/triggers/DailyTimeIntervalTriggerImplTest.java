@@ -36,6 +36,7 @@ import org.quartz.DateBuilder.IntervalUnit;
 import org.quartz.JobKey;
 import org.quartz.SchedulerException;
 import org.quartz.TimeOfDay;
+import org.quartz.TriggerKey;
 import org.quartz.TriggerUtils;
 import org.quartz.impl.calendar.CronCalendar;
 
@@ -106,8 +107,7 @@ class DailyTimeIntervalTriggerImplTest {
   @Test
   void testValidateInterval() throws Exception {
     DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl();
-    trigger.setName("test");
-    trigger.setGroup("test");
+    trigger.setKey(new TriggerKey("test", "test"));
     trigger.setJobKey(JobKey.jobKey("test"));
 
     trigger.setRepeatIntervalUnit(IntervalUnit.HOUR);
@@ -646,7 +646,6 @@ class DailyTimeIntervalTriggerImplTest {
 
   @Test
   void testGetFireTimeWhenStartTimeAndTimeOfDayIsSame() {
-    // A test case for QTZ-369
     Instant startTime = dateOf(8, 0, 0, 1, 1, 2012, ZoneOffset.UTC);
     TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
     TimeOfDay endTimeOfDay = new TimeOfDay(13, 0, 0);
@@ -660,56 +659,6 @@ class DailyTimeIntervalTriggerImplTest {
     assertEquals(
         dateOf(8, 0, 0, 1, 1, 2012, ZoneOffset.UTC),
         trigger.getFireTimeAfter(dateOf(0, 0, 0, 1, 1, 2012, ZoneOffset.UTC)));
-  }
-
-  @Test
-  void testExtraConstructors() {
-    // A test case for QTZ-389 - some extra constructors didn't set all parameters
-    DailyTimeIntervalTriggerImpl trigger =
-        new DailyTimeIntervalTriggerImpl(
-            "triggerName",
-            "triggerGroup",
-            "jobName",
-            "jobGroup",
-            dateOf(8, 0, 0, 1, 1, 2012, ZoneOffset.UTC),
-            null,
-            new TimeOfDay(8, 0, 0),
-            new TimeOfDay(17, 0, 0),
-            IntervalUnit.HOUR,
-            1);
-
-    assertEquals("triggerName", trigger.getName());
-    assertEquals("triggerGroup", trigger.getGroup());
-    assertEquals("jobName", trigger.getJobName());
-    assertEquals("jobGroup", trigger.getJobGroup());
-    assertEquals(dateOf(8, 0, 0, 1, 1, 2012, ZoneOffset.UTC), trigger.getStartTime());
-    assertNull(trigger.getEndTime());
-    assertEquals(new TimeOfDay(8, 0, 0), trigger.getStartTimeOfDay());
-    assertEquals(new TimeOfDay(17, 0, 0), trigger.getEndTimeOfDay());
-    assertEquals(IntervalUnit.HOUR, trigger.getRepeatIntervalUnit());
-    assertEquals(1, trigger.getRepeatInterval());
-
-    trigger =
-        new DailyTimeIntervalTriggerImpl(
-            "triggerName",
-            "triggerGroup",
-            dateOf(8, 0, 0, 1, 1, 2012, ZoneOffset.UTC),
-            null,
-            new TimeOfDay(8, 0, 0),
-            new TimeOfDay(17, 0, 0),
-            IntervalUnit.HOUR,
-            1);
-
-    assertEquals("triggerName", trigger.getName());
-    assertEquals("triggerGroup", trigger.getGroup());
-    assertNull(trigger.getJobName());
-    assertEquals("DEFAULT", trigger.getJobGroup());
-    assertEquals(dateOf(8, 0, 0, 1, 1, 2012, ZoneOffset.UTC), trigger.getStartTime());
-    assertNull(trigger.getEndTime());
-    assertEquals(new TimeOfDay(8, 0, 0), trigger.getStartTimeOfDay());
-    assertEquals(new TimeOfDay(17, 0, 0), trigger.getEndTimeOfDay());
-    assertEquals(IntervalUnit.HOUR, trigger.getRepeatIntervalUnit());
-    assertEquals(1, trigger.getRepeatInterval());
   }
 
   @ParameterizedTest

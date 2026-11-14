@@ -136,7 +136,6 @@ class DisallowConcurrentExecutionJobIT extends AbstractMongoIT {
     assertThat(fireTimeTrigger2 - fireTimeTrigger1).isGreaterThanOrEqualTo(JOB_BLOCK_TIME);
   }
 
-  /** QTZ-202 */
   @Test
   void testNoConcurrentExecOnSameJobWithBatching() throws Exception {
 

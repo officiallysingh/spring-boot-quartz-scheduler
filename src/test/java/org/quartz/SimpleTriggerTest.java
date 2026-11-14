@@ -74,10 +74,8 @@ public class SimpleTriggerTest extends SerializationTestSupport {
     SimpleTriggerImpl deserializedSimpleTrigger = (SimpleTriggerImpl) deserialized;
 
     assertNotNull(deserializedSimpleTrigger);
-    assertEquals(targetSimpleTrigger.getName(), deserializedSimpleTrigger.getName());
-    assertEquals(targetSimpleTrigger.getGroup(), deserializedSimpleTrigger.getGroup());
-    assertEquals(targetSimpleTrigger.getJobName(), deserializedSimpleTrigger.getJobName());
-    assertEquals(targetSimpleTrigger.getJobGroup(), deserializedSimpleTrigger.getJobGroup());
+    assertEquals(targetSimpleTrigger.getKey(), deserializedSimpleTrigger.getKey());
+    assertEquals(targetSimpleTrigger.getJobKey(), deserializedSimpleTrigger.getJobKey());
     assertEquals(targetSimpleTrigger.getStartTime(), deserializedSimpleTrigger.getStartTime());
     assertEquals(targetSimpleTrigger.getEndTime(), deserializedSimpleTrigger.getEndTime());
     assertEquals(targetSimpleTrigger.getRepeatCount(), deserializedSimpleTrigger.getRepeatCount());
@@ -108,7 +106,7 @@ public class SimpleTriggerTest extends SerializationTestSupport {
     simpleTrigger.setStartTime(startTime.toInstant());
     simpleTrigger.setEndTime(endTime.toInstant());
 
-    simpleTrigger.updateAfterMisfire(null);
+    simpleTrigger.updateAfterMisfire(null, Instant.now());
     assertEquals(startTime.toInstant(), simpleTrigger.getStartTime());
     assertEquals(endTime.toInstant(), simpleTrigger.getEndTime());
     assertNull(simpleTrigger.getNextFireTime());
@@ -152,9 +150,8 @@ public class SimpleTriggerTest extends SerializationTestSupport {
     assertEquals("V2", simpleTrigger.getJobDataMap().get("K2"));
   }
 
-  // NPE in equals()
   @Test
-  void testQuartz665() {
+  void testEqualsOfTriggersWithoutNamesDoesNotThrow() {
     new SimpleTriggerImpl().equals(new SimpleTriggerImpl());
   }
 
@@ -198,10 +195,8 @@ public class SimpleTriggerTest extends SerializationTestSupport {
       int repeatCount,
       Duration repeatInterval) {
     SimpleTriggerImpl trigger = new SimpleTriggerImpl();
-    trigger.setName(name);
-    trigger.setGroup(group);
-    trigger.setJobName(jobName);
-    trigger.setJobGroup(jobGroup);
+    trigger.setKey(new TriggerKey(name, group));
+    trigger.setJobKey(new JobKey(jobName, jobGroup));
     trigger.setStartTime(startTime);
     trigger.setEndTime(endTime);
     trigger.setRepeatCount(repeatCount);

@@ -40,7 +40,6 @@ import org.springframework.context.annotation.ImportRuntimeHints;
  * {@link EndpointWebExtension @EndpointWebExtension} for the {@link QuartzEndpoint}.
  *
  * @author Stephane Nicoll
- * @since 4.0.0
  */
 @EndpointWebExtension(endpoint = QuartzEndpoint.class)
 @ImportRuntimeHints(QuartzEndpointWebExtensionRuntimeHints.class)

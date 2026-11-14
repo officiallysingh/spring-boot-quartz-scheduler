@@ -81,20 +81,9 @@ public class SchedulerException extends Exception {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
-  /**
-   * Return the exception that is the underlying cause of this exception.
-   *
-   * <p>This may be used to find more detail about the cause of the error.
-   *
-   * @return the underlying exception, or <code>null</code> if there is not one.
-   */
-  public @Nullable Throwable getUnderlyingException() {
-    return super.getCause();
-  }
-
   @Override
   public String toString() {
-    Throwable cause = getUnderlyingException();
+    Throwable cause = getCause();
     if (cause == null || cause == this) {
       return super.toString();
     } else {

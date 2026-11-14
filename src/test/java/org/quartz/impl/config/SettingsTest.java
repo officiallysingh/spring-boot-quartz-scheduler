@@ -35,7 +35,6 @@ class SettingsTest {
     assertThat(s.idleWaitTime()).isEqualTo(Duration.ofSeconds(30));
     assertThat(s.batchTriggerAcquisitionFireAheadTimeWindow()).isZero();
     assertThat(s.batchTriggerAcquisitionMaxCount()).isEqualTo(1);
-    assertThat(s.makeSchedulerThreadDaemon()).isFalse();
     assertThat(s.interruptJobsOnShutdown()).isFalse();
     assertThat(s.interruptJobsOnShutdownWithWait()).isFalse();
     assertThat(s.context()).isEmpty();
@@ -47,10 +46,7 @@ class SettingsTest {
     ThreadPoolSettings s = ThreadPoolSettings.defaults();
 
     assertThat(s.threadCount()).isEqualTo(10);
-    assertThat(s.threadPriority()).isEqualTo(Thread.NORM_PRIORITY);
     assertThat(s.threadNamePrefix()).isNull();
-    assertThat(s.daemon()).isFalse();
-    assertThat(s.threadsInheritGroupOfInitializingThread()).isTrue();
     assertThat(s.virtualThreads()).isFalse();
   }
 
@@ -63,7 +59,7 @@ class SettingsTest {
     assertThat(s.clusterCheckinInterval()).isEqualTo(Duration.ofMillis(7500));
     assertThat(s.maxMisfiresToHandleAtATime()).isEqualTo(20);
     assertThat(s.retryInterval()).isEqualTo(Duration.ofSeconds(15));
-    assertThat(s.doubleCheckLockMisfireHandler()).isTrue();
+    assertThat(s.lockRetryInterval()).isEqualTo(Duration.ofMillis(50));
   }
 
   @Test
@@ -76,7 +72,11 @@ class SettingsTest {
             .contextEntry("k", "v")
             .build();
     ThreadPoolSettings pool =
-        ThreadPoolSettings.builder().threadCount(3).daemon(true).virtualThreads(true).build();
+        ThreadPoolSettings.builder()
+            .threadCount(3)
+            .threadNamePrefix("jobs")
+            .virtualThreads(true)
+            .build();
     JobStoreSettings store =
         JobStoreSettings.builder().clustered(true).misfireThreshold(Duration.ofSeconds(5)).build();
 
@@ -136,9 +136,6 @@ class SettingsTest {
     assertThatThrownBy(() -> ThreadPoolSettings.builder().threadCount(0).build())
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("threadCount");
-    assertThatThrownBy(() -> ThreadPoolSettings.builder().threadPriority(11).build())
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("threadPriority");
     assertThatThrownBy(() -> ThreadPoolSettings.builder().threadNamePrefix("").build())
         .isInstanceOf(IllegalArgumentException.class);
   }

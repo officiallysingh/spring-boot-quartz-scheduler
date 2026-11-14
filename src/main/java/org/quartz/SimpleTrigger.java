@@ -31,8 +31,6 @@ import java.time.Duration;
  */
 public interface SimpleTrigger extends Trigger {
 
-  long serialVersionUID = -3735980074222850397L;
-
   /**
    * Instructs the <code>{@link Scheduler}</code> that upon a mis-fire situation, the <code>
    * {@link SimpleTrigger}</code> wants to be fired now by <code>Scheduler</code>.

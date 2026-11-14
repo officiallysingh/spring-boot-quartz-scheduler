@@ -35,7 +35,7 @@ class VirtualThreadPoolTest {
 
   @Test
   void runsEachJobOnANewNamedVirtualThread() throws Exception {
-    VirtualThreadPool pool = initialized(new VirtualThreadPool(2), "sched");
+    VirtualThreadPool pool = initialized(new VirtualThreadPool(2, "sched_Worker"));
     AtomicReference<Thread> first = new AtomicReference<>();
     AtomicReference<Thread> second = new AtomicReference<>();
 
@@ -51,9 +51,7 @@ class VirtualThreadPoolTest {
 
   @Test
   void usesTheConfiguredThreadNamePrefix() {
-    VirtualThreadPool pool = new VirtualThreadPool(1);
-    pool.setThreadNamePrefix("jobs");
-    initialized(pool, "sched");
+    VirtualThreadPool pool = initialized(new VirtualThreadPool(1, "jobs"));
     AtomicReference<String> name = new AtomicReference<>();
 
     pool.runInThread(() -> name.set(Thread.currentThread().getName()));
@@ -64,7 +62,7 @@ class VirtualThreadPoolTest {
 
   @Test
   void reportsRoomLeftAndBlocksWhileFull() {
-    VirtualThreadPool pool = initialized(new VirtualThreadPool(2), "sched");
+    VirtualThreadPool pool = initialized(new VirtualThreadPool(2, "sched_Worker"));
     assertThat(pool.getPoolSize()).isEqualTo(2);
     assertThat(pool.blockForAvailableThreads()).isEqualTo(2);
     CountDownLatch first = new CountDownLatch(1);
@@ -86,7 +84,7 @@ class VirtualThreadPoolTest {
 
   @Test
   void aJobHandedOverAtTheLimitWaitsForASlot() {
-    VirtualThreadPool pool = initialized(new VirtualThreadPool(1), "sched");
+    VirtualThreadPool pool = initialized(new VirtualThreadPool(1, "sched_Worker"));
     CountDownLatch first = new CountDownLatch(1);
     pool.runInThread(() -> awaitLatch(first));
     await().atMost(Duration.ofSeconds(5)).until(() -> pool.getRunningCount() == 1);
@@ -105,7 +103,7 @@ class VirtualThreadPoolTest {
 
   @Test
   void aJobThatThrowsFreesItsSlot() {
-    VirtualThreadPool pool = initialized(new VirtualThreadPool(1), "sched");
+    VirtualThreadPool pool = initialized(new VirtualThreadPool(1, "sched_Worker"));
 
     pool.runInThread(
         () -> {
@@ -118,7 +116,7 @@ class VirtualThreadPoolTest {
 
   @Test
   void shutdownWithWaitWaitsForRunningJobs() {
-    VirtualThreadPool pool = initialized(new VirtualThreadPool(2), "sched");
+    VirtualThreadPool pool = initialized(new VirtualThreadPool(2, "sched_Worker"));
     pool.runInThread(this::awaitRelease);
 
     CompletableFuture<Void> shutdown = CompletableFuture.runAsync(() -> pool.shutdown(true));
@@ -133,7 +131,7 @@ class VirtualThreadPoolTest {
 
   @Test
   void shutdownWithoutWaitReturnsAtOnceAndReleasesABlockedCaller() {
-    VirtualThreadPool pool = initialized(new VirtualThreadPool(1), "sched");
+    VirtualThreadPool pool = initialized(new VirtualThreadPool(1, "sched_Worker"));
     pool.runInThread(this::awaitRelease);
     await().atMost(Duration.ofSeconds(5)).until(() -> pool.getRunningCount() == 1);
     CompletableFuture<Integer> available =
@@ -147,18 +145,18 @@ class VirtualThreadPoolTest {
 
   @Test
   void describesItselfForTheSchedulerSummary() {
-    assertThat(new VirtualThreadPool(50).describe())
+    assertThat(new VirtualThreadPool(50, "jobs").describe())
         .isEqualTo("virtual threads, at most 50 concurrent jobs");
-    assertThat(new SimpleThreadPool(10, 5).describe()).isEqualTo("with 10 threads");
+    assertThat(new SimpleThreadPool(10, "jobs").describe()).isEqualTo("with 10 threads");
   }
 
   @Test
   void maxConcurrencyMustBePositive() {
-    assertThatThrownBy(() -> new VirtualThreadPool(0)).isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> new VirtualThreadPool(0, "jobs"))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
-  private static VirtualThreadPool initialized(VirtualThreadPool pool, String schedulerName) {
-    pool.setInstanceName(schedulerName);
+  private static VirtualThreadPool initialized(VirtualThreadPool pool) {
     try {
       pool.initialize();
     } catch (org.quartz.SchedulerConfigException ex) {

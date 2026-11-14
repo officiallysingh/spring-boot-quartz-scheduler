@@ -55,7 +55,6 @@ import org.quartz.impl.config.JobStoreSettings;
 import org.quartz.impl.config.SchedulerSettings;
 import org.quartz.impl.config.ThreadPoolSettings;
 import org.quartz.impl.store.PersistentJobStore;
-import org.quartz.impl.store.SchedulerStateRecord;
 import org.quartz.spi.JobStore;
 
 /**
@@ -101,7 +100,7 @@ public abstract class AbstractClusteredJobStoreContractTest {
         .clustered(true)
         .clusterCheckinInterval(Duration.ofMillis(500))
         .clusterCheckinMisfireThreshold(Duration.ofMillis(500))
-        .acquireTriggersWithinLockRetry(Duration.ofMillis(20))
+        .lockRetryInterval(Duration.ofMillis(20))
         .build();
   }
 
@@ -525,8 +524,8 @@ public abstract class AbstractClusteredJobStoreContractTest {
   void aNodeThatStopsCheckingInIsDetectedAndRemoved() throws Exception {
     PersistentJobStore storeA = startStore("node-a");
     PersistentJobStore storeB = startStore("node-b");
-    assertThat(storeB.getSchedulerStates())
-        .extracting(SchedulerStateRecord::instanceId)
+    assertThat(storeB.getSchedulerInstances())
+        .extracting(SchedulerInstance::instanceId)
         .contains("node-a", "node-b");
 
     storeA.shutdown(); // stops checking in
@@ -535,11 +534,11 @@ public abstract class AbstractClusteredJobStoreContractTest {
         .atMost(Duration.ofSeconds(20))
         .until(
             () ->
-                storeB.getSchedulerStates().stream()
-                    .map(SchedulerStateRecord::instanceId)
+                storeB.getSchedulerInstances().stream()
+                    .map(SchedulerInstance::instanceId)
                     .noneMatch("node-a"::equals));
-    assertThat(storeB.getSchedulerStates())
-        .extracting(SchedulerStateRecord::instanceId)
+    assertThat(storeB.getSchedulerInstances())
+        .extracting(SchedulerInstance::instanceId)
         .contains("node-b");
   }
 

@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.text.ParseException;
+import org.junit.jupiter.api.Test;
 import org.quartz.impl.triggers.CronTriggerImpl;
 
 /** Unit test for CronTrigger. */
@@ -33,8 +34,7 @@ public class CronTriggerTest extends SerializationTestSupport {
     jobDataMap.put("A", "B");
 
     CronTriggerImpl t = new CronTriggerImpl();
-    t.setName("test");
-    t.setGroup("testGroup");
+    t.setKey(new TriggerKey("test", "testGroup"));
     t.setCronExpression("0 0 12 * * ?");
     t.setCalendarName("MyCalendar");
     t.setDescription("CronTriggerDesc");
@@ -50,10 +50,8 @@ public class CronTriggerTest extends SerializationTestSupport {
     CronTriggerImpl deserializedCronTrigger = (CronTriggerImpl) deserialized;
 
     assertNotNull(deserializedCronTrigger);
-    assertEquals(targetCronTrigger.getName(), deserializedCronTrigger.getName());
-    assertEquals(targetCronTrigger.getGroup(), deserializedCronTrigger.getGroup());
-    assertEquals(targetCronTrigger.getJobName(), deserializedCronTrigger.getJobName());
-    assertEquals(targetCronTrigger.getJobGroup(), deserializedCronTrigger.getJobGroup());
+    assertEquals(targetCronTrigger.getKey(), deserializedCronTrigger.getKey());
+    assertEquals(targetCronTrigger.getJobKey(), deserializedCronTrigger.getJobKey());
     //        assertEquals(targetCronTrigger.getStartTime(),
     // deserializedCronTrigger.getStartTime());
     assertEquals(targetCronTrigger.getEndTime(), deserializedCronTrigger.getEndTime());
@@ -64,10 +62,10 @@ public class CronTriggerTest extends SerializationTestSupport {
         targetCronTrigger.getCronExpression(), deserializedCronTrigger.getCronExpression());
   }
 
+  @Test
   void testClone() throws ParseException {
     CronTriggerImpl trigger = new CronTriggerImpl();
-    trigger.setName("test");
-    trigger.setGroup("testGroup");
+    trigger.setKey(new TriggerKey("test", "testGroup"));
     trigger.setCronExpression("0 0 12 * * ?");
     CronTrigger trigger2 = (CronTrigger) trigger.clone();
 
@@ -75,19 +73,19 @@ public class CronTriggerTest extends SerializationTestSupport {
 
     // equals() doesn't test the cron expression
     assertEquals(
-        "Cloning failed for the cron expression", "0 0 12 * * ?", trigger2.getCronExpression());
+        "0 0 12 * * ?", trigger2.getCronExpression(), "Cloning failed for the cron expression");
   }
 
-  // http://jira.opensymphony.com/browse/QUARTZ-558
-  void testQuartz558() throws ParseException {
+  @Test
+  void testCloneOfTriggerWithoutExpression() throws ParseException {
     CronTriggerImpl trigger = new CronTriggerImpl();
-    trigger.setName("test");
-    trigger.setGroup("testGroup");
+    trigger.setKey(new TriggerKey("test", "testGroup"));
     CronTrigger trigger2 = (CronTrigger) trigger.clone();
 
     assertEquals(trigger, trigger2, "Cloning failed");
   }
 
+  @Test
   void testMisfireInstructionValidity() throws ParseException {
     CronTriggerImpl trigger = new CronTriggerImpl();
 
@@ -108,6 +106,7 @@ public class CronTriggerTest extends SerializationTestSupport {
     }
   }
 
+  @Test
   void testMisfireInstructionInDerivedBuilder() throws ParseException {
     for (int policy :
         asList(
@@ -125,6 +124,7 @@ public class CronTriggerTest extends SerializationTestSupport {
     }
   }
 
+  @Test
   void testUndefinedMisfireInstructionInDerivedBuilder() throws ParseException {
     CronTriggerImpl trigger =
         new CronTriggerImpl() {

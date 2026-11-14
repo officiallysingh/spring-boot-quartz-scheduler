@@ -37,7 +37,6 @@ import org.springframework.context.annotation.Configuration;
  *
  * @author Vedran Pavic
  * @author Stephane Nicoll
- * @since 4.0.0
  */
 @AutoConfiguration(after = QuartzAutoConfiguration.class)
 @ConditionalOnClass({Scheduler.class, QuartzEndpoint.class, ConditionalOnAvailableEndpoint.class})

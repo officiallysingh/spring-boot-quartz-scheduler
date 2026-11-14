@@ -62,7 +62,6 @@ import org.quartz.spi.MutableTrigger;
  *         scheduler.scheduleJob(job, trigger);
  * </pre>
  *
- * @since 2.1.0
  * @author James House
  * @author Zemian Deng &lt;saltnlight5@gmail.com&gt;
  */

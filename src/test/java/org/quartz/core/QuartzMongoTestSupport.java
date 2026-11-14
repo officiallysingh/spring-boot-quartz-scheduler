@@ -15,7 +15,7 @@
  * under the License.
  *
  */
-package org.quartz.integrations.tests;
+package org.quartz.core;
 
 import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;

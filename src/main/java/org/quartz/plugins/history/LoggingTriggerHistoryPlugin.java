@@ -346,18 +346,6 @@ public class LoggingTriggerHistoryPlugin implements SchedulerPlugin, TriggerList
     scheduler.getListenerManager().addTriggerListener(this, EverythingMatcher.allTriggers());
   }
 
-  public void start() {
-    // do nothing...
-  }
-
-  /**
-   * Called in order to inform the <code>SchedulerPlugin</code> that it should free up all of it's
-   * resources because the scheduler is shutting down.
-   */
-  public void shutdown() {
-    // nothing to do...
-  }
-
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    *

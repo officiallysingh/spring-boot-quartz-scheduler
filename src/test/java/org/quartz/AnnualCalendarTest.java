@@ -56,7 +56,7 @@ public class AnnualCalendarTest extends SerializationTestSupport {
 
   /**
    * Tests if method <code>setDaysExcluded</code> protects the property daysExcluded against
-   * nulling. See: QUARTZ-590
+   * nulling.
    */
   @Test
   void testDaysExcluded() {
@@ -106,7 +106,7 @@ public class AnnualCalendarTest extends SerializationTestSupport {
         "The day 15 October is not expected to be excluded but it is");
   }
 
-  /** QUARTZ-679 Test if the annualCalendar works over years */
+  /** Test if the annualCalendar works over years */
   @Test
   void testDaysExcludedOverTime() {
     AnnualCalendar annualCalendar = new AnnualCalendar();
@@ -122,7 +122,7 @@ public class AnnualCalendarTest extends SerializationTestSupport {
         "The day 1 February is expected to be excluded but it is not");
   }
 
-  /** Part 2 of the tests of QUARTZ-679 */
+  /** Part 2 of the tests of the annualCalendar over years */
   @Test
   void testRemoveInTheFuture() {
     AnnualCalendar annualCalendar = new AnnualCalendar();

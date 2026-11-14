@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.quartz.integrations.tests;
+package org.quartz.core;
 
 import java.util.List;
 import org.quartz.Job;

@@ -88,8 +88,7 @@ import org.quartz.spi.TriggerFiredResult;
 
 /**
  * Contract tests every {@link JobStore} must pass (standalone). The first cases were submitted by
- * Johannes Zillmann as part of issue QUARTZ-306 (formerly {@code AbstractJobStoreTest}); the rest
- * were added with the persistent stores.
+ * Johannes Zillmann; the rest were added with the persistent stores.
  *
  * <p>Implementations only provide {@link #createJobStore(String)} and {@link #cleanStore()}; the
  * kit has no knowledge of where a store keeps its data.
@@ -701,9 +700,6 @@ public abstract class AbstractJobStoreContractTest {
             .isEmpty());
   }
 
-  // See: http://jira.opensymphony.com/browse/QUARTZ-606 (was @Disabled upstream; its
-  // message/expected
-  // arguments had been swapped, the store behaviour itself is correct)
   @SuppressWarnings("deprecation")
   @Test
   void testStoreTriggerReplacesTrigger() throws Exception {
@@ -973,42 +969,6 @@ public abstract class AbstractJobStoreContractTest {
                   assertNull(storedTrigger);
                 }
               }
-            }),
-        dynamicTest(
-            "testStoreAndRetrieveTriggersJustTriggerGroupMatchers",
-            () -> {
-              // TODO: get by matcher
-              List<OperableTrigger> aTriggers =
-                  store.getTriggersByTriggerGroup(GroupMatcher.triggerGroupEquals(A_GROUP));
-              List<OperableTrigger> bTriggers =
-                  store.getTriggersByTriggerGroup(GroupMatcher.triggerGroupEquals(B_GROUP));
-              assertEquals(4, aTriggers.size(), "Wrong number of jobs in group: " + A_GROUP);
-              assertEquals(4, bTriggers.size(), "Wrong number of jobs in group: " + B_GROUP);
-            }),
-        dynamicTest(
-            "Match exact - only Job Group",
-            () -> {
-              // TODO: get by matcher
-              List<OperableTrigger> aTriggers =
-                  store.getTriggersByJobGroup(GroupMatcher.jobGroupEquals(A_GROUP));
-              List<OperableTrigger> bTriggers =
-                  store.getTriggersByJobGroup(GroupMatcher.jobGroupEquals(B_GROUP));
-              assertEquals(4, aTriggers.size(), "Wrong number of jobs in group: " + A_GROUP);
-              assertEquals(4, bTriggers.size(), "Wrong number of jobs in group: " + B_GROUP);
-            }),
-        dynamicTest(
-            "Match exact both",
-            () -> {
-              List<OperableTrigger> aTriggers =
-                  store.getTriggersByJobAndTriggerGroup(
-                      GroupMatcher.jobGroupEquals(A_GROUP),
-                      GroupMatcher.triggerGroupEquals(A_GROUP));
-              List<OperableTrigger> bTriggers =
-                  store.getTriggersByJobAndTriggerGroup(
-                      GroupMatcher.jobGroupEquals(B_GROUP),
-                      GroupMatcher.triggerGroupEquals(B_GROUP));
-              assertEquals(4, aTriggers.size(), "Wrong number of jobs in group: " + A_GROUP);
-              assertEquals(4, bTriggers.size(), "Wrong number of jobs in group: " + B_GROUP);
             }));
   }
 
@@ -1387,8 +1347,8 @@ public abstract class AbstractJobStoreContractTest {
         simpleTrigger("t2", "tg2", jobA.getKey(), Instant.now().plusSeconds(60), 0, Duration.ZERO),
         false);
 
-    assertThat(store.getNumberOfJobs()).isEqualTo(2);
-    assertThat(store.getNumberOfTriggers()).isEqualTo(2);
+    assertThat(store.getJobKeys(GroupMatcher.anyJobGroup()).size()).isEqualTo(2);
+    assertThat(store.getTriggerKeys(GroupMatcher.anyTriggerGroup()).size()).isEqualTo(2);
     assertThat(store.getJobGroupNames()).containsExactlyInAnyOrder("groupA", "groupB");
     assertThat(store.getTriggerGroupNames()).containsExactlyInAnyOrder("tg1", "tg2");
     assertThat(store.checkExists(jobA.getKey())).isTrue();
@@ -1418,7 +1378,7 @@ public abstract class AbstractJobStoreContractTest {
     assertThat(fJobStore.removeJob(fJobDetail.getKey())).isTrue();
     assertThat(fJobStore.checkExists(TriggerKey.triggerKey("r1", "g"))).isFalse();
     assertThat(fJobStore.checkExists(TriggerKey.triggerKey("r2", "g"))).isFalse();
-    assertThat(fJobStore.getNumberOfTriggers()).isZero();
+    assertThat(fJobStore.getTriggerKeys(GroupMatcher.anyTriggerGroup()).size()).isZero();
     assertThat(fJobStore.removeJob(fJobDetail.getKey())).isFalse();
   }
 
@@ -1434,9 +1394,103 @@ public abstract class AbstractJobStoreContractTest {
 
     assertThat(fJobStore.removeTrigger(t1.getKey())).isTrue();
     assertThat(fJobStore.checkExists(job.getKey())).isTrue();
+    assertThat(fSignaler.fDeletedJobs).isEmpty();
     assertThat(fJobStore.removeTrigger(t2.getKey())).isTrue();
     assertThat(fJobStore.checkExists(job.getKey())).isFalse();
+    assertThat(fSignaler.fDeletedJobs).containsExactly(job.getKey());
     assertThat(fJobStore.removeTrigger(t2.getKey())).isFalse();
+    assertThat(fSignaler.fDeletedJobs).containsExactly(job.getKey());
+  }
+
+  @Test
+  void testRemovedJobsAreReportedOnce() throws Exception {
+    JobDetail withTrigger = JobBuilder.newJob(MyJob.class).withIdentity("withTrigger").build();
+    JobDetail durable =
+        JobBuilder.newJob(MyJob.class).withIdentity("durable").storeDurably().build();
+    fJobStore.storeJobAndTrigger(
+        withTrigger,
+        simpleTrigger(
+            "n1", "g", withTrigger.getKey(), Instant.now().plusSeconds(60), 0, Duration.ZERO));
+    fJobStore.storeJob(durable, false);
+
+    assertThat(fJobStore.removeJob(withTrigger.getKey())).isTrue();
+    assertThat(fSignaler.fDeletedJobs).containsExactly(withTrigger.getKey());
+    assertThat(fJobStore.removeJob(withTrigger.getKey())).isFalse();
+    assertThat(fSignaler.fDeletedJobs).containsExactly(withTrigger.getKey());
+
+    // a key that is not stored is not reported
+    assertThat(fJobStore.removeJobs(List.of(durable.getKey(), JobKey.jobKey("missing")))).isFalse();
+    assertThat(fSignaler.fDeletedJobs).containsExactly(withTrigger.getKey(), durable.getKey());
+  }
+
+  @Test
+  void testJobDeletedIsReportedAfterTheStoreLockIsReleased() throws Exception {
+    JobDetail job = JobBuilder.newJob(MyJob.class).withIdentity("transient").build();
+    OperableTrigger trigger =
+        simpleTrigger("n1", "g", job.getKey(), Instant.now().plusSeconds(60), 0, Duration.ZERO);
+    fJobStore.storeJobAndTrigger(job, trigger);
+    JobDetail other = JobBuilder.newJob(MyJob.class).withIdentity("other").storeDurably().build();
+    // while the listener runs, another thread must be able to take the store's lock
+    fSignaler.fOnJobDeleted =
+        jobKey -> {
+          try {
+            java.util.concurrent.CompletableFuture.runAsync(
+                    () -> {
+                      try {
+                        fJobStore.storeJob(other, false);
+                      } catch (JobPersistenceException ex) {
+                        throw new IllegalStateException(ex);
+                      }
+                    })
+                .get(5, java.util.concurrent.TimeUnit.SECONDS);
+          } catch (Exception ex) {
+            throw new IllegalStateException("the store lock is still held", ex);
+          }
+        };
+
+    assertThat(fJobStore.removeTrigger(trigger.getKey())).isTrue();
+
+    assertThat(fSignaler.fDeletedJobs).containsExactly(job.getKey());
+    assertThat(fJobStore.checkExists(other.getKey())).isTrue();
+  }
+
+  @Test
+  void testAJobDeletedListenerMayRemoveTheLastTriggerOfAnotherJob() throws Exception {
+    JobDetail first = JobBuilder.newJob(MyJob.class).withIdentity("first").build();
+    JobDetail second = JobBuilder.newJob(MyJob.class).withIdentity("second").build();
+    OperableTrigger t1 =
+        simpleTrigger("n1", "g", first.getKey(), Instant.now().plusSeconds(60), 0, Duration.ZERO);
+    OperableTrigger t2 =
+        simpleTrigger("n2", "g", second.getKey(), Instant.now().plusSeconds(60), 0, Duration.ZERO);
+    fJobStore.storeJobAndTrigger(first, t1);
+    fJobStore.storeJobAndTrigger(second, t2);
+    fSignaler.fOnJobDeleted =
+        jobKey -> {
+          if (jobKey.equals(first.getKey())) {
+            try {
+              fJobStore.removeTrigger(t2.getKey());
+            } catch (JobPersistenceException ex) {
+              throw new IllegalStateException(ex);
+            }
+          }
+        };
+
+    assertThat(fJobStore.removeTrigger(t1.getKey())).isTrue();
+
+    assertThat(fSignaler.fDeletedJobs).containsExactly(first.getKey(), second.getKey());
+    assertThat(fJobStore.checkExists(second.getKey())).isFalse();
+  }
+
+  @Test
+  void testDurableJobSurvivesItsLastTriggerWithoutAJobDeletedNotification() throws Exception {
+    JobDetail job = JobBuilder.newJob(MyJob.class).withIdentity("kept").storeDurably().build();
+    OperableTrigger trigger =
+        simpleTrigger("n1", "g", job.getKey(), Instant.now().plusSeconds(60), 0, Duration.ZERO);
+    fJobStore.storeJobAndTrigger(job, trigger);
+
+    assertThat(fJobStore.removeTrigger(trigger.getKey())).isTrue();
+    assertThat(fJobStore.checkExists(job.getKey())).isTrue();
+    assertThat(fSignaler.fDeletedJobs).isEmpty();
   }
 
   @Test
@@ -1647,7 +1701,7 @@ public abstract class AbstractJobStoreContractTest {
     assertThat(stored).isInstanceOf(WeeklyCalendar.class);
     assertThat(stored.getDescription()).isEqualTo("no weekends");
     assertThat(fJobStore.getCalendarNames()).containsExactly("weekdays");
-    assertThat(fJobStore.getNumberOfCalendars()).isEqualTo(1);
+    assertThat(fJobStore.getCalendarNames().size()).isEqualTo(1);
     assertThat(fJobStore.retrieveCalendar("nope")).isNull();
     assertThatThrownBy(
             () -> fJobStore.storeCalendar("weekdays", new WeeklyCalendar(), false, false))
@@ -2129,16 +2183,15 @@ public abstract class AbstractJobStoreContractTest {
 
     fJobStore.clearAllSchedulingData();
 
-    assertThat(fJobStore.getNumberOfJobs()).isZero();
-    assertThat(fJobStore.getNumberOfTriggers()).isZero();
-    assertThat(fJobStore.getNumberOfCalendars()).isZero();
+    assertThat(fJobStore.getJobKeys(GroupMatcher.anyJobGroup()).size()).isZero();
+    assertThat(fJobStore.getTriggerKeys(GroupMatcher.anyTriggerGroup()).size()).isZero();
+    assertThat(fJobStore.getCalendarNames().size()).isZero();
     assertThat(fJobStore.getPausedTriggerGroups()).isEmpty();
     assertThat(fJobStore.getJobGroupNames()).isEmpty();
   }
 
   @Test
   void testRecoveryOfJobsInProgressAfterRestart() throws Exception {
-    assertThat(fJobStore.supportsPersistence()).isTrue();
     JobDetail job =
         JobBuilder.newJob(MyJob.class)
             .withIdentity("recoverable")
@@ -2197,6 +2250,8 @@ public abstract class AbstractJobStoreContractTest {
 
   public static class SampleSignaler implements SchedulerSignaler {
     volatile int fMisfireCount = 0;
+    final List<JobKey> fDeletedJobs = new java.util.concurrent.CopyOnWriteArrayList<>();
+    volatile java.util.function.Consumer<JobKey> fOnJobDeleted = jobKey -> {};
     private volatile Instant currentTime;
 
     public void setCurrentTime(Instant currentTime) {
@@ -2222,7 +2277,10 @@ public abstract class AbstractJobStoreContractTest {
 
     public void notifySchedulerListenersFinalized(Trigger trigger) {}
 
-    public void notifySchedulerListenersJobDeleted(JobKey jobKey) {}
+    public void notifySchedulerListenersJobDeleted(JobKey jobKey) {
+      fDeletedJobs.add(jobKey);
+      fOnJobDeleted.accept(jobKey);
+    }
 
     public void notifySchedulerListenersError(String string, SchedulerException jpe) {}
   }
@@ -2245,10 +2303,8 @@ public abstract class AbstractJobStoreContractTest {
       int repeatCount,
       Duration repeatInterval) {
     SimpleTriggerImpl trigger = new SimpleTriggerImpl();
-    trigger.setName(name);
-    trigger.setGroup(group);
-    trigger.setJobName(jobName);
-    trigger.setJobGroup(jobGroup);
+    trigger.setKey(new TriggerKey(name, group));
+    trigger.setJobKey(new JobKey(jobName, jobGroup));
     trigger.setStartTime(startTime);
     trigger.setEndTime(endTime);
     trigger.setRepeatCount(repeatCount);

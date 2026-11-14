@@ -26,7 +26,6 @@ import org.quartz.spi.InstanceIdGenerator;
  * Instance id is of the form HOSTNAME + CURRENT_TIME.
  *
  * @see InstanceIdGenerator
- * @see HostnameInstanceIdGenerator
  */
 public class SimpleInstanceIdGenerator implements InstanceIdGenerator {
   public String generateInstanceId() throws SchedulerException {

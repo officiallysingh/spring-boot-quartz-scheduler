@@ -29,7 +29,7 @@ import org.quartz.JobKey;
 import org.quartz.PersistJobDataAfterExecution;
 import org.quartz.Scheduler;
 import org.quartz.Trigger;
-import org.quartz.utils.ClassUtils;
+import org.springframework.core.annotation.AnnotatedElementUtils;
 
 /**
  * Conveys the detail properties of a given <code>Job</code> instance.
@@ -257,20 +257,20 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
 
   /**
    * @return whether the associated Job class carries the {@link PersistJobDataAfterExecution}
-   *     annotation.
+   *     annotation: on the class, a superclass or an interface, directly or as a meta-annotation.
    */
   public boolean isPersistJobDataAfterExecution() {
 
-    return ClassUtils.isAnnotationPresent(jobClass, PersistJobDataAfterExecution.class);
+    return AnnotatedElementUtils.hasAnnotation(jobClass, PersistJobDataAfterExecution.class);
   }
 
   /**
    * @return whether the associated Job class carries the {@link DisallowConcurrentExecution}
-   *     annotation.
+   *     annotation: on the class, a superclass or an interface, directly or as a meta-annotation.
    */
   public boolean isConcurrentExecutionDisallowed() {
 
-    return ClassUtils.isAnnotationPresent(jobClass, DisallowConcurrentExecution.class);
+    return AnnotatedElementUtils.hasAnnotation(jobClass, DisallowConcurrentExecution.class);
   }
 
   public boolean requestsRecovery() {

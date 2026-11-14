@@ -35,7 +35,6 @@ import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.SimpleTrigger;
 import org.quartz.Trigger;
-import org.quartz.TriggerUtils;
 import org.quartz.utils.Instants;
 import org.quartz.utils.LenientDateTime;
 
@@ -61,12 +60,10 @@ import org.quartz.utils.LenientDateTime;
  * @see Trigger
  * @see CronTrigger
  * @see SimpleTrigger
- * @see TriggerUtils
- * @since 1.7
  * @author James House
  */
 public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarIntervalTrigger>
-    implements CalendarIntervalTrigger, CoreTrigger {
+    implements CalendarIntervalTrigger {
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -110,8 +107,6 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
 
   private int timesTriggered = 0;
 
-  private final boolean complete = false;
-
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    *
@@ -123,97 +118,6 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
   /** Create a <code>DateIntervalTrigger</code> with no settings. */
   public CalendarIntervalTriggerImpl() {
     super();
-  }
-
-  /**
-   * Create a <code>DateIntervalTrigger</code> that will occur when it is scheduled (its start time
-   * is set then, by the scheduler's clock), and repeat at the given interval.
-   */
-  public CalendarIntervalTriggerImpl(String name, IntervalUnit intervalUnit, int repeatInterval) {
-    this(name, null, intervalUnit, repeatInterval);
-  }
-
-  /**
-   * Create a <code>DateIntervalTrigger</code> that will occur when it is scheduled (its start time
-   * is set then, by the scheduler's clock), and repeat at the given interval.
-   */
-  public CalendarIntervalTriggerImpl(
-      String name, @Nullable String group, IntervalUnit intervalUnit, int repeatInterval) {
-    super(name, group);
-
-    setRepeatIntervalUnit(intervalUnit);
-    setRepeatInterval(repeatInterval);
-  }
-
-  /**
-   * Create a <code>DateIntervalTrigger</code> that will occur at the given time, and repeat at the
-   * given interval until the given end time.
-   *
-   * @param startTime the time for the <code>Trigger</code> to fire.
-   * @param endTime the time for the <code>Trigger</code> to quit repeat firing, or {@code null} for
-   *     none.
-   * @param intervalUnit The repeat interval unit (minutes, days, months, etc).
-   * @param repeatInterval the pause between repeat firings.
-   */
-  public CalendarIntervalTriggerImpl(
-      String name,
-      Instant startTime,
-      @Nullable Instant endTime,
-      IntervalUnit intervalUnit,
-      int repeatInterval) {
-    this(name, null, startTime, endTime, intervalUnit, repeatInterval);
-  }
-
-  /**
-   * Create a <code>DateIntervalTrigger</code> that will occur at the given time, and repeat at the
-   * given interval until the given end time.
-   *
-   * @param startTime the time for the <code>Trigger</code> to fire.
-   * @param endTime the time for the <code>Trigger</code> to quit repeat firing, or {@code null} for
-   *     none.
-   * @param intervalUnit The repeat interval unit (minutes, days, months, etc).
-   * @param repeatInterval the pause between repeat firings.
-   */
-  public CalendarIntervalTriggerImpl(
-      String name,
-      @Nullable String group,
-      Instant startTime,
-      @Nullable Instant endTime,
-      IntervalUnit intervalUnit,
-      int repeatInterval) {
-    super(name, group);
-
-    setStartTime(startTime);
-    setEndTime(endTime);
-    setRepeatIntervalUnit(intervalUnit);
-    setRepeatInterval(repeatInterval);
-  }
-
-  /**
-   * Create a <code>DateIntervalTrigger</code> that will occur at the given time, fire the
-   * identified <code>Job</code> and repeat at the given interval until the given end time.
-   *
-   * @param startTime the time for the <code>Trigger</code> to fire.
-   * @param endTime the time for the <code>Trigger</code> to quit repeat firing, or {@code null} for
-   *     none.
-   * @param intervalUnit The repeat interval unit (minutes, days, months, etc).
-   * @param repeatInterval the pause between repeat firings.
-   */
-  public CalendarIntervalTriggerImpl(
-      String name,
-      @Nullable String group,
-      String jobName,
-      @Nullable String jobGroup,
-      Instant startTime,
-      @Nullable Instant endTime,
-      IntervalUnit intervalUnit,
-      int repeatInterval) {
-    super(name, group, jobName, jobGroup);
-
-    setStartTime(startTime);
-    setEndTime(endTime);
-    setRepeatIntervalUnit(intervalUnit);
-    setRepeatInterval(repeatInterval);
   }
 
   /*
@@ -418,11 +322,6 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    * </ul>
    */
   @Override
-  public void updateAfterMisfire(org.quartz.@Nullable Calendar cal) {
-    updateAfterMisfire(cal, now());
-  }
-
-  @Override
   public void updateAfterMisfire(org.quartz.@Nullable Calendar cal, Instant now) {
     int instr = getMisfireInstruction();
 
@@ -476,14 +375,8 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
 
   /**
    * @see org.quartz.spi.OperableTrigger#updateWithNewCalendar(org.quartz.Calendar,
-   *     java.time.Duration)
+   *     java.time.Duration, java.time.Instant)
    */
-  @Override
-  public void updateWithNewCalendar(
-      org.quartz.@Nullable Calendar calendar, Duration misfireThreshold) {
-    updateWithNewCalendar(calendar, misfireThreshold, now());
-  }
-
   @Override
   public void updateWithNewCalendar(
       org.quartz.@Nullable Calendar calendar, Duration misfireThreshold, Instant now) {
@@ -596,10 +489,6 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
   }
 
   protected @Nullable Instant getFireTimeAfter(@Nullable Instant afterTime, boolean ignoreEndTime) {
-    if (complete) {
-      return null;
-    }
-
     // increment afterTime by a second, so that we are
     // comparing against a time after it!
     if (afterTime == null) {
@@ -763,7 +652,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    */
   @Override
   public @Nullable Instant getFinalFireTime() {
-    if (complete || getEndTime() == null) {
+    if (getEndTime() == null) {
       return null;
     }
 
@@ -847,9 +736,5 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
     }
 
     return cb;
-  }
-
-  public boolean hasAdditionalProperties() {
-    return false;
   }
 }

@@ -60,11 +60,6 @@ public class SchedulerSignalerImpl implements SchedulerSignaler {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
-  /** Creates a signaler that uses the system clock for scheduling time. */
-  public SchedulerSignalerImpl(QuartzScheduler sched, QuartzSchedulerThread schedThread) {
-    this(sched, schedThread, Clock.systemUTC());
-  }
-
   /**
    * Create a signaler.
    *
@@ -142,7 +137,7 @@ public class SchedulerSignalerImpl implements SchedulerSignaler {
   }
 
   public void notifySchedulerListenersJobDeleted(JobKey jobKey) {
-    sched.notifySchedulerListenersJobDeleted(jobKey);
+    sched.jobDeletedByStore(jobKey);
   }
 
   public void notifySchedulerListenersError(String string, SchedulerException jpe) {

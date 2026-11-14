@@ -22,17 +22,14 @@ import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Scheduler-level settings (the former {@code org.quartz.scheduler.*} and {@code
- * org.quartz.context.key.*} keys).
+ * Scheduler-level settings.
  *
  * @param name the scheduler name, shared by all nodes of a cluster
  * @param instanceId the instance id used when {@code instanceIdAuto} is {@code false}
  * @param instanceIdAuto generate the instance id with the factory's {@link
- *     org.quartz.spi.InstanceIdGenerator} when the job store is clustered (the former {@code AUTO}
- *     / {@code SYS_PROP} values)
+ *     org.quartz.spi.InstanceIdGenerator} when the job store is clustered
  * @param threadName the scheduler thread name; {@code null} means {@code
  *     <name>_QuartzSchedulerThread}
- * @param makeSchedulerThreadDaemon run the scheduler thread as a daemon thread
  * @param idleWaitTime how long the scheduler thread waits for new triggers when idle; at least one
  *     second
  * @param batchTriggerAcquisitionFireAheadTimeWindow how far ahead of their fire time triggers may
@@ -50,7 +47,6 @@ public record SchedulerSettings(
     String instanceId,
     boolean instanceIdAuto,
     @Nullable String threadName,
-    boolean makeSchedulerThreadDaemon,
     Duration idleWaitTime,
     Duration batchTriggerAcquisitionFireAheadTimeWindow,
     int batchTriggerAcquisitionMaxCount,
@@ -138,7 +134,6 @@ public record SchedulerSettings(
         .instanceId(instanceId)
         .instanceIdAuto(instanceIdAuto)
         .threadName(threadName)
-        .makeSchedulerThreadDaemon(makeSchedulerThreadDaemon)
         .idleWaitTime(idleWaitTime)
         .batchTriggerAcquisitionFireAheadTimeWindow(batchTriggerAcquisitionFireAheadTimeWindow)
         .batchTriggerAcquisitionMaxCount(batchTriggerAcquisitionMaxCount)
@@ -160,7 +155,6 @@ public record SchedulerSettings(
     private String instanceId = DEFAULT_INSTANCE_ID;
     private boolean instanceIdAuto;
     private @Nullable String threadName;
-    private boolean makeSchedulerThreadDaemon;
     private Duration idleWaitTime = DEFAULT_IDLE_WAIT_TIME;
     private Duration batchTriggerAcquisitionFireAheadTimeWindow = Duration.ZERO;
     private int batchTriggerAcquisitionMaxCount = 1;
@@ -212,17 +206,6 @@ public record SchedulerSettings(
      */
     public Builder threadName(@Nullable String threadName) {
       this.threadName = threadName;
-      return this;
-    }
-
-    /**
-     * Set {@link SchedulerSettings#makeSchedulerThreadDaemon() makeSchedulerThreadDaemon}.
-     *
-     * @param makeSchedulerThreadDaemon the value
-     * @return this builder
-     */
-    public Builder makeSchedulerThreadDaemon(boolean makeSchedulerThreadDaemon) {
-      this.makeSchedulerThreadDaemon = makeSchedulerThreadDaemon;
       return this;
     }
 
@@ -328,7 +311,6 @@ public record SchedulerSettings(
           instanceId,
           instanceIdAuto,
           threadName,
-          makeSchedulerThreadDaemon,
           idleWaitTime,
           batchTriggerAcquisitionFireAheadTimeWindow,
           batchTriggerAcquisitionMaxCount,

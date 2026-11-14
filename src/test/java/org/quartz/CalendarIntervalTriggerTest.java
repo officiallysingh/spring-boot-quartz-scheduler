@@ -33,8 +33,17 @@ import org.quartz.impl.triggers.CalendarIntervalTriggerImpl;
 /** Unit tests for DateIntervalTrigger. */
 public class CalendarIntervalTriggerTest extends SerializationTestSupport {
 
+  private static CalendarIntervalTriggerImpl dailyTrigger(String name, Instant startTime) {
+    CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl();
+    trigger.setKey(new TriggerKey(name));
+    trigger.setStartTime(startTime);
+    trigger.setRepeatIntervalUnit(IntervalUnit.DAY);
+    trigger.setRepeatInterval(1);
+    return trigger;
+  }
+
   @Test
-  void testQTZ331FireTimeAfterBoundary() {
+  void testFireTimeAfterBoundary() {
     Calendar start = Calendar.getInstance();
     start.clear();
     start.set(2013, Calendar.FEBRUARY, 15);
@@ -43,15 +52,15 @@ public class CalendarIntervalTriggerTest extends SerializationTestSupport {
     start.add(Calendar.DAY_OF_MONTH, 1);
     Instant triggerTime = start.toInstant();
 
-    CalendarIntervalTriggerImpl trigger =
-        new CalendarIntervalTriggerImpl("test", startTime, null, IntervalUnit.DAY, 1);
+    CalendarIntervalTriggerImpl trigger = dailyTrigger("test", startTime);
     assertThat(trigger.getFireTimeAfter(startTime)).isEqualTo(triggerTime);
 
     Instant after = Instant.ofEpochMilli(start.getTimeInMillis() - 500);
     assertThat(trigger.getFireTimeAfter(after)).isEqualTo(triggerTime);
   }
 
-  void testQTZ330DaylightSavingsCornerCase() {
+  @Test
+  void testDaylightSavingsCornerCase() {
     ZoneId edt = ZoneId.of("America/New_York");
 
     Calendar start = Calendar.getInstance();
@@ -66,9 +75,7 @@ public class CalendarIntervalTriggerTest extends SerializationTestSupport {
 
     BaseCalendar baseCalendar = new BaseCalendar(edt);
 
-    CalendarIntervalTriggerImpl intervalTrigger =
-        new CalendarIntervalTriggerImpl(
-            "QTZ-330", start.toInstant(), null, DateBuilder.IntervalUnit.DAY, 1);
+    CalendarIntervalTriggerImpl intervalTrigger = dailyTrigger("dstCornerCase", start.toInstant());
     intervalTrigger.setTimeZone(edt);
     intervalTrigger.setPreserveHourOfDayAcrossDaylightSavings(true);
     intervalTrigger.computeFirstFireTime(baseCalendar);
@@ -273,7 +280,7 @@ public class CalendarIntervalTriggerTest extends SerializationTestSupport {
         testTime,
         "Day increment result not as expected over spring 2010 daylight savings transition.");
 
-    // And again, Pick a day before a spring daylight savings transition... (QTZ-240)
+    // And again, Pick a day before a spring daylight savings transition...
 
     startCalendar = Calendar.getInstance();
     startCalendar.set(2011, Calendar.MARCH, 12, 1, 0, 0);
@@ -298,7 +305,7 @@ public class CalendarIntervalTriggerTest extends SerializationTestSupport {
         testTime,
         "Day increment result not as expected over spring 2011 daylight savings transition.");
 
-    // And again, Pick a day before a spring daylight savings transition... (QTZ-240) - and prove
+    // And again, Pick a day before a spring daylight savings transition... - and prove
     // time of day is not preserved without setPreserveHourOfDayAcrossDaylightSavings(true)
 
     startCalendar = Calendar.getInstance();
@@ -331,7 +338,7 @@ public class CalendarIntervalTriggerTest extends SerializationTestSupport {
         testCal.get(Calendar.HOUR_OF_DAY),
         "Day increment time-of-day result not as expected over spring 2011 daylight savings transition.");
 
-    // And again, Pick a day before a spring daylight savings transition... (QTZ-240) - and prove
+    // And again, Pick a day before a spring daylight savings transition... - and prove
     // time of day is preserved with setPreserveHourOfDayAcrossDaylightSavings(true)
 
     startCalendar = Calendar.getInstance();
@@ -390,7 +397,7 @@ public class CalendarIntervalTriggerTest extends SerializationTestSupport {
         testTime,
         "Day increment result not as expected over fall 2010 daylight savings transition.");
 
-    // And again, Pick a day before a fall daylight savings transition...  (QTZ-240)
+    // And again, Pick a day before a fall daylight savings transition...
 
     startCalendar = Calendar.getInstance();
     startCalendar.setTimeZone(TimeZone.getTimeZone("CEST"));
@@ -503,8 +510,7 @@ public class CalendarIntervalTriggerTest extends SerializationTestSupport {
     jobDataMap.put("A", "B");
 
     CalendarIntervalTriggerImpl t = new CalendarIntervalTriggerImpl();
-    t.setName("test");
-    t.setGroup("testGroup");
+    t.setKey(new TriggerKey("test", "testGroup"));
     t.setCalendarName("MyCalendar");
     t.setDescription("CronTriggerDesc");
     t.setJobDataMap(jobDataMap);
@@ -520,10 +526,8 @@ public class CalendarIntervalTriggerTest extends SerializationTestSupport {
     CalendarIntervalTriggerImpl deserializedCalTrigger = (CalendarIntervalTriggerImpl) deserialized;
 
     assertNotNull(deserializedCalTrigger);
-    assertEquals(targetCalTrigger.getName(), deserializedCalTrigger.getName());
-    assertEquals(targetCalTrigger.getGroup(), deserializedCalTrigger.getGroup());
-    assertEquals(targetCalTrigger.getJobName(), deserializedCalTrigger.getJobName());
-    assertEquals(targetCalTrigger.getJobGroup(), deserializedCalTrigger.getJobGroup());
+    assertEquals(targetCalTrigger.getKey(), deserializedCalTrigger.getKey());
+    assertEquals(targetCalTrigger.getJobKey(), deserializedCalTrigger.getJobKey());
     //        assertEquals(targetCronTrigger.getStartTime(),
     // deserializedCronTrigger.getStartTime());
     assertEquals(targetCalTrigger.getEndTime(), deserializedCalTrigger.getEndTime());

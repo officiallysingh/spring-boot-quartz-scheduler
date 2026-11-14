@@ -66,8 +66,6 @@ public class QuartzSchedulerResources {
 
   private final List<SchedulerPlugin> schedulerPlugins = new ArrayList<>(10);
 
-  private boolean makeSchedulerThreadDaemon = false;
-
   private ClassLoader classLoader =
       Objects.requireNonNull(QuartzSchedulerResources.class.getClassLoader());
 
@@ -257,24 +255,6 @@ public class QuartzSchedulerResources {
    */
   public List<SchedulerPlugin> getSchedulerPlugins() {
     return schedulerPlugins;
-  }
-
-  /**
-   * Get whether to mark the Quartz scheduling thread as daemon.
-   *
-   * @see Thread#setDaemon(boolean)
-   */
-  public boolean getMakeSchedulerThreadDaemon() {
-    return makeSchedulerThreadDaemon;
-  }
-
-  /**
-   * Set whether to mark the Quartz scheduling thread as daemon.
-   *
-   * @see Thread#setDaemon(boolean)
-   */
-  public void setMakeSchedulerThreadDaemon(boolean makeSchedulerThreadDaemon) {
-    this.makeSchedulerThreadDaemon = makeSchedulerThreadDaemon;
   }
 
   /**

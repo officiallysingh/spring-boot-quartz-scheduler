@@ -306,12 +306,9 @@ public abstract class AbstractSchedulerTest {
     for (Thread t : allThreadsStart.keySet()) {
       allThreadsEnd.remove(t);
     }
-    // remove threads that are known artifacts of the test
+    // keep only the scheduler's own threads (scheduler, workers, store threads): all carry its name
     for (Thread t : endingThreads) {
-      if (t.getThreadGroup() != null && t.getThreadGroup().getName().equals("system")) {
-        allThreadsEnd.remove(t);
-      }
-      if (t.getThreadGroup() != null && t.getThreadGroup().getName().equals("main")) {
+      if (!t.getName().contains("testShutdownWithSleepReturnsAfterAllThreadsAreStopped")) {
         allThreadsEnd.remove(t);
       }
     }

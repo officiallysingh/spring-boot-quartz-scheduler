@@ -17,50 +17,38 @@
 package org.quartz.spring;
 
 import org.jspecify.annotations.Nullable;
+import org.quartz.Job;
+import org.quartz.Scheduler;
 import org.quartz.SchedulerContext;
+import org.quartz.SchedulerException;
+import org.quartz.spi.JobFactory;
 import org.quartz.spi.TriggerFiredBundle;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.PropertyAccessorFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.util.ReflectionUtils;
 
 /**
- * Subclass of {@link AdaptableJobFactory} that also supports Spring-style dependency injection on
- * bean properties. This is essentially the direct equivalent of Spring's {@link QuartzJobBean} in
- * the shape of a Quartz {@link org.quartz.spi.JobFactory}.
+ * The {@link JobFactory} of a {@link SchedulerFactoryBean}: creates each job instance as a bean of
+ * the application context (constructor and field injection) when there is one, otherwise through
+ * its no-argument constructor.
  *
- * <p>Applies scheduler context, job data map and trigger data map entries as bean property values.
- * If no matching bean property is found, the entry is by default simply ignored. This is analogous
- * to QuartzJobBean's behavior.
- *
- * <p>Compatible with Quartz 2.1.4 and higher.
+ * <p>Applies scheduler context, job data map and trigger data map entries as bean property values;
+ * an entry without a matching bean property is ignored. {@link QuartzJobBean} instances apply them
+ * themselves.
  *
  * @author Juergen Hoeller
- * @since 2.0
  * @see SchedulerFactoryBean#setJobFactory
  * @see QuartzJobBean
  */
-public class SpringBeanJobFactory extends AdaptableJobFactory
-    implements ApplicationContextAware, SchedulerContextAware {
-
-  private String @Nullable [] ignoredUnknownProperties;
+public class SpringBeanJobFactory
+    implements JobFactory, ApplicationContextAware, SchedulerContextAware {
 
   private @Nullable ApplicationContext applicationContext;
 
   private @Nullable SchedulerContext schedulerContext;
-
-  /**
-   * Specify the unknown properties (not found in the bean) that should be ignored.
-   *
-   * <p>Default is {@code null}, indicating that all unknown properties should be ignored. Specify
-   * an empty array to throw an exception in case of any unknown properties, or a list of property
-   * names that should be ignored if there is no corresponding property found on the particular job
-   * class (all other unknown properties will still trigger an exception).
-   */
-  public void setIgnoredUnknownProperties(String... ignoredUnknownProperties) {
-    this.ignoredUnknownProperties = ignoredUnknownProperties;
-  }
 
   @Override
   public void setApplicationContext(ApplicationContext applicationContext) {
@@ -72,18 +60,31 @@ public class SpringBeanJobFactory extends AdaptableJobFactory
     this.schedulerContext = schedulerContext;
   }
 
+  @Override
+  public Job newJob(TriggerFiredBundle bundle, Scheduler scheduler) throws SchedulerException {
+    try {
+      return createJobInstance(bundle);
+    } catch (Throwable ex) {
+      throw new SchedulerException("Job instantiation failed", ex);
+    }
+  }
+
   /**
    * Create the job instance, populating it with property values taken from the scheduler context,
    * job data map and trigger data map.
+   *
+   * <p>Can be overridden to post-process the job instance.
+   *
+   * @param bundle the fired trigger and its job
+   * @return the job instance
+   * @throws Exception if job instantiation failed
    */
-  @Override
-  protected Object createJobInstance(TriggerFiredBundle bundle) throws Exception {
-    Object job =
+  protected Job createJobInstance(TriggerFiredBundle bundle) throws Exception {
+    Class<? extends Job> jobClass = bundle.getJobDetail().getJobClass();
+    Job job =
         (this.applicationContext != null
-            ? this.applicationContext
-                .getAutowireCapableBeanFactory()
-                .createBean(bundle.getJobDetail().getJobClass())
-            : super.createJobInstance(bundle));
+            ? this.applicationContext.getAutowireCapableBeanFactory().createBean(jobClass)
+            : ReflectionUtils.accessibleConstructor(jobClass).newInstance());
 
     if (isEligibleForPropertyPopulation(job)) {
       BeanWrapper bw = PropertyAccessorFactory.forBeanPropertyAccess(job);
@@ -93,16 +94,7 @@ public class SpringBeanJobFactory extends AdaptableJobFactory
       }
       pvs.addPropertyValues(bundle.getJobDetail().getJobDataMap());
       pvs.addPropertyValues(bundle.getTrigger().getJobDataMap());
-      if (this.ignoredUnknownProperties != null) {
-        for (String propName : this.ignoredUnknownProperties) {
-          if (pvs.contains(propName) && !bw.isWritableProperty(propName)) {
-            pvs.removePropertyValue(propName);
-          }
-        }
-        bw.setPropertyValues(pvs);
-      } else {
-        bw.setPropertyValues(pvs, true);
-      }
+      bw.setPropertyValues(pvs, true);
     }
 
     return job;

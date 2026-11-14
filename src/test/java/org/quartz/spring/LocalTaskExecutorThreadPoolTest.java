@@ -28,10 +28,15 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
+import org.springframework.core.task.VirtualThreadTaskExecutor;
 import org.springframework.scheduling.concurrent.ConcurrentTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+@ExtendWith(OutputCaptureExtension.class)
 class LocalTaskExecutorThreadPoolTest {
 
   private final ExecutorService executor = Executors.newCachedThreadPool();
@@ -138,6 +143,63 @@ class LocalTaskExecutorThreadPoolTest {
   void explicitCapacityWins() {
     assertThat(initialized(new LocalTaskExecutorThreadPool(executor, 7)).getPoolSize())
         .isEqualTo(7);
+  }
+
+  @Test
+  void executorsKnownToSetNoLimitAreNotReportedAsUnreadable(CapturedOutput output) {
+    try (ExecutorService virtualThreadPerTask = Executors.newVirtualThreadPerTaskExecutor()) {
+      for (java.util.concurrent.Executor unlimited :
+          java.util.List.of(
+              new SimpleAsyncTaskExecutor(),
+              new VirtualThreadTaskExecutor(),
+              virtualThreadPerTask,
+              executor)) {
+        LocalTaskExecutorThreadPool pool = new LocalTaskExecutorThreadPool(unlimited);
+        pool.setDefaultCapacity(6);
+
+        assertThat(initialized(pool).getPoolSize()).as(unlimited.getClass().getName()).isEqualTo(6);
+        assertThat(pool.describe())
+            .isEqualTo(
+                "on "
+                    + unlimited.getClass().getName()
+                    + ", at most 6 concurrent jobs (the executor sets no limit)");
+        assertThat(output.getOut())
+            .containsPattern(
+                "INFO .*"
+                    + java.util.regex.Pattern.quote(unlimited.getClass().getName())
+                    + " sets no limit on concurrent tasks: running at most 6 jobs at a time");
+      }
+    }
+    assertThat(output.getAll()).doesNotContain("cannot be read").doesNotContain("WARN");
+  }
+
+  @Test
+  void anExecutorWhoseLimitCannotBeReadIsReportedWithAWarning(CapturedOutput output) {
+    java.util.concurrent.Executor opaque = executor::execute;
+    LocalTaskExecutorThreadPool pool = new LocalTaskExecutorThreadPool(opaque);
+    pool.setDefaultCapacity(3);
+
+    assertThat(initialized(pool).getPoolSize()).isEqualTo(3);
+    assertThat(pool.describe())
+        .isEqualTo(
+            "on "
+                + opaque.getClass().getName()
+                + ", at most 3 concurrent jobs (the executor's limit cannot be read)");
+    assertThat(output.getOut())
+        .containsPattern("WARN .*The concurrency limit of .* cannot be read: running at most 3");
+    assertThat(output.getOut()).doesNotContain("sets no limit");
+  }
+
+  @Test
+  void aLimitedExecutorIsNotReportedAtAll(CapturedOutput output) {
+    SimpleAsyncTaskExecutor limited = new SimpleAsyncTaskExecutor();
+    limited.setConcurrencyLimit(4);
+    LocalTaskExecutorThreadPool pool = initialized(new LocalTaskExecutorThreadPool(limited));
+
+    assertThat(pool.describe())
+        .isEqualTo(
+            "on org.springframework.core.task.SimpleAsyncTaskExecutor, at most 4 concurrent jobs");
+    assertThat(output.getAll()).doesNotContain("sets no limit").doesNotContain("cannot be read");
   }
 
   @Test

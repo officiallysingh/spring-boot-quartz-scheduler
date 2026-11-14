@@ -45,11 +45,11 @@ public final class JobDetailCodec {
   /** Stored field: the job's requests recovery. */
   public static final String REQUESTS_RECOVERY = "requestsRecovery";
 
-  /** Stored field: whether the job disallows concurrent execution. */
+  /**
+   * Stored field of a fired-trigger record: whether its job disallows concurrent execution. Jobs
+   * themselves do not store it: the job class's annotations decide.
+   */
   public static final String NON_CONCURRENT = "nonConcurrent";
-
-  /** Stored field: whether the job data is stored again after each execution. */
-  public static final String PERSIST_JOB_DATA = "persistJobData";
 
   private JobDetailCodec() {}
 
@@ -69,8 +69,6 @@ public final class JobDetailCodec {
     fields.put(JOB_CLASS, job.getJobClass().getName());
     fields.put(DURABLE, job.isDurable());
     fields.put(REQUESTS_RECOVERY, job.requestsRecovery());
-    fields.put(NON_CONCURRENT, job.isConcurrentExecutionDisallowed());
-    fields.put(PERSIST_JOB_DATA, job.isPersistJobDataAfterExecution());
     return fields;
   }
 
@@ -101,7 +99,7 @@ public final class JobDetailCodec {
     job.setJobClass(jobClass);
     job.setDurability(Fields.booleanValue(fields, DURABLE));
     job.setRequestsRecovery(Fields.booleanValue(fields, REQUESTS_RECOVERY));
-    job.setJobDataMap((jobData != null) ? jobData : new JobDataMap());
+    job.setJobDataMap(jobData);
     return job;
   }
 }

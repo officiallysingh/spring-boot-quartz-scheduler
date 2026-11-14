@@ -121,7 +121,7 @@ class CalendarIntervalDstTest {
       boolean skipDay,
       int count) {
     CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl();
-    trigger.setName("dst");
+    trigger.setKey(new TriggerKey("dst"));
     trigger.setStartTime(LocalDateTime.parse(localStart).atZone(zone).toInstant());
     trigger.setRepeatIntervalUnit(unit);
     trigger.setRepeatInterval(1);

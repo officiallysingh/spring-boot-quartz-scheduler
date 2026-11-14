@@ -35,7 +35,6 @@ import org.quartz.SchedulerException;
 import org.quartz.SimpleScheduleBuilder;
 import org.quartz.SimpleTrigger;
 import org.quartz.Trigger;
-import org.quartz.TriggerUtils;
 import org.quartz.utils.Instants;
 
 /**
@@ -44,12 +43,10 @@ import org.quartz.utils.Instants;
  *
  * @see Trigger
  * @see CronTrigger
- * @see TriggerUtils
  * @author James House
  * @author contributions by Lieven Govaerts of Ebitec Nv, Belgium.
  */
-public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger>
-    implements SimpleTrigger, CoreTrigger {
+public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements SimpleTrigger {
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -59,12 +56,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger>
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
-  /**
-   * Required for serialization support. Introduced in Quartz 1.6.1 to maintain compatibility after
-   * the introduction of hasAdditionalProperties method.
-   *
-   * @see java.io.Serializable
-   */
+  /** Required for serialization support: custom subclasses are stored Java-serialized. */
   private static final long serialVersionUID = -3735980074222850397L;
 
   private static final int YEAR_TO_GIVEUP_SCHEDULING_AT = Year.now().getValue() + 100;
@@ -91,8 +83,6 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger>
   private Duration repeatInterval = Duration.ZERO;
 
   private int timesTriggered = 0;
-
-  private final boolean complete = false;
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -245,11 +235,6 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger>
    * </ul>
    */
   @Override
-  public void updateAfterMisfire(@Nullable Calendar cal) {
-    updateAfterMisfire(cal, now());
-  }
-
-  @Override
   public void updateAfterMisfire(@Nullable Calendar cal, Instant now) {
     int instr = getMisfireInstruction();
 
@@ -367,13 +352,8 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger>
 
   /**
    * @see org.quartz.impl.triggers.AbstractTrigger#updateWithNewCalendar(org.quartz.Calendar,
-   *     java.time.Duration)
+   *     java.time.Duration, java.time.Instant)
    */
-  @Override
-  public void updateWithNewCalendar(@Nullable Calendar calendar, Duration misfireThreshold) {
-    updateWithNewCalendar(calendar, misfireThreshold, now());
-  }
-
   @Override
   public void updateWithNewCalendar(
       @Nullable Calendar calendar, Duration misfireThreshold, Instant now) {
@@ -442,9 +422,6 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger>
    *
    * <p>The value returned is not guaranteed to be valid until after the <code>Trigger</code> has
    * been added to the scheduler.
-   *
-   * @see TriggerUtils#computeFireTimesBetween(org.quartz.spi.OperableTrigger, org.quartz.Calendar,
-   *     java.time.Instant, java.time.Instant)
    */
   @Override
   public @Nullable Instant getNextFireTime() {
@@ -484,10 +461,6 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger>
    */
   @Override
   public @Nullable Instant getFireTimeAfter(@Nullable Instant afterTime) {
-    if (complete) {
-      return null;
-    }
-
     if ((timesTriggered > repeatCount) && (repeatCount != REPEAT_INDEFINITELY)) {
       return null;
     }
@@ -607,15 +580,6 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger>
     if (repeatCount != 0 && repeatInterval.toMillis() < 1) {
       throw new SchedulerException("Repeat Interval cannot be zero.");
     }
-  }
-
-  /**
-   * Used by extensions of SimpleTrigger to imply that there are additional properties, specifically
-   * so that extensions can choose whether to be stored as a serialized blob, or as a flattened
-   * SimpleTrigger table.
-   */
-  public boolean hasAdditionalProperties() {
-    return false;
   }
 
   /**

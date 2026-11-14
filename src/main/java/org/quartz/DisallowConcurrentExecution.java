@@ -29,6 +29,9 @@ import java.lang.annotation.Target;
  * executed concurrently (where instance is based-upon a {@link JobDetail} definition - or in other
  * words based upon a {@link JobKey}).
  *
+ * <p>It is found on the job class, its superclasses and the interfaces it implements, and may be a
+ * meta-annotation of an annotation of the application.
+ *
  * @see PersistJobDataAfterExecution
  * @author jhouse
  */

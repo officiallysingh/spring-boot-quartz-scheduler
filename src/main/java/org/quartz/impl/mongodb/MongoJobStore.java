@@ -45,7 +45,6 @@ import org.quartz.impl.store.LeaseStoreLock;
 import org.quartz.impl.store.PersistentJobStore;
 import org.quartz.impl.store.StoreDelegate;
 import org.quartz.impl.store.StoreLock;
-import org.quartz.impl.store.codec.JobDataCodec;
 import org.quartz.impl.store.codec.JobDetailCodec;
 import org.quartz.impl.store.codec.TriggerCodec;
 
@@ -135,7 +134,6 @@ public class MongoJobStore extends PersistentJobStore {
   public void updateJobData(MongoDatabase database, JobDetail jobDetail)
       throws JobPersistenceException {
     Objects.requireNonNull(database, "database");
-    JobDataCodec.checkUseProperties(jobDetail.getJobDataMap(), getSettings().useProperties());
     // the session is carried by the database handle
     new MongoStoreDelegate(
             getInstanceName(),
@@ -167,7 +165,7 @@ public class MongoJobStore extends PersistentJobStore {
         schedulerName,
         owner,
         mongoSettings.lockTimeout(),
-        getSettings().acquireTriggersWithinLockRetry());
+        getSettings().lockRetryInterval());
   }
 
   @Override
@@ -251,7 +249,7 @@ public class MongoJobStore extends PersistentJobStore {
 
   @Override
   protected boolean acquireTriggersWithinLock() {
-    return transactional || super.acquireTriggersWithinLock();
+    return transactional;
   }
 
   @Override

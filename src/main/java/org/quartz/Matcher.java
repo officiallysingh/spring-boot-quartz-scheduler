@@ -18,7 +18,6 @@
 
 package org.quartz;
 
-import java.io.Serializable;
 import org.quartz.utils.Key;
 
 /**
@@ -26,9 +25,8 @@ import org.quartz.utils.Key;
  * be operated upon.
  *
  * @author jhouse
- * @since 2.0
  */
-public interface Matcher<T extends Key<?>> extends Serializable {
+public interface Matcher<T extends Key<?>> {
 
   /**
    * Whether the key matches.

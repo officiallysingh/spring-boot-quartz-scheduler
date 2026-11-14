@@ -67,13 +67,13 @@ public interface SchedulerPlugin {
 
   /**
    * Called when the associated <code>Scheduler</code> is started, in order to let the plug-in know
-   * it can now make calls into the scheduler if it needs to.
+   * it can now make calls into the scheduler if it needs to. Does nothing by default.
    */
-  void start();
+  default void start() {}
 
   /**
    * Called in order to inform the <code>SchedulerPlugin</code> that it should free up all of it's
-   * resources because the scheduler is shutting down.
+   * resources because the scheduler is shutting down. Does nothing by default.
    */
-  void shutdown();
+  default void shutdown() {}
 }

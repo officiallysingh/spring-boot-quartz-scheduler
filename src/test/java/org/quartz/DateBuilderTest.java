@@ -10,7 +10,6 @@ import static org.quartz.DateBuilder.dateOf;
 import static org.quartz.DateBuilder.futureDate;
 import static org.quartz.DateBuilder.newDate;
 import static org.quartz.DateBuilder.todayAt;
-import static org.quartz.DateBuilder.translateTime;
 
 import java.time.Clock;
 import java.time.DateTimeException;
@@ -528,46 +527,5 @@ class DateBuilderTest {
   void testNextGivenSecondDate(String input, int secondBase, String expected) {
     assertEquals(
         Instant.parse(expected), DateBuilder.nextGivenSecondDate(Instant.parse(input), secondBase));
-  }
-
-  /*
-   * translateTime tests
-   */
-
-  @Test
-  void testTranslate() {
-
-    ZoneId tz1 = ZoneId.of("GMT-02:00");
-    ZoneId tz2 = ZoneId.of("GMT-04:00");
-
-    Instant vc = ZonedDateTime.of(2013, 6, 1, 10, 33, 12, 0, tz1).toInstant();
-
-    assertEquals(12, translateTime(vc, tz1, tz2).atZone(tz1).getHour());
-
-    vc = ZonedDateTime.of(2013, 6, 1, 10, 33, 12, 0, tz2).toInstant();
-
-    assertEquals(8, translateTime(vc, tz2, tz1).atZone(tz2).getHour());
-  }
-
-  private static Stream<Arguments> translateTimeTestData() {
-    return Stream.of(
-        Arguments.of(
-            "2013-06-01T10:33:12-02:00",
-            ZoneId.of("GMT-02:00"),
-            ZoneId.of("GMT-04:00"),
-            "2013-06-01T12:33:12-02:00"),
-        Arguments.of(
-            "2013-06-01T10:33:12-04:00",
-            ZoneId.of("GMT-04:00"),
-            ZoneId.of("GMT-02:00"),
-            "2013-06-01T08:33:12-04:00"));
-  }
-
-  @ParameterizedTest
-  @MethodSource("translateTimeTestData")
-  void testTranslateTime(String input, ZoneId src, ZoneId dest, String expected) {
-    assertEquals(
-        ZonedDateTime.parse(expected).toInstant(),
-        translateTime(ZonedDateTime.parse(input).toInstant(), src, dest));
   }
 }

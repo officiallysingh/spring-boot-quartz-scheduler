@@ -67,16 +67,12 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
-  // set by the constructors or setName before the trigger is used
+  // set by setKey and setJobKey before the trigger is used
   @SuppressWarnings("NullAway.Init")
-  private String name;
-
-  private String group = Scheduler.DEFAULT_GROUP;
+  private TriggerKey key;
 
   @SuppressWarnings("NullAway.Init")
-  private String jobName;
-
-  private String jobGroup = Scheduler.DEFAULT_GROUP;
+  private JobKey jobKey;
 
   private @Nullable String description;
 
@@ -90,8 +86,6 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
 
   private int priority = DEFAULT_PRIORITY;
 
-  private transient @Nullable TriggerKey key = null;
-
   // the clock of the scheduler, set by bind() when the trigger is scheduled or loaded
   private transient @Nullable Clock clock = null;
 
@@ -104,56 +98,12 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
    */
 
   /**
-   * Create a <code>Trigger</code> with no specified name, group, or <code>
-   * {@link org.quartz.JobDetail}</code>.
-   *
-   * <p>Note that the {@link #setName(String)},{@link #setGroup(String)}and the {@link
-   * #setJobName(String)}and {@link #setJobGroup(String)}methods must be called before the <code>
-   * Trigger</code> can be placed into a {@link Scheduler}.
+   * Create a <code>Trigger</code> without a key or a job: {@link #setKey(TriggerKey)} and {@link
+   * #setJobKey(JobKey)} must be called before the <code>Trigger</code> can be placed into a {@link
+   * Scheduler}.
    */
   protected AbstractTrigger() {
     // do nothing...
-  }
-
-  /**
-   * Create a <code>Trigger</code> with the given name, and default group.
-   *
-   * <p>Note that the {@link #setJobName(String)}and {@link #setJobGroup(String)}methods must be
-   * called before the <code>Trigger</code> can be placed into a {@link Scheduler}.
-   *
-   * @exception IllegalArgumentException if name is null or empty, or the group is an empty string.
-   */
-  protected AbstractTrigger(String name) {
-    setName(name);
-    setGroup(null);
-  }
-
-  /**
-   * Create a <code>Trigger</code> with the given name, and group.
-   *
-   * <p>Note that the {@link #setJobName(String)}and {@link #setJobGroup(String)}methods must be
-   * called before the <code>Trigger</code> can be placed into a {@link Scheduler}.
-   *
-   * @param group if <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
-   * @exception IllegalArgumentException if name is null or empty, or the group is an empty string.
-   */
-  protected AbstractTrigger(String name, @Nullable String group) {
-    setName(name);
-    setGroup(group);
-  }
-
-  /**
-   * Create a <code>Trigger</code> with the given name, and group.
-   *
-   * @param group if <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
-   * @exception IllegalArgumentException if name is null or empty, or the group is an empty string.
-   */
-  protected AbstractTrigger(
-      String name, @Nullable String group, String jobName, @Nullable String jobGroup) {
-    setName(name);
-    setGroup(group);
-    setJobName(jobName);
-    setJobGroup(jobGroup);
   }
 
   /*
@@ -164,131 +114,40 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
-  /** Get the name of this <code>Trigger</code>. */
-  public String getName() {
-    return name;
-  }
-
   /**
-   * Set the name of this <code>Trigger</code>.
+   * Set the trigger's key.
    *
-   * @exception IllegalArgumentException if name is null or empty.
+   * @exception IllegalArgumentException if the name or the group is blank
    */
-  public void setName(String name) {
-    if (name == null || name.trim().isEmpty()) {
-      throw new IllegalArgumentException("Trigger name cannot be null or empty.");
-    }
-
-    this.name = name;
-    this.key = null;
-  }
-
-  /** Get the group of this <code>Trigger</code>. */
-  public String getGroup() {
-    return group;
-  }
-
-  /**
-   * Set the name of this <code>Trigger</code>.
-   *
-   * @param group if <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
-   * @exception IllegalArgumentException if group is an empty string.
-   */
-  public void setGroup(@Nullable String group) {
-    if (group != null && group.trim().isEmpty()) {
-      throw new IllegalArgumentException("Group name cannot be an empty string.");
-    }
-
-    if (group == null) {
-      group = Scheduler.DEFAULT_GROUP;
-    }
-
-    this.group = group;
-    this.key = null;
-  }
-
   public void setKey(TriggerKey key) {
-    setName(key.getName());
-    setGroup(key.getGroup());
+    Objects.requireNonNull(key, "key");
+    if (key.getName().isBlank() || key.getGroup().isBlank()) {
+      throw new IllegalArgumentException("Trigger name and group cannot be blank.");
+    }
     this.key = key;
   }
 
-  /** Get the name of the associated <code>{@link org.quartz.JobDetail}</code>. */
-  public String getJobName() {
-    return jobName;
-  }
-
   /**
-   * Set the name of the associated <code>{@link org.quartz.JobDetail}</code>.
+   * Set the key of the trigger's job.
    *
-   * @exception IllegalArgumentException if jobName is null or empty.
+   * @exception IllegalArgumentException if the name or the group is blank
    */
-  public void setJobName(String jobName) {
-    if (jobName == null || jobName.trim().isEmpty()) {
-      throw new IllegalArgumentException("Job name cannot be null or empty.");
-    }
-
-    this.jobName = jobName;
-  }
-
-  /** Get the name of the associated <code>{@link org.quartz.JobDetail}</code>'s group. */
-  public String getJobGroup() {
-    return jobGroup;
-  }
-
-  /**
-   * Set the name of the associated <code>{@link org.quartz.JobDetail}</code>'s group.
-   *
-   * @param jobGroup if <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
-   * @exception IllegalArgumentException if group is an empty string.
-   */
-  public void setJobGroup(@Nullable String jobGroup) {
-    if (jobGroup != null && jobGroup.trim().isEmpty()) {
-      throw new IllegalArgumentException("Group name cannot be null or empty.");
-    }
-
-    if (jobGroup == null) {
-      jobGroup = Scheduler.DEFAULT_GROUP;
-    }
-
-    this.jobGroup = jobGroup;
-  }
-
   public void setJobKey(JobKey key) {
-    setJobName(key.getName());
-    setJobGroup(key.getGroup());
-  }
-
-  /** Returns the 'full name' of the <code>Trigger</code> in the format "group.name". */
-  public String getFullName() {
-    return group + "." + name;
-  }
-
-  // null only for an incomplete trigger whose name is not set yet, as in Quartz
-  @SuppressWarnings("NullAway")
-  public TriggerKey getKey() {
-    if (key == null) {
-      if (getName() == null) return null;
-      key = new TriggerKey(getName(), getGroup());
+    Objects.requireNonNull(key, "key");
+    if (key.getName().isBlank() || key.getGroup().isBlank()) {
+      throw new IllegalArgumentException("Job name and group cannot be blank.");
     }
+    this.jobKey = key;
+  }
 
+  /** The trigger's key; {@code null} only for an incomplete trigger whose key is not set yet. */
+  public TriggerKey getKey() {
     return key;
   }
 
-  // null only for an incomplete trigger whose job name is not set yet, as in Quartz
-  @SuppressWarnings("NullAway")
+  /** The key of the trigger's job; {@code null} only while it is not set yet. */
   public JobKey getJobKey() {
-    if (getJobName() == null) return null;
-
-    return new JobKey(getJobName(), getJobGroup());
-  }
-
-  /**
-   * Returns the 'full name' of the <code>Job</code> that the <code>Trigger</code> points to, in the
-   * format "group.name".
-   */
-  public String getFullJobName() {
-    return jobGroup + "." + jobName;
+    return jobKey;
   }
 
   /**
@@ -416,7 +275,7 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
    * <p>If not explicitly set, the default value is <code>MISFIRE_INSTRUCTION_SMART_POLICY</code>.
    *
    * @see #MISFIRE_INSTRUCTION_SMART_POLICY
-   * @see #updateAfterMisfire(Calendar)
+   * @see #updateAfterMisfire(Calendar, java.time.Instant)
    * @see SimpleTrigger
    * @see CronTrigger
    */
@@ -439,7 +298,7 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
    * <p>If not explicitly set, the default value is <code>MISFIRE_INSTRUCTION_SMART_POLICY</code>.
    *
    * @see #MISFIRE_INSTRUCTION_SMART_POLICY
-   * @see #updateAfterMisfire(Calendar)
+   * @see #updateAfterMisfire(Calendar, java.time.Instant)
    * @see SimpleTrigger
    * @see CronTrigger
    */
@@ -501,20 +360,12 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
   }
 
   public void validate() throws SchedulerException {
-    if (name == null) {
-      throw new SchedulerException("Trigger's name cannot be null");
+    if (key == null) {
+      throw new SchedulerException("Trigger's key cannot be null");
     }
 
-    if (group == null) {
-      throw new SchedulerException("Trigger's group cannot be null");
-    }
-
-    if (jobName == null) {
-      throw new SchedulerException("Trigger's related Job's name cannot be null");
-    }
-
-    if (jobGroup == null) {
-      throw new SchedulerException("Trigger's related Job's group cannot be null");
+    if (jobKey == null) {
+      throw new SchedulerException("Trigger's related Job's key cannot be null");
     }
   }
 
@@ -538,7 +389,7 @@ public abstract class AbstractTrigger<T extends Trigger> implements OperableTrig
   @Override
   public String toString() {
     return "Trigger '"
-        + getFullName()
+        + key
         + "':  triggerClass: '"
         + getClass().getName()
         + " calendar: '"

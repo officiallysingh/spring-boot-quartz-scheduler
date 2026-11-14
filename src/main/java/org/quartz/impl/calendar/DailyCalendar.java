@@ -387,11 +387,6 @@ public class DailyCalendar extends BaseCalendar {
     setTimeRange(rangeStartingTimeInMillis, rangeEndingTimeInMillis);
   }
 
-  @Override
-  public Object clone() {
-    return (DailyCalendar) super.clone();
-  }
-
   /**
    * Determines whether the given instant is 'included' by the <CODE>BaseCalendar
    * </CODE>

@@ -251,18 +251,6 @@ public class SimpleScheduleBuilder extends ScheduleBuilder<SimpleTrigger> {
   }
 
   /**
-   * Specify a repeat interval in milliseconds.
-   *
-   * @param intervalInMillis the number of milliseconds at which the trigger should repeat.
-   * @return the updated SimpleScheduleBuilder
-   * @see SimpleTrigger#getRepeatInterval()
-   * @see #withRepeatCount(int)
-   */
-  public SimpleScheduleBuilder withIntervalInMilliseconds(long intervalInMillis) {
-    return withInterval(Duration.ofMillis(intervalInMillis));
-  }
-
-  /**
    * Specify a repeat interval, which will then be multiplied by the configured repeat count to
    * produce the total time the trigger will remain in the schedule. The interval is used with
    * millisecond precision.
@@ -337,7 +325,6 @@ public class SimpleScheduleBuilder extends ScheduleBuilder<SimpleTrigger> {
    * @return the updated SimpleScheduleBuilder
    * @see SimpleTrigger#getRepeatCount()
    * @see SimpleTrigger#REPEAT_INDEFINITELY
-   * @see #withIntervalInMilliseconds(long)
    * @see #withIntervalInSeconds(int)
    * @see #withIntervalInMinutes(int)
    * @see #withIntervalInHours(int)

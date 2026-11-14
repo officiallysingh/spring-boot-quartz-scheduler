@@ -96,7 +96,7 @@ class RedisStoreMongoTransactionIT {
             .startNow()
             .withSchedule(
                 SimpleScheduleBuilder.simpleSchedule()
-                    .withIntervalInMilliseconds(100)
+                    .withInterval(Duration.ofMillis(100))
                     .withRepeatCount(1))
             .build());
 

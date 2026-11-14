@@ -21,6 +21,7 @@ package org.quartz.simpl;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.jspecify.annotations.Nullable;
 import org.quartz.SchedulerConfigException;
@@ -52,19 +53,10 @@ public class SimpleThreadPool implements ThreadPool {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
-  private int count = -1;
-
-  private int prio = Thread.NORM_PRIORITY;
+  private final int count;
 
   private boolean isShutdown = false;
   private boolean handoffPending = false;
-
-  private boolean inheritGroup = true;
-
-  private boolean makeThreadsDaemons = false;
-
-  @SuppressWarnings("NullAway.Init")
-  private ThreadGroup threadGroup;
 
   private final Object nextRunnableLock = new Object();
 
@@ -74,12 +66,9 @@ public class SimpleThreadPool implements ThreadPool {
   private final LinkedList<WorkerThread> availWorkers = new LinkedList<>();
   private final LinkedList<WorkerThread> busyWorkers = new LinkedList<>();
 
-  private @Nullable String threadNamePrefix;
+  private final String threadNamePrefix;
 
   private final Logger log = LoggerFactory.getLogger(getClass());
-
-  @SuppressWarnings("NullAway.Init")
-  private String schedulerInstanceName;
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -90,24 +79,14 @@ public class SimpleThreadPool implements ThreadPool {
    */
 
   /**
-   * Create a new (unconfigured) <code>SimpleThreadPool</code>.
+   * Create a pool of {@code threadCount} non-daemon platform threads of normal priority.
    *
-   * @see #setThreadCount(int)
-   * @see #setThreadPriority(int)
+   * @param threadCount the number of worker threads in the pool, must be &gt; 0.
+   * @param threadNamePrefix the prefix of the worker thread names, which are {@code <prefix>-<n>}
    */
-  public SimpleThreadPool() {}
-
-  /**
-   * Create a new <code>SimpleThreadPool</code> with the specified number of <code>Thread</code> s
-   * that have the given priority.
-   *
-   * @param threadCount the number of worker <code>Threads</code> in the pool, must be &gt; 0.
-   * @param threadPriority the thread priority for the worker threads.
-   * @see java.lang.Thread
-   */
-  public SimpleThreadPool(int threadCount, int threadPriority) {
-    setThreadCount(threadCount);
-    setThreadPriority(threadPriority);
+  public SimpleThreadPool(int threadCount, String threadNamePrefix) {
+    this.count = threadCount;
+    this.threadNamePrefix = Objects.requireNonNull(threadNamePrefix, "threadNamePrefix");
   }
 
   /*
@@ -126,92 +105,18 @@ public class SimpleThreadPool implements ThreadPool {
     return getThreadCount();
   }
 
-  /**
-   * Set the number of worker threads in the pool - has no effect after <code>initialize()</code>
-   * has been called.
-   */
-  public void setThreadCount(int count) {
-    this.count = count;
-  }
-
   /** Get the number of worker threads in the pool. */
   public int getThreadCount() {
     return count;
   }
 
   /**
-   * Set the thread priority of worker threads in the pool - has no effect after <code>initialize()
-   * </code> has been called.
-   */
-  public void setThreadPriority(int prio) {
-    this.prio = prio;
-  }
-
-  /** Get the thread priority of worker threads in the pool. */
-  public int getThreadPriority() {
-    return prio;
-  }
-
-  /**
-   * Set the prefix of the worker thread names; default {@code <scheduler name>_Worker}.
-   *
-   * @param prefix the prefix
-   */
-  public void setThreadNamePrefix(String prefix) {
-    this.threadNamePrefix = prefix;
-  }
-
-  /**
    * The prefix of the worker thread names.
    *
-   * @return the prefix, or {@code null} for {@code <scheduler name>_Worker}
+   * @return the prefix
    */
-  public @Nullable String getThreadNamePrefix() {
+  public String getThreadNamePrefix() {
     return threadNamePrefix;
-  }
-
-  /**
-   * Whether the worker threads join the thread group of the thread that initializes the pool,
-   * rather than a group of their own.
-   *
-   * @return whether the initializing thread's group is used
-   */
-  public boolean isThreadsInheritGroupOfInitializingThread() {
-    return inheritGroup;
-  }
-
-  /**
-   * Set whether the worker threads join the thread group of the thread that initializes the pool
-   * (default), rather than a group of their own.
-   *
-   * @param inheritGroup whether to use the initializing thread's group
-   */
-  public void setThreadsInheritGroupOfInitializingThread(boolean inheritGroup) {
-    this.inheritGroup = inheritGroup;
-  }
-
-  /**
-   * Whether the worker threads are daemon threads.
-   *
-   * @return {@code true} for daemon threads
-   */
-  public boolean isMakeThreadsDaemons() {
-    return makeThreadsDaemons;
-  }
-
-  /**
-   * Set whether the worker threads are daemon threads; default {@code false}.
-   *
-   * @param makeThreadsDaemons {@code true} for daemon threads
-   */
-  public void setMakeThreadsDaemons(boolean makeThreadsDaemons) {
-    this.makeThreadsDaemons = makeThreadsDaemons;
-  }
-
-  public void setInstanceId(String schedInstId) {}
-
-  public void setInstanceName(String schedName) {
-    schedulerInstanceName = schedName;
   }
 
   public void initialize() throws SchedulerConfigException {
@@ -221,25 +126,6 @@ public class SimpleThreadPool implements ThreadPool {
 
     if (count <= 0) {
       throw new SchedulerConfigException("Thread count must be > 0");
-    }
-    if (prio <= 0 || prio > 9) {
-      throw new SchedulerConfigException("Thread priority must be > 0 and <= 9");
-    }
-
-    if (isThreadsInheritGroupOfInitializingThread()) {
-      threadGroup = Thread.currentThread().getThreadGroup();
-    } else {
-      // follow the threadGroup tree to the root thread group.
-      threadGroup = Thread.currentThread().getThreadGroup();
-      ThreadGroup parent = threadGroup;
-      while (!parent.getName().equals("main")) {
-        threadGroup = parent;
-        parent = threadGroup.getParent();
-      }
-      threadGroup = new ThreadGroup(parent, schedulerInstanceName + "-SimpleThreadPool");
-      if (isMakeThreadsDaemons()) {
-        threadGroup.setDaemon(true);
-      }
     }
 
     // create the worker threads and start them
@@ -252,17 +138,7 @@ public class SimpleThreadPool implements ThreadPool {
   protected List<WorkerThread> createWorkerThreads(int createCount) {
     workers = new LinkedList<>();
     for (int i = 1; i <= createCount; ++i) {
-      String threadPrefix = getThreadNamePrefix();
-      if (threadPrefix == null) {
-        threadPrefix = schedulerInstanceName + "_Worker";
-      }
-      WorkerThread wt =
-          new WorkerThread(
-              this,
-              threadGroup,
-              threadPrefix + "-" + i,
-              getThreadPriority(),
-              isMakeThreadsDaemons());
+      WorkerThread wt = new WorkerThread(threadNamePrefix + "-" + i);
       workers.add(wt);
     }
 
@@ -270,7 +146,7 @@ public class SimpleThreadPool implements ThreadPool {
   }
 
   /**
-   * Terminate any worker threads in this thread group.
+   * Terminate the worker threads of this pool.
    *
    * <p>Jobs currently in progress will complete.
    */
@@ -279,7 +155,7 @@ public class SimpleThreadPool implements ThreadPool {
   }
 
   /**
-   * Terminate any worker threads in this thread group.
+   * Terminate the worker threads of this pool.
    *
    * <p>Jobs currently in progress will complete.
    */
@@ -383,9 +259,7 @@ public class SimpleThreadPool implements ThreadPool {
       } else {
         // If the thread pool is going down, execute the Runnable
         // within a new additional worker thread (no thread from the pool).
-        WorkerThread wt =
-            new WorkerThread(
-                this, threadGroup, "WorkerThread-LastJob", prio, isMakeThreadsDaemons(), runnable);
+        WorkerThread wt = new WorkerThread("WorkerThread-LastJob", runnable);
         busyWorkers.add(wt);
         workers.add(wt);
         wt.start();
@@ -443,8 +317,6 @@ public class SimpleThreadPool implements ThreadPool {
     // A flag that signals the WorkerThread to terminate.
     private final AtomicBoolean run = new AtomicBoolean(true);
 
-    private final SimpleThreadPool tp;
-
     private @Nullable Runnable runnable;
 
     private boolean runOnce = false;
@@ -453,30 +325,21 @@ public class SimpleThreadPool implements ThreadPool {
      * Create a worker thread and start it. Waiting for the next Runnable, executing it, and waiting
      * for the next Runnable, until the shutdown flag is set.
      */
-    WorkerThread(
-        SimpleThreadPool tp, ThreadGroup threadGroup, String name, int prio, boolean isDaemon) {
-
-      this(tp, threadGroup, name, prio, isDaemon, null);
+    WorkerThread(String name) {
+      this(name, null);
     }
 
     /**
      * Create a worker thread, start it, execute the runnable and terminate the thread (one time
      * execution).
      */
-    WorkerThread(
-        SimpleThreadPool tp,
-        ThreadGroup threadGroup,
-        String name,
-        int prio,
-        boolean isDaemon,
-        @Nullable Runnable runnable) {
-
-      super(threadGroup, name);
-      this.tp = tp;
+    WorkerThread(String name, @Nullable Runnable runnable) {
+      super(name);
       this.runnable = runnable;
       if (runnable != null) runOnce = true;
-      setPriority(prio);
-      setDaemon(isDaemon);
+      // a new thread inherits both from its creator
+      setPriority(Thread.NORM_PRIORITY);
+      setDaemon(false);
     }
 
     /** Signal the thread that it should terminate. */
@@ -530,8 +393,8 @@ public class SimpleThreadPool implements ThreadPool {
             runnable = null;
           }
           // repair the thread in case the runnable mucked it up...
-          if (getPriority() != tp.getThreadPriority()) {
-            setPriority(tp.getThreadPriority());
+          if (getPriority() != Thread.NORM_PRIORITY) {
+            setPriority(Thread.NORM_PRIORITY);
           }
 
           if (runOnce) {

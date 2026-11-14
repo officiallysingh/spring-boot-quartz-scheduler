@@ -71,7 +71,6 @@ import org.springframework.boot.test.context.assertj.AssertableApplicationContex
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.NestedExceptionUtils;
 import org.springframework.core.annotation.Order;
 import org.springframework.data.mongodb.MongoDatabaseFactory;
 import org.springframework.data.mongodb.core.SimpleMongoClientDatabaseFactory;
@@ -369,28 +368,6 @@ class QuartzAutoConfigurationIT extends AbstractMongoIT {
   }
 
   @Test
-  void removedPropertiesFailStartup() {
-    contextRunner
-        .withPropertyValues(
-            "spring.quartz.job-store.mongodb.database=quartz",
-            "spring.quartz.plugins.job-history.enabled=true",
-            "spring.quartz.thread-pool.thread-priority=7")
-        .run(
-            context -> {
-              assertThat(context).hasFailed();
-              Throwable root =
-                  NestedExceptionUtils.getMostSpecificCause(context.getStartupFailure());
-              assertThat(root).isInstanceOf(RemovedPropertiesException.class);
-              RemovedPropertiesException failure = (RemovedPropertiesException) root;
-              assertThat(failure.getProperties())
-                  .containsExactly(
-                      "spring.quartz.job-store.mongodb.database",
-                      "spring.quartz.plugins",
-                      "spring.quartz.thread-pool.thread-priority");
-            });
-  }
-
-  @Test
   void mongoStoreWorksWithoutSpringBootsMongoModuleGivenADatabaseFactory() {
     new ApplicationContextRunner()
         .withClassLoader(new FilteredClassLoader(MongoProperties.class))
@@ -559,6 +536,32 @@ class QuartzAutoConfigurationIT extends AbstractMongoIT {
   }
 
   @Test
+  void aClusteredStoreWithAnInstanceIdSharedByEveryInstanceFailsStartup() {
+    for (String shared : java.util.List.of("NON_CLUSTERED", "SYS_PROP")) {
+      contextRunner
+          .withPropertyValues("spring.quartz.job-store.clustered=true")
+          .withPropertyValues("spring.quartz.scheduler.instance-id=" + shared)
+          .run(
+              context -> {
+                assertThat(context).hasFailed();
+                assertThat(context.getStartupFailure())
+                    .rootCause()
+                    .isInstanceOfSatisfying(
+                        org.quartz.ClusteredInstanceIdException.class,
+                        ex -> assertThat(ex.getInstanceId()).isEqualTo(shared));
+              });
+    }
+    // the default instance id, with only "clustered" set
+    contextRunner
+        .withPropertyValues("spring.quartz.job-store.clustered=true")
+        .run(
+            context ->
+                assertThat(context.getStartupFailure())
+                    .rootCause()
+                    .isInstanceOf(org.quartz.ClusteredInstanceIdException.class));
+  }
+
+  @Test
   void autoInstanceIdUsesTheInstanceIdGeneratorBean() {
     contextRunner
         .withPropertyValues("spring.quartz.scheduler.instance-id=AUTO")
@@ -568,22 +571,6 @@ class QuartzAutoConfigurationIT extends AbstractMongoIT {
             context ->
                 assertThat(context.getBean(Scheduler.class).getSchedulerInstanceId())
                     .isEqualTo("generated-id"));
-  }
-
-  @Test
-  void sysPropInstanceIdReadsTheSystemProperty() {
-    System.setProperty("org.quartz.scheduler.instanceId", "from-system-property");
-    try {
-      contextRunner
-          .withPropertyValues("spring.quartz.scheduler.instance-id=SYS_PROP")
-          .withPropertyValues("spring.quartz.job-store.clustered=true")
-          .run(
-              context ->
-                  assertThat(context.getBean(Scheduler.class).getSchedulerInstanceId())
-                      .isEqualTo("from-system-property"));
-    } finally {
-      System.clearProperty("org.quartz.scheduler.instanceId");
-    }
   }
 
   public static class GreetingService {

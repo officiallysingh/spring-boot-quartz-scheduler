@@ -28,8 +28,6 @@ import org.quartz.utils.Key;
  */
 public class OrMatcher<T extends Key<?>> implements Matcher<T> {
 
-  private static final long serialVersionUID = -2867392824539403712L;
-
   /** One of the matchers, either of which may match. */
   protected Matcher<T> leftOperand;
 

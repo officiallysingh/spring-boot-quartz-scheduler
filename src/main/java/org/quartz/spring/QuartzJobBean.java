@@ -41,10 +41,8 @@ import org.springframework.beans.PropertyAccessorFactory;
  * classes.
  *
  * @author Juergen Hoeller
- * @since 18.02.2004
  * @see org.quartz.JobExecutionContext#getMergedJobDataMap()
  * @see org.quartz.Scheduler#getContext()
- * @see SchedulerFactoryBean#setSchedulerContextAsMap
  * @see SpringBeanJobFactory
  * @see SchedulerFactoryBean#setJobFactory
  */

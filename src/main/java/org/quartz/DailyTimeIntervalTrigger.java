@@ -47,7 +47,6 @@ import org.quartz.DateBuilder.IntervalUnit;
  * values after startTime value. Same reversal logic is applied to endTime with endTimeOfDay.
  *
  * @see DailyTimeIntervalScheduleBuilder
- * @since 2.1.0
  * @author James House
  * @author Zemian Deng &lt;saltnlight5@gmail.com&gt;
  */

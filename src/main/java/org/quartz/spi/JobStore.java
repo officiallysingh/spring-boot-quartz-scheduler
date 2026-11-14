@@ -106,20 +106,6 @@ public interface JobStore {
    */
   void shutdown();
 
-  /**
-   * Whether the store keeps jobs and triggers across restarts; {@code true} for the MongoDB and
-   * Redis stores.
-   *
-   * @return {@code true} if the store is persistent
-   */
-  boolean supportsPersistence();
-
-  /**
-   * How long the <code>JobStore</code> implementation estimates that it will take to release a
-   * trigger and acquire a new one.
-   */
-  Duration getEstimatedTimeToReleaseAndAcquireTrigger();
-
   /** Whether or not the <code>JobStore</code> implementation is clustered. */
   boolean isClustered();
 
@@ -326,24 +312,6 @@ public interface JobStore {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Get the number of <code>{@link org.quartz.Job}</code> s that are stored in the <code>JobsStore
-   * </code>.
-   */
-  int getNumberOfJobs() throws JobPersistenceException;
-
-  /**
-   * Get the number of <code>{@link org.quartz.Trigger}</code> s that are stored in the <code>
-   * JobsStore</code>.
-   */
-  int getNumberOfTriggers() throws JobPersistenceException;
-
-  /**
-   * Get the number of <code>{@link org.quartz.Calendar}</code> s that are stored in the <code>
-   * JobsStore</code>.
-   */
-  int getNumberOfCalendars() throws JobPersistenceException;
-
-  /**
    * Get the keys of all of the <code>{@link org.quartz.Job}</code> s that have the given group
    * name.
    *
@@ -392,53 +360,6 @@ public interface JobStore {
    * <p>If there are no matches, a zero-length array should be returned.
    */
   List<OperableTrigger> getTriggersForJob(JobKey jobKey) throws JobPersistenceException;
-
-  /**
-   * Get all the Triggers that are associated with the Job Group
-   *
-   * <p>If there are no matches, a zero-length array should be returned.
-   *
-   * @param matcher A {@link GroupMatcher} to match job groups
-   * @return list of triggers - may be empty
-   * @throws JobPersistenceException thrown if there is an error
-   * @see #getTriggersByTriggerGroup(GroupMatcher)
-   * @see #getTriggersByJobAndTriggerGroup(GroupMatcher, GroupMatcher)
-   */
-  default List<OperableTrigger> getTriggersByJobGroup(GroupMatcher<JobKey> matcher)
-      throws JobPersistenceException {
-    return getTriggersByJobAndTriggerGroup(matcher, GroupMatcher.anyGroup());
-  }
-
-  /**
-   * Get all the Triggers that are associated with the Job Group
-   *
-   * <p>If there are no matches, a zero-length array should be returned.
-   *
-   * @param matcher A {@link GroupMatcher} to match job groups
-   * @return list of triggers - may be empty
-   * @throws JobPersistenceException thrown if there is an error
-   * @see #getTriggersByJobGroup(GroupMatcher)
-   * @see #getTriggersByJobAndTriggerGroup(GroupMatcher, GroupMatcher)
-   */
-  default List<OperableTrigger> getTriggersByTriggerGroup(GroupMatcher<TriggerKey> matcher)
-      throws JobPersistenceException {
-    return getTriggersByJobAndTriggerGroup(GroupMatcher.anyGroup(), matcher);
-  }
-
-  /**
-   * Get all the Triggers that are associated with the Job &amp; trigger group matcher <br>
-   * note: requires the use of enhanced statements
-   *
-   * @param jobMatcher A {@link GroupMatcher} to match job groups
-   * @param triggerMatcher A {@link GroupMatcher} to match trigger groups
-   * @return list of triggers
-   * @throws JobPersistenceException thrown if there is an error saving the job
-   * @see #getTriggersByJobGroup(GroupMatcher)
-   * @see #getTriggersByTriggerGroup(GroupMatcher)
-   */
-  List<OperableTrigger> getTriggersByJobAndTriggerGroup(
-      GroupMatcher<JobKey> jobMatcher, GroupMatcher<TriggerKey> triggerMatcher)
-      throws JobPersistenceException;
 
   /**
    * Get the current state of the identified <code>{@link Trigger}</code>.
@@ -688,26 +609,14 @@ public interface JobStore {
   /**
    * Inform the <code>JobStore</code> of the Scheduler instance's Id, prior to initialize being
    * invoked.
-   *
-   * @since 1.7
    */
   void setInstanceId(String schedInstId);
 
   /**
    * Inform the <code>JobStore</code> of the Scheduler instance's name, prior to initialize being
    * invoked.
-   *
-   * @since 1.7
    */
   void setInstanceName(String schedName);
-
-  /**
-   * Tells the JobStore the pool size used to execute jobs
-   *
-   * @param poolSize amount of threads allocated for job execution
-   * @since 2.0
-   */
-  void setThreadPoolSize(int poolSize);
 
   /**
    * Get the time to wait when accessing this job store repeatedly fails.

@@ -92,20 +92,4 @@ public interface ThreadPool {
   default String describe() {
     return "with " + getPoolSize() + " threads";
   }
-
-  /**
-   * Inform the <code>ThreadPool</code> of the Scheduler instance's Id, prior to initialize being
-   * invoked.
-   *
-   * @since 1.7
-   */
-  void setInstanceId(String schedInstId);
-
-  /**
-   * Inform the <code>ThreadPool</code> of the Scheduler instance's name, prior to initialize being
-   * invoked.
-   *
-   * @since 1.7
-   */
-  void setInstanceName(String schedName);
 }

@@ -62,7 +62,7 @@ class JobRunShellClassLoaderIT extends AbstractMongoIT {
   @Test
   void jobsOnPlatformThreadsUseTheSchedulersClassLoaderAndTheThreadGetsItsOwnBack()
       throws Exception {
-    SimpleThreadPool pool = new SimpleThreadPool(1, Thread.NORM_PRIORITY);
+    SimpleThreadPool pool = new SimpleThreadPool(1, "test_Worker");
     scheduler =
         StdSchedulerFactory.builder()
             .scheduler(TestSchedulers.scheduler().name("platform").build())

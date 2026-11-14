@@ -125,31 +125,15 @@ class QuartzPropertiesTest {
   }
 
   @Test
-  void removedKeysAreNotBoundAndTheSettingsKeepTheirDefaults() {
-    QuartzProperties properties =
-        bind(
-            Map.of(
-                "spring.quartz.thread-pool.thread-priority", "9",
-                "spring.quartz.thread-pool.daemon", "true",
-                "spring.quartz.job-store.use-properties", "true",
-                "spring.quartz.job-store.acquire-triggers-within-lock", "true",
-                "spring.quartz.scheduler.make-scheduler-thread-daemon", "true"));
-
-    assertThat(properties.threadPool().toSettings()).isEqualTo(ThreadPoolSettings.defaults());
-    assertThat(properties.jobStore().toSettings()).isEqualTo(JobStoreSettings.defaults());
-    assertThat(properties.scheduler().toSettings().makeSchedulerThreadDaemon()).isFalse();
-  }
-
-  @Test
   void instanceIdMapping() {
     SchedulerSettings literal =
         bind(Map.of("spring.quartz.scheduler.instance-id", "node-7")).scheduler().toSettings();
     assertThat(literal.instanceId()).isEqualTo("node-7");
     assertThat(literal.instanceIdAuto()).isFalse();
 
-    QuartzProperties.Scheduler sysProp =
-        bind(Map.of("spring.quartz.scheduler.instance-id", "SYS_PROP")).scheduler();
-    assertThat(sysProp.isSystemPropertyInstanceId()).isTrue();
-    assertThat(sysProp.toSettings().instanceIdAuto()).isTrue();
+    SchedulerSettings auto =
+        bind(Map.of("spring.quartz.scheduler.instance-id", "AUTO")).scheduler().toSettings();
+    assertThat(auto.instanceIdAuto()).isTrue();
+    assertThat(auto.instanceId()).isEqualTo(SchedulerSettings.DEFAULT_INSTANCE_ID);
   }
 }

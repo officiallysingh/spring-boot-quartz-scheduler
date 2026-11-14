@@ -77,11 +77,7 @@ public class RedisJobStore extends PersistentJobStore {
   @Override
   protected StoreLock createClusterLock(String schedulerName, String owner) {
     return new RedisLeaseLock(
-        redis,
-        keys,
-        owner,
-        redisSettings.lockTimeout(),
-        getSettings().acquireTriggersWithinLockRetry());
+        redis, keys, owner, redisSettings.lockTimeout(), getSettings().lockRetryInterval());
   }
 
   /** {@code SET key owner NX PX lease}; released by compare-and-delete. */

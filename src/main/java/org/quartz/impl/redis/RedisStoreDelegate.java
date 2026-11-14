@@ -206,11 +206,6 @@ class RedisStoreDelegate implements StoreDelegate {
   }
 
   @Override
-  public int selectNumJobs() {
-    return (int) selectJobGroups().stream().mapToLong(group -> size(keys.jobs(group))).sum();
-  }
-
-  @Override
   public List<String> selectJobGroups() {
     return new ArrayList<>(members(keys.jobGroups()));
   }
@@ -279,12 +274,6 @@ class RedisStoreDelegate implements StoreDelegate {
   public boolean deleteTrigger(TriggerKey triggerKey) {
     String k = RedisKeys.k(triggerKey);
     return run(RedisScripts.DELETE_TRIGGER, keys.trigger(k), List.of(keys.prefix(), k)) > 0;
-  }
-
-  @Override
-  public int selectNumTriggers() {
-    return (int)
-        selectTriggerGroups().stream().mapToLong(group -> size(keys.triggers(group))).sum();
   }
 
   @Override
@@ -535,11 +524,6 @@ class RedisStoreDelegate implements StoreDelegate {
     return redis.opsForHash().keys(keys.calendars()).stream().map(String.class::cast).toList();
   }
 
-  @Override
-  public int selectNumCalendars() {
-    return redis.opsForHash().size(keys.calendars()).intValue();
-  }
-
   // ------------------------------------------------------------------
   // paused groups
   // ------------------------------------------------------------------
@@ -701,8 +685,10 @@ class RedisStoreDelegate implements StoreDelegate {
   }
 
   @Override
-  public List<FiredTriggerRecord> selectFiredTriggerRecords() {
-    return firedRecords(keys.firedIds());
+  public List<FiredTriggerRecord> selectFiredTriggerRecordsInState(String state) {
+    return firedRecords(keys.firedIds()).stream()
+        .filter(record -> state.equals(record.state()))
+        .toList();
   }
 
   @Override

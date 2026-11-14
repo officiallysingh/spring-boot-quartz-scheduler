@@ -27,7 +27,6 @@ import org.quartz.SchedulerListener;
 import org.quartz.Trigger;
 import org.quartz.TriggerListener;
 import org.quartz.impl.config.QuartzSettings;
-import org.quartz.simpl.SystemPropertyInstanceIdGenerator;
 import org.quartz.spi.InstanceIdGenerator;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.SchedulerPlugin;
@@ -60,7 +59,6 @@ import org.springframework.context.annotation.Import;
  *
  * @author Vedran Pavic
  * @author Stephane Nicoll
- * @since 4.0.0
  */
 @AutoConfiguration(
     afterName = {
@@ -92,7 +90,6 @@ public final class QuartzAutoConfiguration {
       ObjectProvider<Clock> clock,
       ObjectProvider<JobStoreFactory> jobStoreFactories,
       ApplicationContext applicationContext) {
-    RemovedPropertiesException.check(applicationContext.getEnvironment());
     SchedulerFactoryBean schedulerFactoryBean = new SchedulerFactoryBean();
     schedulerFactoryBean.setJobStore(createJobStore(properties, jobStoreFactories));
     SpringBeanJobFactory jobFactory = new SpringBeanJobFactory();
@@ -110,11 +107,7 @@ public final class QuartzAutoConfiguration {
     schedulerFactoryBean.setDefaultJobTransactionPropagation(
         properties.transaction().defaultPropagation());
 
-    if (properties.scheduler().isSystemPropertyInstanceId()) {
-      schedulerFactoryBean.setInstanceIdGenerator(new SystemPropertyInstanceIdGenerator());
-    } else {
-      instanceIdGenerator.ifUnique(schedulerFactoryBean::setInstanceIdGenerator);
-    }
+    instanceIdGenerator.ifUnique(schedulerFactoryBean::setInstanceIdGenerator);
     clock.ifUnique(schedulerFactoryBean::setClock);
     schedulerFactoryBean.setPlugins(plugins);
     schedulerFactoryBean.setJobDetails(jobDetails.orderedStream().toArray(JobDetail[]::new));

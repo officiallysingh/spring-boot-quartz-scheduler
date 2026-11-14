@@ -57,7 +57,6 @@ import org.quartz.TriggerWithState;
 import org.quartz.impl.config.JobStoreSettings;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.impl.matchers.StringMatcher.StringOperatorName;
-import org.quartz.impl.store.codec.JobDataCodec;
 import org.quartz.impl.triggers.SimpleTriggerImpl;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.OperableTrigger;
@@ -70,8 +69,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Base class of the persistent, cluster-capable job stores. It implements the scheduling semantics
- * of Quartz's original JDBC store ({@code JobStoreSupport}) on top of a {@link StoreDelegate} of
- * primitive operations and a {@link StoreLock}:
+ * on top of a {@link StoreDelegate} of primitive operations and a {@link StoreLock}:
  *
  * <ul>
  *   <li>trigger states ({@code WAITING}, {@code ACQUIRED}, {@code PAUSED}, {@code BLOCKED}, {@code
@@ -232,11 +230,11 @@ public abstract class PersistentJobStore implements JobStore {
 
   /**
    * Whether single-trigger acquisition also takes the trigger lock (batches always do). Without it,
-   * acquisition relies on the delegate's conditional {@code WAITING -> ACQUIRED} update. Defaults
-   * to {@link JobStoreSettings#acquireTriggersWithinLock()}.
+   * acquisition relies on the delegate's conditional {@code WAITING -> ACQUIRED} update, which is
+   * the default.
    */
   protected boolean acquireTriggersWithinLock() {
-    return settings.acquireTriggersWithinLock();
+    return false;
   }
 
   /** A store operation. */
@@ -265,14 +263,6 @@ public abstract class PersistentJobStore implements JobStore {
   }
 
   /**
-   * When this instance last checked in with the cluster (only meaningful while a clustered store's
-   * scheduler runs; used by the health indicator).
-   */
-  public Instant getLastCheckin() {
-    return lastCheckin;
-  }
-
-  /**
    * The delegate doing the store's primitive reads and writes; set by {@link #initialize}.
    *
    * @return the delegate
@@ -281,7 +271,7 @@ public abstract class PersistentJobStore implements JobStore {
     return delegate;
   }
 
-  /** The store's lock (exposed for diagnostics and the contract tests). */
+  /** The lock that serializes the store's operations across instances. */
   public StoreLock getLock() {
     return lock;
   }
@@ -338,9 +328,6 @@ public abstract class PersistentJobStore implements JobStore {
   public void setInstanceName(String instanceName) {
     this.instanceName = instanceName;
   }
-
-  @Override
-  public void setThreadPoolSize(int poolSize) {}
 
   @Override
   public void initialize(ClassLoader classLoader, SchedulerSignaler signaler)
@@ -432,18 +419,8 @@ public abstract class PersistentJobStore implements JobStore {
   }
 
   @Override
-  public boolean supportsPersistence() {
-    return true;
-  }
-
-  @Override
   public boolean isClustered() {
     return settings.clustered();
-  }
-
-  @Override
-  public Duration getEstimatedTimeToReleaseAndAcquireTrigger() {
-    return Duration.ofMillis(70);
   }
 
   @Override
@@ -510,31 +487,36 @@ public abstract class PersistentJobStore implements JobStore {
   }
 
   /**
-   * Runs an operation under the given lock ({@code null} for none) and, once the outermost
-   * operation has completed, signals scheduling changes it recorded.
+   * Runs an operation under the given lock ({@code null} for none). Once the outermost operation
+   * has completed, the scheduling changes and job deletions it recorded are told to the scheduler:
+   * after its transaction is committed and its locks are released, and with no operation bound to
+   * the thread, so that a listener may take its time or call the scheduler again.
    */
   protected <T extends @Nullable Object> T executeInLock(
       @Nullable String lockName, StoreCallback<T> callback) throws JobPersistenceException {
     if (operation.isBound()) {
-      return execute(operation.get(), false, lockName, callback);
+      return execute(operation.get(), lockName, callback);
     }
     Operation op = new Operation();
-    return ScopedValue.where(operation, op).call(() -> execute(op, true, lockName, callback));
+    T result = ScopedValue.where(operation, op).call(() -> execute(op, lockName, callback));
+    if (op.pending) {
+      signaler.signalSchedulingChange(op.candidate);
+    }
+    for (JobKey jobKey : op.deletedJobs) {
+      signaler.notifySchedulerListenersJobDeleted(jobKey);
+    }
+    return result;
   }
 
   private <T extends @Nullable Object> T execute(
-      Operation op, boolean outermost, @Nullable String lockName, StoreCallback<T> callback)
+      Operation op, @Nullable String lockName, StoreCallback<T> callback)
       throws JobPersistenceException {
     boolean owner = false;
     try {
       if (lockName != null) {
         owner = obtainLock(op, lockName);
       }
-      T result = inTransaction(callback);
-      if (outermost && op.pending) {
-        signaler.signalSchedulingChange(op.candidate);
-      }
-      return result;
+      return inTransaction(callback);
     } catch (JobPersistenceException ex) {
       throw ex;
     } catch (RuntimeException ex) {
@@ -611,6 +593,9 @@ public abstract class PersistentJobStore implements JobStore {
     final Set<String> heldLocks = new HashSet<>();
     boolean pending;
     @Nullable Instant candidate;
+
+    /** The jobs the operation deleted; the scheduler listeners are told at the end. */
+    final Set<JobKey> deletedJobs = new LinkedHashSet<>();
   }
 
   // ------------------------------------------------------------------
@@ -623,7 +608,7 @@ public abstract class PersistentJobStore implements JobStore {
     executeInLock(
         LOCK_TRIGGER_ACCESS,
         () -> {
-          storeJob(newJob, false, true);
+          storeJobInternal(newJob, false);
           storeTrigger(newTrigger, newJob, false, STATE_WAITING, false, false);
           return null;
         });
@@ -634,18 +619,17 @@ public abstract class PersistentJobStore implements JobStore {
     executeInLock(
         LOCK_TRIGGER_ACCESS,
         () -> {
-          storeJob(newJob, replaceExisting, true);
+          storeJobInternal(newJob, replaceExisting);
           return null;
         });
   }
 
-  private void storeJob(JobDetail newJob, boolean replaceExisting, boolean unused)
+  private void storeJobInternal(JobDetail newJob, boolean replaceExisting)
       throws JobPersistenceException {
     boolean exists = delegate.jobExists(newJob.getKey());
     if (exists && !replaceExisting) {
       throw new ObjectAlreadyExistsException(newJob);
     }
-    JobDataCodec.checkUseProperties(newJob.getJobDataMap(), settings.useProperties());
     if (exists) {
       delegate.updateJob(newJob);
     } else {
@@ -661,7 +645,7 @@ public abstract class PersistentJobStore implements JobStore {
         LOCK_TRIGGER_ACCESS,
         () -> {
           for (Map.Entry<JobDetail, Set<? extends Trigger>> entry : triggersAndJobs.entrySet()) {
-            storeJob(entry.getKey(), replace, true);
+            storeJobInternal(entry.getKey(), replace);
             for (Trigger trigger : entry.getValue()) {
               storeTrigger(
                   (OperableTrigger) trigger, entry.getKey(), replace, STATE_WAITING, false, false);
@@ -680,7 +664,20 @@ public abstract class PersistentJobStore implements JobStore {
     for (TriggerKey triggerKey : delegate.selectTriggerKeysForJob(jobKey)) {
       delegate.deleteTrigger(triggerKey);
     }
-    return delegate.deleteJob(jobKey);
+    return deleteJobAndRecord(jobKey);
+  }
+
+  /**
+   * Deletes a job and records the deletion: the store reports every job it deletes to the scheduler
+   * listeners ({@link SchedulerSignaler#notifySchedulerListenersJobDeleted}), once, when the
+   * operation has completed.
+   */
+  private boolean deleteJobAndRecord(JobKey jobKey) {
+    boolean deleted = delegate.deleteJob(jobKey);
+    if (deleted && operation.isBound()) {
+      operation.get().deletedJobs.add(jobKey);
+    }
+    return deleted;
   }
 
   @Override
@@ -720,11 +717,6 @@ public abstract class PersistentJobStore implements JobStore {
   @Override
   public boolean checkExists(JobKey jobKey) throws JobPersistenceException {
     return executeWithoutLock(() -> delegate.jobExists(jobKey));
-  }
-
-  @Override
-  public int getNumberOfJobs() throws JobPersistenceException {
-    return executeWithoutLock(delegate::selectNumJobs);
   }
 
   @Override
@@ -801,7 +793,6 @@ public abstract class PersistentJobStore implements JobStore {
     if (job.isConcurrentExecutionDisallowed() && !recovering) {
       state = checkBlockedState(job.getKey(), state);
     }
-    JobDataCodec.checkUseProperties(newTrigger.getJobDataMap(), settings.useProperties());
     if (existing) {
       delegate.updateTrigger(newTrigger, state);
     } else {
@@ -837,7 +828,7 @@ public abstract class PersistentJobStore implements JobStore {
     JobDetail job = (trigger != null) ? delegate.selectJob(trigger.getJobKey()) : null;
     boolean removed = delegate.deleteTrigger(triggerKey);
     if (job != null && !job.isDurable() && delegate.selectNumTriggersForJob(job.getKey()) == 0) {
-      delegate.deleteJob(job.getKey());
+      deleteJobAndRecord(job.getKey());
     }
     return removed;
   }
@@ -898,11 +889,6 @@ public abstract class PersistentJobStore implements JobStore {
   }
 
   @Override
-  public int getNumberOfTriggers() throws JobPersistenceException {
-    return executeWithoutLock(delegate::selectNumTriggers);
-  }
-
-  @Override
   public Set<TriggerKey> getTriggerKeys(GroupMatcher<TriggerKey> matcher)
       throws JobPersistenceException {
     return executeWithoutLock(() -> triggerKeys(matcher));
@@ -935,23 +921,6 @@ public abstract class PersistentJobStore implements JobStore {
       }
     }
     return triggers;
-  }
-
-  @Override
-  public List<OperableTrigger> getTriggersByJobAndTriggerGroup(
-      GroupMatcher<JobKey> jobMatcher, GroupMatcher<TriggerKey> triggerMatcher)
-      throws JobPersistenceException {
-    return executeWithoutLock(
-        () -> {
-          List<OperableTrigger> triggers = new ArrayList<>();
-          for (TriggerKey key : triggerKeys(triggerMatcher)) {
-            OperableTrigger trigger = delegate.selectTrigger(key);
-            if (trigger != null && jobMatcher.isMatch(trigger.getJobKey())) {
-              triggers.add(trigger);
-            }
-          }
-          return triggers;
-        });
   }
 
   @Override
@@ -1110,11 +1079,6 @@ public abstract class PersistentJobStore implements JobStore {
   }
 
   @Override
-  public int getNumberOfCalendars() throws JobPersistenceException {
-    return executeWithoutLock(delegate::selectNumCalendars);
-  }
-
-  @Override
   public List<String> getCalendarNames() throws JobPersistenceException {
     return executeWithoutLock(delegate::selectCalendarNames);
   }
@@ -1225,7 +1189,7 @@ public abstract class PersistentJobStore implements JobStore {
     String newState = checkBlockedState(trigger.getJobKey(), STATE_WAITING);
     boolean misfired = false;
     if (schedulerRunning && trigger.getNextFireTime().isBefore(getSchedulingTime())) {
-      misfired = updateMisfiredTrigger(triggerKey, newState, true);
+      misfired = updateMisfiredTrigger(triggerKey, newState);
     }
     if (!misfired) {
       delegate.updateTriggerStateFromOtherStates(
@@ -1598,7 +1562,6 @@ public abstract class PersistentJobStore implements JobStore {
     if (jobDetail.isPersistJobDataAfterExecution()
         && jobDetail.getJobDataMap().isDirty()
         && delegate.jobExists(jobDetail.getKey())) {
-      JobDataCodec.checkUseProperties(jobDetail.getJobDataMap(), settings.useProperties());
       delegate.updateJobData(jobDetail);
     }
     if (trigger.getFireInstanceId() != null) {
@@ -1625,15 +1588,13 @@ public abstract class PersistentJobStore implements JobStore {
    * thread calls this periodically.
    */
   public MisfireResult recoverMisfiredTriggers() throws JobPersistenceException {
-    if (settings.doubleCheckLockMisfireHandler()) {
-      // peek before taking the lock
-      int count =
-          executeWithoutLock(
-              () -> delegate.countMisfiredTriggersInState(STATE_WAITING, getMisfireTime()));
-      if (count == 0) {
-        log.debug("Found 0 triggers that missed their scheduled fire-time.");
-        return MisfireResult.NO_OP;
-      }
+    // peek before taking the lock
+    int count =
+        executeWithoutLock(
+            () -> delegate.countMisfiredTriggersInState(STATE_WAITING, getMisfireTime()));
+    if (count == 0) {
+      log.debug("Found 0 triggers that missed their scheduled fire-time.");
+      return MisfireResult.NO_OP;
     }
     return executeInLock(LOCK_TRIGGER_ACCESS, () -> recoverMisfiredJobs(false));
   }
@@ -1697,20 +1658,19 @@ public abstract class PersistentJobStore implements JobStore {
    * Apply the misfire instruction of one trigger, if it has misfired.
    *
    * @param triggerKey the trigger
-   * @param newStateIfNotComplete the state to store if the trigger fires again
-   * @param forceState whether to store that state whatever the trigger's current state
+   * @param newStateIfNotComplete the state to store if the trigger fires again, whatever its
+   *     current state
    * @return {@code false} if the trigger is gone or has not misfired
    * @throws JobPersistenceException if the store fails
    */
-  protected boolean updateMisfiredTrigger(
-      TriggerKey triggerKey, String newStateIfNotComplete, boolean forceState)
+  protected boolean updateMisfiredTrigger(TriggerKey triggerKey, String newStateIfNotComplete)
       throws JobPersistenceException {
     OperableTrigger trigger = delegate.selectTrigger(triggerKey);
     Instant nextFireTime = (trigger != null) ? trigger.getNextFireTime() : null;
     if (trigger == null || nextFireTime == null || nextFireTime.isAfter(getMisfireTime())) {
       return false;
     }
-    doUpdateOfMisfiredTrigger(trigger, forceState, newStateIfNotComplete, false);
+    doUpdateOfMisfiredTrigger(trigger, true, newStateIfNotComplete, false);
     return true;
   }
 
@@ -1909,11 +1869,6 @@ public abstract class PersistentJobStore implements JobStore {
     return instances;
   }
 
-  /** The check-in records of all instances (for tests and diagnostics). */
-  public List<SchedulerStateRecord> getSchedulerStates() throws JobPersistenceException {
-    return executeWithoutLock(delegate::selectSchedulerStateRecords);
-  }
-
   /**
    * Checks in, and recovers the work of instances that stopped checking in.
    *
@@ -2105,7 +2060,7 @@ public abstract class PersistentJobStore implements JobStore {
 
     StoreThread(String suffix) {
       setName("QuartzScheduler_" + instanceName + "-" + instanceId + "_" + suffix);
-      setDaemon(settings.makeThreadsDaemons());
+      setDaemon(false); // a new thread inherits it from its creator
       setContextClassLoader(classLoader);
     }
 

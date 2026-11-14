@@ -68,12 +68,6 @@ public class QuartzMetrics implements SchedulerPlugin {
     scheduler.getListenerManager().addTriggerListener(new TriggerMetrics());
   }
 
-  @Override
-  public void start() {}
-
-  @Override
-  public void shutdown() {}
-
   private final class JobMetrics extends JobListenerSupport {
 
     @Override

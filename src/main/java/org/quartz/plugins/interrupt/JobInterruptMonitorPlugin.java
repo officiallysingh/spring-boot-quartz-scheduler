@@ -17,7 +17,6 @@
 package org.quartz.plugins.interrupt;
 
 import java.time.Duration;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -60,8 +59,6 @@ import org.slf4j.LoggerFactory;
  */
 public class JobInterruptMonitorPlugin extends TriggerListenerSupport implements SchedulerPlugin {
 
-  private static final String JOB_INTERRUPT_MONITOR_KEY = "JOB_INTERRUPT_MONITOR_KEY";
-
   private Duration defaultMaxRunTime = Duration.ofMinutes(5);
 
   @SuppressWarnings("NullAway.Init")
@@ -88,9 +85,6 @@ public class JobInterruptMonitorPlugin extends TriggerListenerSupport implements
 
   /** Create the plugin with a default maximum run time of 5 minutes. */
   public JobInterruptMonitorPlugin() {}
-
-  @Override
-  public void start() {}
 
   @Override
   public void shutdown() {
@@ -140,33 +134,21 @@ public class JobInterruptMonitorPlugin extends TriggerListenerSupport implements
   }
 
   public void triggerFired(Trigger trigger, JobExecutionContext context) {
-    // Call the scheduleJobInterruptMonitor and capture the ScheduledFuture in context
-    try {
-      // Schedule Monitor only if the job wants AutoInterruptable functionality
-      if (context.getMergedJobDataMap().getBoolean(AUTO_INTERRUPTIBLE)) {
-        // the plugin puts itself into the scheduler context when it starts
-        JobInterruptMonitorPlugin monitorPlugin =
-            (JobInterruptMonitorPlugin)
-                Objects.requireNonNull(
-                    context.getScheduler().getContext().get(JOB_INTERRUPT_MONITOR_KEY));
-        // Get the MaxRuntime (milliseconds) from Job Data if NOT available use defaultMaxRunTime
-        // from Plugin Configuration
-        Duration jobDataDelay = defaultMaxRunTime;
+    // schedule the monitor only if the job asks to be interrupted automatically
+    if (context.getMergedJobDataMap().getBoolean(AUTO_INTERRUPTIBLE)) {
+      // the maximum run time (milliseconds) from the job data, else the plugin's default
+      Duration jobDataDelay = defaultMaxRunTime;
 
-        if (context.getMergedJobDataMap().get(MAX_RUN_TIME) != null) {
-          jobDataDelay = Duration.ofMillis(context.getMergedJobDataMap().getLong(MAX_RUN_TIME));
-        }
-        ScheduledFuture<?> future =
-            monitorPlugin.scheduleJobInterruptMonitor(
-                context.getJobDetail().getKey(), jobDataDelay);
-        futures.put(context.getFireInstanceId(), future);
-        getLog()
-            .debug(
-                "Job's Interrupt Monitor has been scheduled to interrupt with the delay :{}",
-                jobDataDelay);
+      if (context.getMergedJobDataMap().get(MAX_RUN_TIME) != null) {
+        jobDataDelay = Duration.ofMillis(context.getMergedJobDataMap().getLong(MAX_RUN_TIME));
       }
-    } catch (SchedulerException e) {
-      getLog().info("Error scheduling interrupt monitor {}", e.getMessage(), e);
+      ScheduledFuture<?> future =
+          scheduleJobInterruptMonitor(context.getJobDetail().getKey(), jobDataDelay);
+      futures.put(context.getFireInstanceId(), future);
+      getLog()
+          .debug(
+              "Job's Interrupt Monitor has been scheduled to interrupt with the delay :{}",
+              jobDataDelay);
     }
   }
 
@@ -190,7 +172,6 @@ public class JobInterruptMonitorPlugin extends TriggerListenerSupport implements
     ScheduledThreadPoolExecutor threadPoolExecutor = new ScheduledThreadPoolExecutor(1);
     threadPoolExecutor.setRemoveOnCancelPolicy(true);
     this.executor = threadPoolExecutor;
-    scheduler.getContext().put(JOB_INTERRUPT_MONITOR_KEY, this);
     this.scheduler = scheduler;
     // Set the trigger Listener as this class to the ListenerManager here
     this.scheduler.getListenerManager().addTriggerListener(this);

@@ -62,7 +62,6 @@ import org.springframework.util.Assert;
  *
  * @author Vedran Pavic
  * @author Stephane Nicoll
- * @since 4.0.0
  */
 @Endpoint(id = "quartz")
 public class QuartzEndpoint {

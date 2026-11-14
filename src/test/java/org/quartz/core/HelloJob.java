@@ -16,7 +16,7 @@
  *
  */
 
-package org.quartz.integrations.tests;
+package org.quartz.core;
 
 import java.time.Instant;
 import org.quartz.Job;

@@ -15,10 +15,10 @@
  * under the License.
  *
  */
-package org.quartz.integrations.tests;
+package org.quartz.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.quartz.integrations.tests.TrackingJob.SCHEDULED_TIMES_KEY;
+import static org.quartz.core.TrackingJob.SCHEDULED_TIMES_KEY;
 
 import java.util.Collections;
 import java.util.LinkedList;

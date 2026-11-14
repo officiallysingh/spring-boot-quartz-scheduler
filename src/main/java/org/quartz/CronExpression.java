@@ -262,7 +262,6 @@ public final class CronExpression implements Serializable {
 
   protected transient boolean lastDayOfWeek = false;
   protected transient int nthDayOfWeek = 0;
-  protected transient boolean expressionParsed = false;
 
   /** The last year an expression is evaluated for: 100 years from the current year. */
   public static final int MAX_YEAR = Year.now().getValue() + 100;
@@ -321,20 +320,9 @@ public final class CronExpression implements Serializable {
     testDateCal.set(LenientDateTime.MILLISECOND, 0);
     Instant originalDate = testDateCal.toInstant();
 
-    Instant timeAfter = getTimeAfter(originalDate.minusSeconds(1));
+    Instant timeAfter = getNextValidTimeAfter(originalDate.minusSeconds(1));
 
     return ((timeAfter != null) && (timeAfter.equals(originalDate)));
-  }
-
-  /**
-   * Returns the next date/time <I>after</I> the given date/time which satisfies the cron
-   * expression.
-   *
-   * @param date the date/time at which to begin the search for the next valid date/time
-   * @return the next valid date/time
-   */
-  public @Nullable Instant getNextValidTimeAfter(Instant date) {
-    return getTimeAfter(date);
   }
 
   /**
@@ -354,7 +342,7 @@ public final class CronExpression implements Serializable {
 
     Instant newDate;
 
-    // FUTURE_TODO: (QUARTZ-481) IMPROVE THIS! The following is a BAD solution to this problem.
+    // FUTURE_TODO: improve this. The following is a BAD solution to this problem.
     // Performance will be very bad here, depending on the cron expression. It is, however A
     // solution.
 
@@ -362,7 +350,7 @@ public final class CronExpression implements Serializable {
     // apart. At that point, lastDate is the last valid fire time. We return
     // the second immediately following it.
     while (difference == 1000) {
-      newDate = getTimeAfter(lastDate);
+      newDate = getNextValidTimeAfter(lastDate);
       if (newDate == null) break;
 
       difference = newDate.toEpochMilli() - lastDate.toEpochMilli();
@@ -426,18 +414,6 @@ public final class CronExpression implements Serializable {
     return true;
   }
 
-  /**
-   * Check that a cron expression is valid.
-   *
-   * @param cronExpression the expression
-   * @throws ParseException if it is not valid, with the position of the problem
-   * @see #isValidExpression(String)
-   */
-  public static void validateExpression(String cronExpression) throws ParseException {
-
-    new CronExpression(cronExpression);
-  }
-
   ////////////////////////////////////////////////////////////////////////////
   //
   // Expression Parsing Functions
@@ -445,8 +421,6 @@ public final class CronExpression implements Serializable {
   ////////////////////////////////////////////////////////////////////////////
 
   protected void buildExpression(String expression) throws ParseException {
-    expressionParsed = true;
-
     try {
 
       if (seconds == null) {
@@ -945,32 +919,6 @@ public final class CronExpression implements Serializable {
     return buf.toString();
   }
 
-  protected String getExpressionSetSummary(java.util.ArrayList<Integer> list) {
-
-    if (list.contains(NO_SPEC)) {
-      return "?";
-    }
-    if (list.contains(ALL_SPEC)) {
-      return "*";
-    }
-
-    StringBuilder buf = new StringBuilder();
-
-    Iterator<Integer> itr = list.iterator();
-    boolean first = true;
-    while (itr.hasNext()) {
-      Integer iVal = itr.next();
-      String val = iVal.toString();
-      if (!first) {
-        buf.append(",");
-      }
-      buf.append(val);
-      first = false;
-    }
-
-    return buf.toString();
-  }
-
   protected int skipWhiteSpace(int i, String s) {
     for (; i < s.length() && (s.charAt(i) == ' ' || s.charAt(i) == '\t'); i++) {}
 
@@ -1192,7 +1140,14 @@ public final class CronExpression implements Serializable {
   //
   ////////////////////////////////////////////////////////////////////////////
 
-  public @Nullable Instant getTimeAfter(Instant afterTime) {
+  /**
+   * Returns the next date/time <I>after</I> the given date/time which satisfies the cron
+   * expression.
+   *
+   * @param afterTime the date/time at which to begin the search for the next valid date/time
+   * @return the next valid date/time
+   */
+  public @Nullable Instant getNextValidTimeAfter(Instant afterTime) {
 
     // Computation is based on Gregorian year only.
     ZoneId zone = getTimeZone();
@@ -1593,12 +1548,12 @@ public final class CronExpression implements Serializable {
    */
   public @Nullable Instant getTimeBefore(Instant endTime) {
     // the current implementation is not a direct calculation, but rather
-    // uses getTimeAfter with a binary search to find the previous match time
+    // uses getNextValidTimeAfter with a binary search to find the previous match time
     long end = endTime.toEpochMilli();
     long min = 0; // the epoch date is the minimum supported by this class
     long max = end;
     // check if it's satisfiable at all
-    Instant after = getTimeAfter(Instant.ofEpochMilli(min));
+    Instant after = getNextValidTimeAfter(Instant.ofEpochMilli(min));
     if (after == null || after.toEpochMilli() >= end)
       return null; // there are no after-times before end
     // from this point forward min's time-after is always less than end,
@@ -1608,7 +1563,7 @@ public final class CronExpression implements Serializable {
     long interval = 60 * 60 * 1000; // start with a reasonable interval
     while (interval < max) {
       long candidate = max - interval;
-      after = getTimeAfter(Instant.ofEpochMilli(candidate));
+      after = getNextValidTimeAfter(Instant.ofEpochMilli(candidate));
       if (after != null && after.toEpochMilli() < max) {
         min = candidate; // found a closer min
         break;
@@ -1620,19 +1575,11 @@ public final class CronExpression implements Serializable {
     // this moment is the previous match time itself
     while (max - min > 1000) { // we can stop at 1 second resolution
       long mid = (min + max) >>> 1;
-      after = getTimeAfter(Instant.ofEpochMilli(mid));
+      after = getNextValidTimeAfter(Instant.ofEpochMilli(mid));
       if (after != null && after.toEpochMilli() < end) min = mid;
       else max = mid;
     }
     return Instant.ofEpochMilli(max - max % 1000); // round to second
-  }
-
-  /**
-   * NOT YET IMPLEMENTED: Returns the final time that the <code>CronExpression</code> will match.
-   */
-  public @Nullable Instant getFinalFireTime() {
-    // FUTURE_TODO: implement QUARTZ-423
-    return null;
   }
 
   protected boolean isLeapYear(int year) {

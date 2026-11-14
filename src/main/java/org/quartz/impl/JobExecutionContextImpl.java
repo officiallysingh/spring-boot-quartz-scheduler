@@ -31,7 +31,6 @@ import org.quartz.JobExecutionContext;
 import org.quartz.RecoveryInfo;
 import org.quartz.Scheduler;
 import org.quartz.Trigger;
-import org.quartz.TriggerKey;
 import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.TriggerFiredBundle;
 
@@ -134,19 +133,6 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
   /** {@inheritDoc} */
   public boolean isRecovering() {
     return recovering;
-  }
-
-  public TriggerKey getRecoveringTriggerKey() {
-    if (!isRecovering()) {
-      throw new IllegalStateException("Not a recovering job");
-    }
-    // the store puts the original execution into the data of a recovering job
-    return getRecoveryInfo()
-        .map(RecoveryInfo::originalTrigger)
-        .orElseThrow(
-            () ->
-                new IllegalStateException(
-                    "The recovering job's data lacks the FAILED_JOB_ORIGINAL_* entries"));
   }
 
   /** {@inheritDoc} */

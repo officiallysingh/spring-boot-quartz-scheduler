@@ -69,7 +69,7 @@ import org.quartz.TriggerBuilder;
 import org.quartz.TriggerKey;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.spi.OperableTrigger;
-import org.quartz.spring.DelegatingJob;
+import org.quartz.spring.QuartzJobBean;
 import org.quartz.spring.boot.actuate.endpoint.QuartzEndpoint.QuartzDescriptor;
 import org.quartz.spring.boot.actuate.endpoint.QuartzEndpoint.QuartzJobDetailsDescriptor;
 import org.quartz.spring.boot.actuate.endpoint.QuartzEndpoint.QuartzJobGroupSummaryDescriptor;
@@ -91,7 +91,7 @@ class QuartzEndpointTest {
       JobBuilder.newJob(Job.class).withIdentity("jobOne").build();
 
   private static final JobDetail jobTwo =
-      JobBuilder.newJob(DelegatingJob.class).withIdentity("jobTwo").build();
+      JobBuilder.newJob(QuartzJobBean.class).withIdentity("jobTwo").build();
 
   private static final JobDetail jobThree =
       JobBuilder.newJob(Job.class).withIdentity("jobThree", "samples").build();
@@ -229,7 +229,7 @@ class QuartzEndpointTest {
     assertThat(jobOne.getClassName()).isEqualTo(Job.class.getName());
     QuartzJobSummaryDescriptor jobTwo = jobSummaries.get("jobTwo");
     assertThat(jobTwo).isNotNull();
-    assertThat(jobTwo.getClassName()).isEqualTo(DelegatingJob.class.getName());
+    assertThat(jobTwo.getClassName()).isEqualTo(QuartzJobBean.class.getName());
   }
 
   @Test

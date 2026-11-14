@@ -26,11 +26,6 @@ import org.jspecify.annotations.Nullable;
 public class StringKeyDirtyFlagMap extends DirtyFlagMap<String, Object> {
   private static final long serialVersionUID = -9076749120524952280L;
 
-  /** Create an empty, clean map. */
-  public StringKeyDirtyFlagMap() {
-    super();
-  }
-
   /**
    * Create an empty, clean map.
    *
@@ -38,16 +33,6 @@ public class StringKeyDirtyFlagMap extends DirtyFlagMap<String, Object> {
    */
   public StringKeyDirtyFlagMap(int initialCapacity) {
     super(initialCapacity);
-  }
-
-  /**
-   * Create an empty, clean map.
-   *
-   * @param initialCapacity the initial capacity of the backing map
-   * @param loadFactor the load factor of the backing map
-   */
-  public StringKeyDirtyFlagMap(int initialCapacity, float loadFactor) {
-    super(initialCapacity, loadFactor);
   }
 
   @Override
@@ -58,11 +43,6 @@ public class StringKeyDirtyFlagMap extends DirtyFlagMap<String, Object> {
   @Override
   public int hashCode() {
     return getWrappedMap().hashCode();
-  }
-
-  /** Get a copy of the Map's String keys in an array of Strings. */
-  public String[] getKeys() {
-    return keySet().toArray(new String[size()]);
   }
 
   /** Adds the given <code>int</code> value to the <code>StringKeyDirtyFlagMap</code>. */
@@ -107,9 +87,11 @@ public class StringKeyDirtyFlagMap extends DirtyFlagMap<String, Object> {
   }
 
   /**
-   * Retrieve the identified <code>int</code> value from the <code>StringKeyDirtyFlagMap</code>.
+   * Retrieve the identified <code>int</code> value from the <code>StringKeyDirtyFlagMap</code>. A
+   * {@code String} value is parsed.
    *
-   * @throws ClassCastException if the identified object is not an Integer.
+   * @throws ClassCastException if the identified object is neither an Integer nor a {@code String}
+   *     that parses as one, or if there is none.
    */
   public int getInt(String key) {
     Object obj = get(key);
@@ -123,9 +105,11 @@ public class StringKeyDirtyFlagMap extends DirtyFlagMap<String, Object> {
   }
 
   /**
-   * Retrieve the identified <code>long</code> value from the <code>StringKeyDirtyFlagMap</code>.
+   * Retrieve the identified <code>long</code> value from the <code>StringKeyDirtyFlagMap</code>. A
+   * {@code String} value is parsed.
    *
-   * @throws ClassCastException if the identified object is not a Long.
+   * @throws ClassCastException if the identified object is neither a Long nor a {@code String} that
+   *     parses as one, or if there is none.
    */
   public long getLong(String key) {
     Object obj = get(key);
@@ -139,9 +123,11 @@ public class StringKeyDirtyFlagMap extends DirtyFlagMap<String, Object> {
   }
 
   /**
-   * Retrieve the identified <code>float</code> value from the <code>StringKeyDirtyFlagMap</code>.
+   * Retrieve the identified <code>float</code> value from the <code>StringKeyDirtyFlagMap</code>. A
+   * {@code String} value is parsed.
    *
-   * @throws ClassCastException if the identified object is not a Float.
+   * @throws ClassCastException if the identified object is neither a Float nor a {@code String}
+   *     that parses as one, or if there is none.
    */
   public float getFloat(String key) {
     Object obj = get(key);
@@ -156,8 +142,10 @@ public class StringKeyDirtyFlagMap extends DirtyFlagMap<String, Object> {
 
   /**
    * Retrieve the identified <code>double</code> value from the <code>StringKeyDirtyFlagMap</code>.
+   * A {@code String} value is parsed.
    *
-   * @throws ClassCastException if the identified object is not a Double.
+   * @throws ClassCastException if the identified object is neither a Double nor a {@code String}
+   *     that parses as one, or if there is none.
    */
   public double getDouble(String key) {
     Object obj = get(key);
@@ -172,8 +160,10 @@ public class StringKeyDirtyFlagMap extends DirtyFlagMap<String, Object> {
 
   /**
    * Retrieve the identified <code>boolean</code> value from the <code>StringKeyDirtyFlagMap</code>.
+   * A {@code String} value is parsed with {@link Boolean#parseBoolean(String)}; a key that is not
+   * present gives {@code false}.
    *
-   * @throws ClassCastException if the identified object is not a Boolean.
+   * @throws ClassCastException if the identified object is neither a Boolean nor a {@code String}.
    */
   public boolean getBoolean(String key) {
     Object obj = get(key);
@@ -187,9 +177,11 @@ public class StringKeyDirtyFlagMap extends DirtyFlagMap<String, Object> {
   }
 
   /**
-   * Retrieve the identified <code>char</code> value from the <code>StringKeyDirtyFlagMap</code>.
+   * Retrieve the identified <code>char</code> value from the <code>StringKeyDirtyFlagMap</code>. A
+   * {@code String} value gives its first character.
    *
-   * @throws ClassCastException if the identified object is not a Character.
+   * @throws ClassCastException if the identified object is neither a Character nor a {@code String}
+   *     with at least one character, or if there is none.
    */
   public char getChar(String key) {
     Object obj = get(key);

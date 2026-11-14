@@ -22,28 +22,11 @@ import org.quartz.JobPersistenceException;
 /**
  * Encodes {@link JobDataMap}s. A map whose values are all {@code String}, {@code Integer}, {@code
  * Long}, {@code Double} or {@code Boolean} (and whose keys are plain field names) is stored
- * natively, so it stays readable in the store; any other map is stored Java-serialized. With {@code
- * useProperties} only {@code String} values are accepted, as with the original JDBC store.
+ * natively, so it stays readable in the store; any other map is stored Java-serialized.
  */
 public final class JobDataCodec {
 
   private JobDataCodec() {}
-
-  /** Fails if {@code useProperties} is set and a value is not a {@code String}. */
-  public static void checkUseProperties(@Nullable JobDataMap data, boolean useProperties)
-      throws JobPersistenceException {
-    if (!useProperties || data == null) {
-      return;
-    }
-    for (Map.Entry<String, Object> entry : data.entrySet()) {
-      if (!(entry.getValue() instanceof String)) {
-        throw new JobPersistenceException(
-            "JobDataMap values must be Strings when the 'useProperties' "
-                + "setting is enabled. Key of offending value: "
-                + entry.getKey());
-      }
-    }
-  }
 
   /** Whether the map can be stored natively (see class comment). */
   public static boolean isNative(JobDataMap data) {

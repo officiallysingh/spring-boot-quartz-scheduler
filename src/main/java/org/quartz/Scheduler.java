@@ -19,6 +19,7 @@
 package org.quartz;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
@@ -111,15 +112,6 @@ public interface Scheduler {
    * @see org.quartz.JobDetail#requestsRecovery()
    */
   String DEFAULT_RECOVERY_GROUP = "RECOVERING_JOBS";
-
-  /**
-   * A constant <code>Trigger</code> group name used internally by the scheduler - clients should
-   * not use the value of this constant ("FAILED_OVER_JOBS") for the name of a <code>Trigger</code>
-   * 's group.
-   *
-   * @see org.quartz.JobDetail#requestsRecovery()
-   */
-  String DEFAULT_FAIL_OVER_GROUP = "FAILED_OVER_JOBS";
 
   /**
    * The <code>Trigger</code> group of the one-off triggers created by {@link #triggerJob(JobKey)},
@@ -254,16 +246,17 @@ public interface Scheduler {
    *
    * @throws SchedulerException if <code>shutdown()</code> has been called, or there is an error
    *     within the <code>Scheduler</code>.
-   * @see #startDelayed(int)
+   * @see #startDelayed(Duration)
    * @see #standby()
    * @see #shutdown()
    */
   void start() throws SchedulerException;
 
   /**
-   * Calls {#start()} after the indicated number of seconds. (This call does not block). This can be
-   * useful within applications that have initializers that create the scheduler immediately, before
-   * the resources needed by the executing jobs have been fully initialized.
+   * Calls {@link #start()} after the given delay, which must not be {@code null}. (This call does
+   * not block). This can be useful within applications that have initializers that create the
+   * scheduler immediately, before the resources needed by the executing jobs have been fully
+   * initialized.
    *
    * @throws SchedulerException if <code>shutdown()</code> has been called, or there is an error
    *     within the <code>Scheduler</code>.
@@ -271,7 +264,7 @@ public interface Scheduler {
    * @see #standby()
    * @see #shutdown()
    */
-  void startDelayed(int seconds) throws SchedulerException;
+  void startDelayed(Duration delay) throws SchedulerException;
 
   /**
    * Whether the scheduler has been started.

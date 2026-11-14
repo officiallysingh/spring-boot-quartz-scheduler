@@ -15,7 +15,7 @@ package org.quartz.impl.config;
 
 import java.util.Objects;
 
-/** The complete typed configuration of a scheduler, replacing {@code quartz.properties}. */
+/** The complete typed configuration of a scheduler. */
 public record QuartzSettings(SchedulerSettings scheduler, ThreadPoolSettings threadPool) {
 
   /**

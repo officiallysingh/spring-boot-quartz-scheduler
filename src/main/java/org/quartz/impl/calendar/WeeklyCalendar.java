@@ -18,7 +18,6 @@
 
 package org.quartz.impl.calendar;
 
-import java.io.Serializable;
 import java.time.Instant;
 import java.time.ZoneId;
 import org.jspecify.annotations.Nullable;
@@ -35,7 +34,7 @@ import org.quartz.utils.LenientDateTime;
  * @see org.quartz.impl.calendar.BaseCalendar
  * @author Juergen Donnerstag
  */
-public class WeeklyCalendar extends BaseCalendar implements Calendar, Serializable {
+public class WeeklyCalendar extends BaseCalendar {
   private static final long serialVersionUID = -6809298821229007586L;
 
   // An array to store the week days which are to be excluded.
@@ -86,13 +85,6 @@ public class WeeklyCalendar extends BaseCalendar implements Calendar, Serializab
     excludeDays[DateBuilder.SUNDAY] = true;
     excludeDays[DateBuilder.SATURDAY] = true;
     excludeAll = areAllDaysExcluded();
-  }
-
-  @Override
-  public Object clone() {
-    WeeklyCalendar clone = (WeeklyCalendar) super.clone();
-    clone.excludeDays = excludeDays.clone();
-    return clone;
   }
 
   /** Get the array with the week days */

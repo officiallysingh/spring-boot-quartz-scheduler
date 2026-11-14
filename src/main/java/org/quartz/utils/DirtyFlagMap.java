@@ -72,16 +72,6 @@ public class DirtyFlagMap<K, V> implements Map<K, V>, Cloneable, java.io.Seriali
     map = new HashMap<>(initialCapacity);
   }
 
-  /**
-   * Create a DirtyFlagMap that 'wraps' a <code>HashMap</code> that has the given initial capacity
-   * and load factor.
-   *
-   * @see java.util.HashMap
-   */
-  public DirtyFlagMap(final int initialCapacity, final float loadFactor) {
-    map = new HashMap<>(initialCapacity, loadFactor);
-  }
-
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    *

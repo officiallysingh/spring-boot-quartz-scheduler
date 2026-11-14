@@ -22,7 +22,8 @@ import java.text.ParseException;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
-class Quartz601Test {
+/** Ranges that wrap around the end of a field, such as {@code 58-4} seconds or {@code FRI-TUE}. */
+class CronExpressionRangeWrapTest {
   @Test
   void testNormal() {
     for (int i = 0; i < 6; i++) {
@@ -30,34 +31,42 @@ class Quartz601Test {
     }
   }
 
+  @Test
   void testSecond() {
     assertParsesForField("58-4 5 21 ? * MON-FRI", 0);
   }
 
+  @Test
   void testMinute() {
     assertParsesForField("0 58-4 21 ? * MON-FRI", 1);
   }
 
+  @Test
   void testHour() {
     assertParsesForField("0 0/5 21-3 ? * MON-FRI", 2);
   }
 
+  @Test
   void testDayOfWeekNumber() {
     assertParsesForField("58 5 21 ? * 6-2", 5);
   }
 
+  @Test
   void testDayOfWeek() {
     assertParsesForField("58 5 21 ? * FRI-TUE", 5);
   }
 
+  @Test
   void testDayOfMonth() {
     assertParsesForField("58 5 21 28-5 1 ?", 3);
   }
 
+  @Test
   void testMonth() {
     assertParsesForField("58 5 21 ? 11-2 FRI", 4);
   }
 
+  @Test
   void testAmbiguous() {
     assertParsesForField("0 0 14-6 ? * FRI-MON", 2);
     assertParsesForField("0 0 14-6 ? * FRI-MON", 5);

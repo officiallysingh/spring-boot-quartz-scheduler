@@ -19,6 +19,7 @@
 package org.quartz.impl;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
@@ -107,14 +108,12 @@ public class StdScheduler implements Scheduler {
         getSchedulerName(),
         getSchedulerInstanceId(),
         getClass(),
-        false,
         isStarted(),
         isInStandbyMode(),
         isShutdown(),
         sched.runningSince(),
         sched.numJobsExecuted(),
         sched.getJobStoreClass(),
-        sched.supportsPersistence(),
         sched.isClustered(),
         sched.getThreadPoolClass(),
         sched.getThreadPoolSize(),
@@ -149,8 +148,8 @@ public class StdScheduler implements Scheduler {
   }
 
   /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
-  public void startDelayed(int seconds) throws SchedulerException {
-    sched.startDelayed(seconds);
+  public void startDelayed(Duration delay) throws SchedulerException {
+    sched.startDelayed(delay);
   }
 
   /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */

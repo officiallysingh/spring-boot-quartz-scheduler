@@ -3,6 +3,149 @@
 Changes to the public API, behaviour and storage format, by release. Breaking changes are marked
 **Breaking**.
 
+## 1.0.0-rc5 (2026-11-14)
+
+The library is cleaned up as a product of its own: one set of configuration properties, and no
+API or code kept only because Quartz or Spring had it. Every removal below is **Breaking** for
+code that used the removed member; the replacement is named where there is one.
+
+### Configuration
+
+- **Breaking**: `spring.quartz.scheduler.instance-id: SYS_PROP` is removed, with
+  `SystemPropertyInstanceIdGenerator`, `QuartzProperties.SYSTEM_PROPERTY_INSTANCE_ID` and
+  `QuartzProperties.Scheduler.isSystemPropertyInstanceId()`. Set the id itself, for example
+  `instance-id: ${HOSTNAME}` or the `SPRING_QUARTZ_SCHEDULER_INSTANCEID` environment variable, or
+  use `AUTO` with an `InstanceIdGenerator` bean. `SYS_PROP` is now taken as a literal instance id.
+- **Breaking**: the 1.0.0-rc1 properties that later versions rejected (`spring.quartz.plugins.*`,
+  `spring.quartz.job-store.mongodb.database`, thread priority and daemon flags, store locking
+  options) no longer stop the application: `RemovedPropertiesException`, its failure analyzer and
+  the error-level metadata entries are removed. Such a key is ignored like any unknown key.
+  `QuartzProperties` is the whole configuration.
+- Configuration metadata for `management.health.quartz.enabled` and
+  `management.metrics.quartz.enabled` (both switches existed).
+- **Breaking** (settings records): options without a property are fixed in code at their former
+  defaults and are no longer settings. `ThreadPoolSettings` is `(threadCount, threadNamePrefix,
+  virtualThreads)`; `SchedulerSettings.makeSchedulerThreadDaemon` is removed; `JobStoreSettings`
+  loses `acquireTriggersWithinLock`, `useProperties`, `doubleCheckLockMisfireHandler` and
+  `makeThreadsDaemons`, and `acquireTriggersWithinLockRetry` is renamed `lockRetryInterval`.
+- Removed the unused `HostnameInstanceIdGenerator`.
+
+### Spring integration
+
+- **Breaking**: a `SchedulerFactoryBean` without `setJobFactory` uses `SpringBeanJobFactory`, so
+  jobs of an application-defined factory bean get dependency injection and job data applied to
+  their setters (it used `AdaptableJobFactory`, which did neither). `AdaptableJobFactory` is merged
+  into `SpringBeanJobFactory`, whose `createJobInstance` returns `Job`. The auto-configured
+  scheduler already used `SpringBeanJobFactory`.
+- Removed `DelegatingJob` and `Runnable` job classes: a job class always had to implement `Job`.
+- `SchedulerAccessor` is merged into `SchedulerFactoryBean`, its only subclass; the setters are
+  unchanged. Its protected `logger`, `registerJobsAndTriggers()` and `registerListeners()` are
+  private now.
+- Removed `SchedulerAccessor.setTransactionManager` (the stores run their own transactions),
+  `SchedulerFactoryBean.setSchedulerContextAsMap` and `setApplicationContextSchedulerContextKey`
+  (inject beans into jobs; `spring.quartz.scheduler.context` and `Scheduler.getContext()` remain),
+  and `SpringBeanJobFactory.setIgnoredUnknownProperties`.
+
+### Scheduler behaviour
+
+- `SchedulerListener.jobDeleted` is reported for every job that is deleted, exactly once, by the
+  job store: also for a job that is not durable and goes with its last trigger (a trigger that
+  completes, `unscheduleJob`, `unscheduleJobs`), which was never reported before. `deleteJobs` no
+  longer reports keys that were not stored. The listeners are told after the store operation has
+  committed and released its lock, so a listener may call the scheduler; `unscheduleJob` and
+  `unscheduleJobs` report `jobUnscheduled` first, then `jobDeleted`.
+- **Breaking**: a scheduler on a clustered job store does not start with an instance id every
+  instance would share: `NON_CLUSTERED` (the default, when only `clustered: true` is set) or
+  `SYS_PROP`. It fails with the new `ClusteredInstanceIdException`, explained by a failure
+  analyzer. Instances with the same id recover each other's running jobs and run them twice.
+- `LocalTaskExecutorThreadPool` treats an unlimited `SimpleAsyncTaskExecutor`, a
+  `VirtualThreadTaskExecutor` and the JDK's thread-per-task executors as executors without a
+  limit (an INFO line) instead of warning that their limit cannot be read; `describe()` tells the
+  two cases apart.
+- `Scheduler.startDelayed(null)` throws at once; the scheduler silently never started.
+- `@DisallowConcurrentExecution` and `@PersistJobDataAfterExecution` are also found as
+  meta-annotations of an application's own annotation.
+- `VirtualThreadPool` logs a runnable that throws, as `SimpleThreadPool` does; the exception went
+  to the thread's uncaught exception handler.
+- The scheduler thread and the worker threads are no longer in thread groups of their own
+  (`QuartzScheduler:<name>`); thread names are unchanged.
+- `JobInterruptMonitorPlugin` no longer puts itself into the `SchedulerContext`, so two instances
+  of the plugin do not replace each other.
+- `SchedulerMetaData.getSummary()` no longer says "running locally" and "supports persistence".
+
+### Scheduler API
+
+- **Breaking**: `Scheduler.startDelayed(Duration)` replaces `startDelayed(int seconds)`.
+- **Breaking**: `CronExpression.getTimeAfter(Instant)` is removed; it was a second name of
+  `getNextValidTimeAfter(Instant)`.
+- **Breaking** (trigger implementations): an `AbstractTrigger` holds a `TriggerKey` and a `JobKey`.
+  `setName`, `setGroup`, `setJobName`, `setJobGroup` and their getters are removed (`setKey`,
+  `setJobKey`, `getKey`, `getJobKey`), as are the constructors of `CalendarIntervalTriggerImpl`
+  and `DailyTimeIntervalTriggerImpl` that take arguments: build triggers with `TriggerBuilder`.
+  A blank key name or group is rejected by `setKey` / `setJobKey`.
+- **Breaking**: removed the string-mode methods of `JobDataMap` (`putAsString`, `get*FromString`,
+  `getIntValue`, `getLongValue`, `getFloatValue`, `getDoubleValue`, `getBooleanValue`). `put` and
+  the typed getters (`getInt`, `getLong`, `getBoolean`, …, which accept strings) remain.
+- Removed, with their replacement:
+  - `JobExecutionContext.getRecoveringTriggerKey()`: `getRecoveryInfo()` (`originalTrigger()`).
+  - `SimpleScheduleBuilder.withIntervalInMilliseconds(long)`: `withInterval(Duration)`.
+  - `CronScheduleBuilder.cronScheduleNonvalidatedExpression(String)`:
+    `cronSchedule(new CronExpression(String))`.
+  - `JobBuilder.setJobData(JobDataMap)`: `usingJobData(JobDataMap)`.
+  - `TimeOfDay.hourAndMinuteFromDate` and `hourAndMinuteAndSecondFromDate`: the constructors, from
+    `instant.atZone(zone)`.
+  - `CronExpression.validateExpression(String)`: `new CronExpression(String)` or
+    `isValidExpression(String)`.
+  - `SchedulerException.getUnderlyingException()`: `getCause()`.
+  - `Broadcast{Job,Trigger,Scheduler}Listener`: register each listener with the `ListenerManager`.
+  - `Calendar.clone()` (`Calendar` is no longer `Cloneable`): the scheduler hands out its own copy
+    of a stored calendar.
+- Removed without replacement: `DateBuilder.translateTime` and the `DateBuilder` millisecond
+  constants, `CronExpression.getFinalFireTime()` (it always returned `null`),
+  `CronTriggerImpl.willFireOn`, `TriggerUtils`, `Scheduler.DEFAULT_FAIL_OVER_GROUP`,
+  `Calendar.MONTH`, `org.quartz.utils.ClassUtils`, `SchedulerMetaData.isSchedulerRemote()` and
+  `isJobStoreSupportsPersistence()` (constants) with its 15-argument constructor,
+  `AbstractTrigger.getFullName()` / `getFullJobName()`, the `CoreTrigger` interface,
+  `StringKeyDirtyFlagMap.getKeys()` and the unused constructors of the typed maps, unused
+  `LenientDateTime` constants, and the `serialVersionUID` constants declared on `Trigger`,
+  `SimpleTrigger` and `CronTrigger`. `Matcher` and `SchedulerMetaData` are no longer
+  `Serializable`.
+
+### SPI and internals
+
+- `ThreadPool.setInstanceId` and `setInstanceName` are removed: a pool is given its thread-name
+  prefix when it is created. `SimpleThreadPool(int threadCount, String threadNamePrefix)` and
+  `VirtualThreadPool(int maxConcurrency, String threadNamePrefix)` are the only constructors, and
+  `setThreadNamePrefix` is removed. `SchedulerPlugin.start()` and `shutdown()` are default methods
+  that do nothing.
+- `OperableTrigger.updateAfterMisfire(Calendar, Instant)` and `updateWithNewCalendar(Calendar,
+  Duration, Instant)` are the only misfire updates; the overloads without the scheduler's time
+  are removed.
+- `JobStore.supportsPersistence()`, `getEstimatedTimeToReleaseAndAcquireTrigger()`,
+  `setThreadPoolSize(int)`, `getNumberOfJobs()`, `getNumberOfTriggers()`, `getNumberOfCalendars()`
+  and the three `getTriggersBy…Group` lookups are removed, with the `StoreDelegate` counts behind
+  them. `StoreDelegate.selectInterruptRequestedFireInstanceIds` and
+  `selectFiredTriggerRecordsInState` are abstract, and `selectFiredTriggerRecords()` is removed.
+  `PersistentJobStore.getSchedulerStates()` is removed (`getSchedulerInstances()`).
+- The priority, daemon and thread-group accessors of `SimpleThreadPool` are removed, as is
+  `VirtualThreadPool.getMaxConcurrency()`.
+- `JobRunShell` no longer has `begin()`, `complete(boolean)` and `requestShutdown()`, and is not a
+  `SchedulerListener`; `executeJob` remains the hook for subclasses.
+- Removed `StdSchedulerFactory.getSettings()`, `getLog()` and the `instantiate(resources,
+  scheduler)` hook; `QuartzScheduler.getSchedulerThreadGroup()`, `supportsPersistence()` and
+  `removeInternalSchedulerListener`; the daemon flag of `QuartzSchedulerResources`;
+  `PersistentJobStore.getLastCheckin()`; `LeaseStoreLock.getOwner()` / `getLeaseTime()`;
+  `JobDataCodec.checkUseProperties`; `JobDetailCodec.PERSIST_JOB_DATA`.
+
+### Storage format
+
+- Job records in MongoDB and Redis no longer carry `persistJobData` and `nonConcurrent`: both were
+  written and never read, the job class's annotations decide.
+- The Java-serialized form of a custom trigger class changes: `AbstractTrigger` serializes its
+  `TriggerKey` and `JobKey` instead of four name fields. This needs no conversion: the store reads
+  a trigger's keys from the record's own key fields, which are unchanged, also for a trigger
+  serialized by 1.0.0-rc4.
+
 ## 1.0.0-rc4 (2026-11-12)
 
 ### Time zone and clock
@@ -52,7 +195,7 @@ Changes to the public API, behaviour and storage format, by release. Breaking ch
   `DailyTimeIntervalScheduleBuilder.endingDailyAfterCount()` is time-of-day arithmetic (it used the
   system clock and zone).
 - Cluster check-ins, liveness and lock leases stay on the system clock, because instances compare
-  them with each other; said on `Scheduler.getClock()` and `PersistentJobStore.CHECKIN_CLOCK`.
+  them with each other; said on `Scheduler.getClock()`.
 - SPI: `OperableTrigger.bind(Clock, ZoneId)`; `SchedulerSignaler.getClock()` and `getTimeZone()`
   (with defaults for third-party signalers); `TriggerCodec.decode(fields, data, classLoader, clock,
   zone)`; `InstantMessageFormat.format(zone, pattern, args...)`; `Instants.now(InstantSource)`

@@ -18,7 +18,6 @@
 
 package org.quartz.impl.calendar;
 
-import java.io.Serializable;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Collections;
@@ -38,7 +37,7 @@ import org.quartz.utils.LenientDateTime;
  * @author Sharada Jambula
  * @author Juergen Donnerstag
  */
-public class HolidayCalendar extends BaseCalendar implements Calendar, Serializable {
+public class HolidayCalendar extends BaseCalendar {
   private static final long serialVersionUID = -7590908752291814693L;
 
   // A sorted set to store the holidays
@@ -79,13 +78,6 @@ public class HolidayCalendar extends BaseCalendar implements Calendar, Serializa
    */
   public HolidayCalendar(@Nullable Calendar baseCalendar, @Nullable ZoneId timeZone) {
     super(baseCalendar, timeZone);
-  }
-
-  @Override
-  public Object clone() {
-    HolidayCalendar clone = (HolidayCalendar) super.clone();
-    clone.dates = new TreeSet<>(dates);
-    return clone;
   }
 
   /**
@@ -132,10 +124,6 @@ public class HolidayCalendar extends BaseCalendar implements Calendar, Serializa
    */
   public void addExcludedDate(Instant excludedDate) {
     Instant date = getStartOfDay(excludedDate).toInstant();
-    /*
-     * System.err.println( "HolidayCalendar.add(): date=" +
-     * excludedDate.toLocaleString());
-     */
     this.dates.add(date);
   }
 

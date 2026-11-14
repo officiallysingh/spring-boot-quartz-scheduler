@@ -1,0 +1,84 @@
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ * Copyright IBM Corp. 2024, 2025
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ */
+
+package org.quartz;
+
+import java.time.Instant;
+import java.util.LinkedList;
+import java.util.List;
+import org.quartz.spi.OperableTrigger;
+
+/**
+ * Test support: computes the next fire times of a trigger.
+ *
+ * @author James House
+ */
+public class TriggerUtils {
+
+  /*
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   *
+   * Constants.
+   *
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   */
+
+  /** Private constructor because this is a pure utility class. */
+  private TriggerUtils() {}
+
+  /*
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   *
+   * Interface.
+   *
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   */
+
+  /**
+   * Returns a list of Dates that are the next fire times of a <code>Trigger</code>. The input
+   * trigger will be cloned before any work is done, so you need not worry about its state being
+   * altered by this method.
+   *
+   * @param trigger The trigger upon which to do the work
+   * @param cal The calendar to apply to the trigger's schedule
+   * @param numTimes The number of next fire times to produce
+   * @return List of java.time.Instant objects
+   */
+  public static List<Instant> computeFireTimes(
+      OperableTrigger trigger, org.quartz.Calendar cal, int numTimes) {
+    LinkedList<Instant> lst = new LinkedList<>();
+
+    OperableTrigger t = (OperableTrigger) trigger.clone();
+
+    if (t.getNextFireTime() == null) {
+      t.computeFirstFireTime(cal);
+    }
+
+    for (int i = 0; i < numTimes; i++) {
+      Instant d = t.getNextFireTime();
+      if (d != null) {
+        lst.add(d);
+        t.triggered(cal);
+      } else {
+        break;
+      }
+    }
+
+    return java.util.Collections.unmodifiableList(lst);
+  }
+}

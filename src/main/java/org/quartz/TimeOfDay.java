@@ -21,7 +21,6 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import org.jspecify.annotations.Nullable;
 import org.quartz.utils.LenientDateTime;
 import org.springframework.lang.Contract;
@@ -32,7 +31,6 @@ import org.springframework.lang.Contract;
  * <p>The hour is in 24-hour convention, meaning values are from 0 to 23.
  *
  * @see DailyTimeIntervalScheduleBuilder
- * @since 2.0.3
  * @author James House
  * @author Zemian Deng &lt;saltnlight5@gmail.com&gt;
  */
@@ -192,36 +190,6 @@ public class TimeOfDay implements Serializable {
   /** Create a TimeOfDay from the hour, minute and second of the given {@link LocalTime}. */
   public static TimeOfDay from(LocalTime localTime) {
     return new TimeOfDay(localTime.getHour(), localTime.getMinute(), localTime.getSecond());
-  }
-
-  /**
-   * Create a TimeOfDay from the given date, in the given time zone. There is no overload without a
-   * zone: a time of day is only defined in one.
-   *
-   * @param dateTime The instant from which to extract Hour, Minute and Second.
-   * @param tz The time zone from which relate Hour, Minute and Second for the given date.
-   */
-  @Contract("null, _ -> null; !null, _ -> !null")
-  public static @Nullable TimeOfDay hourAndMinuteAndSecondFromDate(
-      @Nullable Instant dateTime, ZoneId tz) {
-    if (dateTime == null) return null;
-    ZonedDateTime cal = dateTime.atZone(tz);
-
-    return new TimeOfDay(cal.getHour(), cal.getMinute(), cal.getSecond());
-  }
-
-  /**
-   * Create a TimeOfDay from the given date (at the zero-second), in the given time zone.
-   *
-   * @param dateTime The instant from which to extract Hour and Minute.
-   * @param tz The time zone from which relate Hour and Minute for the given date.
-   */
-  @Contract("null, _ -> null; !null, _ -> !null")
-  public static @Nullable TimeOfDay hourAndMinuteFromDate(@Nullable Instant dateTime, ZoneId tz) {
-    if (dateTime == null) return null;
-    ZonedDateTime cal = dateTime.atZone(tz);
-
-    return new TimeOfDay(cal.getHour(), cal.getMinute());
   }
 
   @Override

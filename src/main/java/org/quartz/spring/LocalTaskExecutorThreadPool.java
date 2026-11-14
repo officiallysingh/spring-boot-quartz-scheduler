@@ -21,15 +21,18 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import org.jspecify.annotations.Nullable;
 import org.quartz.impl.config.ThreadPoolSettings;
 import org.quartz.spi.ThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
+import org.springframework.core.task.VirtualThreadTaskExecutor;
 import org.springframework.scheduling.concurrent.ConcurrentTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.util.Assert;
+import org.springframework.util.ConcurrencyThrottleSupport;
 
 /**
  * Quartz {@link ThreadPool} adapter that delegates to a Spring-managed {@link Executor} instance,
@@ -49,10 +52,13 @@ import org.springframework.util.Assert;
  *       it has one.
  * </ul>
  *
- * An executor that sets no limit (an unlimited {@code SimpleAsyncTaskExecutor}, a cached thread
- * pool, a virtual-thread-per-task executor, or any other executor) is limited to the {@linkplain
- * #setDefaultCapacity default capacity}: {@code spring.quartz.thread-pool.thread-count} when the
- * adapter comes from {@link SchedulerFactoryBean#setTaskExecutor}, otherwise {@value
+ * An executor that sets no limit (an unlimited {@code SimpleAsyncTaskExecutor}, a {@link
+ * VirtualThreadTaskExecutor}, a cached thread pool, the JDK's thread-per-task executors) is limited
+ * to the {@linkplain #setDefaultCapacity default capacity}, and so is any other executor, whose
+ * limit cannot be read; that case is logged as a warning, because such an executor may run fewer
+ * jobs at once than the default. The default capacity is {@code
+ * spring.quartz.thread-pool.thread-count} when the adapter comes from {@link
+ * SchedulerFactoryBean#setTaskExecutor}, otherwise {@value
  * ThreadPoolSettings#DEFAULT_THREAD_COUNT}. Unbounded concurrency would start every due job at
  * once, overwhelming the systems the jobs use, and in a cluster let one node take all due triggers.
  * An explicit capacity is used as given.
@@ -61,7 +67,6 @@ import org.springframework.util.Assert;
  * The executor itself is not shut down: it belongs to the application.
  *
  * @author Juergen Hoeller
- * @since 2.0
  * @see SchedulerFactoryBean#setTaskExecutor
  */
 public class LocalTaskExecutorThreadPool implements ThreadPool {
@@ -69,7 +74,15 @@ public class LocalTaskExecutorThreadPool implements ThreadPool {
   /** Logger available to subclasses. */
   protected final Logger logger = LoggerFactory.getLogger(getClass());
 
+  /** The executor's limit cannot be read. */
   private static final int UNKNOWN = -1;
+
+  /** The executor is known to set no limit. */
+  private static final int UNLIMITED = Integer.MAX_VALUE;
+
+  // not a public class: Executors.newVirtualThreadPerTaskExecutor() and newThreadPerTaskExecutor()
+  private static final String JDK_THREAD_PER_TASK_EXECUTOR =
+      "java.util.concurrent.ThreadPerTaskExecutor";
 
   private final Executor taskExecutor;
 
@@ -81,7 +94,8 @@ public class LocalTaskExecutorThreadPool implements ThreadPool {
 
   private int defaultCapacity = ThreadPoolSettings.DEFAULT_THREAD_COUNT;
 
-  private boolean capacityIsDefault;
+  // why the default capacity is used, for describe(); null when the capacity is the executor's own
+  private @Nullable String defaultCapacityReason;
 
   private int running;
 
@@ -114,12 +128,6 @@ public class LocalTaskExecutorThreadPool implements ThreadPool {
     this.capacity = capacity;
   }
 
-  @Override
-  public void setInstanceId(String schedInstId) {}
-
-  @Override
-  public void setInstanceName(String schedName) {}
-
   /**
    * The capacity used when the capacity is derived and the executor sets no limit; default {@value
    * ThreadPoolSettings#DEFAULT_THREAD_COUNT}.
@@ -135,16 +143,16 @@ public class LocalTaskExecutorThreadPool implements ThreadPool {
   public void initialize() {
     if (this.capacity == UNKNOWN) {
       int derived = capacityOf(this.taskExecutor);
-      if (derived == Integer.MAX_VALUE) {
+      if (derived == UNLIMITED) {
         this.capacity = this.defaultCapacity;
-        this.capacityIsDefault = true;
+        this.defaultCapacityReason = "the executor sets no limit";
         logger.info(
             "{} sets no limit on concurrent tasks: running at most {} jobs at a time",
             this.taskExecutor.getClass().getName(),
             this.capacity);
       } else if (derived == UNKNOWN) {
         this.capacity = this.defaultCapacity;
-        this.capacityIsDefault = true;
+        this.defaultCapacityReason = "the executor's limit cannot be read";
         // a bounded executor behind a wrapper (Executors.newSingleThreadExecutor, a decorator)
         // looks unlimited: jobs beyond its real limit would wait in its queue, already fired
         logger.warn(
@@ -176,9 +184,16 @@ public class LocalTaskExecutorThreadPool implements ThreadPool {
               : threadPoolExecutor.getCorePoolSize();
       return (size > 0) ? size : UNKNOWN;
     }
-    if (executor instanceof SimpleAsyncTaskExecutor simpleAsyncTaskExecutor
-        && simpleAsyncTaskExecutor.getConcurrencyLimit() > 0) {
-      return simpleAsyncTaskExecutor.getConcurrencyLimit();
+    if (executor instanceof SimpleAsyncTaskExecutor simpleAsyncTaskExecutor) {
+      int limit = simpleAsyncTaskExecutor.getConcurrencyLimit();
+      if (limit == ConcurrencyThrottleSupport.UNBOUNDED_CONCURRENCY) {
+        return UNLIMITED;
+      }
+      return (limit > 0) ? limit : UNKNOWN;
+    }
+    if (executor instanceof VirtualThreadTaskExecutor
+        || JDK_THREAD_PER_TASK_EXECUTOR.equals(executor.getClass().getName())) {
+      return UNLIMITED;
     }
     return UNKNOWN;
   }
@@ -220,7 +235,7 @@ public class LocalTaskExecutorThreadPool implements ThreadPool {
         + ", at most "
         + this.capacity
         + " concurrent jobs"
-        + (this.capacityIsDefault ? " (the executor sets no limit)" : "");
+        + ((this.defaultCapacityReason != null) ? " (" + this.defaultCapacityReason + ")" : "");
   }
 
   @Override

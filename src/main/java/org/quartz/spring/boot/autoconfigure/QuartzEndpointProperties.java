@@ -26,7 +26,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * Configuration properties for {@link QuartzEndpoint}.
  *
  * @author Madhura Bhave
- * @since 4.0.0
  */
 @ConfigurationProperties("management.endpoint.quartz")
 public class QuartzEndpointProperties {

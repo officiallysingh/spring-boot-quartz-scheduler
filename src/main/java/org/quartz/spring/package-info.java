@@ -15,9 +15,8 @@
  */
 
 /**
- * Spring integration for the scheduler, ported from Spring Framework's {@code
- * org.springframework.scheduling.quartz} and adapted to the {@code java.time} API and typed
- * configuration of this library.
+ * Spring integration for the scheduler: the {@link org.quartz.spring.SchedulerFactoryBean}, the
+ * Spring-aware job factory, transactions around jobs and the executor-backed thread pool.
  */
 @NullMarked
 package org.quartz.spring;

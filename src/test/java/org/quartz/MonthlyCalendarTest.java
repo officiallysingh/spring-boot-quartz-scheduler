@@ -23,7 +23,7 @@ import org.quartz.impl.calendar.MonthlyCalendar;
 /** Unit test for MonthlyCalendar */
 public class MonthlyCalendarTest {
 
-  /** Tests whether greater than the 7th of the month causes infinite looping. See: QUARTZ-636 */
+  /** Tests whether greater than the 7th of the month causes infinite looping. */
   @Test
   void testForInfiniteLoop() {
     MonthlyCalendar monthlyCalendar = new MonthlyCalendar();

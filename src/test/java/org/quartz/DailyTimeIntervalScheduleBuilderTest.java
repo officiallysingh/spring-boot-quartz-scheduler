@@ -67,6 +67,7 @@ public class DailyTimeIntervalScheduleBuilderTest {
         IllegalStateException.class, () -> ((OperableTrigger) trigger).computeFirstFireTime(null));
   }
 
+  @Test
   void testScheduleInMiddleOfDailyInterval() throws Exception {
 
     java.util.Calendar currTime = java.util.Calendar.getInstance();

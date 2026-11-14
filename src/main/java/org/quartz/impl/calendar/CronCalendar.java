@@ -69,13 +69,6 @@ public class CronCalendar extends BaseCalendar {
     this.cronExpression.setTimeZone(timeZone);
   }
 
-  @Override
-  public Object clone() {
-    CronCalendar clone = (CronCalendar) super.clone();
-    clone.cronExpression = new CronExpression(cronExpression);
-    return clone;
-  }
-
   /**
    * Returns the time zone for which the <code>CronExpression</code> of this <code>CronCalendar
    * </code> will be resolved.

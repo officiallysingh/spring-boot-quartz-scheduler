@@ -116,7 +116,7 @@ class CronDstTest {
     List<Instant> times = new ArrayList<>();
     Instant t = Instant.parse(after);
     for (int i = 0; i < count; i++) {
-      t = expression.getTimeAfter(t);
+      t = expression.getNextValidTimeAfter(t);
       times.add(t);
     }
     return times;

@@ -28,7 +28,6 @@ import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger.CompletedExecutionInstruction;
 import org.quartz.impl.JobExecutionContextImpl;
-import org.quartz.listeners.SchedulerListenerSupport;
 import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.TriggerFiredBundle;
 import org.slf4j.Logger;
@@ -57,7 +56,7 @@ import org.slf4j.MDC;
  * @see org.quartz.Trigger
  * @author James House
  */
-public class JobRunShell extends SchedulerListenerSupport implements Runnable {
+public class JobRunShell implements Runnable {
 
   /** MDC key of the executing job's key, as {@code group.name}. */
   public static final String MDC_JOB_KEY = "quartz.jobKey";
@@ -91,9 +90,6 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
   /** The scheduler handed to the job in its context. */
   protected Scheduler scheduler;
 
-  /** Set when the scheduler shuts down while the job runs. */
-  protected volatile boolean shutdownRequested = false;
-
   private final Logger log = LoggerFactory.getLogger(getClass());
 
   /*
@@ -123,12 +119,6 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
-  @Override
-  public void schedulerShuttingdown() {
-    requestShutdown();
-  }
-
-  @Override
   protected Logger getLog() {
     return log;
   }
@@ -165,13 +155,7 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
     this.jec = new JobExecutionContextImpl(scheduler, firedTriggerBundle, job);
   }
 
-  /** Note that the scheduler is shutting down; the running job is not interrupted. */
-  public void requestShutdown() {
-    shutdownRequested = true;
-  }
-
   public void run() {
-    qs.addInternalSchedulerListener(this);
     MDC.put(MDC_JOB_KEY, jec.getJobDetail().getKey().toString());
     MDC.put(MDC_TRIGGER_KEY, jec.getTrigger().getKey().toString());
     MDC.put(MDC_FIRE_INSTANCE_ID, jec.getFireInstanceId());
@@ -189,39 +173,18 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
         JobExecutionException jobExEx = null;
         Job job = jec.getJobInstance();
 
-        try {
-          begin();
-        } catch (SchedulerException se) {
-          qs.notifySchedulerListenersError(
-              "Error executing Job (" + jec.getJobDetail().getKey() + ": couldn't begin execution.",
-              se);
-          break;
-        }
-
         // notify job & trigger listeners...
         try {
           if (!notifyListenersBeginning(jec)) {
             break;
           }
         } catch (VetoedException ve) {
-          try {
-            CompletedExecutionInstruction instCode = trigger.executionComplete(jec, null);
-            qs.notifyJobStoreJobVetoed(trigger, jobDetail, instCode);
+          CompletedExecutionInstruction instCode = trigger.executionComplete(jec, null);
+          qs.notifyJobStoreJobVetoed(trigger, jobDetail, instCode);
 
-            // QTZ-205
-            // Even if trigger got vetoed, we still needs to check to see if it's the trigger's
-            // finalized run or not.
-            if (jec.getTrigger().getNextFireTime() == null) {
-              qs.notifySchedulerListenersFinalized(jec.getTrigger());
-            }
-
-            complete(true);
-          } catch (SchedulerException se) {
-            qs.notifySchedulerListenersError(
-                "Error during veto of Job ("
-                    + jec.getJobDetail().getKey()
-                    + ": couldn't finalize execution.",
-                se);
+          // even a vetoed firing may have been the trigger's last one
+          if (jec.getTrigger().getNextFireTime() == null) {
+            qs.notifySchedulerListenersFinalized(jec.getTrigger());
           }
           break;
         }
@@ -276,26 +239,6 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
         // update job/trigger or re-execute job
         if (instCode == CompletedExecutionInstruction.RE_EXECUTE_JOB) {
           jec.incrementRefireCount();
-          try {
-            complete(false);
-          } catch (SchedulerException se) {
-            qs.notifySchedulerListenersError(
-                "Error executing Job ("
-                    + jec.getJobDetail().getKey()
-                    + ": couldn't finalize execution.",
-                se);
-          }
-          continue;
-        }
-
-        try {
-          complete(true);
-        } catch (SchedulerException se) {
-          qs.notifySchedulerListenersError(
-              "Error executing Job ("
-                  + jec.getJobDetail().getKey()
-                  + ": couldn't finalize execution.",
-              se);
           continue;
         }
 
@@ -309,7 +252,6 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
       MDC.remove(MDC_TRIGGER_KEY);
       MDC.remove(MDC_FIRE_INSTANCE_ID);
       thread.setContextClassLoader(previousClassLoader);
-      qs.removeInternalSchedulerListener(this);
     }
   }
 
@@ -335,23 +277,6 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
   protected void executeJob(Job job, JobExecutionContextImpl context) throws JobExecutionException {
     job.execute(context);
   }
-
-  /**
-   * Called before each execution attempt, before the listeners are told; subclasses may start work
-   * here.
-   *
-   * @throws SchedulerException to abort the execution
-   */
-  protected void begin() throws SchedulerException {}
-
-  /**
-   * Called after each execution attempt.
-   *
-   * @param successfulExecution whether the attempt completed (a re-execution request counts as not
-   *     successful)
-   * @throws SchedulerException if completing fails; the scheduler listeners are told
-   */
-  protected void complete(boolean successfulExecution) throws SchedulerException {}
 
   // drops the references for the garbage collector; the shell is not used again
   /** Drop the references held for the execution, once it is over. */

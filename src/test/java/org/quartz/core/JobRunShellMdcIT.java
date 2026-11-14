@@ -59,7 +59,7 @@ class JobRunShellMdcIT extends AbstractMongoIT {
   void setUp() throws Exception {
     SEEN_BY_JOB.clear();
     SEEN_BY_LISTENER.clear();
-    pool = new SimpleThreadPool(1, Thread.NORM_PRIORITY);
+    pool = new SimpleThreadPool(1, "test_Worker");
     scheduler =
         StdSchedulerFactory.builder()
             .scheduler(TestSchedulers.scheduler().name("mdc").build())

@@ -28,8 +28,6 @@ import org.quartz.utils.Key;
  */
 public class NameMatcher<T extends Key<?>> extends StringMatcher<T> {
 
-  private static final long serialVersionUID = -33104959459613480L;
-
   /**
    * Create a matcher on key names; use the static factory methods.
    *

@@ -105,7 +105,7 @@ class GoldenBehaviourTest {
             List<Instant> out = new ArrayList<>();
             Instant t = start;
             for (int i = 0; i < 8; i++) {
-              t = ce.getTimeAfter(t);
+              t = ce.getNextValidTimeAfter(t);
               if (t == null) {
                 break;
               }
@@ -138,7 +138,7 @@ class GoldenBehaviourTest {
         "calendar-interval.tsv.gz",
         r -> {
           CalendarIntervalTriggerImpl t = new CalendarIntervalTriggerImpl();
-          t.setName("g");
+          t.setKey(new TriggerKey("g"));
           t.setStartTime(Instant.ofEpochMilli(Long.parseLong(r[3])));
           t.setRepeatIntervalUnit(IntervalUnit.valueOf(r[0]));
           t.setRepeatInterval(Integer.parseInt(r[1]));
@@ -156,7 +156,7 @@ class GoldenBehaviourTest {
         "daily-time-interval.tsv.gz",
         r -> {
           DailyTimeIntervalTriggerImpl t = new DailyTimeIntervalTriggerImpl();
-          t.setName("g");
+          t.setKey(new TriggerKey("g"));
           t.setTimeZone(ZoneId.of(r[0]));
           t.setStartTime(Instant.ofEpochMilli(Long.parseLong(r[1])));
           t.setStartTimeOfDay(timeOfDay(r[2]));
@@ -181,7 +181,7 @@ class GoldenBehaviourTest {
         "simple.tsv.gz",
         r -> {
           SimpleTriggerImpl t = new SimpleTriggerImpl();
-          t.setName("g");
+          t.setKey(new TriggerKey("g"));
           t.setStartTime(Instant.ofEpochMilli(Long.parseLong(r[0])));
           if (!"null".equals(r[1])) {
             t.setEndTime(Instant.ofEpochMilli(Long.parseLong(r[1])));

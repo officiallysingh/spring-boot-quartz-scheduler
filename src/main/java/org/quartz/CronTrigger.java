@@ -158,8 +158,6 @@ import java.time.ZoneId;
  */
 public interface CronTrigger extends Trigger {
 
-  long serialVersionUID = -8644953146451592766L;
-
   /**
    * Instructs the <code>{@link Scheduler}</code> that upon a mis-fire situation, the <code>
    * {@link CronTrigger}</code> wants to be fired now by <code>Scheduler</code>.

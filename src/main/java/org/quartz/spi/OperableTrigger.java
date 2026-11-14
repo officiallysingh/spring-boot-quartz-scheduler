@@ -21,10 +21,10 @@ public interface OperableTrigger extends MutableTrigger {
    * This method should not be used by the Quartz client.
    *
    * <p>Binds the trigger to a scheduler. {@code clock} becomes the trigger's source of "now": for
-   * {@link #getFireTimeAfter(Instant) getFireTimeAfter(null)}, {@link
-   * #updateAfterMisfire(Calendar)} and {@link #updateWithNewCalendar(Calendar, Duration)}. A {@code
-   * null} {@link #getStartTime() start time} becomes now by that clock, and a trigger whose time
-   * zone was not set explicitly (cron, calendar-interval, daily-time-interval) takes {@code
+   * {@link #getFireTimeAfter(Instant) getFireTimeAfter(null)}, {@link #updateAfterMisfire(Calendar,
+   * Instant)} and {@link #updateWithNewCalendar(Calendar, Duration, Instant)}. A {@code null}
+   * {@link #getStartTime() start time} becomes now by that clock, and a trigger whose time zone was
+   * not set explicitly (cron, calendar-interval, daily-time-interval) takes {@code
    * defaultTimeZone}; both stick, and are stored with the trigger. The scheduler binds a trigger
    * when it is scheduled, before {@link #validate()} and {@link #computeFirstFireTime(Calendar)};
    * the job store binds every trigger it loads. Binding again only replaces the clock.
@@ -86,18 +86,11 @@ public interface OperableTrigger extends MutableTrigger {
    *
    * <p>The implementation should update the <code>Trigger</code>'s state based on the
    * MISFIRE_INSTRUCTION_XXX that was selected when the <code>Trigger</code> was created.
-   */
-  void updateAfterMisfire(@Nullable Calendar cal);
-
-  /**
-   * Updates this trigger after a misfire using the scheduler's current time.
    *
-   * <p>The default delegates to the original method for compatibility with custom trigger
-   * implementations. Implementations that calculate from "now" should override this method.
+   * @param cal the trigger's calendar, if it has one
+   * @param now the scheduler's current time
    */
-  default void updateAfterMisfire(@Nullable Calendar cal, Instant now) {
-    updateAfterMisfire(cal);
-  }
+  void updateAfterMisfire(@Nullable Calendar cal, Instant now);
 
   /**
    * This method should not be used by the Quartz client.
@@ -108,21 +101,11 @@ public interface OperableTrigger extends MutableTrigger {
    * version of the associated <code>Calendar</code> (the state should be updated so that it's next
    * fire time is appropriate given the Calendar's new settings).
    *
-   * @param cal
+   * @param cal the new version of the calendar
+   * @param misfireThreshold how late a fire time may be before it counts as misfired
+   * @param now the scheduler's current time
    */
-  void updateWithNewCalendar(@Nullable Calendar cal, Duration misfireThreshold);
-
-  /**
-   * Updates this trigger after its calendar changes, using the scheduler's current time when
-   * applying the misfire threshold.
-   *
-   * <p>The default delegates to the original method for compatibility with custom trigger
-   * implementations.
-   */
-  default void updateWithNewCalendar(
-      @Nullable Calendar cal, Duration misfireThreshold, Instant now) {
-    updateWithNewCalendar(cal, misfireThreshold);
-  }
+  void updateWithNewCalendar(@Nullable Calendar cal, Duration misfireThreshold, Instant now);
 
   /**
    * Validates whether the properties of the <code>JobDetail</code> are valid for submission into a

@@ -20,7 +20,6 @@ package org.quartz.spring.boot.autoconfigure;
  * Supported Quartz {@code JobStore} types.
  *
  * @author Vedran Pavic
- * @since 4.0.0
  */
 public enum JobStoreType {
 

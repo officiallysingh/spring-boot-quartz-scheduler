@@ -32,13 +32,13 @@ import org.jspecify.annotations.Nullable;
  * minutes except on Sundays&quot; could be implemented with a <code>SimpleTrigger</code> and a
  * <code>WeeklyCalendar</code> which excludes Sundays)
  *
- * <p>Implementations MUST take care of being properly <code>Cloneable</code> and <code>Serializable
- * </code>.
+ * <p>Implementations must be properly <code>Serializable</code>: the job stores keep calendars
+ * Java-serialized.
  *
  * @author James House
  * @author Juergen Donnerstag
  */
-public interface Calendar extends java.io.Serializable, java.lang.Cloneable {
+public interface Calendar extends java.io.Serializable {
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -47,9 +47,6 @@ public interface Calendar extends java.io.Serializable, java.lang.Cloneable {
    *
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
-
-  /** Unused; kept from Quartz for compatibility. */
-  int MONTH = 0;
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -84,11 +81,4 @@ public interface Calendar extends java.io.Serializable, java.lang.Cloneable {
    * Quartz.
    */
   void setDescription(@Nullable String description);
-
-  /**
-   * A copy of this calendar, including a copy of its base calendar.
-   *
-   * @return the copy
-   */
-  Object clone();
 }

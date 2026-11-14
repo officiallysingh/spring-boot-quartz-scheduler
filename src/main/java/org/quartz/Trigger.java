@@ -40,15 +40,12 @@ import org.jspecify.annotations.Nullable;
  * @see TriggerBuilder
  * @see JobDataMap
  * @see JobExecutionContext
- * @see TriggerUtils
  * @see SimpleTrigger
  * @see CronTrigger
  * @see CalendarIntervalTrigger
  * @author James House
  */
 public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
-
-  long serialVersionUID = -3904243490805975570L;
 
   /** The state of a trigger in the job store, as reported by {@link Scheduler#getTriggerState}. */
   enum TriggerState {
@@ -105,10 +102,12 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
    * for the <code>updateAfterMisfire()</code> method on the particular <code>Trigger</code>
    * implementation you are using.
    *
-   * @see org.quartz.impl.triggers.SimpleTriggerImpl#updateAfterMisfire(Calendar)
-   * @see org.quartz.impl.triggers.CronTriggerImpl#updateAfterMisfire(Calendar)
-   * @see org.quartz.impl.triggers.DailyTimeIntervalTriggerImpl#updateAfterMisfire(Calendar)
-   * @see org.quartz.impl.triggers.CalendarIntervalTriggerImpl#updateAfterMisfire(Calendar)
+   * @see org.quartz.impl.triggers.SimpleTriggerImpl#updateAfterMisfire(Calendar, java.time.Instant)
+   * @see org.quartz.impl.triggers.CronTriggerImpl#updateAfterMisfire(Calendar, java.time.Instant)
+   * @see org.quartz.impl.triggers.DailyTimeIntervalTriggerImpl#updateAfterMisfire(Calendar,
+   *     java.time.Instant)
+   * @see org.quartz.impl.triggers.CalendarIntervalTriggerImpl#updateAfterMisfire(Calendar,
+   *     java.time.Instant)
    */
   int MISFIRE_INSTRUCTION_SMART_POLICY = 0;
 
@@ -210,9 +209,6 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
    *
    * <p>The value returned is not guaranteed to be valid until after the <code>Trigger</code> has
    * been added to the scheduler.
-   *
-   * @see TriggerUtils#computeFireTimesBetween(org.quartz.spi.OperableTrigger, Calendar,
-   *     java.time.Instant, java.time.Instant)
    */
   @Nullable Instant getNextFireTime();
 
